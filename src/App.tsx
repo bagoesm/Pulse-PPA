@@ -48,6 +48,7 @@ const App: React.FC = () => {
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [editingProject, setEditingProject] = useState<ProjectDefinition | null>(null);
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('Board');
   
@@ -785,13 +786,62 @@ const App: React.FC = () => {
       }
   };
 
-  const handleSaveProject = async (newProject: ProjectDefinition) => {
-      const { data, error } = await supabase.from('projects').insert([{
-          name: newProject.name, manager: newProject.manager, description: newProject.description
-      }]).select().single();
-      
-      if (data && !error) {
-          setProjects(prev => [...prev, data]);
+  const handleSaveProject = async (projectData: ProjectDefinition) => {
+      try {
+          if (editingProject) {
+              // Update existing project
+              const { data, error } = await supabase
+                  .from('projects')
+                  .update({
+                      name: projectData.name,
+                      manager: projectData.manager,
+                      description: projectData.description,
+                      icon: projectData.icon,
+                      color: projectData.color,
+                      target_live_date: projectData.targetLiveDate,
+                      status: projectData.status
+                  })
+                  .eq('id', editingProject.id)
+                  .select()
+                  .single();
+              
+              if (data && !error) {
+                  setProjects(prev => prev.map(p => p.id === editingProject.id ? data : p));
+                  showNotification('Project Berhasil Diupdate!', `Project "${projectData.name}" berhasil diperbarui.`, 'success');
+              } else {
+                  showNotification('Gagal Update Project', error?.message || 'Terjadi kesalahan saat update project.', 'error');
+              }
+          } else {
+              // Create new project
+              const { data, error } = await supabase
+                  .from('projects')
+                  .insert([{
+                      name: projectData.name,
+                      manager: projectData.manager,
+                      description: projectData.description,
+                      icon: projectData.icon,
+                      color: projectData.color,
+                      target_live_date: projectData.targetLiveDate,
+                      status: projectData.status
+                  }])
+                  .select()
+                  .single();
+              
+              if (data && !error) {
+                  setProjects(prev => [...prev, data]);
+                  showNotification('Project Berhasil Dibuat!', `Project "${projectData.name}" berhasil ditambahkan.`, 'success');
+              } else {
+                  showNotification('Gagal Buat Project', error?.message || 'Terjadi kesalahan saat membuat project.', 'error');
+              }
+          }
+          
+          // Close modal and clear editing state
+          setIsProjectModalOpen(false);
+          setEditingProject(null);
+          
+      } catch (error: any) {
+          console.error('Error saving project:', error);
+          showNotification('Kesalahan Tidak Terduga', `Terjadi kesalahan: ${error.message}`, 'error');
       }
   }
 
@@ -1187,6 +1237,7 @@ const App: React.FC = () => {
             onTaskClick={handleEditClick}
             onEditProject={(project) => {
               // Set editing project and open modal
+              setEditingProject(project);
               setIsProjectModalOpen(true);
             }}
             onDeleteProject={async (projectId) => {
@@ -1208,7 +1259,10 @@ const App: React.FC = () => {
                 }
               }
             }}
-            onCreateProject={() => setIsProjectModalOpen(true)}
+            onCreateProject={() => {
+              setEditingProject(null);
+              setIsProjectModalOpen(true);
+            }}
             canManageProjects={currentUser?.role === 'Super Admin' || currentUser?.role === 'Atasan'}
             refreshTrigger={projectRefreshTrigger}
             fetchProjects={fetchProjects}
@@ -1323,9 +1377,13 @@ const App: React.FC = () => {
 
       <AddProjectModal
         isOpen={isProjectModalOpen}
-        onClose={() => setIsProjectModalOpen(false)}
+        onClose={() => {
+          setIsProjectModalOpen(false);
+          setEditingProject(null);
+        }}
         onSave={handleSaveProject}
         users={taskAssignableUsers}
+        editingProject={editingProject}
       />
 
       <StatusModal
