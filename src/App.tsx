@@ -419,8 +419,6 @@ const App: React.FC = () => {
       
       // Clear notification state to prevent delayed notifications
       hideNotification();
-      
-      showNotification('Logout Berhasil', 'Anda telah logout dari sistem.', 'success');
     } catch (error: any) {
       console.error('Logout error:', error);
       // Force logout even if there's an error
@@ -432,8 +430,6 @@ const App: React.FC = () => {
       
       // Clear notification state
       hideNotification();
-      
-      showNotification('Force Logout', 'Session telah dibersihkan.', 'warning');
     }
   };
 
