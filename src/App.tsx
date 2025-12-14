@@ -822,27 +822,46 @@ const App: React.FC = () => {
   };
 
   const handleSaveProject = async (projectData: ProjectDefinition) => {
+      console.log('Received project data for save:', projectData);
+      console.log('Editing project:', editingProject);
+      
       try {
           if (editingProject) {
               // Update existing project
+              const updateData = {
+                  name: projectData.name,
+                  manager: projectData.manager,
+                  description: projectData.description,
+                  icon: projectData.icon,
+                  color: projectData.color,
+                  target_live_date: projectData.targetLiveDate,
+                  status: projectData.status
+              };
+              console.log('Updating project with data:', updateData);
+              
               const { data, error } = await supabase
                   .from('projects')
-                  .update({
-                      name: projectData.name,
-                      manager: projectData.manager,
-                      description: projectData.description,
-                      icon: projectData.icon,
-                      color: projectData.color,
-                      target_live_date: projectData.targetLiveDate,
-                      status: projectData.status
-                  })
+                  .update(updateData)
                   .eq('id', editingProject.id)
                   .select()
                   .single();
               
               if (data && !error) {
-                  setProjects(prev => prev.map(p => p.id === editingProject.id ? data : p));
+                  // Map database fields to frontend format
+                  const mappedProject: ProjectDefinition = {
+                      id: data.id,
+                      name: data.name,
+                      manager: data.manager,
+                      description: data.description,
+                      icon: data.icon,
+                      color: data.color,
+                      targetLiveDate: data.target_live_date,
+                      status: data.status
+                  };
+                  setProjects(prev => prev.map(p => p.id === editingProject.id ? mappedProject : p));
                   showNotification('Project Berhasil Diupdate!', `Project "${projectData.name}" berhasil diperbarui.`, 'success');
+                  // Trigger refresh for ProjectOverview
+                  setProjectRefreshTrigger(prev => prev + 1);
               } else {
                   showNotification('Gagal Update Project', error?.message || 'Terjadi kesalahan saat update project.', 'error');
               }
@@ -863,8 +882,21 @@ const App: React.FC = () => {
                   .single();
               
               if (data && !error) {
-                  setProjects(prev => [...prev, data]);
+                  // Map database fields to frontend format
+                  const mappedProject: ProjectDefinition = {
+                      id: data.id,
+                      name: data.name,
+                      manager: data.manager,
+                      description: data.description,
+                      icon: data.icon,
+                      color: data.color,
+                      targetLiveDate: data.target_live_date,
+                      status: data.status
+                  };
+                  setProjects(prev => [...prev, mappedProject]);
                   showNotification('Project Berhasil Dibuat!', `Project "${projectData.name}" berhasil ditambahkan.`, 'success');
+                  // Trigger refresh for ProjectOverview
+                  setProjectRefreshTrigger(prev => prev + 1);
               } else {
                   showNotification('Gagal Buat Project', error?.message || 'Terjadi kesalahan saat membuat project.', 'error');
               }

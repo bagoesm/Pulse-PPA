@@ -128,6 +128,7 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ isOpen, onClose, onSa
       status: formData.status,
     };
 
+    console.log('Submitting project data:', projectData);
     onSave(projectData);
     onClose();
   };

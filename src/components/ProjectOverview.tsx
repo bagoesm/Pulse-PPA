@@ -33,7 +33,8 @@ import {
   Layers,
   Edit3,
   Trash2,
-  Plus
+  Plus,
+  RefreshCw
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';       // for generating signed URLs
 
@@ -48,6 +49,8 @@ interface ProjectOverviewProps {
   fetchProjects: (filters: any) => Promise<any>;
   fetchProjectTasks: (projectId: string, filters: any) => Promise<any>;
   fetchUniqueManagers: () => Promise<string[]>;
+  // Callback to force refresh from parent
+  onRefreshNeeded?: () => void;
 }
 
 const ITEMS_PER_PAGE = 10;
@@ -62,7 +65,8 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
   refreshTrigger,
   fetchProjects,
   fetchProjectTasks,
-  fetchUniqueManagers
+  fetchUniqueManagers,
+  onRefreshNeeded
 }) => {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -318,10 +322,14 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
       if (selectedProjectId) {
         loadProjectTasks();
       }
+      // Refresh project list if we're in project list view
+      if (!selectedProjectId) {
+        loadProjects();
+      }
       // Clear and reload project stats cache
       setProjectStatsCache({});
     }
-  }, [refreshTrigger, selectedProjectId, loadProjectTasks]);
+  }, [refreshTrigger, selectedProjectId, loadProjectTasks, loadProjects]);
 
   // Load project stats when projects change
   useEffect(() => {
@@ -349,6 +357,33 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
     }
   }, [projects, getProjectStats]);
 
+  // Force refresh project stats when refreshTrigger changes
+  useEffect(() => {
+    if (refreshTrigger && refreshTrigger > 0) {
+      // Force reload all project stats
+      const reloadAllStats = async () => {
+        const newStatsCache: Record<string, any> = {};
+        
+        for (const project of projects) {
+          try {
+            const stats = await getProjectStats(project.id);
+            newStatsCache[project.id] = stats;
+          } catch (error) {
+            newStatsCache[project.id] = { 
+              total: 0, completed: 0, progress: 0, team: [], documents: 0 
+            };
+          }
+        }
+        
+        setProjectStatsCache(newStatsCache);
+      };
+
+      if (projects.length > 0) {
+        reloadAllStats();
+      }
+    }
+  }, [refreshTrigger, projects, getProjectStats]);
+
   // ---------------------------------------------------------------------------
   // PROJECT LIST VIEW
   // ---------------------------------------------------------------------------
@@ -361,15 +396,32 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
             <p className="text-slate-500 text-sm">Kelola dan pantau project tim</p>
           </div>
           
-          {canManageProjects && (
+          <div className="flex items-center gap-3">
+            {/* Refresh Button */}
             <button
-              onClick={onCreateProject}
-              className="flex items-center gap-2 bg-gov-600 text-white px-4 py-2.5 rounded-lg font-medium hover:bg-gov-700 transition-colors shadow-sm"
+              onClick={() => {
+                loadProjects();
+                setProjectStatsCache({});
+                onRefreshNeeded?.();
+              }}
+              disabled={projectsLoading}
+              className="flex items-center gap-2 px-3 py-2.5 border border-slate-300 text-slate-600 rounded-lg font-medium hover:bg-slate-50 transition-colors shadow-sm disabled:opacity-50"
+              title="Refresh Data"
             >
-              <Plus size={16} />
-              Buat Project Baru
+              <RefreshCw size={16} className={projectsLoading ? 'animate-spin' : ''} />
+              Refresh
             </button>
-          )}
+            
+            {canManageProjects && (
+              <button
+                onClick={onCreateProject}
+                className="flex items-center gap-2 bg-gov-600 text-white px-4 py-2.5 rounded-lg font-medium hover:bg-gov-700 transition-colors shadow-sm"
+              >
+                <Plus size={16} />
+                Buat Project Baru
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Search and Filter Section */}
@@ -743,7 +795,26 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
           </div>
         </div>
 
-        <div className="flex gap-6">
+        <div className="flex items-center gap-6">
+          {/* Refresh Button */}
+          <button
+            onClick={() => {
+              loadProjectTasks();
+              setProjectStatsCache(prev => {
+                const newCache = { ...prev };
+                delete newCache[selectedProjectId || ''];
+                return newCache;
+              });
+              onRefreshNeeded?.();
+            }}
+            disabled={tasksLoading}
+            className="flex items-center gap-2 px-3 py-2 border border-slate-300 text-slate-600 rounded-lg font-medium hover:bg-slate-50 transition-colors shadow-sm disabled:opacity-50"
+            title="Refresh Data"
+          >
+            <RefreshCw size={16} className={tasksLoading ? 'animate-spin' : ''} />
+            Refresh
+          </button>
+          
           <div className="text-right">
             <p className="text-xs text-slate-400 font-semibold uppercase">Project Manager</p>
             <p className="font-bold text-slate-700">{selectedProject.manager}</p>
