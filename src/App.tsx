@@ -32,6 +32,12 @@ const App: React.FC = () => {
   const [documentTemplates, setDocumentTemplates] = useState<DocumentTemplate[]>([]);
   const [userStatuses, setUserStatuses] = useState<UserStatus[]>([]);
   
+  // Filtered users (exclude Super Admin from task assignments and dashboard)
+  const taskAssignableUsers = useMemo(() => 
+    allUsers.filter(user => user.role !== 'Super Admin'), 
+    [allUsers]
+  );
+  
   // Master Data State
   const [jabatanList, setJabatanList] = useState<string[]>([]);
   const [subCategories, setSubCategories] = useState<string[]>([]);
@@ -1150,7 +1156,7 @@ const App: React.FC = () => {
                             onChange={(e) => setFilters(prev => ({...prev, pic: e.target.value}))}
                         >
                             <option value="All">Semua PIC</option>
-                            {allUsers.map(u => <option key={u.id} value={u.name}>{u.name}</option>)}
+                            {taskAssignableUsers.map(u => <option key={u.id} value={u.name}>{u.name}</option>)}
                         </select>
 
                         <select 
@@ -1170,7 +1176,7 @@ const App: React.FC = () => {
         {activeTab === 'Dashboard' ? (
           <Dashboard 
             tasks={tasks} 
-            users={allUsers} 
+            users={taskAssignableUsers} 
             userStatuses={userStatuses}
             onCreateStatus={handleCreateStatus}
             onDeleteStatus={handleDeleteStatus}
@@ -1292,7 +1298,7 @@ const App: React.FC = () => {
                     <TimelineView 
                         tasks={filteredTasks} 
                         projects={projects}
-                        users={allUsers}
+                        users={taskAssignableUsers}
                         onTaskClick={handleEditClick} 
                     />
                 )}
@@ -1311,7 +1317,7 @@ const App: React.FC = () => {
         canEdit={editingTask ? checkEditPermission(editingTask) : true}
         canDelete={editingTask ? checkDeletePermission(editingTask) : false}
         projects={projects}
-        users={allUsers}
+        users={taskAssignableUsers}
         subCategories={subCategories}
       />
 
@@ -1319,7 +1325,7 @@ const App: React.FC = () => {
         isOpen={isProjectModalOpen}
         onClose={() => setIsProjectModalOpen(false)}
         onSave={handleSaveProject}
-        users={allUsers}
+        users={taskAssignableUsers}
       />
 
       <StatusModal
