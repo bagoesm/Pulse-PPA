@@ -14,7 +14,8 @@ import {
   MoreHorizontal,
   Database,
   LogOut,
-  MessageSquarePlus
+  MessageSquarePlus,
+  Code
 } from 'lucide-react';
 import { SIDEBAR_ITEMS, User } from '../../types';
 
@@ -40,7 +41,8 @@ const IconMap: Record<string, React.ElementType> = {
   'FolderOpen': FolderOpen,
   'Activity': Activity,
   'MoreHorizontal': MoreHorizontal,
-  'MessageSquarePlus': MessageSquarePlus
+  'MessageSquarePlus': MessageSquarePlus,
+  'Code': Code
 };
 
 const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser, users, onSwitchUser, onLogout }) => {
@@ -77,6 +79,22 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser,
             </button>
           );
         })}
+
+        {/* Feedback Section */}
+        <div className="pt-4 pb-2 px-4">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Feedback</p>
+        </div>
+        <button
+          onClick={() => setActiveTab('Saran Masukan')}
+          className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-colors duration-200 ${
+            activeTab === 'Saran Masukan' 
+              ? 'bg-emerald-50 text-emerald-700' 
+              : 'text-slate-600 hover:bg-emerald-50 hover:text-emerald-700'
+          }`}
+        >
+          <MessageSquarePlus size={18} className={activeTab === 'Saran Masukan' ? 'text-emerald-600' : 'text-slate-400'} />
+          Saran Masukan
+        </button>
 
         {/* Super Admin Menu */}
         {currentUser.role === 'Super Admin' && (

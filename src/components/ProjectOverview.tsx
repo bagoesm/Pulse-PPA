@@ -1,7 +1,7 @@
 // src/components/ProjectOverview.tsx
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { Task, ProjectDefinition, Status, Priority, User } from '../../types';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { Task, ProjectDefinition, Status, Priority, ProjectStatus } from '../../types';
 import { 
   Briefcase, 
   Users, 
@@ -11,102 +11,343 @@ import {
   CheckCircle2, 
   AlertTriangle,
   Download,
-  Paperclip,
   ChevronLeft,
   List,
-  Search
+  Search,
+  Code, 
+  Database, 
+  Globe, 
+  Smartphone, 
+  Monitor, 
+  Server, 
+  Cloud, 
+  Shield, 
+  Zap, 
+  Target, 
+  Rocket, 
+  Star, 
+  Heart, 
+  Lightbulb,
+  Settings,
+  BarChart3,
+  Layers,
+  Edit3,
+  Trash2,
+  Plus
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';       // for generating signed URLs
 
 interface ProjectOverviewProps {
-  projects: ProjectDefinition[];
-  tasks: Task[];
-  users: User[];   // <-- Wajib sekarang!
+  onTaskClick?: (task: Task) => void;
+  onEditProject?: (project: ProjectDefinition) => void;
+  onDeleteProject?: (projectId: string) => void;
+  onCreateProject?: () => void;
+  canManageProjects?: boolean;
+  refreshTrigger?: number; // Trigger to refresh data after task updates
+  // New props for server-side data fetching
+  fetchProjects: (filters: any) => Promise<any>;
+  fetchProjectTasks: (projectId: string, filters: any) => Promise<any>;
+  fetchUniqueManagers: () => Promise<string[]>;
 }
 
 const ITEMS_PER_PAGE = 10;
+const PROJECTS_PER_PAGE = 12; // For project list pagination
 
-const ProjectOverview: React.FC<ProjectOverviewProps> = ({ projects, tasks, users }) => {
+const ProjectOverview: React.FC<ProjectOverviewProps> = ({ 
+  onTaskClick, 
+  onEditProject, 
+  onDeleteProject, 
+  onCreateProject, 
+  canManageProjects = false,
+  refreshTrigger,
+  fetchProjects,
+  fetchProjectTasks,
+  fetchUniqueManagers
+}) => {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [projectPage, setProjectPage] = useState(1);
 
-  // Filters
+  // Server-side data state
+  const [projects, setProjects] = useState<ProjectDefinition[]>([]);
+  const [projectsLoading, setProjectsLoading] = useState(false);
+  const [projectsTotalCount, setProjectsTotalCount] = useState(0);
+  const [projectsTotalPages, setProjectsTotalPages] = useState(0);
+
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [tasksLoading, setTasksLoading] = useState(false);
+  const [tasksTotalCount, setTasksTotalCount] = useState(0);
+  const [tasksTotalPages, setTasksTotalPages] = useState(0);
+
+  const [uniqueManagers, setUniqueManagers] = useState<string[]>([]);
+
+  // Icon mapping for projects
+  const iconMap: Record<string, React.ElementType> = {
+    Briefcase, Code, Database, Globe, Smartphone, Monitor, Server, Cloud, Shield, 
+    Zap, Target, Rocket, Star, Heart, Lightbulb, Settings, Users, FileText, BarChart3, Layers
+  };
+
+  // Color theme mapping
+  const getColorClasses = (color: string = 'blue') => {
+    const colorMap: Record<string, { bg: string; text: string; ring: string; hover: string }> = {
+      blue: { bg: 'bg-blue-100', text: 'text-blue-700', ring: 'ring-blue-200', hover: 'hover:bg-blue-50' },
+      green: { bg: 'bg-emerald-100', text: 'text-emerald-700', ring: 'ring-emerald-200', hover: 'hover:bg-emerald-50' },
+      purple: { bg: 'bg-purple-100', text: 'text-purple-700', ring: 'ring-purple-200', hover: 'hover:bg-purple-50' },
+      orange: { bg: 'bg-orange-100', text: 'text-orange-700', ring: 'ring-orange-200', hover: 'hover:bg-orange-50' },
+      red: { bg: 'bg-red-100', text: 'text-red-700', ring: 'ring-red-200', hover: 'hover:bg-red-50' },
+      indigo: { bg: 'bg-indigo-100', text: 'text-indigo-700', ring: 'ring-indigo-200', hover: 'hover:bg-indigo-50' },
+      pink: { bg: 'bg-pink-100', text: 'text-pink-700', ring: 'ring-pink-200', hover: 'hover:bg-pink-50' },
+      teal: { bg: 'bg-teal-100', text: 'text-teal-700', ring: 'ring-teal-200', hover: 'hover:bg-teal-50' },
+    };
+    return colorMap[color] || colorMap.blue;
+  };
+
+  // Filters for tasks (in project detail view)
   const [taskSearch, setTaskSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<Status | 'All'>('All');
   const [priorityFilter, setPriorityFilter] = useState<Priority | 'All'>('All');
+
+  // Filters for projects (in project list view)
+  const [projectSearch, setProjectSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [projectStatusFilter, setProjectStatusFilter] = useState<ProjectStatus | 'All'>('All');
+  const [managerFilter, setManagerFilter] = useState<string | 'All'>('All');
+
+  // Debounce search input to reduce filtering frequency
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(projectSearch);
+    }, 300); // 300ms delay
+
+    return () => clearTimeout(timer);
+  }, [projectSearch]);
 
   useEffect(() => {
     setCurrentPage(1);
   }, [selectedProjectId, taskSearch, statusFilter, priorityFilter]);
 
   // ---------------------------------------------------------------------------
-  // Project-level statistics
+  // Project-level statistics (now uses server-side data)
   // ---------------------------------------------------------------------------
-  const getProjectStats = (projectId: string) => {
-    const projectTasks = tasks.filter(t => t.projectId === projectId);
+  const getProjectStats = useCallback(async (projectId: string) => {
+    try {
+      // Fetch all tasks for this project to calculate stats
+      const result = await fetchProjectTasks(projectId, { limit: 1000 }); // Get all tasks for stats
+      const projectTasks = result.tasks;
 
-    const total = projectTasks.length;
-    const completed = projectTasks.filter(t => t.status === Status.Done).length;
+      const total = projectTasks.length;
+      const completed = projectTasks.filter(t => t.status === Status.Done).length;
+      const progress = total === 0 ? 0 : Math.round((completed / total) * 100);
+      const team = Array.from(new Set(projectTasks.map(t => t.pic)));
+      const documents = projectTasks.flatMap(t => t.attachments || []).length;
 
-    const progress = total === 0 ? 0 : Math.round((completed / total) * 100);
+      return { total, completed, progress, team, documents, projectTasks };
+    } catch (error) {
+      return { total: 0, completed: 0, progress: 0, team: [], documents: 0, projectTasks: [] };
+    }
+  }, [fetchProjectTasks]);
 
-    // Unique team PIC (PIC = task.pic)
-    const team = Array.from(new Set(projectTasks.map(t => t.pic)));
+  // Cache project stats to avoid repeated API calls
+  const [projectStatsCache, setProjectStatsCache] = useState<Record<string, any>>({});
 
-    const documents = projectTasks.flatMap(t => t.attachments || []).length;
-
-    return { total, completed, progress, team, documents, projectTasks };
-  };
-
-  const getMemberStressInProject = (pic: string, projectTasks: Task[]) => {
+  const getMemberWorkloadInProject = (pic: string, projectTasks: Task[]) => {
     const active = projectTasks.filter(t => t.pic === pic && t.status !== Status.Done);
 
-    let score = 0;
+    // Hitung poin berdasarkan prioritas
+    let workloadPoints = 0;
+    let urgentCount = 0;
+    let highCount = 0;
+    let mediumCount = 0;
+    let lowCount = 0;
+
     active.forEach(t => {
-      if (t.priority === Priority.Urgent) score += 4;
-      else if (t.priority === Priority.High) score += 3;
-      else if (t.priority === Priority.Medium) score += 2;
-      else score += 1;
+      if (t.priority === Priority.Urgent) {
+        workloadPoints += 4;
+        urgentCount++;
+      } else if (t.priority === Priority.High) {
+        workloadPoints += 3;
+        highCount++;
+      } else if (t.priority === Priority.Medium) {
+        workloadPoints += 2;
+        mediumCount++;
+      } else {
+        workloadPoints += 1;
+        lowCount++;
+      }
     });
 
-    return { score, taskCount: active.length };
+    return { 
+      workloadPoints, 
+      taskCount: active.length,
+      breakdown: { urgentCount, highCount, mediumCount, lowCount }
+    };
   };
 
-  const getStressLabel = (score: number) => {
-    if (score === 0) return { label: 'Idle', color: 'bg-slate-100 text-slate-500' };
-    if (score < 4) return { label: 'Low', color: 'bg-emerald-100 text-emerald-700' };
-    if (score < 8) return { label: 'Medium', color: 'bg-blue-100 text-blue-700' };
-    if (score < 12) return { label: 'High', color: 'bg-orange-100 text-orange-700' };
-    return { label: 'Overload', color: 'bg-red-100 text-red-700' };
+  const getWorkloadLabel = (points: number, taskCount: number) => {
+    if (points === 0) return { 
+      label: 'Tidak Ada Tugas', 
+      color: 'bg-slate-100 text-slate-500',
+      description: 'Tidak ada task aktif'
+    };
+    if (points <= 3) return { 
+      label: 'Ringan', 
+      color: 'bg-emerald-100 text-emerald-700',
+      description: `${taskCount} task (${points} poin)`
+    };
+    if (points <= 8) return { 
+      label: 'Sedang', 
+      color: 'bg-blue-100 text-blue-700',
+      description: `${taskCount} task (${points} poin)`
+    };
+    if (points <= 15) return { 
+      label: 'Berat', 
+      color: 'bg-orange-100 text-orange-700',
+      description: `${taskCount} task (${points} poin)`
+    };
+    return { 
+      label: 'Sangat Berat', 
+      color: 'bg-red-100 text-red-700',
+      description: `${taskCount} task (${points} poin)`
+    };
   };
 
-  const selectedProject = projects.find(p => p.id === selectedProjectId);
-  const selectedStats = selectedProjectId ? getProjectStats(selectedProjectId) : null;
+  // selectedProject and selectedStats are defined later in the project detail view
 
   // ---------------------------------------------------------------------------
-  // Tasks Filtering + Pagination
+  // Tasks Data (SERVER-SIDE)
   // ---------------------------------------------------------------------------
-  const allProjectTasks = selectedStats?.projectTasks ?? [];
+  // Tasks are now filtered and paginated on the server
+  // tasks state contains the current page of filtered tasks
+  // tasksTotalPages contains the total number of pages
 
-  const filteredProjectTasks = useMemo(() => {
-    return allProjectTasks.filter(t => {
-      const matchSearch =
-        t.title.toLowerCase().includes(taskSearch.toLowerCase()) ||
-        t.pic.toLowerCase().includes(taskSearch.toLowerCase());
+  // ---------------------------------------------------------------------------
+  // PROJECT DATA PROCESSING (SERVER-SIDE)
+  // ---------------------------------------------------------------------------
+  
+  // Projects are now filtered and paginated on the server
+  // No client-side filtering needed - data comes pre-filtered from API
 
-      const matchStatus = statusFilter === 'All' || t.status === statusFilter;
-      const matchPriority = priorityFilter === 'All' || t.priority === priorityFilter;
+  // Reset project page when filters change
+  useEffect(() => {
+    setProjectPage(1);
+  }, [debouncedSearch, projectStatusFilter, managerFilter]);
 
-      return matchSearch && matchStatus && matchPriority;
-    });
-  }, [allProjectTasks, taskSearch, statusFilter, priorityFilter]);
+  // Load projects from server
+  const loadProjects = useCallback(async () => {
+    setProjectsLoading(true);
+    try {
+      const result = await fetchProjects({
+        search: debouncedSearch,
+        status: projectStatusFilter,
+        manager: managerFilter,
+        page: projectPage,
+        limit: PROJECTS_PER_PAGE
+      });
+      
+      setProjects(result.projects);
+      setProjectsTotalCount(result.totalCount);
+      setProjectsTotalPages(result.totalPages);
+    } catch (error) {
+      setProjects([]);
+      setProjectsTotalCount(0);
+      setProjectsTotalPages(0);
+    } finally {
+      setProjectsLoading(false);
+    }
+  }, [fetchProjects, debouncedSearch, projectStatusFilter, managerFilter, projectPage]);
 
-  const totalPages = Math.ceil(filteredProjectTasks.length / ITEMS_PER_PAGE);
+  // Load tasks for selected project
+  const loadProjectTasks = useCallback(async () => {
+    if (!selectedProjectId) return;
+    
+    setTasksLoading(true);
+    try {
+      const result = await fetchProjectTasks(selectedProjectId, {
+        search: taskSearch,
+        status: statusFilter,
+        priority: priorityFilter,
+        page: currentPage,
+        limit: ITEMS_PER_PAGE
+      });
+      
+      setTasks(result.tasks);
+      setTasksTotalCount(result.totalCount);
+      setTasksTotalPages(result.totalPages);
+    } catch (error) {
+      setTasks([]);
+      setTasksTotalCount(0);
+      setTasksTotalPages(0);
+    } finally {
+      setTasksLoading(false);
+    }
+  }, [fetchProjectTasks, selectedProjectId, taskSearch, statusFilter, priorityFilter, currentPage]);
 
-  const paginatedTasks = filteredProjectTasks.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
-  );
+  // Load unique managers for filter
+  const loadUniqueManagers = useCallback(async () => {
+    try {
+      const managers = await fetchUniqueManagers();
+      setUniqueManagers(managers);
+    } catch (error) {
+      setUniqueManagers([]);
+    }
+  }, [fetchUniqueManagers]);
+
+  // Load projects when filters change
+  useEffect(() => {
+    if (!selectedProjectId) {
+      loadProjects();
+    }
+  }, [loadProjects, selectedProjectId]);
+
+  // Load tasks when project is selected or filters change
+  useEffect(() => {
+    if (selectedProjectId) {
+      loadProjectTasks();
+    }
+  }, [loadProjectTasks, selectedProjectId]);
+
+  // Load managers on mount
+  useEffect(() => {
+    loadUniqueManagers();
+  }, [loadUniqueManagers]);
+
+  // Refresh data when tasks are updated
+  useEffect(() => {
+    if (refreshTrigger && refreshTrigger > 0) {
+      // Refresh project tasks if we're in project detail view
+      if (selectedProjectId) {
+        loadProjectTasks();
+      }
+      // Clear and reload project stats cache
+      setProjectStatsCache({});
+    }
+  }, [refreshTrigger, selectedProjectId, loadProjectTasks]);
+
+  // Load project stats when projects change
+  useEffect(() => {
+    const loadProjectStats = async () => {
+      const newStatsCache = { ...projectStatsCache };
+      
+      for (const project of projects) {
+        if (!newStatsCache[project.id]) {
+          try {
+            const stats = await getProjectStats(project.id);
+            newStatsCache[project.id] = stats;
+          } catch (error) {
+            newStatsCache[project.id] = { 
+              total: 0, completed: 0, progress: 0, team: [], documents: 0 
+            };
+          }
+        }
+      }
+      
+      setProjectStatsCache(newStatsCache);
+    };
+
+    if (projects.length > 0) {
+      loadProjectStats();
+    }
+  }, [projects, getProjectStats]);
 
   // ---------------------------------------------------------------------------
   // PROJECT LIST VIEW
@@ -114,66 +355,349 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({ projects, tasks, user
   if (!selectedProjectId) {
     return (
       <div className="p-8 h-full overflow-y-auto bg-slate-50">
-        <h2 className="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-3">
-          <Briefcase className="text-gov-600" />
-          Daftar Project
-        </h2>
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h2 className="text-2xl font-bold text-slate-800 mb-1">Daftar Project</h2>
+            <p className="text-slate-500 text-sm">Kelola dan pantau project tim</p>
+          </div>
+          
+          {canManageProjects && (
+            <button
+              onClick={onCreateProject}
+              className="flex items-center gap-2 bg-gov-600 text-white px-4 py-2.5 rounded-lg font-medium hover:bg-gov-700 transition-colors shadow-sm"
+            >
+              <Plus size={16} />
+              Buat Project Baru
+            </button>
+          )}
+        </div>
+
+        {/* Search and Filter Section */}
+        <div className="bg-white rounded-xl border border-slate-200 p-4 mb-6 shadow-sm">
+          <div className="flex flex-col md:flex-row gap-4">
+            {/* Search */}
+            <div className="flex-1">
+              <div className="relative">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Cari project, manager, atau deskripsi..."
+                  value={projectSearch}
+                  onChange={(e) => setProjectSearch(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm"
+                />
+              </div>
+            </div>
+
+            {/* Filters */}
+            <div className="flex gap-3">
+              {/* Status Filter */}
+              <select
+                value={projectStatusFilter}
+                onChange={(e) => setProjectStatusFilter(e.target.value as ProjectStatus | 'All')}
+                className="px-3 py-2.5 border border-slate-300 rounded-lg bg-white text-sm focus:ring-2 focus:ring-gov-400 outline-none"
+              >
+                <option value="All">Semua Status</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Pending">Pending</option>
+                <option value="Live">Live</option>
+              </select>
+
+              {/* Manager Filter */}
+              <select
+                value={managerFilter}
+                onChange={(e) => setManagerFilter(e.target.value)}
+                className="px-3 py-2.5 border border-slate-300 rounded-lg bg-white text-sm focus:ring-2 focus:ring-gov-400 outline-none"
+              >
+                <option value="All">Semua Manager</option>
+                {uniqueManagers.map(manager => (
+                  <option key={manager} value={manager}>{manager}</option>
+                ))}
+              </select>
+
+              {/* Clear Filters */}
+              {(projectSearch || projectStatusFilter !== 'All' || managerFilter !== 'All') && (
+                <button
+                  onClick={() => {
+                    setProjectSearch('');
+                    setProjectStatusFilter('All');
+                    setManagerFilter('All');
+                  }}
+                  className="px-3 py-2.5 text-sm text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  Reset
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Results Count */}
+          <div className="mt-3 pt-3 border-t border-slate-100">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-slate-500">
+                Menampilkan <span className="font-semibold text-slate-700">{projects.length}</span> dari {projectsTotalCount} project
+                {debouncedSearch && (
+                  <span> untuk pencarian "<span className="font-semibold text-slate-700">{debouncedSearch}</span>"</span>
+                )}
+              </p>
+              
+              {/* Loading Indicators */}
+              {(projectsLoading || projectSearch !== debouncedSearch) && (
+                <div className="flex items-center gap-2 text-xs text-slate-400">
+                  <div className="w-3 h-3 border border-slate-300 border-t-transparent rounded-full animate-spin"></div>
+                  {projectsLoading ? 'Memuat...' : 'Mencari...'}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Loading State */}
+        {projectsLoading && (
+          <div className="flex items-center justify-center py-12">
+            <div className="flex items-center gap-3 text-slate-500">
+              <div className="w-6 h-6 border-2 border-slate-300 border-t-transparent rounded-full animate-spin"></div>
+              <span>Memuat project...</span>
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {projects.map(project => {
-            const stats = getProjectStats(project.id);
+          {!projectsLoading && projects.map(project => {
+            const ProjectIcon = iconMap[project.icon || 'Briefcase'] || Briefcase;
+            const colorClasses = getColorClasses(project.color);
+            
+            // Use cached stats or show loading
+            const stats = projectStatsCache[project.id] || { 
+              total: 0, completed: 0, progress: 0, team: [], documents: 0 
+            };
 
             return (
               <div
                 key={project.id}
-                onClick={() => setSelectedProjectId(project.id)}
-                className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-md hover:border-gov-300 transition-all cursor-pointer group"
+                className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-md hover:border-slate-300 transition-all group relative"
               >
-                <div className="flex justify-between items-start mb-4">
-                  <div className="p-3 bg-indigo-50 text-indigo-600 rounded-lg group-hover:bg-gov-50 group-hover:text-gov-600 transition-colors">
-                    <Briefcase size={24} />
+                {/* Edit and Delete buttons for authorized users */}
+                {canManageProjects && (
+                  <div className="absolute top-4 right-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEditProject?.(project);
+                      }}
+                      className="p-1.5 bg-white border border-slate-200 rounded-lg text-slate-500 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50 transition-all shadow-sm"
+                      title="Edit Project"
+                    >
+                      <Edit3 size={14} />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteProject?.(project.id);
+                      }}
+                      className="p-1.5 bg-white border border-slate-200 rounded-lg text-slate-500 hover:text-red-600 hover:border-red-300 hover:bg-red-50 transition-all shadow-sm"
+                      title="Hapus Project"
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   </div>
-                  <span className="text-xs font-semibold text-slate-400 bg-slate-50 px-2 py-1 rounded-full border border-slate-100">
-                    {stats.total} Task
-                  </span>
-                </div>
+                )}
 
-                <h3 className="text-lg font-bold text-slate-800 mb-1 group-hover:text-gov-700">
-                  {project.name}
-                </h3>
-                <p className="text-sm text-slate-500 mb-6 line-clamp-2 h-10">{project.description}</p>
+                <div 
+                  onClick={() => setSelectedProjectId(project.id)}
+                  className="cursor-pointer"
+                >
+                  {/* Header Section */}
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className={`p-3 rounded-lg ${colorClasses.bg} ${colorClasses.text} group-hover:scale-105 transition-transform shadow-sm`}>
+                        <ProjectIcon size={24} />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-bold text-slate-800 group-hover:text-slate-900 transition-colors leading-tight">
+                          {project.name}
+                        </h3>
+                        <div className="flex items-center gap-1 mt-1">
+                          <span className="text-xs text-slate-400 font-medium">Target Live:</span>
+                          <span className="text-xs font-semibold text-slate-600">
+                            {project.targetLiveDate || 'Belum ditentukan'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
+                        project.status === 'Live' 
+                          ? 'bg-green-100 text-green-700'
+                          : project.status === 'In Progress'
+                          ? 'bg-blue-100 text-blue-700'
+                          : 'bg-orange-100 text-orange-700'
+                      }`}>
+                        {project.status || 'In Progress'}
+                      </span>
+                    </div>
+                  </div>
 
-                <div className="space-y-4">
-                  {/* Progress */}
-                  <div>
-                    <div className="flex justify-between text-xs mb-1.5">
-                      <span className="font-medium text-slate-600">Progress</span>
-                      <span className="font-bold text-slate-800">{stats.progress}%</span>
+                  {/* Description */}
+                  <p className="text-sm text-slate-500 mb-4 line-clamp-2 leading-relaxed">
+                    {project.description || 'No description available'}
+                  </p>
+
+                  {/* Progress Section */}
+                  <div className="mb-4">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-xs font-medium text-slate-600">Progress</span>
+                      <span className="text-sm font-bold text-slate-800">{stats.progress}%</span>
                     </div>
                     <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                      <div className="h-full bg-gov-500 rounded-full" style={{ width: `${stats.progress}%` }} />
+                      <div 
+                        className={`h-full rounded-full transition-all duration-500 ${colorClasses.text.replace('text-', 'bg-').replace('-700', '-500')}`} 
+                        style={{ width: `${stats.progress}%` }} 
+                      />
                     </div>
                   </div>
 
-                  {/* Meta */}
-                  <div className="flex items-center justify-between pt-4 border-t border-slate-50">
-                    <div className="flex items-center gap-1.5 text-slate-500 text-xs">
-                      <Users size={14} />
-                      <span>{stats.team.length} Orang</span>
+                  {/* Stats Grid */}
+                  <div className="grid grid-cols-3 gap-3 mb-4">
+                    <div className="text-center p-2 bg-slate-50 rounded-lg border border-slate-100">
+                      <div className="text-sm font-bold text-slate-800">{stats.team.length}</div>
+                      <div className="text-xs text-slate-500">Team</div>
                     </div>
-                    <div className="flex items-center gap-1.5 text-slate-500 text-xs">
-                      <Paperclip size={14} />
-                      <span>{stats.documents} File</span>
+                    <div className="text-center p-2 bg-slate-50 rounded-lg border border-slate-100">
+                      <div className="text-sm font-bold text-slate-800">{stats.total}</div>
+                      <div className="text-xs text-slate-500">Tasks</div>
                     </div>
-                    <div className="flex items-center gap-1 text-gov-600 text-xs font-bold group-hover:translate-x-1 transition-transform">
-                      Detail <ChevronRight size={14} />
+                    <div className="text-center p-2 bg-slate-50 rounded-lg border border-slate-100">
+                      <div className="text-sm font-bold text-slate-800">{stats.completed}</div>
+                      <div className="text-xs text-slate-500">Done</div>
+                    </div>
+                  </div>
+
+                  {/* PIC Project Section */}
+                  <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-8 h-8 rounded-full ${colorClasses.bg} ${colorClasses.text} flex items-center justify-center text-sm font-bold`}>
+                        {project.manager.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <div className="text-xs font-semibold text-slate-700">{project.manager}</div>
+                        <div className="text-xs text-slate-500">PIC Project</div>
+                      </div>
+                    </div>
+                    <div className={`flex items-center gap-1 ${colorClasses.text} text-xs font-medium group-hover:translate-x-1 transition-transform`}>
+                      <span>View Details</span>
+                      <ChevronRight size={14} />
                     </div>
                   </div>
                 </div>
               </div>
             );
           })}
+
+          {/* Empty State */}
+          {!projectsLoading && projects.length === 0 && (
+            <div className="col-span-full">
+              <div className="text-center py-12">
+                <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Briefcase size={24} className="text-slate-400" />
+                </div>
+                <h3 className="text-lg font-semibold text-slate-600 mb-2">
+                  {projectSearch || projectStatusFilter !== 'All' || managerFilter !== 'All' 
+                    ? 'Tidak ada project yang sesuai' 
+                    : 'Belum ada project'
+                  }
+                </h3>
+                <p className="text-slate-500 mb-4">
+                  {projectSearch || projectStatusFilter !== 'All' || managerFilter !== 'All'
+                    ? 'Coba ubah filter atau kata kunci pencarian'
+                    : 'Mulai dengan membuat project pertama Anda'
+                  }
+                </p>
+                {(projectSearch || projectStatusFilter !== 'All' || managerFilter !== 'All') ? (
+                  <button
+                    onClick={() => {
+                      setProjectSearch('');
+                      setProjectStatusFilter('All');
+                      setManagerFilter('All');
+                    }}
+                    className="px-4 py-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors"
+                  >
+                    Reset Filter
+                  </button>
+                ) : canManageProjects ? (
+                  <button
+                    onClick={onCreateProject}
+                    className="px-4 py-2 bg-gov-600 text-white rounded-lg hover:bg-gov-700 transition-colors"
+                  >
+                    Buat Project Pertama
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          )}
         </div>
+
+        {/* Project Pagination */}
+        {!projectsLoading && projectsTotalPages > 1 && (
+          <div className="flex items-center justify-between mt-6 bg-white rounded-xl border border-slate-200 px-4 py-3">
+            <span className="text-sm text-slate-500">
+              Halaman <span className="font-semibold">{projectPage}</span> dari {projectsTotalPages}
+              <span className="ml-2 text-slate-400">
+                ({projects.length} dari {projectsTotalCount} project)
+              </span>
+            </span>
+
+            <div className="flex gap-2">
+              <button
+                disabled={projectPage === 1}
+                onClick={() => setProjectPage(p => p - 1)}
+                className="p-2 rounded-lg border border-slate-200 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
+                title="Halaman Sebelumnya"
+              >
+                <ChevronLeft size={16} />
+              </button>
+
+              {/* Page Numbers */}
+              <div className="flex gap-1">
+                {Array.from({ length: Math.min(5, projectsTotalPages) }, (_, i) => {
+                  let pageNum;
+                  if (projectsTotalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (projectPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (projectPage >= projectsTotalPages - 2) {
+                    pageNum = projectsTotalPages - 4 + i;
+                  } else {
+                    pageNum = projectPage - 2 + i;
+                  }
+
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => setProjectPage(pageNum)}
+                      className={`px-3 py-2 text-sm rounded-lg transition-colors ${
+                        pageNum === projectPage
+                          ? 'bg-gov-600 text-white'
+                          : 'text-slate-600 hover:bg-slate-100'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <button
+                disabled={projectPage === projectsTotalPages}
+                onClick={() => setProjectPage(p => p + 1)}
+                className="p-2 rounded-lg border border-slate-200 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
+                title="Halaman Selanjutnya"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -181,29 +705,42 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({ projects, tasks, user
   // ---------------------------------------------------------------------------
   // PROJECT DETAIL VIEW
   // ---------------------------------------------------------------------------
-  if (!selectedProject || !selectedStats) return null;
+  const selectedProject = projects.find(p => p.id === selectedProjectId);
+  const selectedStats = projectStatsCache[selectedProjectId || ''];
+  
+  if (!selectedProjectId || !selectedProject) return null;
 
-  const documentsList = selectedStats.projectTasks.flatMap(t =>
+  const documentsList = tasks.flatMap(t =>
     (t.attachments || []).map(a => ({
       ...a,
       taskTitle: t.title
     }))
   );
 
+  const ProjectIcon = iconMap[selectedProject.icon || 'Briefcase'] || Briefcase;
+  const projectColorClasses = getColorClasses(selectedProject.color);
+
   return (
     <div className="flex flex-col h-full bg-slate-50 overflow-hidden">
       {/* HEADER */}
-      <div className="bg-white border-b border-slate-200 px-8 py-5 flex justify-between items-center">
+      <div className={`bg-white border-b border-slate-200 px-8 py-5 flex justify-between items-center ${projectColorClasses.hover}`}>
         <div>
           <button
             onClick={() => setSelectedProjectId(null)}
-            className="flex items-center gap-2 text-sm text-slate-500 hover:text-gov-600 mb-2 transition-colors font-medium"
+            className={`flex items-center gap-2 text-sm text-slate-500 hover:${projectColorClasses.text} mb-3 transition-colors font-medium`}
           >
             <ArrowLeft size={16} /> Kembali ke Daftar Project
           </button>
 
-          <h1 className="text-2xl font-bold text-slate-800">{selectedProject.name}</h1>
-          <p className="text-sm text-slate-500 mt-1">{selectedProject.description}</p>
+          <div className="flex items-center gap-4 mb-2">
+            <div className={`p-3 rounded-xl ring-2 ${projectColorClasses.bg} ${projectColorClasses.text} ${projectColorClasses.ring} shadow-sm`}>
+              <ProjectIcon size={28} />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-slate-800">{selectedProject.name}</h1>
+              <p className="text-sm text-slate-500">{selectedProject.description}</p>
+            </div>
+          </div>
         </div>
 
         <div className="flex gap-6">
@@ -213,7 +750,7 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({ projects, tasks, user
           </div>
           <div className="text-right pl-6 border-l border-slate-100">
             <p className="text-xs text-slate-400 font-semibold uppercase">Progress</p>
-            <p className="font-bold text-gov-600 text-lg">{selectedStats.progress}%</p>
+            <p className={`font-bold ${projectColorClasses.text} text-lg`}>{selectedStats?.progress || 0}%</p>
           </div>
         </div>
       </div>
@@ -227,7 +764,7 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({ projects, tasks, user
             <section>
               <div className="flex flex-col md:flex-row justify-between mb-4 gap-4">
                 <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
-                  <List size={16} /> Daftar Tugas ({filteredProjectTasks.length})
+                  <List size={16} /> Daftar Tugas ({tasksTotalCount})
                 </h3>
 
                 <div className="flex gap-2">
@@ -271,7 +808,14 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({ projects, tasks, user
 
               {/* TASK TABLE */}
               <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
-                {paginatedTasks.length > 0 ? (
+                {tasksLoading ? (
+                  <div className="p-8 text-center">
+                    <div className="flex items-center justify-center gap-3 text-slate-500">
+                      <div className="w-5 h-5 border-2 border-slate-300 border-t-transparent rounded-full animate-spin"></div>
+                      <span>Memuat tasks...</span>
+                    </div>
+                  </div>
+                ) : tasks.length > 0 ? (
                   <>
                     <table className="w-full text-sm text-left">
                       <thead className="bg-slate-50 border-b text-xs uppercase text-slate-500">
@@ -285,11 +829,15 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({ projects, tasks, user
                       </thead>
 
                       <tbody className="divide-y">
-                        {paginatedTasks.map(task => (
-                          <tr key={task.id} className="hover:bg-slate-50 transition">
+                        {tasks.map(task => (
+                          <tr 
+                            key={task.id} 
+                            onClick={() => onTaskClick?.(task)}
+                            className="hover:bg-slate-50 transition cursor-pointer group"
+                          >
                             {/* Name */}
                             <td className="px-4 py-3 font-medium text-slate-800">
-                              <div>{task.title}</div>
+                              <div className="group-hover:text-gov-600 transition-colors">{task.title}</div>
                               <div className="text-[10px] text-slate-400">{task.subCategory}</div>
                             </td>
 
@@ -334,7 +882,10 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({ projects, tasks, user
                             </td>
 
                             <td className="px-4 py-3 text-right text-xs text-slate-500 font-mono">
-                              {task.deadline}
+                              {task.startDate === task.deadline 
+                                ? task.deadline 
+                                : `${task.startDate} - ${task.deadline}`
+                              }
                             </td>
                           </tr>
                         ))}
@@ -344,12 +895,15 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({ projects, tasks, user
                     {/* Pagination */}
                     <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-t">
                       <span className="text-xs text-slate-500">
-                        Halaman <b>{currentPage}</b> dari {totalPages || 1}
+                        Halaman <b>{currentPage}</b> dari {tasksTotalPages || 1}
+                        <span className="ml-2 text-slate-400">
+                          ({tasks.length} dari {tasksTotalCount} task)
+                        </span>
                       </span>
 
                       <div className="flex gap-2">
                         <button
-                          disabled={currentPage === 1}
+                          disabled={currentPage === 1 || tasksLoading}
                           onClick={() => setCurrentPage(p => p - 1)}
                           className="p-1.5 rounded-md border disabled:opacity-40 hover:bg-slate-100"
                         >
@@ -357,7 +911,7 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({ projects, tasks, user
                         </button>
 
                         <button
-                          disabled={currentPage === totalPages}
+                          disabled={currentPage === tasksTotalPages || tasksLoading}
                           onClick={() => setCurrentPage(p => p + 1)}
                           className="p-1.5 rounded-md border disabled:opacity-40 hover:bg-slate-100"
                         >
@@ -423,7 +977,6 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({ projects, tasks, user
         }
         alert('File belum tersedia untuk di-download.');
       } catch (err) {
-        console.error(err);
         alert('Terjadi kesalahan saat mencoba download file.');
       }
     }}
@@ -449,32 +1002,143 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({ projects, tasks, user
 
           {/* RIGHT COLUMN */}
           <div className="space-y-8">
-            {/* TEAM STRESS */}
+            {/* TEAM WORKLOAD */}
             <section>
               <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-2">
                 <Users size={16} /> Tim & Beban Kerja
               </h3>
 
+              {/* Sistem Poin - Lebih Menarik */}
+              <div className="bg-gradient-to-r from-gov-50 to-blue-50 rounded-xl border border-gov-200 p-4 mb-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-6 h-6 bg-gov-500 rounded-full flex items-center justify-center">
+                    <span className="text-white text-xs font-bold">?</span>
+                  </div>
+                  <h4 className="font-bold text-gov-700 text-sm">Cara Hitung Beban Kerja</h4>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex items-center gap-2 bg-white/60 rounded-lg p-2">
+                    <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                    <span className="text-xs font-medium text-slate-700">Urgent = 4 poin</span>
+                  </div>
+                  <div className="flex items-center gap-2 bg-white/60 rounded-lg p-2">
+                    <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
+                    <span className="text-xs font-medium text-slate-700">High = 3 poin</span>
+                  </div>
+                  <div className="flex items-center gap-2 bg-white/60 rounded-lg p-2">
+                    <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                    <span className="text-xs font-medium text-slate-700">Medium = 2 poin</span>
+                  </div>
+                  <div className="flex items-center gap-2 bg-white/60 rounded-lg p-2">
+                    <div className="w-3 h-3 bg-slate-400 rounded-full"></div>
+                    <span className="text-xs font-medium text-slate-700">Low = 1 poin</span>
+                  </div>
+                </div>
+                
+                <div className="mt-3 text-[10px] text-gov-600 bg-white/40 rounded-lg p-2">
+                  💡 <strong>Tips:</strong> Semakin tinggi poin, semakin berat beban kerja anggota tim
+                </div>
+              </div>
+
               <div className="bg-white rounded-xl border shadow-sm p-5 space-y-4">
-                {selectedStats.team.map(member => {
-                  const stress = getMemberStressInProject(member, selectedStats.projectTasks);
-                  const label = getStressLabel(stress.score);
+                {(selectedStats?.team || []).map(member => {
+                  const workload = getMemberWorkloadInProject(member, selectedStats?.projectTasks || []);
+                  const label = getWorkloadLabel(workload.workloadPoints, workload.taskCount);
+
+                  // Tentukan warna avatar berdasarkan beban kerja
+                  const getAvatarStyle = () => {
+                    if (workload.workloadPoints === 0) return 'bg-slate-100 text-slate-600';
+                    if (workload.workloadPoints <= 3) return 'bg-emerald-100 text-emerald-700 ring-2 ring-emerald-200';
+                    if (workload.workloadPoints <= 8) return 'bg-blue-100 text-blue-700 ring-2 ring-blue-200';
+                    if (workload.workloadPoints <= 15) return 'bg-orange-100 text-orange-700 ring-2 ring-orange-200';
+                    return 'bg-red-100 text-red-700 ring-2 ring-red-200';
+                  };
 
                   return (
-                    <div key={member} className="flex items-center justify-between border-b pb-3 last:border-none">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-sm font-bold text-slate-700">
-                          {member.charAt(0)}
+                    <div key={member} className="group hover:bg-slate-50 rounded-lg p-3 -m-1 transition-all border-b pb-4 last:border-none">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all ${getAvatarStyle()}`}>
+                            {member.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="font-bold text-slate-800 group-hover:text-gov-700 transition-colors">{member}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="text-[10px] text-slate-400">{workload.taskCount} task aktif</p>
+                              {workload.workloadPoints > 0 && (
+                                <div className="flex items-center gap-1">
+                                  <div className="w-1 h-1 bg-slate-300 rounded-full"></div>
+                                  <span className="text-[10px] font-bold text-slate-600">{workload.workloadPoints} poin</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-bold text-slate-800">{member}</p>
-                          <p className="text-[10px] text-slate-400">{stress.taskCount} Task Aktif</p>
+
+                        <div className="text-right">
+                          <span className={`px-3 py-1.5 text-[10px] font-bold rounded-full ${label.color} shadow-sm`}>
+                            {label.label}
+                          </span>
                         </div>
                       </div>
 
-                      <span className={`px-2 py-1 text-[10px] font-bold rounded-full ${label.color}`}>
-                        {label.label} ({stress.score})
-                      </span>
+                      {/* Progress bar beban kerja */}
+                      {workload.taskCount > 0 && (
+                        <div className="mb-3">
+                          <div className="flex justify-between text-[9px] text-slate-500 mb-1">
+                            <span>Beban Kerja</span>
+                            <span>{Math.min(100, (workload.workloadPoints / 20) * 100).toFixed(0)}%</span>
+                          </div>
+                          <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                            <div 
+                              className={`h-full rounded-full transition-all ${
+                                workload.workloadPoints <= 3 ? 'bg-emerald-400' :
+                                workload.workloadPoints <= 8 ? 'bg-blue-400' :
+                                workload.workloadPoints <= 15 ? 'bg-orange-400' : 'bg-red-400'
+                              }`}
+                              style={{ width: `${Math.min(100, (workload.workloadPoints / 20) * 100)}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Breakdown prioritas dengan desain yang lebih menarik */}
+                      {workload.taskCount > 0 && (
+                        <div className="flex flex-wrap gap-1.5">
+                          {workload.breakdown.urgentCount > 0 && (
+                            <div className="flex items-center gap-1 bg-red-50 text-red-700 px-2 py-1 rounded-md border border-red-100">
+                              <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                              <span className="text-[9px] font-bold">{workload.breakdown.urgentCount} Urgent</span>
+                            </div>
+                          )}
+                          {workload.breakdown.highCount > 0 && (
+                            <div className="flex items-center gap-1 bg-orange-50 text-orange-700 px-2 py-1 rounded-md border border-orange-100">
+                              <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                              <span className="text-[9px] font-bold">{workload.breakdown.highCount} High</span>
+                            </div>
+                          )}
+                          {workload.breakdown.mediumCount > 0 && (
+                            <div className="flex items-center gap-1 bg-blue-50 text-blue-700 px-2 py-1 rounded-md border border-blue-100">
+                              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                              <span className="text-[9px] font-bold">{workload.breakdown.mediumCount} Medium</span>
+                            </div>
+                          )}
+                          {workload.breakdown.lowCount > 0 && (
+                            <div className="flex items-center gap-1 bg-slate-50 text-slate-700 px-2 py-1 rounded-md border border-slate-100">
+                              <div className="w-2 h-2 bg-slate-400 rounded-full"></div>
+                              <span className="text-[9px] font-bold">{workload.breakdown.lowCount} Low</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Empty state untuk member tanpa task */}
+                      {workload.taskCount === 0 && (
+                        <div className="text-center py-2">
+                          <span className="text-[10px] text-slate-400 italic">✨ Siap menerima tugas baru</span>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -489,19 +1153,19 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({ projects, tasks, user
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-white p-4 rounded-xl border text-center shadow-sm">
-                  <span className="text-2xl font-bold text-slate-800">{selectedStats.total}</span>
+                  <span className="text-2xl font-bold text-slate-800">{selectedStats?.total || 0}</span>
                   <span className="block text-[10px] text-slate-400 uppercase font-bold">Total Task</span>
                 </div>
 
                 <div className="bg-white p-4 rounded-xl border text-center shadow-sm">
-                  <span className="text-2xl font-bold text-green-600">{selectedStats.completed}</span>
+                  <span className="text-2xl font-bold text-green-600">{selectedStats?.completed || 0}</span>
                   <span className="block text-[10px] text-green-600/60 uppercase font-bold">Selesai</span>
                 </div>
 
                 <div className="col-span-2 bg-white p-4 rounded-xl border shadow-sm flex justify-between items-center px-6">
                   <div>
                     <span className="block text-xl font-bold text-red-600">
-                      {selectedStats.projectTasks.filter(
+                      {(selectedStats?.projectTasks || []).filter(
                         t => t.priority === Priority.Urgent && t.status !== Status.Done
                       ).length}
                     </span>

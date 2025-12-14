@@ -1,8 +1,11 @@
 // src/components/AddTaskModal.tsx
 import React, { useEffect, useRef, useState } from 'react';
-import { X, Trash2, Lock, Info, Upload, FileText, Paperclip } from 'lucide-react';
+import { X, Trash2, Lock, Info, Upload, FileText, Paperclip, Download } from 'lucide-react';
 import { Task, Category, Priority, Status, User, ProjectDefinition, Attachment } from '../../types';
 import { supabase } from '../lib/supabaseClient';
+import { useNotificationModal, useConfirmModal } from '../hooks/useModal';
+import NotificationModal from './NotificationModal';
+import ConfirmModal from './ConfirmModal';
 
 
 interface AddTaskModalProps {
@@ -41,20 +44,25 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
   subCategories
 }) => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  
+  // Modal hooks
+  const { modal: notificationModal, showNotification, hideNotification } = useNotificationModal();
+  const { modal: confirmModal, showConfirm, hideConfirm } = useConfirmModal();
 
   // default manager/pic name from currentUser or first user in list
   const defaultPic = currentUser?.name ?? (users && users.length > 0 ? users[0].name : '');
 
   const [formData, setFormData] = useState<Partial<Task>>({
     title: '',
-    category: Category.Project,
+    category: Category.PengembanganAplikasi, // Default ke kategori pertama
     subCategory: subCategories && subCategories.length > 0 ? subCategories[0] : '',
-    deadline: new Date().toISOString().split('T')[0],
+    startDate: new Date().toISOString().split('T')[0],
+    deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Default 7 hari dari sekarang
     pic: defaultPic,
     priority: Priority.Medium,
     status: Status.ToDo,
     description: '',
-    projectId: '',
+    projectId: '', // Opsional - boleh kosong
     attachments: [],
     createdBy: currentUser?.name ?? ''
   });
@@ -72,6 +80,21 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [users.length, subCategories.length, currentUser?.id]);
 
+  // Update subCategory when category changes
+  useEffect(() => {
+    if (formData.category === Category.PengembanganAplikasi) {
+      // Set default subCategory untuk Pengembangan Aplikasi
+      if (!formData.subCategory || !['UI/UX Design', 'Fitur Baru', 'Backend', 'Frontend'].includes(formData.subCategory)) {
+        setFormData(prev => ({ ...prev, subCategory: 'UI/UX Design' }));
+      }
+    } else {
+      // Set default subCategory untuk kategori lain
+      if (subCategories && subCategories.length > 0 && !formData.subCategory) {
+        setFormData(prev => ({ ...prev, subCategory: subCategories[0] }));
+      }
+    }
+  }, [formData.category, subCategories]);
+
   // When modal opens, populate with initialData or reset
   useEffect(() => {
     if (!isOpen) return;
@@ -84,14 +107,15 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
     } else {
       setFormData({
         title: '',
-        category: Category.Project,
+        category: Category.PengembanganAplikasi, // Default ke kategori pertama
         subCategory: subCategories && subCategories.length > 0 ? subCategories[0] : '',
-        deadline: new Date().toISOString().split('T')[0],
+        startDate: new Date().toISOString().split('T')[0],
+        deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Default 7 hari dari sekarang
         pic: defaultPic,
         priority: Priority.Medium,
         status: Status.ToDo,
         description: '',
-        projectId: '',
+        projectId: '', // Opsional - boleh kosong
         attachments: [],
         createdBy: currentUser?.name ?? ''
       });
@@ -129,8 +153,7 @@ const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         .upload(storagePath, file);
 
       if (uploadError) {
-        console.error('Upload gagal:', uploadError);
-        // optionally notify user
+        // Silent error handling for production
         continue;
       }
 
@@ -140,7 +163,7 @@ const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         .createSignedUrl(storagePath, 60 * 60);
 
       if (signedError) {
-        console.warn('Signed URL gagal:', signedError);
+        // Silent error handling for production
       }
 
       const att: Attachment = {
@@ -154,7 +177,7 @@ const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
 
       uploadedAttachments.push(att);
     } catch (err) {
-      console.error('Error upload file:', err);
+      // Silent error handling for production
     }
   }
 
@@ -177,32 +200,75 @@ const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     }));
   };
 
+  const handleDownloadAttachment = async (attachment: Attachment) => {
+    try {
+      // Jika sudah ada URL yang valid, gunakan langsung
+      if (attachment.url) {
+        window.open(attachment.url, '_blank');
+        return;
+      }
+
+      // Jika tidak ada URL atau URL expired, buat signed URL baru
+      if (attachment.path) {
+        const { data, error } = await supabase.storage
+          .from('attachment')
+          .createSignedUrl(attachment.path, 60 * 60); // 1 jam
+
+        if (error) {
+          showNotification('Download Gagal', 'Gagal membuat URL download. File mungkin sudah tidak tersedia.', 'error');
+          return;
+        }
+
+        if (data?.signedUrl) {
+          window.open(data.signedUrl, '_blank');
+        } else {
+          showNotification('Download Gagal', 'Gagal mendapatkan URL download.', 'error');
+        }
+      } else {
+        showNotification('File Tidak Tersedia', 'File path tidak tersedia. File mungkin belum terupload dengan benar.', 'error');
+      }
+    } catch (err) {
+      showNotification('Terjadi Kesalahan', 'Terjadi kesalahan saat mencoba download file.', 'error');
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (isReadOnly) return;
 
     // basic validation
-    if (!formData.title || !formData.category || !formData.priority || !formData.status) {
-      alert('Mohon isi semua field wajib.');
+    if (!formData.title || !formData.category || !formData.priority || !formData.status || !formData.startDate || !formData.deadline) {
+      showNotification('Data Tidak Lengkap', 'Mohon isi semua field wajib (Judul, Kategori, Tanggal Mulai, Deadline, Prioritas, Status).', 'warning');
       return;
     }
 
-    if (formData.category === Category.Project && !formData.projectId) {
-      alert('Mohon pilih Project untuk kategori Project.');
+    // Kategori wajib diisi, project opsional
+    if (!formData.category) {
+      showNotification('Kategori Wajib', 'Kategori wajib dipilih untuk setiap task.', 'warning');
+      return;
+    }
+
+    // Validasi tanggal
+    const startDate = new Date(formData.startDate);
+    const endDate = new Date(formData.deadline);
+    
+    if (startDate > endDate) {
+      showNotification('Tanggal Tidak Valid', 'Tanggal mulai tidak boleh lebih besar dari tanggal deadline.', 'warning');
       return;
     }
 
     const payload: Omit<Task, 'id'> = {
       title: (formData.title || '').trim(),
-      category: (formData.category as Category) || Category.Project,
+      category: (formData.category as Category) || Category.PengembanganAplikasi, // Default ke kategori pertama
       subCategory: (formData.subCategory as string) || '',
+      startDate: formData.startDate || new Date().toISOString().split('T')[0],
       deadline: formData.deadline || new Date().toISOString().split('T')[0],
       pic: formData.pic || defaultPic,
       priority: (formData.priority as Priority) || Priority.Medium,
       status: (formData.status as Status) || Status.ToDo,
       description: (formData.description || '').trim(),
       createdBy: initialData?.createdBy || currentUser?.name || 'System',
-      projectId: formData.projectId || undefined,
+      projectId: formData.projectId || undefined, // Opsional - bisa kosong
       attachments: formData.attachments || []
     };
 
@@ -212,8 +278,15 @@ const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
   const handleDelete = () => {
     if (!initialData) return;
     if (!canDelete) return;
-    if (!window.confirm('Hapus task ini? Tindakan tidak dapat dibatalkan.')) return;
-    onDelete(initialData.id);
+    
+    showConfirm(
+      'Hapus Task',
+      'Hapus task ini? Tindakan tidak dapat dibatalkan.',
+      () => onDelete(initialData.id),
+      'error',
+      'Hapus',
+      'Batal'
+    );
   };
 
   const selectedProject = projects.find(p => p.id === formData.projectId);
@@ -261,8 +334,9 @@ const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
               <div>
                 <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Kategori</label>
                 <select
+                  required
                   disabled={isReadOnly}
-                  value={formData.category || Category.Project}
+                  value={formData.category || Category.PengembanganAplikasi}
                   onChange={(e) => handleChange('category', e.target.value as Category)}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm text-slate-700 bg-white disabled:bg-slate-50 disabled:text-slate-500"
                 >
@@ -275,78 +349,96 @@ const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
               {/* Sub Category */}
               <div>
                 <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
-                  {formData.category === Category.Project ? 'Jenis Task' : 'Sub-Kategori'}
+                  Sub-Kategori
                 </label>
 
-                {formData.category === Category.Project ? (
-                  <input
-                    type="text"
-                    disabled={isReadOnly}
-                    value={formData.subCategory || ''}
-                    onChange={(e) => handleChange('subCategory', e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm text-slate-700 disabled:bg-slate-50 disabled:text-slate-500"
-                    placeholder="Contoh: Backend, Design"
-                  />
-                ) : (
-                  <select
-                    disabled={isReadOnly}
-                    value={formData.subCategory || (subCategories[0] || '')}
-                    onChange={(e) => handleChange('subCategory', e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm text-slate-700 bg-white disabled:bg-slate-50 disabled:text-slate-500"
-                  >
-                    {subCategories && subCategories.length > 0 ? (
+                <select
+                  disabled={isReadOnly}
+                  value={formData.subCategory || (formData.category === Category.PengembanganAplikasi ? 'UI/UX Design' : (subCategories[0] || ''))}
+                  onChange={(e) => handleChange('subCategory', e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm text-slate-700 bg-white disabled:bg-slate-50 disabled:text-slate-500"
+                >
+                  {formData.category === Category.PengembanganAplikasi ? (
+                    // Sub-kategori khusus untuk Pengembangan Aplikasi
+                    <>
+                      <option value="UI/UX Design">UI/UX Design</option>
+                      <option value="Fitur Baru">Fitur Baru</option>
+                      <option value="Backend">Backend</option>
+                      <option value="Frontend">Frontend</option>
+                    </>
+                  ) : (
+                    // Sub-kategori umum dari database untuk kategori lain
+                    subCategories && subCategories.length > 0 ? (
                       subCategories.map(sc => <option key={sc} value={sc}>{sc}</option>)
                     ) : (
                       <option value="">(Belum ada sub-kategori)</option>
-                    )}
-                  </select>
-                )}
+                    )
+                  )}
+                </select>
               </div>
             </div>
 
-            {/* Project selection */}
-            {formData.category === Category.Project && (
-              <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
-                <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Pilih Project</label>
-                <select
-                  disabled={isReadOnly}
-                  value={formData.projectId || ''}
-                  onChange={(e) => handleChange('projectId', e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm text-slate-700 bg-white disabled:bg-slate-50 disabled:text-slate-500"
-                >
-                  <option value="">-- Pilih Project --</option>
-                  {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
+            {/* Project selection - Opsional untuk semua task */}
+            <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
+              <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                Pilih Project (Opsional)
+              </label>
+              <select
+                disabled={isReadOnly}
+                value={formData.projectId || ''}
+                onChange={(e) => handleChange('projectId', e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm text-slate-700 bg-white disabled:bg-slate-50 disabled:text-slate-500"
+              >
+                <option value="">-- Tidak terkait project --</option>
+                {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
 
-                {selectedProject && (
-                  <div className="mt-2 text-xs text-slate-500 bg-white p-2 rounded border border-slate-200 flex gap-2">
-                    <Info size={14} className="text-gov-500" />
-                    <div>
-                      <div className="font-semibold text-slate-700">{selectedProject.name}</div>
-                      <div className="text-[12px] italic">{selectedProject.description}</div>
-                      <div className="text-[12px] mt-1"><span className="font-medium">PIC:</span> {selectedProject.manager}</div>
-                    </div>
+              {selectedProject && (
+                <div className="mt-2 text-xs text-slate-500 bg-white p-2 rounded border border-slate-200 flex gap-2">
+                  <Info size={14} className="text-gov-500" />
+                  <div>
+                    <div className="font-semibold text-slate-700">{selectedProject.name}</div>
+                    <div className="text-[12px] italic">{selectedProject.description}</div>
+                    <div className="text-[12px] mt-1"><span className="font-medium">PIC:</span> {selectedProject.manager}</div>
                   </div>
-                )}
-              </div>
-            )}
+                </div>
+              )}
+              
+              <p className="text-[10px] text-slate-400 mt-2 italic">
+                Task dapat dikaitkan dengan project atau berdiri sendiri sesuai kategori yang dipilih.
+              </p>
+            </div>
 
+            {/* PIC */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">PIC Task</label>
+              <select
+                disabled={isReadOnly}
+                value={formData.pic || defaultPic}
+                onChange={(e) => handleChange('pic', e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm text-slate-700 bg-white disabled:bg-slate-50 disabled:text-slate-500"
+              >
+                {users && users.length > 0 ? (
+                  users.map(u => <option key={u.id} value={u.name}>{u.name}</option>)
+                ) : (
+                  <option value="">{currentUser?.name ?? '(Tidak ada pengguna)'}</option>
+                )}
+              </select>
+            </div>
+
+            {/* Tanggal Mulai dan Deadline */}
             <div className="grid grid-cols-2 gap-4">
-              {/* PIC */}
+              {/* Tanggal Mulai */}
               <div>
-                <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">PIC Task</label>
-                <select
+                <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Tanggal Mulai</label>
+                <input
+                  type="date"
+                  required
                   disabled={isReadOnly}
-                  value={formData.pic || defaultPic}
-                  onChange={(e) => handleChange('pic', e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm text-slate-700 bg-white disabled:bg-slate-50 disabled:text-slate-500"
-                >
-                  {users && users.length > 0 ? (
-                    users.map(u => <option key={u.id} value={u.name}>{u.name}</option>)
-                  ) : (
-                    <option value="">{currentUser?.name ?? '(Tidak ada pengguna)'}</option>
-                  )}
-                </select>
+                  value={formData.startDate || new Date().toISOString().split('T')[0]}
+                  onChange={(e) => handleChange('startDate', e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm text-slate-700 disabled:bg-slate-50 disabled:text-slate-500"
+                />
               </div>
 
               {/* Deadline */}
@@ -429,11 +521,30 @@ const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
                           <span className="text-[10px] text-slate-400">{formatFileSize(file.size)}</span>
                         </div>
                       </div>
-                      {!isReadOnly && (
-                        <button type="button" onClick={() => handleRemoveAttachment(file.id)} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors">
-                          <X size={14} />
+                      
+                      <div className="flex items-center gap-1">
+                        {/* Download Button - Always visible */}
+                        <button 
+                          type="button" 
+                          onClick={() => handleDownloadAttachment(file)} 
+                          className="p-1.5 text-slate-400 hover:text-gov-600 hover:bg-gov-50 rounded-full transition-colors"
+                          title={`Download ${file.name}`}
+                        >
+                          <Download size={14} />
                         </button>
-                      )}
+                        
+                        {/* Remove Button - Only when not readonly */}
+                        {!isReadOnly && (
+                          <button 
+                            type="button" 
+                            onClick={() => handleRemoveAttachment(file.id)} 
+                            className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
+                            title={`Hapus ${file.name}`}
+                          >
+                            <X size={14} />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))
                 ) : (
@@ -477,6 +588,28 @@ const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
           </div>
         </form>
       </div>
+
+      {/* Custom Modals */}
+      <NotificationModal
+        isOpen={notificationModal.isOpen}
+        onClose={hideNotification}
+        title={notificationModal.title}
+        message={notificationModal.message}
+        type={notificationModal.type}
+        autoClose={notificationModal.type === 'success'}
+        autoCloseDelay={3000}
+      />
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={hideConfirm}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        type={confirmModal.type}
+        confirmText={confirmModal.confirmText}
+        cancelText={confirmModal.cancelText}
+      />
     </div>
   );
 };

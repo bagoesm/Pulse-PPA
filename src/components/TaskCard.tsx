@@ -77,7 +77,12 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, projects, onDragStart, onClic
         <div className="flex items-center gap-3 text-slate-500">
           <div className="flex items-center gap-1.5">
             <Calendar size={12} />
-            <span className="text-[10px] font-medium">{task.deadline}</span>
+            <span className="text-[10px] font-medium">
+              {task.startDate === task.deadline 
+                ? task.deadline 
+                : `${task.startDate} - ${task.deadline}`
+              }
+            </span>
           </div>
           {hasAttachments && (
               <div className="flex items-center gap-1 text-slate-400" title={`${task.attachments.length} attachment(s)`}>

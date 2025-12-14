@@ -14,7 +14,7 @@ export enum Status {
 }
 
 export enum Category {
-  Project = 'Project',
+  PengembanganAplikasi = 'Pengembangan Aplikasi',
   SuratDokumen = 'Surat & Dokumen',
   AudiensiRapat = 'Audiensi/Rapat',
   Asistensi = 'Asistensi',
@@ -67,11 +67,29 @@ export interface User {
   password?: string; // For mock auth
 }
 
+export type StatusType = 'text' | 'music' | 'mood' | 'activity' | 'location' | 'food';
+
+export interface UserStatus {
+  id: string;
+  userId: string;
+  type: StatusType;
+  content: string; // Max 25 words
+  emoji?: string; // Optional emoji for mood/activity
+  createdAt: string; // ISO Date
+  expiresAt: string; // ISO Date (24 hours from creation)
+}
+
+export type ProjectStatus = 'In Progress' | 'Pending' | 'Live';
+
 export interface ProjectDefinition {
   id: string;
   name: string;
   manager: string; // The PIC/Manager of the project
   description?: string;
+  icon?: string; // Icon name for the project
+  color?: string; // Color theme for the project
+  targetLiveDate?: string; // ISO Date string - Target go-live date
+  status?: ProjectStatus; // Project status
 }
 
 export interface Attachment {
@@ -86,15 +104,16 @@ export interface Attachment {
 export interface Task {
   id: string;
   title: string;
-  category: Category;
+  category: Category; // WAJIB - Task harus memiliki kategori
   subCategory: string;
-  deadline: string; // ISO Date string
+  startDate: string; // ISO Date string - Tanggal mulai
+  deadline: string; // ISO Date string - Tanggal selesai
   pic: string;
   priority: Priority;
   status: Status;
   description: string;
   createdBy: string; // User Name
-  projectId?: string; // Optional: Only for Category.Project
+  projectId?: string; // OPSIONAL - Task boleh tanpa project
   attachments: Attachment[];
 }
 
@@ -111,7 +130,7 @@ export const SIDEBAR_ITEMS = [
   { name: 'Dashboard', icon: 'LayoutDashboard' },
   { name: 'Semua Task', icon: 'ListTodo' },
   { name: 'Project', icon: 'Briefcase' },
-  { name: 'Wall of Feedback', icon: 'MessageSquarePlus' },
+  { name: 'Pengembangan Aplikasi', icon: 'Code' },
   { name: 'Surat & Dokumen', icon: 'FileText' },
   { name: 'Audiensi/Rapat', icon: 'Users' },
   { name: 'Asistensi', icon: 'HelpingHand' },

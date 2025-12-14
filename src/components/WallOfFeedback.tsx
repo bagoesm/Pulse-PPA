@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Feedback, FeedbackCategory, FeedbackStatus, User } from '../../types';
 import { 
-    MessageSquarePlus, ChevronUp, ChevronDown, Search, Plus, Filter, Send, X, 
+    MessageSquarePlus, ChevronUp, ChevronDown, Search, Plus, Send, X, 
     MessageCircle, Trash2, Edit, Lock, CheckCircle2, Clock, MapPin, Save
 } from 'lucide-react';
 

@@ -1,12 +1,16 @@
 import React, { useState } from 'react';
 import { User, Role } from '../../types';
 import { Plus, Search, Edit2, Trash2, Shield, User as UserIcon, X, Save, Key, Briefcase, Tag, Database } from 'lucide-react';
+import { useNotificationModal, useConfirmModal } from '../hooks/useModal';
+import NotificationModal from './NotificationModal';
+import ConfirmModal from './ConfirmModal';
 
 interface UserManagementProps {
   users: User[];
   onAddUser: (user: User) => void;
   onEditUser: (user: User) => void;
   onDeleteUser: (id: string) => void;
+  currentUser: User | null; // Tambahkan currentUser untuk validasi
   
   jabatanList: string[];
   onAddJabatan: (jabatan: string) => void;
@@ -20,12 +24,16 @@ interface UserManagementProps {
 type Tab = 'Users' | 'Jabatan' | 'Kategori';
 
 const UserManagement: React.FC<UserManagementProps> = ({ 
-    users, onAddUser, onEditUser, onDeleteUser,
+    users, onAddUser, onEditUser, onDeleteUser, currentUser,
     jabatanList, onAddJabatan, onDeleteJabatan,
     subCategories, onAddSubCategory, onDeleteSubCategory
 }) => {
   const [activeTab, setActiveTab] = useState<Tab>('Users');
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // Modal hooks
+  const { modal: notificationModal, showNotification, hideNotification } = useNotificationModal();
+  const { modal: confirmModal, showConfirm, hideConfirm } = useConfirmModal();
   
   // User Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -39,11 +47,17 @@ const UserManagement: React.FC<UserManagementProps> = ({
 
   // --- User Logic ---
 
-  const filteredUsers = users.filter(u => 
-    u.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    u.jabatan?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredUsers = users
+    .filter((user, index, self) => 
+      // Remove duplicates first
+      index === self.findIndex(u => u.id === user.id)
+    )
+    .filter(u => 
+      // Then apply search filter
+      u.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      u.jabatan?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
   const handleOpenUserModal = (user?: User) => {
       if (user) {
@@ -51,33 +65,86 @@ const UserManagement: React.FC<UserManagementProps> = ({
           setUserFormData(user);
       } else {
           setEditingUser(null);
+          const defaultJabatan = jabatanList && jabatanList.length > 0 ? jabatanList[0] : '';
           setUserFormData({
               name: '',
               email: '',
               role: 'Staff',
-              jabatan: jabatanList[0] || '', // Default to first available jabatan
+              jabatan: defaultJabatan,
               password: '',
           });
       }
       setIsModalOpen(true);
   };
 
+  const performUserSubmit = () => {
+      const initials = userFormData.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+      
+      if (editingUser) {
+          // For editing, don't include password unless it's changed
+          const editData = { ...editingUser, ...userFormData as User, initials };
+          if (!userFormData.password) {
+              delete editData.password; // Remove password if empty (no change)
+          }
+          onEditUser(editData);
+      } else {
+          // Ensure jabatan is not empty - use first available if current is empty
+          const finalJabatan = userFormData.jabatan || (jabatanList && jabatanList.length > 0 ? jabatanList[0] : '');
+          
+          const newUserData = {
+              id: `u_${Date.now()}`, // Temporary ID, akan diganti dengan ID dari Supabase
+              initials,
+              ...userFormData as User,
+              jabatan: finalJabatan,
+              password: userFormData.password || ''
+          };
+          onAddUser(newUserData);
+      }
+      setIsModalOpen(false);
+  };
+
   const handleUserSubmit = (e: React.FormEvent) => {
       e.preventDefault();
-      if (userFormData.name && userFormData.email && userFormData.role) {
-          const initials = userFormData.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-          if (editingUser) {
-              onEditUser({ ...editingUser, ...userFormData as User, initials });
-          } else {
-              onAddUser({
-                  id: `u_${Date.now()}`,
-                  initials,
-                  ...userFormData as User,
-                  password: userFormData.password || '123456'
-              });
-          }
-          setIsModalOpen(false);
+      
+      // Validasi basic
+      if (!userFormData.name || !userFormData.email || !userFormData.role) {
+          showNotification('Data Tidak Lengkap', 'Nama, email, dan role wajib diisi.', 'warning');
+          return;
       }
+
+      // Validasi jabatan untuk user baru
+      if (!editingUser && !userFormData.jabatan) {
+          showNotification('Jabatan Wajib', 'Jabatan wajib dipilih untuk user baru.', 'warning');
+          return;
+      }
+
+      // Validasi password untuk user baru
+      if (!editingUser && (!userFormData.password || userFormData.password.length < 6)) {
+          showNotification('Password Tidak Valid', 'Password wajib diisi minimal 6 karakter untuk user baru.', 'warning');
+          return;
+      }
+
+      // Validasi format email
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(userFormData.email)) {
+          showNotification('Email Tidak Valid', 'Format email tidak valid.', 'warning');
+          return;
+      }
+
+      // Konfirmasi khusus untuk Super Admin
+      if (!editingUser && userFormData.role === 'Super Admin') {
+          showConfirm(
+              'Konfirmasi Super Admin',
+              `Anda akan membuat user dengan role Super Admin.\n\nSuper Admin memiliki akses penuh ke sistem termasuk:\n- Mengelola semua user\n- Mengakses semua data\n- Mengubah pengaturan sistem\n\nApakah Anda yakin ingin melanjutkan?`,
+              performUserSubmit,
+              'warning',
+              'Ya, Lanjutkan',
+              'Batal'
+          );
+          return;
+      }
+
+      performUserSubmit();
   };
 
   // --- Simple List Logic (Jabatan / Kategori) ---
@@ -212,7 +279,16 @@ const UserManagement: React.FC<UserManagementProps> = ({
                                  <td className="px-6 py-4 text-right">
                                      <div className="flex items-center justify-end gap-2">
                                          <button onClick={() => handleOpenUserModal(user)} className="p-2 text-slate-400 hover:text-gov-600 hover:bg-gov-50 rounded-lg transition-colors"><Edit2 size={16} /></button>
-                                         <button onClick={() => { if(window.confirm('Hapus user?')) onDeleteUser(user.id); }} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={16} /></button>
+                                         <button onClick={() => {
+                                             showConfirm(
+                                                 'Hapus User',
+                                                 `Apakah Anda yakin ingin menghapus user "${user.name}"?`,
+                                                 () => onDeleteUser(user.id),
+                                                 'error',
+                                                 'Hapus',
+                                                 'Batal'
+                                             );
+                                         }} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={16} /></button>
                                      </div>
                                  </td>
                              </tr>
@@ -238,7 +314,14 @@ const UserManagement: React.FC<UserManagementProps> = ({
                                             <button 
                                                 onClick={() => {
                                                     const handler = activeTab === 'Jabatan' ? onDeleteJabatan : onDeleteSubCategory;
-                                                    if(window.confirm(`Hapus ${item}?`)) handler(item);
+                                                    showConfirm(
+                                                        `Hapus ${activeTab}`,
+                                                        `Apakah Anda yakin ingin menghapus "${item}"?`,
+                                                        () => handler(item),
+                                                        'error',
+                                                        'Hapus',
+                                                        'Batal'
+                                                    );
                                                 }}
                                                 className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                             >
@@ -271,6 +354,20 @@ const UserManagement: React.FC<UserManagementProps> = ({
                         </button>
                     </div>
                     <form onSubmit={handleUserSubmit} className="p-6 space-y-4">
+                        {!editingUser && (
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                                <div className="flex items-start gap-2">
+                                    <Shield className="text-blue-600 mt-0.5" size={16} />
+                                    <div>
+                                        <p className="text-xs font-bold text-blue-800">Keamanan User Baru</p>
+                                        <p className="text-[10px] text-blue-600 mt-1">
+                                            User baru akan dibuat dengan akun login yang dapat digunakan untuk mengakses sistem. 
+                                            Pastikan email dan password yang aman.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                         <div>
                             <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Nama Lengkap</label>
                             <input 
@@ -305,17 +402,26 @@ const UserManagement: React.FC<UserManagementProps> = ({
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Password</label>
+                                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
+                                    Password {!editingUser && <span className="text-red-500">*</span>}
+                                </label>
                                 <div className="relative">
                                     <input 
-                                        type="text"
+                                        type="password"
+                                        required={!editingUser}
+                                        minLength={6}
                                         value={userFormData.password}
-                                        placeholder={editingUser ? '(Tidak berubah)' : 'Set Password'}
+                                        placeholder={editingUser ? '(Kosongkan jika tidak diubah)' : 'Minimal 6 karakter'}
                                         onChange={e => setUserFormData({...userFormData, password: e.target.value})}
                                         className="w-full pl-8 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm"
                                     />
                                     <Key className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                                 </div>
+                                {!editingUser && (
+                                    <p className="text-[10px] text-slate-500 mt-1">
+                                        Password akan digunakan user untuk login pertama kali
+                                    </p>
+                                )}
                             </div>
                         </div>
                         <div>
@@ -342,6 +448,28 @@ const UserManagement: React.FC<UserManagementProps> = ({
                 </div>
             </div>
         )}
+
+        {/* Custom Modals */}
+        <NotificationModal
+            isOpen={notificationModal.isOpen}
+            onClose={hideNotification}
+            title={notificationModal.title}
+            message={notificationModal.message}
+            type={notificationModal.type}
+            autoClose={notificationModal.type === 'success'}
+            autoCloseDelay={3000}
+        />
+
+        <ConfirmModal
+            isOpen={confirmModal.isOpen}
+            onClose={hideConfirm}
+            onConfirm={confirmModal.onConfirm}
+            title={confirmModal.title}
+            message={confirmModal.message}
+            type={confirmModal.type}
+            confirmText={confirmModal.confirmText}
+            cancelText={confirmModal.cancelText}
+        />
     </div>
   );
 };
