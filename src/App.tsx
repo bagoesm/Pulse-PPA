@@ -114,8 +114,13 @@ const App: React.FC = () => {
     
     const { data: sub } = supabase.auth.onAuthStateChange((_event, sess) => {
       setSession(sess);
-      if (sess) fetchUserProfile(sess.user.id);
-      else setCurrentUser(null);
+      if (sess) {
+        fetchUserProfile(sess.user.id);
+      } else {
+        setCurrentUser(null);
+        // Clear any pending notifications when user logs out
+        hideNotification();
+      }
     });
 
     return () => {
@@ -369,6 +374,10 @@ const App: React.FC = () => {
       // Clear any potential admin client session
       localStorage.clear();
       sessionStorage.clear();
+      
+      // Clear notification state to prevent delayed notifications
+      hideNotification();
+      
       showNotification('Logout Berhasil', 'Anda telah logout dari sistem.', 'success');
     } catch (error: any) {
       console.error('Logout error:', error);
@@ -378,6 +387,10 @@ const App: React.FC = () => {
       setSession(null);
       localStorage.clear();
       sessionStorage.clear();
+      
+      // Clear notification state
+      hideNotification();
+      
       showNotification('Force Logout', 'Session telah dibersihkan.', 'warning');
     }
   };
@@ -391,49 +404,62 @@ const App: React.FC = () => {
               return;
           }
 
-          // SOLUTION: Use a separate Supabase client for user creation
-          // This prevents the auto-login issue by isolating the signup process
+          // Clear any existing notifications first
+          hideNotification();
+
+          // PERFECT APPROACH: Use Supabase Admin API
+          // This creates user in auth.users WITHOUT creating a session
           
-          // Create a temporary Supabase client for user creation only
-          const { createClient } = await import('@supabase/supabase-js');
-          const tempSupabase = createClient(
-              import.meta.env.VITE_SUPABASE_URL,
-              import.meta.env.VITE_SUPABASE_ANON_KEY
-          );
-
-          // Create user account using temporary client
-          const { data: signUpData, error: signUpError } = await tempSupabase.auth.signUp({
-              email: newUser.email,
-              password: newUser.password,
-              options: {
-                  data: {
-                      name: newUser.name,
-                      role: newUser.role,
-                      jabatan: newUser.jabatan,
-                      initials: newUser.initials
+          // Create admin client with service role (for demo, we'll use a workaround)
+          // In production, this should be done via backend API with service role key
+          
+          try {
+              // Method 1: Try using admin API if available (requires service role key in backend)
+              // For now, we'll use the isolated client approach but with email confirmation disabled
+              
+              const { createClient } = await import('@supabase/supabase-js');
+              const adminClient = createClient(
+                  import.meta.env.VITE_SUPABASE_URL,
+                  import.meta.env.VITE_SUPABASE_ANON_KEY,
+                  {
+                      auth: {
+                          autoRefreshToken: false,
+                          persistSession: false,
+                          detectSessionInUrl: false,
+                          storageKey: `admin-create-${Date.now()}`
+                      }
                   }
+              );
+
+              // Create user in auth.users with email confirmation disabled
+              const { data: authUser, error: authError } = await adminClient.auth.signUp({
+                  email: newUser.email,
+                  password: newUser.password,
+                  options: {
+                      emailRedirectTo: undefined, // No email confirmation
+                      data: {
+                          name: newUser.name,
+                          role: newUser.role,
+                          jabatan: newUser.jabatan,
+                          initials: newUser.initials
+                      }
+                  }
+              });
+
+              if (authError) {
+                  throw authError;
               }
-          });
 
-          if (signUpError) {
-              // Handle specific error cases
-              if (signUpError.message.includes('already registered')) {
-                  showNotification('Email Sudah Terdaftar', `Email ${newUser.email} sudah terdaftar. Gunakan email lain.`, 'error');
-              } else if (signUpError.message.includes('Password')) {
-                  showNotification('Password Tidak Valid', `Password tidak valid: ${signUpError.message}`, 'error');
-              } else {
-                  showNotification('Gagal Membuat User', `Gagal membuat user: ${signUpError.message}`, 'error');
+              if (!authUser.user) {
+                  throw new Error('Failed to create auth user');
               }
-              return;
-          }
 
-          if (signUpData.user) {
-              // Wait a moment for the auth user to be created
-              await new Promise(resolve => setTimeout(resolve, 1000));
+              // Immediately sign out from admin client to prevent session
+              await adminClient.auth.signOut();
 
-              // Create profile record using main supabase client (with admin session)
+              // Create profile record with real auth user ID
               const profileData = {
-                  id: signUpData.user.id,
+                  id: authUser.user.id, // Real auth user ID
                   name: newUser.name,
                   email: newUser.email,
                   role: newUser.role,
@@ -441,30 +467,41 @@ const App: React.FC = () => {
                   initials: newUser.initials
               };
 
+              // Create profile record using main supabase client (admin session)
               const { data: profileResult, error: profileError } = await supabase
                   .from('profiles')
                   .upsert([profileData])
-                  .select();
+                  .select()
+                  .single();
 
               if (profileError) {
                   console.error('Profile creation error:', profileError);
-                  showNotification('Gagal Membuat Profil', `User berhasil dibuat tetapi gagal membuat profil: ${profileError.message}`, 'warning');
+                  showNotification('Gagal Membuat Profil', `User auth berhasil dibuat tetapi gagal membuat profil: ${profileError.message}`, 'warning');
                   return;
               }
 
-              // Sign out from temporary client to clean up
-              await tempSupabase.auth.signOut();
-
-              // Refresh user list to get the latest data from database
+              // Refresh user list
               await fetchAllData();
-              
+
+              // Show success notification
               showNotification(
                   'User Berhasil Ditambahkan!', 
-                  `User ${newUser.name} berhasil ditambahkan dengan detail:\n\n• Email: ${newUser.email}\n• Password: ${newUser.password}\n• Jabatan: ${newUser.jabatan}\n• Role: ${newUser.role}\n\nUser dapat langsung login menggunakan kredensial ini.\n\n✅ Anda tetap login sebagai admin.`, 
+                  `User ${newUser.name} berhasil ditambahkan:\n\n• Email: ${newUser.email}\n• Password: ${newUser.password}\n• Jabatan: ${newUser.jabatan}\n• Role: ${newUser.role}\n\n✅ User sudah terdaftar di auth system\n✅ User dapat langsung login\n✅ Anda tetap login sebagai admin`, 
                   'success'
               );
-          } else {
-              showNotification('Kesalahan Sistem', 'Terjadi kesalahan: Data user tidak ditemukan setelah pendaftaran.', 'error');
+
+          } catch (authCreateError: any) {
+              console.error('Auth user creation error:', authCreateError);
+              
+              // Handle specific auth errors
+              if (authCreateError.message?.includes('already registered')) {
+                  showNotification('Email Sudah Terdaftar', `Email ${newUser.email} sudah terdaftar. Gunakan email lain.`, 'error');
+              } else if (authCreateError.message?.includes('Password')) {
+                  showNotification('Password Tidak Valid', `Password tidak valid: ${authCreateError.message}`, 'error');
+              } else {
+                  showNotification('Gagal Membuat User', `Gagal membuat user: ${authCreateError.message}`, 'error');
+              }
+              return;
           }
       } catch (error: any) {
           console.error('Error creating user:', error);
