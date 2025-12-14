@@ -16,6 +16,7 @@ import WallOfFeedback from './components/WallOfFeedback';
 import DocumentTemplates from './components/DocumentTemplates';
 import StatusModal from './components/StatusModal';
 import NotificationModal from './components/NotificationModal';
+import ConfirmModal from './components/ConfirmModal';
 
 const App: React.FC = () => {
   // Auth State
@@ -60,6 +61,17 @@ const App: React.FC = () => {
     type: 'success' as 'success' | 'error' | 'warning' | 'info'
   });
 
+  // Confirm Modal State
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'warning' as 'success' | 'error' | 'warning' | 'info',
+    onConfirm: () => {},
+    confirmText: 'Konfirmasi',
+    cancelText: 'Batal'
+  });
+
   // Sub-tab state for Surat & Dokumen
   const [suratSubTab, setSuratSubTab] = useState<'Tasks' | 'Templates'>('Tasks');
   
@@ -97,6 +109,29 @@ const App: React.FC = () => {
 
   const hideNotification = () => {
     setNotificationModal(prev => ({ ...prev, isOpen: false }));
+  };
+
+  const showConfirm = (
+    title: string,
+    message: string,
+    onConfirm: () => void,
+    type: 'success' | 'error' | 'warning' | 'info' = 'warning',
+    confirmText: string = 'Konfirmasi',
+    cancelText: string = 'Batal'
+  ) => {
+    setConfirmModal({
+      isOpen: true,
+      title,
+      message,
+      type,
+      onConfirm,
+      confirmText,
+      cancelText
+    });
+  };
+
+  const hideConfirm = () => {
+    setConfirmModal(prev => ({ ...prev, isOpen: false }));
   };
 
   // --- Initial Data Fetching & Auth subscription ---
@@ -839,6 +874,9 @@ const App: React.FC = () => {
           setIsProjectModalOpen(false);
           setEditingProject(null);
           
+          // Trigger refresh for ProjectOverview
+          setProjectRefreshTrigger(prev => prev + 1);
+          
       } catch (error: any) {
           console.error('Error saving project:', error);
           showNotification('Kesalahan Tidak Terduga', `Terjadi kesalahan: ${error.message}`, 'error');
@@ -1251,13 +1289,33 @@ const App: React.FC = () => {
                 );
                 return;
               }
+
+              // Find project name for confirmation
+              const project = projects.find(p => p.id === projectId);
+              const projectName = project?.name || 'Project';
               
-              if (window.confirm('Apakah Anda yakin ingin menghapus project ini?')) {
-                const { error } = await supabase.from('projects').delete().eq('id', projectId);
-                if (!error) {
-                  setProjects(prev => prev.filter(p => p.id !== projectId));
-                }
-              }
+              // Show confirmation modal
+              showConfirm(
+                'Hapus Project',
+                `Apakah Anda yakin ingin menghapus project "${projectName}"?\n\nTindakan ini tidak dapat dibatalkan.`,
+                async () => {
+                  try {
+                    const { error } = await supabase.from('projects').delete().eq('id', projectId);
+                    if (!error) {
+                      setProjects(prev => prev.filter(p => p.id !== projectId));
+                      setProjectRefreshTrigger(prev => prev + 1); // Trigger refresh
+                      showNotification('Project Berhasil Dihapus!', `Project "${projectName}" berhasil dihapus.`, 'success');
+                    } else {
+                      showNotification('Gagal Hapus Project', error.message || 'Terjadi kesalahan saat menghapus project.', 'error');
+                    }
+                  } catch (error: any) {
+                    showNotification('Kesalahan Tidak Terduga', `Terjadi kesalahan: ${error.message}`, 'error');
+                  }
+                },
+                'error',
+                'Hapus',
+                'Batal'
+              );
             }}
             onCreateProject={() => {
               setEditingProject(null);
@@ -1401,6 +1459,17 @@ const App: React.FC = () => {
         type={notificationModal.type}
         autoClose={notificationModal.type === 'success'}
         autoCloseDelay={4000}
+      />
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={hideConfirm}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        type={confirmModal.type}
+        confirmText={confirmModal.confirmText}
+        cancelText={confirmModal.cancelText}
       />
     </div>
   );
