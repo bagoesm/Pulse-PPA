@@ -32,6 +32,7 @@ const App: React.FC = () => {
   const [projects, setProjects] = useState<ProjectDefinition[]>([]);
   const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
   const [documentTemplates, setDocumentTemplates] = useState<DocumentTemplate[]>([]);
+  const [templateFilePaths, setTemplateFilePaths] = useState<{[key: string]: string}>({});
   const [userStatuses, setUserStatuses] = useState<UserStatus[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
   
@@ -354,7 +355,10 @@ const App: React.FC = () => {
           fileType: t.file_type ?? t.fileType ?? '',
           fileSize: typeof t.file_size === 'number' ? t.file_size : Number(t.file_size) || 0,
           uploadedBy: t.uploaded_by ?? t.uploadedBy ?? '',
-          updatedAt: t.updated_at ? new Date(t.updated_at).toISOString().split('T')[0] : (t.updatedAt || '')
+          updatedAt: t.updated_at ? new Date(t.updated_at).toISOString().split('T')[0] : (t.updatedAt || ''),
+          filePath: t.file_path ?? t.filePath ?? '',
+          fileUrl: t.file_url ?? t.fileUrl ?? '',
+          downloadCount: t.download_count ?? t.downloadCount ?? 0
         }));
         setDocumentTemplates(mappedTmpl);
       }
@@ -682,23 +686,149 @@ const App: React.FC = () => {
   };
 
   // --- Document Templates handlers ---
-  const handleAddTemplate = async (name: string, description: string, fileType: string, fileSize: number) => {
+  const handleAddTemplate = async (name: string, description: string, fileType: string, fileSize: number, file: File) => {
       if (!currentUser) return;
-      const { data, error } = await supabase.from('document_templates').insert([{
-          name, description, file_type: fileType, file_size: fileSize, uploaded_by: currentUser.name
-      }]).select().single();
+      
+      try {
+          // Upload file to Supabase Storage
+          const fileName = `${Date.now()}_${file.name}`;
+          const { data: uploadData, error: uploadError } = await supabase.storage
+              .from('document-templates')
+              .upload(fileName, file);
 
-      if (data && !error) {
-           const newTmpl = {
-               ...data,
-               fileType: data.file_type, fileSize: data.file_size, uploadedBy: data.uploaded_by, updatedAt: data.updated_at
-           };
-           setDocumentTemplates(prev => [newTmpl, ...prev]);
+          if (uploadError) {
+              console.error('Error uploading file:', uploadError);
+              return;
+          }
+
+          // Create signed URL for the uploaded file
+          const { data: urlData, error: urlError } = await supabase.storage
+              .from('document-templates')
+              .createSignedUrl(fileName, 60 * 60 * 24 * 365); // 1 year expiry for templates
+
+          if (urlError) {
+              console.error('Error creating signed URL:', urlError);
+              return;
+          }
+
+          // Insert without new columns for now (until migration is run)
+          const { data, error } = await supabase.from('document_templates').insert([{
+              name, 
+              description, 
+              file_type: fileType, 
+              file_size: fileSize, 
+              uploaded_by: currentUser.name
+          }]).select().single();
+
+          if (data && !error) {
+               const newTmpl = {
+                   ...data,
+                   fileType: data.file_type, 
+                   fileSize: data.file_size, 
+                   uploadedBy: data.uploaded_by, 
+                   updatedAt: data.updated_at,
+                   filePath: fileName, // Store locally for now
+                   fileUrl: urlData.signedUrl, // Store locally for now
+                   downloadCount: 0
+               };
+               setDocumentTemplates(prev => [newTmpl, ...prev]);
+               // Store file path mapping temporarily
+               setTemplateFilePaths(prev => ({...prev, [data.id]: fileName}));
+          }
+      } catch (error) {
+          console.error('Error adding template:', error);
       }
   };
+
   const handleDeleteTemplate = async (id: string) => {
-      const { error } = await supabase.from('document_templates').delete().eq('id', id);
-      if (!error) setDocumentTemplates(prev => prev.filter(t => t.id !== id));
+      try {
+          // Find the template to get file path
+          const template = documentTemplates.find(t => t.id === id);
+          const filePath = template?.filePath || templateFilePaths[id];
+          
+          // Delete file from storage if exists
+          if (filePath) {
+              console.log('Deleting file from storage:', filePath);
+              const { error: storageError } = await supabase.storage
+                  .from('document-templates')
+                  .remove([filePath]);
+              
+              if (storageError) {
+                  console.error('Error deleting file from storage:', storageError);
+              } else {
+                  console.log('File deleted from storage successfully');
+              }
+          }
+
+          // Delete record from database
+          const { error } = await supabase.from('document_templates').delete().eq('id', id);
+          if (!error) {
+              setDocumentTemplates(prev => prev.filter(t => t.id !== id));
+              // Remove from file path mapping
+              setTemplateFilePaths(prev => {
+                  const newPaths = {...prev};
+                  delete newPaths[id];
+                  return newPaths;
+              });
+          }
+      } catch (error) {
+          console.error('Error deleting template:', error);
+      }
+  };
+
+  const handleDownloadTemplate = async (id: string, fileName: string) => {
+      try {
+          const template = documentTemplates.find(t => t.id === id);
+          const filePath = template?.filePath || templateFilePaths[id];
+          
+          if (!filePath) {
+              console.error('File path not found for template');
+              alert('File tidak ditemukan. Template mungkin diupload sebelum sistem file storage diaktifkan.');
+              return;
+          }
+
+          // Create a fresh signed URL for download
+          const { data: signedData, error: signedError } = await supabase.storage
+              .from('document-templates')
+              .createSignedUrl(filePath, 60 * 5); // 5 minutes for download
+
+          if (signedError || !signedData?.signedUrl) {
+              console.error('Error creating signed URL:', signedError);
+              return;
+          }
+
+          // Download using the signed URL
+          const response = await fetch(signedData.signedUrl);
+          if (!response.ok) {
+              console.error('Error downloading file:', response.statusText);
+              return;
+          }
+
+          const blob = await response.blob();
+          
+          // Create download link
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = fileName;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+
+          // Update download count
+          await supabase.from('document_templates')
+              .update({ download_count: (template.downloadCount || 0) + 1 })
+              .eq('id', id);
+
+          // Update local state
+          setDocumentTemplates(prev => 
+              prev.map(t => t.id === id ? { ...t, downloadCount: (t.downloadCount || 0) + 1 } : t)
+          );
+
+      } catch (error) {
+          console.error('Error downloading template:', error);
+      }
   };
   // --- Feedback handlers ---
   const handleAddFeedback = async (title: string, description: string, category: FeedbackCategory) => {
@@ -1541,6 +1671,7 @@ const App: React.FC = () => {
             currentUser={currentUser}
             onAddTemplate={handleAddTemplate}
             onDeleteTemplate={handleDeleteTemplate}
+            onDownloadTemplate={handleDownloadTemplate}
           />
         ) : (
             <div className="flex-1 overflow-x-auto overflow-y-hidden bg-slate-50 p-6">

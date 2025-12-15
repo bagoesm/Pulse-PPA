@@ -52,6 +52,8 @@ export interface DocumentTemplate {
   uploadedBy: string;
   updatedAt: string; // ISO Date
   downloadCount: number;
+  filePath?: string; // Path to the uploaded file
+  fileUrl?: string; // URL for downloading the file
 }
 
 export type Role = 'Super Admin' | 'Atasan' | 'Staff';

@@ -8,12 +8,13 @@ import {
 interface DocumentTemplatesProps {
     templates: DocumentTemplate[];
     currentUser: User;
-    onAddTemplate: (name: string, description: string, fileType: string, fileSize: number) => void;
+    onAddTemplate: (name: string, description: string, fileType: string, fileSize: number, file: File) => void;
     onDeleteTemplate: (id: string) => void;
+    onDownloadTemplate: (id: string, fileName: string) => void;
 }
 
 const DocumentTemplates: React.FC<DocumentTemplatesProps> = ({ 
-    templates, currentUser, onAddTemplate, onDeleteTemplate 
+    templates, currentUser, onAddTemplate, onDeleteTemplate, onDownloadTemplate 
 }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -55,10 +56,14 @@ const DocumentTemplates: React.FC<DocumentTemplatesProps> = ({
         e.preventDefault();
         if (newTemplate.name && newTemplate.description && newTemplate.file) {
             const ext = newTemplate.file.name.split('.').pop() || 'file';
-            onAddTemplate(newTemplate.name, newTemplate.description, ext, newTemplate.file.size);
+            onAddTemplate(newTemplate.name, newTemplate.description, ext, newTemplate.file.size, newTemplate.file);
             setNewTemplate({ name: '', description: '', file: null });
             setIsModalOpen(false);
         }
+    };
+
+    const handleDownload = (template: DocumentTemplate) => {
+        onDownloadTemplate(template.id, template.name + '.' + template.fileType);
     };
 
     return (
@@ -139,6 +144,7 @@ const DocumentTemplates: React.FC<DocumentTemplatesProps> = ({
                                     <td className="px-6 py-4 text-right">
                                         <div className="flex items-center justify-end gap-2">
                                             <button 
+                                                onClick={() => handleDownload(template)}
                                                 className="flex items-center gap-2 px-3 py-1.5 bg-gov-50 text-gov-700 hover:bg-gov-100 rounded-lg text-xs font-bold transition-colors"
                                                 title={`Didownload ${template.downloadCount} kali`}
                                             >
