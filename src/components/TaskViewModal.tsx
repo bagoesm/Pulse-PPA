@@ -1,7 +1,7 @@
 // src/components/TaskViewModal.tsx
 import React, { useState } from 'react';
-import { X, Edit, Calendar, Layers, Paperclip, Download, User, Clock, Flag, FileText, Info, MessageSquare, Eye, Share2, MoreHorizontal, ArrowRight, Send } from 'lucide-react';
-import { Task, User as UserType, ProjectDefinition, Attachment, Priority, Status, Comment } from '../../types';
+import { X, Edit, Calendar, Layers, Paperclip, Download, User, Clock, Flag, FileText, Info, MessageSquare, Eye, Share2, MoreHorizontal, ArrowRight, Send, ExternalLink } from 'lucide-react';
+import { Task, User as UserType, ProjectDefinition, Attachment, Priority, Status, Comment, TaskLink } from '../../types';
 import { supabase } from '../lib/supabaseClient';
 import PICDisplay from './PICDisplay';
 
@@ -39,6 +39,15 @@ const getPriorityConfig = (priority: Priority) => {
     default:
       return { color: 'bg-slate-400', text: 'text-slate-600', bg: 'bg-slate-50', icon: '📝' };
   }
+};
+
+const ensureHttps = (url: string) => {
+  if (!url) return url;
+  const trimmedUrl = url.trim();
+  if (trimmedUrl && !trimmedUrl.match(/^https?:\/\//i)) {
+    return `https://${trimmedUrl}`;
+  }
+  return trimmedUrl;
 };
 
 const getStatusConfig = (status: Status) => {
@@ -347,6 +356,52 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                       <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
                         {task.description}
                       </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Links */}
+              {task.links && task.links.length > 0 && (
+                <div className="flex items-start gap-4">
+                  <div className="flex items-center gap-3 w-28 text-gray-500">
+                    <ExternalLink size={16} />
+                    <span className="text-sm">Link ({task.links.length})</span>
+                  </div>
+                  <div className="flex-1">
+                    <div className="space-y-2">
+                      {task.links.map(link => (
+                        <div key={link.id} className="bg-gray-50 rounded-lg border border-gray-200 group hover:border-blue-200 transition-colors overflow-hidden">
+                          <div className="flex items-center justify-between p-3">
+                            <div className="flex items-center gap-3 min-w-0 flex-1">
+                              <div className="w-6 h-6 rounded bg-white border border-gray-100 flex items-center justify-center text-blue-600 shrink-0">
+                                <ExternalLink size={12} />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="text-sm font-medium text-gray-700 truncate">
+                                  {link.title || 'Untitled Link'}
+                                </div>
+                              </div>
+                            </div>
+                            {link.url && (
+                              <button 
+                                onClick={() => window.open(ensureHttps(link.url), '_blank')} 
+                                className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-all shrink-0"
+                                title={`Buka ${link.title || 'link'}`}
+                              >
+                                <ExternalLink size={14} />
+                              </button>
+                            )}
+                          </div>
+                          {link.url && (
+                            <div className="px-3 pb-3">
+                              <div className="text-xs text-gray-500 bg-white rounded px-2 py-1 border border-gray-100 font-mono break-all">
+                                {link.url}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </div>

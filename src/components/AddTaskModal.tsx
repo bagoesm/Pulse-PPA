@@ -1,7 +1,7 @@
 // src/components/AddTaskModal.tsx
 import React, { useEffect, useRef, useState } from 'react';
-import { X, Trash2, Lock, Info, Upload, FileText, Paperclip, Download } from 'lucide-react';
-import { Task, Category, Priority, Status, User, ProjectDefinition, Attachment } from '../../types';
+import { X, Trash2, Lock, Info, Upload, FileText, Paperclip, Download, ExternalLink, Plus } from 'lucide-react';
+import { Task, Category, Priority, Status, User, ProjectDefinition, Attachment, TaskLink } from '../../types';
 import { supabase } from '../lib/supabaseClient';
 import { useNotificationModal, useConfirmModal } from '../hooks/useModal';
 import NotificationModal from './NotificationModal';
@@ -65,6 +65,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
     description: '',
     projectId: '', // Opsional - boleh kosong
     attachments: [],
+    links: [],
     createdBy: currentUser?.name ?? ''
   });
 
@@ -104,6 +105,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
       setFormData({
         ...initialData,
         attachments: initialData.attachments || [],
+        links: initialData.links || [],
         pic: Array.isArray(initialData.pic) ? initialData.pic : (initialData.pic ? [initialData.pic as any] : [])
       });
     } else {
@@ -119,6 +121,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
         description: '',
         projectId: '', // Opsional - boleh kosong
         attachments: [],
+        links: [],
         createdBy: currentUser?.name ?? ''
       });
     }
@@ -251,6 +254,69 @@ const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     }
   };
 
+  // Link management functions
+  const handleAddLink = () => {
+    if (isReadOnly) return;
+    
+    const newLink: TaskLink = {
+      id: `link_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      title: '',
+      url: ''
+    };
+    
+    setFormData(prev => ({
+      ...prev,
+      links: [...(prev.links || []), newLink]
+    }));
+  };
+
+  const handleUpdateLink = (id: string, field: 'title' | 'url', value: string) => {
+    if (isReadOnly) return;
+    
+    setFormData(prev => ({
+      ...prev,
+      links: (prev.links || []).map(link => 
+        link.id === id ? { ...link, [field]: value } : link
+      )
+    }));
+  };
+
+  const handleUrlBlur = (id: string, value: string) => {
+    if (isReadOnly) return;
+    
+    // Auto-add https:// if URL doesn't have protocol and is not empty
+    let processedValue = value.trim();
+    if (processedValue && !processedValue.match(/^https?:\/\//i)) {
+      processedValue = `https://${processedValue}`;
+      
+      // Update the form data with the processed URL
+      setFormData(prev => ({
+        ...prev,
+        links: (prev.links || []).map(link => 
+          link.id === id ? { ...link, url: processedValue } : link
+        )
+      }));
+    }
+  };
+
+  const ensureHttps = (url: string) => {
+    if (!url) return url;
+    const trimmedUrl = url.trim();
+    if (trimmedUrl && !trimmedUrl.match(/^https?:\/\//i)) {
+      return `https://${trimmedUrl}`;
+    }
+    return trimmedUrl;
+  };
+
+  const handleRemoveLink = (id: string) => {
+    if (isReadOnly) return;
+    
+    setFormData(prev => ({
+      ...prev,
+      links: (prev.links || []).filter(link => link.id !== id)
+    }));
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (isReadOnly) return;
@@ -294,7 +360,8 @@ const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
       description: (formData.description || '').trim(),
       createdBy: initialData?.createdBy || currentUser?.name || 'System',
       projectId: formData.projectId || undefined, // Opsional - bisa kosong
-      attachments: formData.attachments || []
+      attachments: formData.attachments || [],
+      links: formData.links || []
     };
 
     onSave(payload);
@@ -536,6 +603,100 @@ const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm text-slate-800 placeholder-slate-400 resize-none disabled:bg-slate-50 disabled:text-slate-500"
                 placeholder="Tambahkan detail pekerjaan..."
               />
+            </div>
+
+            {/* Links */}
+            <div>
+              <div className="flex justify-between items-center mb-2">
+                <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider">Link Terkait</label>
+                {!isReadOnly && (
+                  <button type="button" onClick={handleAddLink} className="text-xs flex items-center gap-1 text-gov-600 font-bold hover:underline">
+                    <Plus size={12} /> Tambah Link
+                  </button>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                {(formData.links && formData.links.length > 0) ? (
+                  (formData.links || []).map(link => (
+                    <div key={link.id} className="bg-slate-50 border border-slate-200 rounded-lg group hover:border-gov-200 transition-colors overflow-hidden">
+                      <div className="flex items-center justify-between p-3">
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <div className="w-6 h-6 rounded bg-white border border-slate-100 flex items-center justify-center text-gov-600 shrink-0">
+                            <ExternalLink size={12} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            {isReadOnly ? (
+                              <div className="text-sm font-medium text-slate-700 truncate">
+                                {link.title || 'Untitled Link'}
+                              </div>
+                            ) : (
+                              <input
+                                type="text"
+                                value={link.title}
+                                onChange={(e) => handleUpdateLink(link.id, 'title', e.target.value)}
+                                placeholder="Judul link..."
+                                className="w-full text-sm font-medium text-slate-700 bg-transparent border-none outline-none placeholder-slate-400"
+                              />
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-1 shrink-0">
+                          {/* Open Link Button - Always visible if URL exists */}
+                          {link.url && (
+                            <button 
+                              type="button" 
+                              onClick={() => window.open(ensureHttps(link.url), '_blank')} 
+                              className="p-1.5 text-slate-400 hover:text-gov-600 hover:bg-gov-50 rounded-full transition-colors"
+                              title={`Buka ${link.title || 'link'}`}
+                            >
+                              <ExternalLink size={14} />
+                            </button>
+                          )}
+                          
+                          {/* Remove Button - Only when not readonly */}
+                          {!isReadOnly && (
+                            <button 
+                              type="button" 
+                              onClick={() => handleRemoveLink(link.id)} 
+                              className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
+                              title="Hapus link"
+                            >
+                              <X size={14} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* URL Input/Display - Separate row for better responsiveness */}
+                      <div className="px-3 pb-3">
+                        {isReadOnly ? (
+                          link.url && (
+                            <div className="text-xs text-slate-500 bg-white rounded px-2 py-1 border border-slate-100 font-mono break-all">
+                              {link.url}
+                            </div>
+                          )
+                        ) : (
+                          <input
+                            type="url"
+                            value={link.url}
+                            onChange={(e) => handleUpdateLink(link.id, 'url', e.target.value)}
+                            onBlur={(e) => handleUrlBlur(link.id, e.target.value)}
+                            placeholder="https://..."
+                            className="w-full text-xs text-slate-500 bg-white rounded px-2 py-1 border border-slate-200 outline-none placeholder-slate-400 font-mono focus:border-gov-300 focus:ring-1 focus:ring-gov-300"
+                          />
+                        )}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="p-4 border border-dashed border-slate-200 rounded-lg flex flex-col items-center justify-center text-slate-400 gap-1 bg-slate-50/50">
+                    <ExternalLink size={18} />
+                    <span className="text-xs">Belum ada link</span>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Attachments */}

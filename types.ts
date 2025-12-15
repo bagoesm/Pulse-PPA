@@ -101,6 +101,12 @@ export interface Attachment {
   url?: string;     // <— signed URL untuk download
 }
 
+export interface TaskLink {
+  id: string;
+  title: string;
+  url: string;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -115,6 +121,7 @@ export interface Task {
   createdBy: string; // User Name
   projectId?: string; // OPSIONAL - Task boleh tanpa project
   attachments: Attachment[];
+  links: TaskLink[]; // Links related to the task
   comments?: Comment[]; // OPSIONAL - Comments for the task
 }
 

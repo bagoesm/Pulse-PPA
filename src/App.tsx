@@ -304,6 +304,9 @@ const App: React.FC = () => {
               }
             }
 
+            // Process links - ensure it's an array
+            const links = Array.isArray(t.links) ? t.links : [];
+
             return {
               ...t,
               subCategory: safe(t.sub_category) || safe(t.subCategory) || '',
@@ -311,7 +314,8 @@ const App: React.FC = () => {
               projectId: t.project_id || t.projectId || null,
               createdBy: createdByName,
               deadline: t.deadline || (t.deadline_at || null),
-              attachments
+              attachments,
+              links
             } as Task;
           })
         );
@@ -784,6 +788,7 @@ const App: React.FC = () => {
         description: newTaskData.description,
         project_id: newTaskData.projectId || null,
         attachments: newTaskData.attachments,
+        links: newTaskData.links,
         created_by_id: userId   // <---- FIX PENTING
     };
 
@@ -1180,13 +1185,17 @@ const App: React.FC = () => {
               );
             }
 
+            // Process links - ensure it's an array
+            const links = Array.isArray(task.links) ? task.links : [];
+
             return {
               ...task,
               subCategory: task.sub_category,
               startDate: task.start_date,
               projectId: task.project_id,
               createdBy: allUsers.find(u => u.id === task.created_by_id)?.name || 'Unknown',
-              attachments
+              attachments,
+              links
             } as Task;
           })
         );
