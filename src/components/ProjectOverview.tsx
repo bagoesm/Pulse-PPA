@@ -142,7 +142,7 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
       const total = projectTasks.length;
       const completed = projectTasks.filter(t => t.status === Status.Done).length;
       const progress = total === 0 ? 0 : Math.round((completed / total) * 100);
-      const team = Array.from(new Set(projectTasks.map(t => t.pic)));
+      const team = Array.from(new Set(projectTasks.flatMap(t => Array.isArray(t.pic) ? t.pic : [t.pic]).filter(Boolean)));
       const documents = projectTasks.flatMap(t => t.attachments || []).length;
 
       return { total, completed, progress, team, documents, projectTasks };
@@ -629,7 +629,7 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
                   <div className="flex items-center justify-between pt-3 border-t border-slate-100">
                     <div className="flex items-center gap-2">
                       <div className={`w-8 h-8 rounded-full ${colorClasses.bg} ${colorClasses.text} flex items-center justify-center text-sm font-bold`}>
-                        {project.manager.charAt(0).toUpperCase()}
+                        {project.manager && typeof project.manager === 'string' ? project.manager.charAt(0).toUpperCase() : '?'}
                       </div>
                       <div>
                         <div className="text-xs font-semibold text-slate-700">{project.manager}</div>
@@ -921,7 +921,7 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
                                       <div className="flex items-center -space-x-1">
                                         {task.pic.slice(0, 2).map((picName, index) => (
                                           <div key={index} className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-600 ring-2 ring-white" title={picName}>
-                                            {picName.charAt(0).toUpperCase()}
+                                            {picName && typeof picName === 'string' ? picName.charAt(0).toUpperCase() : '?'}
                                           </div>
                                         ))}
                                         {task.pic.length > 2 && (
@@ -941,9 +941,9 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
                                   // Backward compatibility
                                   <>
                                     <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-600">
-                                      {(task.pic as any)?.charAt(0) || '?'}
+                                      {typeof task.pic === 'string' && (task.pic as string).length > 0 ? (task.pic as string).charAt(0) : '?'}
                                     </div>
-                                    <span className="text-slate-600">{task.pic as any}</span>
+                                    <span className="text-slate-600">{typeof task.pic === 'string' ? task.pic : 'No PIC'}</span>
                                   </>
                                 )}
                               </div>
@@ -1140,7 +1140,7 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
               </div>
 
               <div className="bg-white rounded-xl border shadow-sm p-5 space-y-4">
-                {(selectedStats?.team || []).map(member => {
+                {(selectedStats?.team || []).map((member, index) => {
                   const workload = getMemberWorkloadInProject(member, selectedStats?.projectTasks || []);
                   const label = getWorkloadLabel(workload.workloadPoints, workload.taskCount);
 
@@ -1154,11 +1154,11 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
                   };
 
                   return (
-                    <div key={member} className="group hover:bg-slate-50 rounded-lg p-3 -m-1 transition-all border-b pb-4 last:border-none">
+                    <div key={`${member}-${index}`} className="group hover:bg-slate-50 rounded-lg p-3 -m-1 transition-all border-b pb-4 last:border-none">
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-3">
                           <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all ${getAvatarStyle()}`}>
-                            {member.charAt(0).toUpperCase()}
+                            {typeof member === 'string' && member.length > 0 ? member.charAt(0).toUpperCase() : '?'}
                           </div>
                           <div>
                             <p className="font-bold text-slate-800 group-hover:text-gov-700 transition-colors">{member}</p>

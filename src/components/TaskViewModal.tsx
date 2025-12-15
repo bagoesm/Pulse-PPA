@@ -248,7 +248,7 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                               className="w-8 h-8 rounded-full bg-blue-500 border-2 border-white flex items-center justify-center text-white text-xs font-medium"
                               title={picName}
                             >
-                              {picName.charAt(0).toUpperCase()}
+                              {picName && typeof picName === 'string' ? picName.charAt(0).toUpperCase() : '?'}
                             </div>
                           ))}
                           {task.pic.length > 3 && (
@@ -276,9 +276,9 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                   ) : (
                     <>
                       <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-medium">
-                        {(task.pic as any)?.charAt(0)?.toUpperCase() || '?'}
+                        {typeof task.pic === 'string' && (task.pic as string).length > 0 ? (task.pic as string).charAt(0).toUpperCase() : '?'}
                       </div>
-                      <span className="text-sm font-medium text-gray-900">{task.pic as any}</span>
+                      <span className="text-sm font-medium text-gray-900">{typeof task.pic === 'string' ? task.pic : 'No PIC'}</span>
                     </>
                   )}
                 </div>
@@ -370,7 +370,7 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                   </div>
                   <div className="flex-1">
                     <div className="space-y-2">
-                      {task.links.map(link => (
+                      {(task.links || []).map(link => (
                         <div key={link.id} className="bg-gray-50 rounded-lg border border-gray-200 group hover:border-blue-200 transition-colors overflow-hidden">
                           <div className="flex items-center justify-between p-3">
                             <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -456,7 +456,7 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-6 h-6 rounded-full bg-gray-400 flex items-center justify-center text-white text-xs font-medium">
-                    {task.createdBy.charAt(0).toUpperCase()}
+                    {task.createdBy && typeof task.createdBy === 'string' ? task.createdBy.charAt(0).toUpperCase() : '?'}
                   </div>
                   <span className="text-sm font-medium text-gray-900">{task.createdBy}</span>
                 </div>
@@ -476,7 +476,7 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                   <form onSubmit={handleSubmitComment} className="mb-6">
                     <div className="flex gap-3">
                       <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-medium shrink-0">
-                        {currentUser.name.charAt(0).toUpperCase()}
+                        {currentUser?.name && typeof currentUser.name === 'string' ? currentUser.name.charAt(0).toUpperCase() : '?'}
                       </div>
                       <div className="flex-1">
                         <textarea
@@ -519,7 +519,7 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                       .map((comment) => (
                         <div key={comment.id} className="flex gap-3">
                           <div className="w-8 h-8 rounded-full bg-gray-400 flex items-center justify-center text-white text-xs font-medium shrink-0">
-                            {comment.userName.charAt(0).toUpperCase()}
+                            {comment.userName && typeof comment.userName === 'string' ? comment.userName.charAt(0).toUpperCase() : '?'}
                           </div>
                           <div className="flex-1">
                             <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">

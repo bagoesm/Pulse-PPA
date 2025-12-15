@@ -45,7 +45,7 @@ const PICDisplay: React.FC<PICDisplayProps> = ({
             className={`${sizeClasses[size]} rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold ring-2 ring-white z-${10 - index}`}
             title={picName}
           >
-            {picName.charAt(0).toUpperCase()}
+            {picName && typeof picName === 'string' ? picName.charAt(0).toUpperCase() : '?'}
           </div>
         ))}
         {hiddenCount > 0 && (
