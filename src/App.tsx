@@ -38,6 +38,20 @@ const App: React.FC = () => {
     allUsers.filter(user => user.role !== 'Super Admin'), 
     [allUsers]
   );
+
+  // Get all unique PICs from existing tasks (for filtering)
+  const allUniquePics = useMemo(() => {
+    const picSet = new Set<string>();
+    tasks.forEach(task => {
+      const taskPics = Array.isArray(task.pic) ? task.pic : [task.pic];
+      taskPics.forEach(pic => {
+        if (pic && pic.trim()) {
+          picSet.add(pic);
+        }
+      });
+    });
+    return Array.from(picSet).sort();
+  }, [tasks]);
   
   // Master Data State
   const [jabatanList, setJabatanList] = useState<string[]>([]);
@@ -1115,10 +1129,12 @@ const App: React.FC = () => {
   // --- Filtering ---
   const filteredTasks = useMemo(() => {
     return tasks.filter(task => {
+      // Handle both array and string PIC for backward compatibility
+      const taskPics = Array.isArray(task.pic) ? task.pic : [task.pic];
       const matchesSearch = task.title?.toLowerCase().includes(filters.search.toLowerCase()) || 
-                            task.pic?.toLowerCase().includes(filters.search.toLowerCase());
+                            taskPics.some(pic => pic?.toLowerCase().includes(filters.search.toLowerCase()));
       const matchesCategory = filters.category === 'All' || task.category === filters.category;
-      const matchesPic = filters.pic === 'All' || task.pic === filters.pic;
+      const matchesPic = filters.pic === 'All' || taskPics.includes(filters.pic);
       const matchesPriority = filters.priority === 'All' || task.priority === filters.priority;
       const matchesStatus = filters.status === 'All' || task.status === filters.status;
       const matchesProject = filters.projectId === 'All' || task.projectId === filters.projectId;
@@ -1272,7 +1288,7 @@ const App: React.FC = () => {
                             onChange={(e) => setFilters(prev => ({...prev, pic: e.target.value}))}
                         >
                             <option value="All">Semua PIC</option>
-                            {taskAssignableUsers.map(u => <option key={u.id} value={u.name}>{u.name}</option>)}
+                            {allUniquePics.map(pic => <option key={pic} value={pic}>{pic}</option>)}
                         </select>
 
                         <select 

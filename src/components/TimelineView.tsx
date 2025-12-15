@@ -236,7 +236,8 @@ const TimelineView: React.FC<TimelineViewProps> = ({ tasks, projects, users, onT
               filteredAndSortedTasks.map((task) => {
                 const position = getTaskPosition(task);
                 const project = projects.find(p => p.id === task.projectId);
-                const assignedUser = users.find(u => u.name === task.pic);
+                const taskPics = Array.isArray(task.pic) ? task.pic : [task.pic];
+                const assignedUsers = users.filter(u => taskPics.includes(u.name));
                 
                 return (
                   <div key={task.id} className="flex border-b border-slate-100 hover:bg-slate-50/50 transition-colors min-h-[80px]">
@@ -260,10 +261,15 @@ const TimelineView: React.FC<TimelineViewProps> = ({ tasks, projects, users, onT
                             {isTaskOverdue(task) ? '⚠️ OVERDUE' : task.priority}
                           </span>
                           
-                          {/* Assignee */}
+                          {/* Assignees */}
                           <div className="flex items-center gap-1 text-slate-600">
                             <UserIcon size={12} />
-                            <span>{assignedUser?.name || task.pic}</span>
+                            <span>
+                              {taskPics.length === 1 
+                                ? taskPics[0] 
+                                : `${taskPics.length} PIC${taskPics.length > 1 ? 's' : ''}`
+                              }
+                            </span>
                           </div>
                           
                           {/* Project */}

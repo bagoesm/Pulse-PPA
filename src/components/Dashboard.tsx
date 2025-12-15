@@ -248,7 +248,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   // Analisis data users dengan workload
   const analyzedUsers = useMemo(() => {
     return users.map(u => {
-      const userTasks = tasks.filter(t => t.pic === u.name);
+      const userTasks = tasks.filter(t => Array.isArray(t.pic) ? t.pic.includes(u.name) : t.pic === u.name);
       const analysis = getWorkloadAnalysis(userTasks);
       const visuals = getWorkloadVisuals(analysis.score);
       

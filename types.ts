@@ -108,7 +108,7 @@ export interface Task {
   subCategory: string;
   startDate: string; // ISO Date string - Tanggal mulai
   deadline: string; // ISO Date string - Tanggal selesai
-  pic: string;
+  pic: string[]; // Array of PIC names - Multiple PIC support
   priority: Priority;
   status: Status;
   description: string;
@@ -120,7 +120,7 @@ export interface Task {
 export interface FilterState {
   search: string;
   category: Category | 'All';
-  pic: string | 'All';
+  pic: string | 'All'; // Keep as string for backward compatibility in filtering
   priority: Priority | 'All';
   status: Status | 'All';
   projectId: string | 'All';

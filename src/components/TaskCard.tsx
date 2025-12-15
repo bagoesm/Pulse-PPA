@@ -1,6 +1,7 @@
 import React from 'react';
 import { Task, Priority, Category, ProjectDefinition } from '../../types';
 import { Calendar, Layers, Paperclip } from 'lucide-react';
+import PICDisplay from './PICDisplay';
 
 interface TaskCardProps {
   task: Task;
@@ -92,12 +93,13 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, projects, onDragStart, onClic
           )}
         </div>
         
-        <div className="flex items-center gap-1.5">
-           <div className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-[9px] font-bold ring-1 ring-white">
-             {task.pic.charAt(0)}
-           </div>
-           <span className="text-[10px] text-slate-500 font-medium truncate max-w-[60px]">{task.pic.split(' ')[0]}</span>
-        </div>
+        <PICDisplay 
+          pic={task.pic} 
+          maxVisible={2} 
+          size="sm" 
+          showNames={true}
+          className="flex-shrink-0"
+        />
       </div>
       
       {/* Ownership Indicator */}

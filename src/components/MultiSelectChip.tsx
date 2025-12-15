@@ -84,14 +84,22 @@ const MultiSelectChip: React.FC<MultiSelectChipProps> = ({
                 return (
                   <div key={v} className="flex items-center gap-1 bg-slate-100 text-slate-700 text-xs px-2 py-0.5 rounded-full whitespace-nowrap">
                     <span className="truncate max-w-[8rem]">{opt?.label ?? v}</span>
-                    <button
+                    <span
                       onClick={(e) => { e.stopPropagation(); removeChip(v); }}
-                      type="button"
+                      role="button"
+                      tabIndex={0}
                       aria-label={`Remove ${opt?.label ?? v}`}
-                      className="ml-1 text-slate-400 hover:text-red-500 p-1 rounded-full"
+                      className="ml-1 text-slate-400 hover:text-red-500 p-1 rounded-full cursor-pointer select-none"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          removeChip(v);
+                        }
+                      }}
                     >
                       ✕
-                    </button>
+                    </span>
                   </div>
                 );
               })}

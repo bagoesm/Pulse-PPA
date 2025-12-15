@@ -155,7 +155,7 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
   const [projectStatsCache, setProjectStatsCache] = useState<Record<string, any>>({});
 
   const getMemberWorkloadInProject = (pic: string, projectTasks: Task[]) => {
-    const active = projectTasks.filter(t => t.pic === pic && t.status !== Status.Done);
+    const active = projectTasks.filter(t => (Array.isArray(t.pic) ? t.pic.includes(pic) : t.pic === pic) && t.status !== Status.Done);
 
     // Hitung poin berdasarkan prioritas
     let workloadPoints = 0;
@@ -915,10 +915,37 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
                             {/* PIC */}
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-2">
-                                <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-600">
-                                  {task.pic.charAt(0)}
-                                </div>
-                                <span className="text-slate-600">{task.pic}</span>
+                                {Array.isArray(task.pic) ? (
+                                  task.pic.length > 0 ? (
+                                    <>
+                                      <div className="flex items-center -space-x-1">
+                                        {task.pic.slice(0, 2).map((picName, index) => (
+                                          <div key={index} className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-600 ring-2 ring-white" title={picName}>
+                                            {picName.charAt(0).toUpperCase()}
+                                          </div>
+                                        ))}
+                                        {task.pic.length > 2 && (
+                                          <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-500 ring-2 ring-white" title={`+${task.pic.length - 2} more`}>
+                                            +{task.pic.length - 2}
+                                          </div>
+                                        )}
+                                      </div>
+                                      <span className="text-slate-600">
+                                        {task.pic.length === 1 ? task.pic[0] : `${task.pic.length} PICs`}
+                                      </span>
+                                    </>
+                                  ) : (
+                                    <span className="text-slate-400">No PIC</span>
+                                  )
+                                ) : (
+                                  // Backward compatibility
+                                  <>
+                                    <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-600">
+                                      {(task.pic as any)?.charAt(0) || '?'}
+                                    </div>
+                                    <span className="text-slate-600">{task.pic as any}</span>
+                                  </>
+                                )}
                               </div>
                             </td>
 

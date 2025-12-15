@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabaseClient';
 import { useNotificationModal, useConfirmModal } from '../hooks/useModal';
 import NotificationModal from './NotificationModal';
 import ConfirmModal from './ConfirmModal';
+import MultiSelectChip from './MultiSelectChip';
 
 
 interface AddTaskModalProps {
@@ -58,7 +59,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
     subCategory: subCategories && subCategories.length > 0 ? subCategories[0] : '',
     startDate: new Date().toISOString().split('T')[0],
     deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Default 7 hari dari sekarang
-    pic: defaultPic,
+    pic: defaultPic ? [defaultPic] : [], // Array of PIC names
     priority: Priority.Medium,
     status: Status.ToDo,
     description: '',
@@ -74,7 +75,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
   useEffect(() => {
     setFormData(prev => ({
       ...prev,
-      pic: prev.pic || defaultPic,
+      pic: (prev.pic && Array.isArray(prev.pic) && prev.pic.length > 0) ? prev.pic : (defaultPic ? [defaultPic] : []),
       subCategory: prev.subCategory || (subCategories && subCategories[0]) || ''
     }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -99,10 +100,11 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
   useEffect(() => {
     if (!isOpen) return;
     if (initialData) {
-      // Ensure attachments array exists
+      // Ensure attachments array exists and handle backward compatibility for pic
       setFormData({
         ...initialData,
-        attachments: initialData.attachments || []
+        attachments: initialData.attachments || [],
+        pic: Array.isArray(initialData.pic) ? initialData.pic : (initialData.pic ? [initialData.pic as any] : [])
       });
     } else {
       setFormData({
@@ -111,7 +113,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
         subCategory: subCategories && subCategories.length > 0 ? subCategories[0] : '',
         startDate: new Date().toISOString().split('T')[0],
         deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Default 7 hari dari sekarang
-        pic: defaultPic,
+        pic: defaultPic ? [defaultPic] : [], // Array of PIC names
         priority: Priority.Medium,
         status: Status.ToDo,
         description: '',
@@ -242,6 +244,12 @@ const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
       return;
     }
 
+    // Validate PIC - must have at least one
+    if (!Array.isArray(formData.pic) || formData.pic.length === 0) {
+      showNotification('PIC Wajib', 'Minimal 1 PIC harus dipilih untuk task ini.', 'warning');
+      return;
+    }
+
     // Kategori wajib diisi, project opsional
     if (!formData.category) {
       showNotification('Kategori Wajib', 'Kategori wajib dipilih untuk setiap task.', 'warning');
@@ -263,7 +271,7 @@ const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
       subCategory: (formData.subCategory as string) || '',
       startDate: formData.startDate || new Date().toISOString().split('T')[0],
       deadline: formData.deadline || new Date().toISOString().split('T')[0],
-      pic: formData.pic || defaultPic,
+      pic: Array.isArray(formData.pic) ? formData.pic : (formData.pic ? [formData.pic as any] : [defaultPic]),
       priority: (formData.priority as Priority) || Priority.Medium,
       status: (formData.status as Status) || Status.ToDo,
       description: (formData.description || '').trim(),
@@ -409,21 +417,38 @@ const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
               </p>
             </div>
 
-            {/* PIC */}
+            {/* PIC - Multiple Selection */}
             <div>
-              <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">PIC Task</label>
-              <select
-                disabled={isReadOnly}
-                value={formData.pic || defaultPic}
-                onChange={(e) => handleChange('pic', e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm text-slate-700 bg-white disabled:bg-slate-50 disabled:text-slate-500"
-              >
-                {users && users.length > 0 ? (
-                  users.map(u => <option key={u.id} value={u.name}>{u.name}</option>)
-                ) : (
-                  <option value="">{currentUser?.name ?? '(Tidak ada pengguna)'}</option>
-                )}
-              </select>
+              <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                PIC Task (Person In Charge)
+              </label>
+              {isReadOnly ? (
+                <div className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-slate-50 text-slate-500 text-sm min-h-[40px] flex items-center">
+                  {Array.isArray(formData.pic) && formData.pic.length > 0 ? (
+                    <div className="flex flex-wrap gap-1">
+                      {formData.pic.map((picName, index) => (
+                        <span key={index} className="bg-slate-200 text-slate-700 text-xs px-2 py-1 rounded-full">
+                          {picName}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-slate-400">Tidak ada PIC</span>
+                  )}
+                </div>
+              ) : (
+                <MultiSelectChip
+                  options={users && users.length > 0 ? users.map(u => ({ value: u.name, label: u.name })) : []}
+                  value={Array.isArray(formData.pic) ? formData.pic : (formData.pic ? [formData.pic as any] : [])}
+                  onChange={(selected) => handleChange('pic', selected)}
+                  placeholder="Pilih PIC untuk task ini..."
+                  maxVisibleChips={3}
+                  className="w-full"
+                />
+              )}
+              <p className="text-[10px] text-slate-400 mt-1 italic">
+                Anda dapat memilih beberapa PIC untuk task ini. Minimal 1 PIC harus dipilih.
+              </p>
             </div>
 
             {/* Tanggal Mulai dan Deadline */}
