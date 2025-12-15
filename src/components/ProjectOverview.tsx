@@ -1,6 +1,6 @@
 // src/components/ProjectOverview.tsx
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Task, ProjectDefinition, Status, Priority, ProjectStatus } from '../../types';
 import { 
   Briefcase, 
@@ -106,6 +106,21 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
     return colorMap[color] || colorMap.blue;
   };
 
+  // Progress bar color hex mapping
+  const getProgressBarColorHex = (color: string = 'blue') => {
+    const colorMap: Record<string, string> = {
+      blue: '#3b82f6',
+      green: '#10b981',
+      purple: '#8b5cf6',
+      orange: '#f97316',
+      red: '#ef4444',
+      indigo: '#6366f1',
+      pink: '#ec4899',
+      teal: '#14b8a6',
+    };
+    return colorMap[color] || colorMap.blue;
+  };
+
   // Filters for tasks (in project detail view)
   const [taskSearch, setTaskSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<Status | 'All'>('All');
@@ -137,7 +152,7 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
     try {
       // Fetch all tasks for this project to calculate stats
       const result = await fetchProjectTasks(projectId, { limit: 1000 }); // Get all tasks for stats
-      const projectTasks = result.tasks;
+      const projectTasks = result.tasks || [];
 
       const total = projectTasks.length;
       const completed = projectTasks.filter(t => t.status === Status.Done).length;
@@ -147,12 +162,16 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
 
       return { total, completed, progress, team, documents, projectTasks };
     } catch (error) {
+      console.error(`Error fetching project stats for ${projectId}:`, error);
       return { total: 0, completed: 0, progress: 0, team: [], documents: 0, projectTasks: [] };
     }
   }, [fetchProjectTasks]);
 
   // Cache project stats to avoid repeated API calls
   const [projectStatsCache, setProjectStatsCache] = useState<Record<string, any>>({});
+  const [loadingStats, setLoadingStats] = useState<Record<string, boolean>>({});
+  const [statsVersion, setStatsVersion] = useState(0); // Force refresh counter
+  const loadingRef = useRef<Record<string, boolean>>({});
 
   const getMemberWorkloadInProject = (pic: string, projectTasks: Task[]) => {
     const active = projectTasks.filter(t => (Array.isArray(t.pic) ? t.pic.includes(pic) : t.pic === pic) && t.status !== Status.Done);
@@ -333,56 +352,63 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
 
   // Load project stats when projects change
   useEffect(() => {
-    const loadProjectStats = async () => {
-      const newStatsCache = { ...projectStatsCache };
-      
-      for (const project of projects) {
-        if (!newStatsCache[project.id]) {
-          try {
-            const stats = await getProjectStats(project.id);
-            newStatsCache[project.id] = stats;
-          } catch (error) {
-            newStatsCache[project.id] = { 
-              total: 0, completed: 0, progress: 0, team: [], documents: 0 
-            };
-          }
+    const loadStatsSequentially = async () => {
+      for (let i = 0; i < projects.length; i++) {
+        const project = projects[i];
+        
+        // Skip if already loading
+        if (loadingRef.current[project.id]) {
+          continue;
+        }
+        
+        // Skip if has valid cached stats and not forced refresh
+        if (projectStatsCache[project.id] && statsVersion === 0) {
+          continue;
+        }
+        
+        // Mark as loading
+        loadingRef.current[project.id] = true;
+        setLoadingStats(prev => ({ ...prev, [project.id]: true }));
+        
+        try {
+          const stats = await getProjectStats(project.id);
+          setProjectStatsCache(prev => ({ ...prev, [project.id]: stats }));
+        } catch (error) {
+          console.error(`Error loading stats for project ${project.id}:`, error);
+          setProjectStatsCache(prev => ({ 
+            ...prev, 
+            [project.id]: { 
+              total: 0, completed: 0, progress: 0, team: [], documents: 0, projectTasks: [] 
+            }
+          }));
+        } finally {
+          // Clear loading state
+          loadingRef.current[project.id] = false;
+          setLoadingStats(prev => ({ ...prev, [project.id]: false }));
+        }
+        
+        // Small delay between requests to avoid overwhelming the server
+        if (i < projects.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 100));
         }
       }
-      
-      setProjectStatsCache(newStatsCache);
     };
 
     if (projects.length > 0) {
-      loadProjectStats();
+      loadStatsSequentially();
     }
-  }, [projects, getProjectStats]);
+  }, [projects, getProjectStats, statsVersion]);
 
   // Force refresh project stats when refreshTrigger changes
   useEffect(() => {
     if (refreshTrigger && refreshTrigger > 0) {
-      // Force reload all project stats
-      const reloadAllStats = async () => {
-        const newStatsCache: Record<string, any> = {};
-        
-        for (const project of projects) {
-          try {
-            const stats = await getProjectStats(project.id);
-            newStatsCache[project.id] = stats;
-          } catch (error) {
-            newStatsCache[project.id] = { 
-              total: 0, completed: 0, progress: 0, team: [], documents: 0 
-            };
-          }
-        }
-        
-        setProjectStatsCache(newStatsCache);
-      };
-
-      if (projects.length > 0) {
-        reloadAllStats();
-      }
+      // Clear existing cache and force reload
+      setProjectStatsCache({});
+      setLoadingStats({});
+      loadingRef.current = {}; // Clear loading ref
+      setStatsVersion(prev => prev + 1); // This will trigger the other useEffect
     }
-  }, [refreshTrigger, projects, getProjectStats]);
+  }, [refreshTrigger]);
 
   // ---------------------------------------------------------------------------
   // PROJECT LIST VIEW
@@ -402,6 +428,9 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
               onClick={() => {
                 loadProjects();
                 setProjectStatsCache({});
+                setLoadingStats({});
+                loadingRef.current = {};
+                setStatsVersion(prev => prev + 1);
                 onRefreshNeeded?.();
               }}
               disabled={projectsLoading}
@@ -523,6 +552,11 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
             const stats = projectStatsCache[project.id] || { 
               total: 0, completed: 0, progress: 0, team: [], documents: 0 
             };
+            const isLoadingStats = loadingStats[project.id] || false;
+            
+
+            
+
 
             return (
               <div
@@ -599,28 +633,55 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
                   <div className="mb-4">
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-xs font-medium text-slate-600">Progress</span>
-                      <span className="text-sm font-bold text-slate-800">{stats.progress}%</span>
+                      {isLoadingStats ? (
+                        <div className="flex items-center gap-1">
+                          <div className="w-3 h-3 border border-slate-300 border-t-transparent rounded-full animate-spin"></div>
+                          <span className="text-xs text-slate-400">Loading...</span>
+                        </div>
+                      ) : (
+                        <span className="text-sm font-bold text-slate-800">{stats.progress}%</span>
+                      )}
                     </div>
                     <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                      <div 
-                        className={`h-full rounded-full transition-all duration-500 ${colorClasses.text.replace('text-', 'bg-').replace('-700', '-500')}`} 
-                        style={{ width: `${stats.progress}%` }} 
-                      />
+                      {isLoadingStats ? (
+                        <div className="h-full bg-gradient-to-r from-slate-200 via-slate-300 to-slate-200 animate-pulse rounded-full"></div>
+                      ) : (
+                        <div 
+                          className="h-full rounded-full transition-all duration-500" 
+                          style={{ 
+                            width: `${stats.progress}%`,
+                            backgroundColor: getProgressBarColorHex(project.color)
+                          }} 
+                          title={`Progress: ${stats.progress}% (${stats.completed}/${stats.total} tasks)`}
+                        />
+                      )}
                     </div>
                   </div>
 
                   {/* Stats Grid */}
                   <div className="grid grid-cols-3 gap-3 mb-4">
                     <div className="text-center p-2 bg-slate-50 rounded-lg border border-slate-100">
-                      <div className="text-sm font-bold text-slate-800">{stats.team.length}</div>
+                      {isLoadingStats ? (
+                        <div className="w-4 h-4 bg-slate-200 rounded animate-pulse mx-auto mb-1"></div>
+                      ) : (
+                        <div className="text-sm font-bold text-slate-800">{stats.team.length}</div>
+                      )}
                       <div className="text-xs text-slate-500">Team</div>
                     </div>
                     <div className="text-center p-2 bg-slate-50 rounded-lg border border-slate-100">
-                      <div className="text-sm font-bold text-slate-800">{stats.total}</div>
+                      {isLoadingStats ? (
+                        <div className="w-4 h-4 bg-slate-200 rounded animate-pulse mx-auto mb-1"></div>
+                      ) : (
+                        <div className="text-sm font-bold text-slate-800">{stats.total}</div>
+                      )}
                       <div className="text-xs text-slate-500">Tasks</div>
                     </div>
                     <div className="text-center p-2 bg-slate-50 rounded-lg border border-slate-100">
-                      <div className="text-sm font-bold text-slate-800">{stats.completed}</div>
+                      {isLoadingStats ? (
+                        <div className="w-4 h-4 bg-slate-200 rounded animate-pulse mx-auto mb-1"></div>
+                      ) : (
+                        <div className="text-sm font-bold text-slate-800">{stats.completed}</div>
+                      )}
                       <div className="text-xs text-slate-500">Done</div>
                     </div>
                   </div>
