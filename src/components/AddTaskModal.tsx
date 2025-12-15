@@ -194,12 +194,29 @@ const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
 };
 
 
-  const handleRemoveAttachment = (id: string) => {
+  const handleRemoveAttachment = async (id: string) => {
     if (isReadOnly) return;
+    
+    // Find the attachment to get the file path
+    const attachmentToRemove = (formData.attachments || []).find(a => a.id === id);
+    
+    // Remove from UI immediately for better UX
     setFormData(prev => ({
       ...prev,
       attachments: (prev.attachments || []).filter(a => a.id !== id)
     }));
+
+    // Delete from Supabase Storage if path exists
+    if (attachmentToRemove?.path) {
+      try {
+        await supabase.storage
+          .from('attachment')
+          .remove([attachmentToRemove.path]);
+      } catch (err) {
+        // Silent error handling - file removal from UI already happened
+        console.error('Error removing attachment from storage:', err);
+      }
+    }
   };
 
   const handleDownloadAttachment = async (attachment: Attachment) => {

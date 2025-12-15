@@ -115,6 +115,7 @@ export interface Task {
   createdBy: string; // User Name
   projectId?: string; // OPSIONAL - Task boleh tanpa project
   attachments: Attachment[];
+  comments?: Comment[]; // OPSIONAL - Comments for the task
 }
 
 export interface FilterState {
@@ -124,6 +125,16 @@ export interface FilterState {
   priority: Priority | 'All';
   status: Status | 'All';
   projectId: string | 'All';
+}
+
+export interface Comment {
+  id: string;
+  taskId: string;
+  userId: string;
+  userName: string;
+  content: string;
+  createdAt: string; // ISO Date string
+  updatedAt?: string; // ISO Date string
 }
 
 export const SIDEBAR_ITEMS = [

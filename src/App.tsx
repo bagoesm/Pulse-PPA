@@ -2,10 +2,11 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from './lib/supabaseClient';
 import { Plus, Search, Layout, CalendarRange, Briefcase, FileText, ListTodo, Loader2 } from 'lucide-react';
-import { Task, Status, Category, Priority, FilterState, User, ProjectDefinition, ViewMode, Feedback, FeedbackCategory, FeedbackStatus, DocumentTemplate, UserStatus, Attachment } from '../types';
+import { Task, Status, Category, Priority, FilterState, User, ProjectDefinition, ViewMode, Feedback, FeedbackCategory, FeedbackStatus, DocumentTemplate, UserStatus, Attachment, Comment } from '../types';
 import Sidebar from './components/Sidebar';
 import TaskCard from './components/TaskCard';
 import AddTaskModal from './components/AddTaskModal';
+import TaskViewModal from './components/TaskViewModal';
 import AddProjectModal from './components/AddProjectModal';
 import TimelineView from './components/TimelineView';
 import Dashboard from './components/Dashboard';
@@ -32,6 +33,7 @@ const App: React.FC = () => {
   const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
   const [documentTemplates, setDocumentTemplates] = useState<DocumentTemplate[]>([]);
   const [userStatuses, setUserStatuses] = useState<UserStatus[]>([]);
+  const [comments, setComments] = useState<Comment[]>([]);
   
   // Filtered users (exclude Super Admin from task assignments and dashboard)
   const taskAssignableUsers = useMemo(() => 
@@ -62,7 +64,9 @@ const App: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
+  const [isTaskViewModalOpen, setIsTaskViewModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [viewingTask, setViewingTask] = useState<Task | null>(null);
   const [editingProject, setEditingProject] = useState<ProjectDefinition | null>(null);
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('Board');
@@ -365,6 +369,22 @@ const App: React.FC = () => {
           expiresAt: s.expires_at
         }));
         setUserStatuses(mappedStatuses);
+      }
+
+      // --- Comments ---
+      const { data: commentsData, error: commentsErr } = await supabase.from('task_comments').select('*');
+      if (commentsErr) console.error('Error fetch comments:', commentsErr);
+      if (commentsData) {
+        const mappedComments = commentsData.map((c: any) => ({
+          id: c.id,
+          taskId: c.task_id,
+          userId: c.user_id,
+          userName: c.user_name,
+          content: c.content,
+          createdAt: c.created_at,
+          updatedAt: c.updated_at
+        }));
+        setComments(mappedComments);
       }
     } catch (err) {
       console.error('fetch All Data error', err);
@@ -769,12 +789,37 @@ const App: React.FC = () => {
 
     // 3. Jika edit
     if (editingTask) {
+        // Find attachments that were removed (exist in old task but not in new data)
+        const oldAttachments = editingTask.attachments || [];
+        const newAttachments = newTaskData.attachments || [];
+        const removedAttachments = oldAttachments.filter(oldAtt => 
+            !newAttachments.some(newAtt => newAtt.id === oldAtt.id)
+        );
+
         const { error } = await supabase
             .from('tasks')
             .update(payload)
             .eq('id', editingTask.id);
 
         if (!error) {
+            // Clean up removed attachments from storage
+            if (removedAttachments.length > 0) {
+                const filePaths = removedAttachments
+                    .filter(att => att.path) // Only files with valid paths
+                    .map(att => att.path);
+                
+                if (filePaths.length > 0) {
+                    try {
+                        await supabase.storage
+                            .from('attachment')
+                            .remove(filePaths);
+                    } catch (err) {
+                        // Silent error handling
+                        console.error('Error cleaning up removed attachments:', err);
+                    }
+                }
+            }
+
             setTasks(prev =>
                 prev.map(t =>
                     t.id === editingTask.id
@@ -821,8 +866,29 @@ const App: React.FC = () => {
   };
 
   const handleDeleteTask = async (id: string) => {
+      // Find the task to get its attachments before deletion
+      const taskToDelete = tasks.find(t => t.id === id);
+      
       const { error } = await supabase.from('tasks').delete().eq('id', id);
       if (!error) {
+          // Clean up attachments from storage
+          if (taskToDelete?.attachments && taskToDelete.attachments.length > 0) {
+              const filePaths = taskToDelete.attachments
+                  .filter(att => att.path) // Only files with valid paths
+                  .map(att => att.path);
+              
+              if (filePaths.length > 0) {
+                  try {
+                      await supabase.storage
+                          .from('attachment')
+                          .remove(filePaths);
+                  } catch (err) {
+                      // Silent error handling
+                      console.error('Error cleaning up attachments:', err);
+                  }
+              }
+          }
+          
           setTasks(prev => prev.filter(t => t.id !== id));
           // Trigger refresh for ProjectOverview
           setProjectRefreshTrigger(prev => prev + 1);
@@ -925,9 +991,75 @@ const App: React.FC = () => {
       }
   }
 
+  // Handle task click - opens view modal
+  const handleTaskClick = (task: Task) => {
+      setViewingTask(task);
+      setIsTaskViewModalOpen(true);
+  }
+
+  // Handle edit click - opens edit modal directly
   const handleEditClick = (task: Task) => {
       setEditingTask(task);
       setIsModalOpen(true);
+  }
+
+  // Handle edit from view modal
+  const handleEditFromView = () => {
+      if (viewingTask) {
+          setEditingTask(viewingTask);
+          setIsTaskViewModalOpen(false);
+          setIsModalOpen(true);
+      }
+  }
+
+
+
+  // Handle add comment
+  const handleAddComment = async (taskId: string, content: string) => {
+    if (!currentUser) return;
+
+    const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const tempComment: Comment = {
+      id: tempId,
+      taskId,
+      userId: currentUser.id,
+      userName: currentUser.name,
+      content,
+      createdAt: new Date().toISOString()
+    };
+
+    // Add to local state immediately for optimistic update
+    setComments(prev => [tempComment, ...prev]);
+
+    try {
+      // Save to database
+      const { data, error } = await supabase.from('task_comments').insert([{
+        task_id: taskId,
+        user_id: currentUser.id,
+        user_name: currentUser.name,
+        content: content
+      }]).select().single();
+
+      if (error) throw error;
+
+      // Replace temp comment with real comment from database
+      const realComment: Comment = {
+        id: data.id,
+        taskId: data.task_id,
+        userId: data.user_id,
+        userName: data.user_name,
+        content: data.content,
+        createdAt: data.created_at,
+        updatedAt: data.updated_at
+      };
+
+      setComments(prev => prev.map(c => c.id === tempId ? realComment : c));
+    } catch (error) {
+      // If save fails, remove temp comment from local state
+      setComments(prev => prev.filter(c => c.id !== tempId));
+      console.error('Error saving comment:', error);
+      throw error;
+    }
   }
 
   const openNewTaskModal = () => {
@@ -1316,7 +1448,7 @@ const App: React.FC = () => {
           />
         ) : activeTab === 'Project' ? (
           <ProjectOverview
-            onTaskClick={handleEditClick}
+            onTaskClick={handleTaskClick}
             onEditProject={(project) => {
               // Set editing project and open modal
               setEditingProject(project);
@@ -1436,7 +1568,7 @@ const App: React.FC = () => {
                                                     task={task} 
                                                     projects={projects}
                                                     onDragStart={handleDragStart} 
-                                                    onClick={handleEditClick}
+                                                    onClick={handleTaskClick}
                                                     canEdit={checkEditPermission(task)}
                                                 />
                                             ))
@@ -1455,7 +1587,7 @@ const App: React.FC = () => {
                         tasks={filteredTasks} 
                         projects={projects}
                         users={taskAssignableUsers}
-                        onTaskClick={handleEditClick} 
+                        onTaskClick={handleTaskClick} 
                     />
                 )}
             </div>
@@ -1463,6 +1595,22 @@ const App: React.FC = () => {
 
       </main>
       {/* Modals */}
+      <TaskViewModal
+        isOpen={isTaskViewModalOpen}
+        onClose={() => {
+          setIsTaskViewModalOpen(false);
+          setViewingTask(null);
+        }}
+        onEdit={handleEditFromView}
+        task={viewingTask}
+        currentUser={currentUser}
+        canEdit={viewingTask ? checkEditPermission(viewingTask) : false}
+        projects={projects}
+        users={taskAssignableUsers}
+        comments={comments}
+        onAddComment={handleAddComment}
+      />
+
       <AddTaskModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
