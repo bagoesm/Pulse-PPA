@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, Role } from '../../types';
 import { Plus, Search, Edit2, Trash2, Shield, User as UserIcon, X, Save, Key, Briefcase, Tag, Database, Folder } from 'lucide-react';
 import MultiSelectChip from './MultiSelectChip';
@@ -534,7 +534,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [userFormData, setUserFormData] = useState<Partial<User>>({
-      name: '', email: '', role: 'Staff', jabatan: '', password: '',
+      name: '', email: '', role: 'Staff', jabatan: '', password: '', sakuraAnimationEnabled: false,
   });
 
   // Simple Input State for Jabatan/Kategori
@@ -567,6 +567,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
               role: 'Staff',
               jabatan: defaultJabatan,
               password: '',
+              sakuraAnimationEnabled: false,
           });
       }
       setIsModalOpen(true);
@@ -653,6 +654,8 @@ const UserManagement: React.FC<UserManagementProps> = ({
 
   const currentList = activeTab === 'Jabatan' ? jabatanList : subCategories;
   const filteredList = currentList.filter(item => item.toLowerCase().includes(searchTerm.toLowerCase()));
+
+
 
   return (
     <div className="p-8 h-full overflow-y-auto bg-slate-50">
@@ -951,6 +954,39 @@ const UserManagement: React.FC<UserManagementProps> = ({
                                     <option key={j} value={j}>{j}</option>
                                 ))}
                             </select>
+                        </div>
+                        
+                        {/* Sakura Animation Setting */}
+                        <div>
+                            <label className="block text-xs font-bold text-slate-600 uppercase mb-2">Pengaturan Animasi</label>
+                            <div className="flex items-center gap-3 p-3 bg-pink-50 border border-pink-200 rounded-lg">
+                                <span className="text-pink-500 text-lg">🌸</span>
+                                <div className="flex-1">
+                                    <p className="text-sm font-medium text-slate-700">Animasi Bunga Sakura</p>
+                                    <p className="text-xs text-slate-500">Tampilkan animasi bunga sakura saat hover di dashboard</p>
+                                </div>
+                                <div className="flex items-center">
+                                    <input
+                                        type="checkbox"
+                                        id="sakuraAnimation"
+                                        checked={userFormData.sakuraAnimationEnabled || false}
+                                        onChange={e => setUserFormData({...userFormData, sakuraAnimationEnabled: e.target.checked})}
+                                        className="sr-only"
+                                    />
+                                    <label
+                                        htmlFor="sakuraAnimation"
+                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
+                                            userFormData.sakuraAnimationEnabled ? 'bg-pink-500' : 'bg-slate-300'
+                                        }`}
+                                    >
+                                        <span
+                                            className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${
+                                                userFormData.sakuraAnimationEnabled ? 'translate-x-6' : 'translate-x-1'
+                                            }`}
+                                        />
+                                    </label>
+                                </div>
+                            </div>
                         </div>
                         
                         <div className="pt-4 flex justify-end gap-3">

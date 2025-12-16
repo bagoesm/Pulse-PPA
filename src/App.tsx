@@ -226,7 +226,11 @@ const App: React.FC = () => {
         
         setCurrentUser(null);
       } else if (data) {
-        setCurrentUser(data as User);
+        const mappedUser = {
+          ...data,
+          sakuraAnimationEnabled: data.sakura_animation_enabled || false
+        } as User;
+        setCurrentUser(mappedUser);
       }
     } catch (err) {
       console.error('fetchUserProfile unexpected', err);
@@ -245,7 +249,13 @@ const App: React.FC = () => {
       // --- Users ---
       const { data: usersData, error: usersErr } = await supabase.from('profiles').select('*');
       if (usersErr) console.error('Error fetch profiles:', usersErr);
-      if (usersData) setAllUsers(usersData as User[]);
+      if (usersData) {
+        const mappedUsers = usersData.map((user: any) => ({
+          ...user,
+          sakuraAnimationEnabled: user.sakura_animation_enabled || false
+        })) as User[];
+        setAllUsers(mappedUsers);
+      }
 
       // --- Projects ---
       const { data: projectsData, error: projectsErr } = await supabase.from('projects').select('*');
@@ -563,7 +573,8 @@ const App: React.FC = () => {
                   email: newUser.email,
                   role: newUser.role,
                   jabatan: newUser.jabatan || null,
-                  initials: newUser.initials
+                  initials: newUser.initials,
+                  sakura_animation_enabled: newUser.sakuraAnimationEnabled || false
               };
 
               // Create profile record using main supabase client (admin session)
@@ -618,7 +629,8 @@ const App: React.FC = () => {
               role: updatedUser.role,
               jabatan: updatedUser.jabatan,
               initials: updatedUser.initials,
-              email: updatedUser.email
+              email: updatedUser.email,
+              sakura_animation_enabled: updatedUser.sakuraAnimationEnabled || false
           }).eq('id', updatedUser.id);
           
           if (profileError) {

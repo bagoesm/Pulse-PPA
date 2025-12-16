@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Task, Status, Priority, User, UserStatus } from '../../types';
 import StatusBubble from './StatusBubble';
+import SakuraAnimation from './SakuraAnimation';
 import { 
   CheckCircle2, 
   AlertCircle, 
@@ -62,6 +63,9 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [dateFilter, setDateFilter] = useState<DateFilter>('all');
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
+  
+  // State untuk animasi sakura
+  const [hoveredCard, setHoveredCard] = useState<string | null>(null);
 
   // Reset page saat filter berubah
   useEffect(() => {
@@ -636,29 +640,52 @@ const Dashboard: React.FC<DashboardProps> = ({
           // Get user's current status
           const userStatus = userStatuses.find(s => s.userId === data.user.id);
 
+          const isHoveredWithSakura = hoveredCard === data.user.id && data.user.sakuraAnimationEnabled;
+
           return (
             <div 
               key={data.userName} 
-              className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-lg hover:border-gov-300 transition-all duration-300 group cursor-pointer transform hover:scale-[1.02]"
+              className={`rounded-2xl shadow-sm border overflow-hidden transition-all duration-300 group cursor-pointer transform hover:scale-[1.02] relative ${
+                isHoveredWithSakura 
+                  ? 'bg-gradient-to-br from-pink-50 to-rose-50 border-pink-200 shadow-pink-100/50 hover:shadow-lg' 
+                  : 'bg-white border-slate-200 hover:shadow-lg hover:border-gov-300'
+              }`}
               onClick={() => onUserCardClick?.(data.userName)}
+              onMouseEnter={() => setHoveredCard(data.user.id)}
+              onMouseLeave={() => setHoveredCard(null)}
               title={`Klik untuk melihat semua task ${data.userName} (${data.activeCount} aktif, ${data.completedCount} selesai)`}
             >
+              {/* Sakura Animation */}
+              <SakuraAnimation 
+                isActive={hoveredCard === data.user.id && data.user.sakuraAnimationEnabled === true}
+                petalCount={6}
+              />
               {/* HEADER */}
-              <div className="p-5 border-b border-slate-100">
+              <div className={`p-5 border-b transition-colors ${isHoveredWithSakura ? 'border-pink-100' : 'border-slate-100'}`}>
                 <div className="flex justify-between items-start mb-3">
                   <div className="flex items-center gap-3 relative">
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold border-2 border-white shadow-sm ${data.visuals.color} text-white group-hover:scale-110 transition-transform`}>
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold border-2 border-white shadow-sm ${
+                      isHoveredWithSakura ? 'bg-pink-400' : data.visuals.color
+                    } text-white group-hover:scale-110 transition-all`}>
                       {data.userName.charAt(0).toUpperCase()}
                     </div>
                     <div className="flex-1">
-                      <h4 className="font-bold text-slate-800 group-hover:text-gov-700 transition-colors">{data.userName}</h4>
-                      <p className="text-xs text-slate-500">{data.user.jabatan || 'Staff'}</p>
+                      <h4 className={`font-bold transition-colors ${
+                        isHoveredWithSakura ? 'text-pink-800' : 'text-slate-800 group-hover:text-gov-700'
+                      }`}>{data.userName}</h4>
+                      <p className={`text-xs transition-colors ${
+                        isHoveredWithSakura ? 'text-pink-600' : 'text-slate-500'
+                      }`}>{data.user.jabatan || 'Staff'}</p>
                     </div>
                     <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Eye size={16} className="text-gov-600" />
+                      <Eye size={16} className={isHoveredWithSakura ? 'text-pink-600' : 'text-gov-600'} />
                     </div>
                   </div>
-                  <span className={`px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 ${data.visuals.bg} ${data.visuals.textColor} shadow-sm`}>
+                  <span className={`px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 shadow-sm transition-colors ${
+                    isHoveredWithSakura 
+                      ? 'bg-pink-100 text-pink-700' 
+                      : `${data.visuals.bg} ${data.visuals.textColor}`
+                  }`}>
                     <VisualIcon size={12} />
                     {data.visuals.label}
                   </span>
@@ -679,30 +706,48 @@ const Dashboard: React.FC<DashboardProps> = ({
                 {/* Quick Stats */}
                 <div className="grid grid-cols-4 gap-2 text-center">
                   <div>
-                    <span className="block text-lg font-bold text-slate-800">{data.activeCount}</span>
-                    <span className="text-[9px] text-slate-500 font-medium">Aktif</span>
+                    <span className={`block text-lg font-bold transition-colors ${
+                      isHoveredWithSakura ? 'text-pink-700' : 'text-slate-800'
+                    }`}>{data.activeCount}</span>
+                    <span className={`text-[9px] font-medium transition-colors ${
+                      isHoveredWithSakura ? 'text-pink-600' : 'text-slate-500'
+                    }`}>Aktif</span>
                   </div>
                   <div>
-                    <span className="block text-lg font-bold text-green-600">{data.completedCount}</span>
-                    <span className="text-[9px] text-green-600 font-medium">Selesai</span>
+                    <span className={`block text-lg font-bold transition-colors ${
+                      isHoveredWithSakura ? 'text-pink-700' : 'text-green-600'
+                    }`}>{data.completedCount}</span>
+                    <span className={`text-[9px] font-medium transition-colors ${
+                      isHoveredWithSakura ? 'text-pink-600' : 'text-green-600'
+                    }`}>Selesai</span>
                   </div>
                   <div>
-                    <span className="block text-lg font-bold text-gov-600">{data.completionRate.toFixed(0)}%</span>
-                    <span className="text-[9px] text-gov-600 font-medium">Rate</span>
+                    <span className={`block text-lg font-bold transition-colors ${
+                      isHoveredWithSakura ? 'text-pink-700' : 'text-gov-600'
+                    }`}>{data.completionRate.toFixed(0)}%</span>
+                    <span className={`text-[9px] font-medium transition-colors ${
+                      isHoveredWithSakura ? 'text-pink-600' : 'text-gov-600'
+                    }`}>Rate</span>
                   </div>
                   <div>
-                    <span className="block text-lg font-bold text-purple-600">{data.performanceScore}</span>
-                    <span className="text-[9px] text-purple-600 font-medium">Poin</span>
+                    <span className={`block text-lg font-bold transition-colors ${
+                      isHoveredWithSakura ? 'text-pink-700' : 'text-purple-600'
+                    }`}>{data.performanceScore}</span>
+                    <span className={`text-[9px] font-medium transition-colors ${
+                      isHoveredWithSakura ? 'text-pink-600' : 'text-purple-600'
+                    }`}>Poin</span>
                   </div>
                 </div>
 
                 {/* Performance Badge untuk periode tertentu */}
                 {dateFilter !== 'all' && data.performanceScore > 0 && (
                   <div className="mt-3 text-center">
-                    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
-                      data.performanceScore >= 10 ? 'bg-purple-100 text-purple-700' :
-                      data.performanceScore >= 5 ? 'bg-blue-100 text-blue-700' :
-                      'bg-slate-100 text-slate-600'
+                    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium transition-colors ${
+                      isHoveredWithSakura 
+                        ? 'bg-pink-100 text-pink-700'
+                        : data.performanceScore >= 10 ? 'bg-purple-100 text-purple-700' :
+                          data.performanceScore >= 5 ? 'bg-blue-100 text-blue-700' :
+                          'bg-slate-100 text-slate-600'
                     }`}>
                       <Award size={10} />
                       {data.performanceScore >= 10 ? 'Top Performer' :
@@ -717,23 +762,39 @@ const Dashboard: React.FC<DashboardProps> = ({
                 {/* Workload Meter */}
                 <div className="mb-4">
                   <div className="flex justify-between text-xs mb-2">
-                    <span className="font-semibold text-slate-600">Beban Kerja: {data.score} poin</span>
-                    <span className="text-slate-400">{percentage.toFixed(0)}% kapasitas</span>
+                    <span className={`font-semibold transition-colors ${
+                      isHoveredWithSakura ? 'text-pink-700' : 'text-slate-600'
+                    }`}>Beban Kerja: {data.score} poin</span>
+                    <span className={`transition-colors ${
+                      isHoveredWithSakura ? 'text-pink-500' : 'text-slate-400'
+                    }`}>{percentage.toFixed(0)}% kapasitas</span>
                   </div>
-                  <div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                  <div className={`h-2.5 w-full rounded-full overflow-hidden transition-colors ${
+                    isHoveredWithSakura ? 'bg-pink-100' : 'bg-slate-100'
+                  }`}>
                     <div 
-                      className={`h-full rounded-full transition-all duration-1000 ${data.visuals.color}`} 
+                      className={`h-full rounded-full transition-all duration-1000 ${
+                        isHoveredWithSakura ? 'bg-pink-400' : data.visuals.color
+                      }`} 
                       style={{ width: `${percentage}%` }}
                     />
                   </div>
-                  <p className="text-xs text-slate-500 mt-2 italic">"{data.visuals.message}"</p>
+                  <p className={`text-xs mt-2 italic transition-colors ${
+                    isHoveredWithSakura ? 'text-pink-600' : 'text-slate-500'
+                  }`}>"{data.visuals.message}"</p>
                 </div>
 
                 {/* Upcoming Deadlines Alert */}
                 {data.upcomingDeadlines > 0 && (
-                  <div className="mb-4 p-2 bg-orange-50 border border-orange-200 rounded-lg flex items-center gap-2">
-                    <Clock size={14} className="text-orange-600" />
-                    <span className="text-xs font-medium text-orange-700">
+                  <div className={`mb-4 p-2 rounded-lg flex items-center gap-2 transition-colors ${
+                    isHoveredWithSakura 
+                      ? 'bg-pink-50 border border-pink-200' 
+                      : 'bg-orange-50 border border-orange-200'
+                  }`}>
+                    <Clock size={14} className={isHoveredWithSakura ? 'text-pink-600' : 'text-orange-600'} />
+                    <span className={`text-xs font-medium transition-colors ${
+                      isHoveredWithSakura ? 'text-pink-700' : 'text-orange-700'
+                    }`}>
                       {data.upcomingDeadlines} deadline dalam 3 hari
                     </span>
                   </div>
@@ -741,27 +802,61 @@ const Dashboard: React.FC<DashboardProps> = ({
 
                 {/* Priority Breakdown */}
                 <div className="grid grid-cols-4 gap-2">
-                  <div className="text-center p-2 rounded-lg bg-red-50 border border-red-100 hover:bg-red-100 transition-colors">
-                    <span className="block text-lg font-bold text-red-600">{data.urgentCount}</span>
-                    <span className="text-[9px] text-red-500 font-semibold uppercase">Urgent</span>
+                  <div className={`text-center p-2 rounded-lg transition-colors ${
+                    isHoveredWithSakura 
+                      ? 'bg-pink-50 border border-pink-100 hover:bg-pink-100' 
+                      : 'bg-red-50 border border-red-100 hover:bg-red-100'
+                  }`}>
+                    <span className={`block text-lg font-bold transition-colors ${
+                      isHoveredWithSakura ? 'text-pink-700' : 'text-red-600'
+                    }`}>{data.urgentCount}</span>
+                    <span className={`text-[9px] font-semibold uppercase transition-colors ${
+                      isHoveredWithSakura ? 'text-pink-600' : 'text-red-500'
+                    }`}>Urgent</span>
                   </div>
-                  <div className="text-center p-2 rounded-lg bg-orange-50 border border-orange-100 hover:bg-orange-100 transition-colors">
-                    <span className="block text-lg font-bold text-orange-600">{data.highCount}</span>
-                    <span className="text-[9px] text-orange-500 font-semibold uppercase">High</span>
+                  <div className={`text-center p-2 rounded-lg transition-colors ${
+                    isHoveredWithSakura 
+                      ? 'bg-pink-50 border border-pink-100 hover:bg-pink-100' 
+                      : 'bg-orange-50 border border-orange-100 hover:bg-orange-100'
+                  }`}>
+                    <span className={`block text-lg font-bold transition-colors ${
+                      isHoveredWithSakura ? 'text-pink-700' : 'text-orange-600'
+                    }`}>{data.highCount}</span>
+                    <span className={`text-[9px] font-semibold uppercase transition-colors ${
+                      isHoveredWithSakura ? 'text-pink-600' : 'text-orange-500'
+                    }`}>High</span>
                   </div>
-                  <div className="text-center p-2 rounded-lg bg-blue-50 border border-blue-100 hover:bg-blue-100 transition-colors">
-                    <span className="block text-lg font-bold text-blue-600">{data.mediumCount}</span>
-                    <span className="text-[9px] text-blue-500 font-semibold uppercase">Med</span>
+                  <div className={`text-center p-2 rounded-lg transition-colors ${
+                    isHoveredWithSakura 
+                      ? 'bg-pink-50 border border-pink-100 hover:bg-pink-100' 
+                      : 'bg-blue-50 border border-blue-100 hover:bg-blue-100'
+                  }`}>
+                    <span className={`block text-lg font-bold transition-colors ${
+                      isHoveredWithSakura ? 'text-pink-700' : 'text-blue-600'
+                    }`}>{data.mediumCount}</span>
+                    <span className={`text-[9px] font-semibold uppercase transition-colors ${
+                      isHoveredWithSakura ? 'text-pink-600' : 'text-blue-500'
+                    }`}>Med</span>
                   </div>
-                  <div className="text-center p-2 rounded-lg bg-slate-50 border border-slate-100 hover:bg-slate-100 transition-colors">
-                    <span className="block text-lg font-bold text-slate-600">{data.lowCount}</span>
-                    <span className="text-[9px] text-slate-500 font-semibold uppercase">Low</span>
+                  <div className={`text-center p-2 rounded-lg transition-colors ${
+                    isHoveredWithSakura 
+                      ? 'bg-pink-50 border border-pink-100 hover:bg-pink-100' 
+                      : 'bg-slate-50 border border-slate-100 hover:bg-slate-100'
+                  }`}>
+                    <span className={`block text-lg font-bold transition-colors ${
+                      isHoveredWithSakura ? 'text-pink-700' : 'text-slate-600'
+                    }`}>{data.lowCount}</span>
+                    <span className={`text-[9px] font-semibold uppercase transition-colors ${
+                      isHoveredWithSakura ? 'text-pink-600' : 'text-slate-500'
+                    }`}>Low</span>
                   </div>
                 </div>
 
                 {/* Click hint */}
                 <div className="mt-4 text-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  <span className="text-xs text-gov-600 font-medium flex items-center justify-center gap-1">
+                  <span className={`text-xs font-medium flex items-center justify-center gap-1 transition-colors ${
+                    isHoveredWithSakura ? 'text-pink-600' : 'text-gov-600'
+                  }`}>
                     <Eye size={12} />
                     Klik untuk lihat task
                   </span>

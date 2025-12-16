@@ -67,6 +67,7 @@ export interface User {
   initials: string;
   jabatan?: string; // e.g. "Pranata Komputer Ahli Muda"
   password?: string; // For mock auth
+  sakuraAnimationEnabled?: boolean; // Setting untuk animasi bunga sakura
 }
 
 export type StatusType = 'text' | 'music' | 'mood' | 'activity' | 'location' | 'food';
