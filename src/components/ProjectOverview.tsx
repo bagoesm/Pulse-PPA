@@ -949,14 +949,15 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
                   </div>
                 ) : tasks.length > 0 ? (
                   <>
-                    <table className="w-full text-sm text-left">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm text-left min-w-[800px]">
                       <thead className="bg-slate-50 border-b text-xs uppercase text-slate-500">
                         <tr>
-                          <th className="px-4 py-3">Task</th>
-                          <th className="px-4 py-3">PIC</th>
-                          <th className="px-4 py-3">Status</th>
-                          <th className="px-4 py-3">Prioritas</th>
-                          <th className="px-4 py-3 text-right">Deadline</th>
+                          <th className="px-4 py-3 w-2/5">Task</th>
+                          <th className="px-4 py-3 w-1/6">PIC</th>
+                          <th className="px-4 py-3 w-1/6">Status</th>
+                          <th className="px-4 py-3 w-1/6">Prioritas</th>
+                          <th className="px-4 py-3 w-1/6 text-right">Deadline</th>
                         </tr>
                       </thead>
 
@@ -1078,6 +1079,7 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
                         </button>
                       </div>
                     </div>
+                    </div>
                   </>
                 ) : (
                   <div className="p-8 text-center text-slate-400">
@@ -1095,7 +1097,8 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
 
               <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
                 {documentsList.length > 0 ? (
-                  <table className="w-full text-sm">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm min-w-[600px]">
                     <thead className="bg-slate-50 border-b text-xs uppercase text-slate-500">
                       <tr>
                         <th className="px-4 py-3">Nama File</th>
@@ -1150,6 +1153,7 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
                       ))}
                     </tbody>
                   </table>
+                  </div>
                 ) : (
                   <div className="p-8 text-center text-slate-400">
                     Belum ada dokumen yang diunggah.
