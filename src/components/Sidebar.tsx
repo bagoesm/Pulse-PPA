@@ -15,7 +15,8 @@ import {
   Database,
   LogOut,
   MessageSquarePlus,
-  Code
+  Code,
+  Settings
 } from 'lucide-react';
 import { SIDEBAR_ITEMS, User } from '../../types';
 
@@ -113,6 +114,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser,
                     <Database size={18} className={activeTab === 'Master Data' ? 'text-purple-600' : 'text-slate-400'} />
                     Master Data User
                 </button>
+
             </>
         )}
       </nav>

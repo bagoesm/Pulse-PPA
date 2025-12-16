@@ -60,6 +60,11 @@ const App: React.FC = () => {
   const [jabatanList, setJabatanList] = useState<string[]>([]);
   const [subCategories, setSubCategories] = useState<string[]>([]);
   
+  // Category Management State
+  const [masterCategories, setMasterCategories] = useState<any[]>([]);
+  const [masterSubCategories, setMasterSubCategories] = useState<any[]>([]);
+  const [categorySubcategoryRelations, setCategorySubcategoryRelations] = useState<any[]>([]);
+  
   // UI State
   const [activeTab, setActiveTab] = useState('Dashboard'); 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -332,6 +337,20 @@ const App: React.FC = () => {
       const { data: subCatData, error: subErr } = await supabase.from('master_sub_categories').select('name');
       if (subErr) console.error('Error fetch master_sub_categories:', subErr);
       if (subCatData) setSubCategories(subCatData.map((s: any) => s.name));
+
+      // --- Master Categories & SubCategories for management ---
+      const { data: categoriesData, error: catErr } = await supabase.from('master_categories').select('*').order('display_order');
+      if (catErr) console.error('Error fetch master_categories:', catErr);
+      if (categoriesData) setMasterCategories(categoriesData);
+
+      const { data: subCategoriesData, error: subCatErr } = await supabase.from('master_sub_categories').select('*').order('display_order');
+      if (subCatErr) console.error('Error fetch master_sub_categories full:', subCatErr);
+      if (subCategoriesData) setMasterSubCategories(subCategoriesData);
+
+      // --- Category-SubCategory Relations ---
+      const { data: relationsData, error: relErr } = await supabase.from('category_subcategory_relations').select('*');
+      if (relErr) console.error('Error fetch category_subcategory_relations:', relErr);
+      if (relationsData) setCategorySubcategoryRelations(relationsData);
 
       // --- Feedbacks (safe mapping) ---
       const { data: fbData, error: fbErr } = await supabase.from('feedbacks').select('*');
@@ -683,6 +702,124 @@ const App: React.FC = () => {
   const handleDeleteSubCategory = async (item: string) => {
       const { error } = await supabase.from('master_sub_categories').delete().eq('name', item);
       if (!error) setSubCategories(prev => prev.filter(s => s !== item));
+  };
+
+  // --- Category Management Handlers ---
+  const handleAddMasterCategory = async (name: string, icon: string, color: string, selectedSubCategories?: string[]) => {
+      const { data, error } = await supabase.from('master_categories').insert([{
+          name, icon, color, display_order: masterCategories.length + 1
+      }]).select().single();
+      
+      if (data && !error) {
+          setMasterCategories(prev => [...prev, data]);
+          
+          // Create relations with selected subcategories
+          if (selectedSubCategories && selectedSubCategories.length > 0) {
+              const relations = selectedSubCategories.map(subId => ({
+                  category_id: data.id,
+                  subcategory_id: subId
+              }));
+              
+              const { data: relationData, error: relationError } = await supabase
+                  .from('category_subcategory_relations')
+                  .insert(relations)
+                  .select();
+              
+              if (relationData && !relationError) {
+                  setCategorySubcategoryRelations(prev => [...prev, ...relationData]);
+              }
+          }
+      }
+  };
+
+  const handleUpdateMasterCategory = async (id: string, name: string, icon: string, color: string, selectedSubCategories?: string[]) => {
+      const { error } = await supabase.from('master_categories')
+          .update({ name, icon, color })
+          .eq('id', id);
+      
+      if (!error) {
+          setMasterCategories(prev => prev.map(cat => 
+              cat.id === id ? { ...cat, name, icon, color } : cat
+          ));
+          
+          // Update relations with subcategories
+          if (selectedSubCategories !== undefined) {
+              // Delete existing relations
+              await supabase.from('category_subcategory_relations')
+                  .delete()
+                  .eq('category_id', id);
+              
+              // Update local state - remove old relations
+              setCategorySubcategoryRelations(prev => 
+                  prev.filter(rel => rel.category_id !== id)
+              );
+              
+              // Create new relations
+              if (selectedSubCategories.length > 0) {
+                  const relations = selectedSubCategories.map(subId => ({
+                      category_id: id,
+                      subcategory_id: subId
+                  }));
+                  
+                  const { data: relationData, error: relationError } = await supabase
+                      .from('category_subcategory_relations')
+                      .insert(relations)
+                      .select();
+                  
+                  if (relationData && !relationError) {
+                      setCategorySubcategoryRelations(prev => [...prev, ...relationData]);
+                  }
+              }
+          }
+      }
+  };
+
+  const handleDeleteMasterCategory = async (id: string) => {
+      const { error } = await supabase.from('master_categories').delete().eq('id', id);
+      if (!error) {
+          setMasterCategories(prev => prev.filter(cat => cat.id !== id));
+          // Remove related relations from local state
+          setCategorySubcategoryRelations(prev => 
+              prev.filter(rel => rel.category_id !== id)
+          );
+      }
+  };
+
+  const handleAddMasterSubCategory = async (name: string, categoryId: string) => {
+      // Sub categories are now independent, so we don't need category_id
+      const { data, error } = await supabase.from('master_sub_categories').insert([{
+          name, 
+          category_id: null, // Set to null since sub categories are independent
+          display_order: masterSubCategories.length + 1
+      }]).select().single();
+      
+      if (data && !error) {
+          setMasterSubCategories(prev => [...prev, data]);
+      }
+  };
+
+  const handleUpdateMasterSubCategory = async (id: string, name: string, categoryId: string) => {
+      // Only update the name since sub categories are independent
+      const { error } = await supabase.from('master_sub_categories')
+          .update({ name })
+          .eq('id', id);
+      
+      if (!error) {
+          setMasterSubCategories(prev => prev.map(sub => 
+              sub.id === id ? { ...sub, name } : sub
+          ));
+      }
+  };
+
+  const handleDeleteMasterSubCategory = async (id: string) => {
+      const { error } = await supabase.from('master_sub_categories').delete().eq('id', id);
+      if (!error) {
+          setMasterSubCategories(prev => prev.filter(sub => sub.id !== id));
+          // Remove related relations from local state
+          setCategorySubcategoryRelations(prev => 
+              prev.filter(rel => rel.subcategory_id !== id)
+          );
+      }
   };
 
   // --- Document Templates handlers ---
@@ -1664,6 +1801,15 @@ const App: React.FC = () => {
             subCategories={subCategories}
             onAddSubCategory={handleAddSubCategory}
             onDeleteSubCategory={handleDeleteSubCategory}
+            masterCategories={masterCategories}
+            masterSubCategories={masterSubCategories}
+            categorySubcategoryRelations={categorySubcategoryRelations}
+            onAddMasterCategory={handleAddMasterCategory}
+            onUpdateMasterCategory={handleUpdateMasterCategory}
+            onDeleteMasterCategory={handleDeleteMasterCategory}
+            onAddMasterSubCategory={handleAddMasterSubCategory}
+            onUpdateMasterSubCategory={handleUpdateMasterSubCategory}
+            onDeleteMasterSubCategory={handleDeleteMasterSubCategory}
           />
         ) : activeTab === 'Surat & Dokumen' && suratSubTab === 'Templates' ? (
           <DocumentTemplates 
@@ -1763,6 +1909,9 @@ const App: React.FC = () => {
         projects={projects}
         users={taskAssignableUsers}
         subCategories={subCategories}
+        masterCategories={masterCategories}
+        masterSubCategories={masterSubCategories}
+        categorySubcategoryRelations={categorySubcategoryRelations}
       />
 
       <AddProjectModal

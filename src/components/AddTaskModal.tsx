@@ -20,7 +20,10 @@ interface AddTaskModalProps {
   canDelete: boolean;
   projects: ProjectDefinition[];
   users: User[];             // list users from DB
-  subCategories: string[];   // list sub categories from DB
+  subCategories: string[];   // list sub categories from DB (legacy)
+  masterCategories: any[];   // dynamic categories from DB
+  masterSubCategories: any[]; // dynamic subcategories from DB
+  categorySubcategoryRelations: any[]; // relations between categories and subcategories
 }
 
 const formatFileSize = (bytes: number): string => {
@@ -42,7 +45,10 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
   canDelete,
   projects,
   users,
-  subCategories
+  subCategories,
+  masterCategories,
+  masterSubCategories,
+  categorySubcategoryRelations
 }) => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   
@@ -84,18 +90,31 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
 
   // Update subCategory when category changes
   useEffect(() => {
-    if (formData.category === Category.PengembanganAplikasi) {
-      // Set default subCategory untuk Pengembangan Aplikasi
-      if (!formData.subCategory || !['UI/UX Design', 'Fitur Baru', 'Backend', 'Frontend', 'QA & Pengujian', 'Dokumentasi'].includes(formData.subCategory)) {
-        setFormData(prev => ({ ...prev, subCategory: 'UI/UX Design' }));
+    // Reset subcategory when category changes
+    const currentCategory = masterCategories.find(cat => cat.name === formData.category);
+    if (currentCategory) {
+      // Get subcategories connected to this category through relations
+      const relatedSubIds = categorySubcategoryRelations
+        .filter(rel => rel.category_id === currentCategory.id)
+        .map(rel => rel.subcategory_id);
+      const filteredSubCategories = masterSubCategories.filter(sub => relatedSubIds.includes(sub.id));
+      
+      if (filteredSubCategories.length > 0 && !formData.subCategory) {
+        setFormData(prev => ({ ...prev, subCategory: filteredSubCategories[0].name }));
       }
     } else {
-      // Set default subCategory untuk kategori lain
-      if (subCategories && subCategories.length > 0 && !formData.subCategory) {
-        setFormData(prev => ({ ...prev, subCategory: subCategories[0] }));
+      // Fallback to legacy system
+      if (formData.category === Category.PengembanganAplikasi) {
+        if (!formData.subCategory || !['UI/UX Design', 'Fitur Baru', 'Backend', 'Frontend', 'QA & Pengujian', 'Dokumentasi'].includes(formData.subCategory)) {
+          setFormData(prev => ({ ...prev, subCategory: 'UI/UX Design' }));
+        }
+      } else {
+        if (subCategories && subCategories.length > 0 && !formData.subCategory) {
+          setFormData(prev => ({ ...prev, subCategory: subCategories[0] }));
+        }
       }
     }
-  }, [formData.category, subCategories]);
+  }, [formData.category, masterCategories, masterSubCategories, categorySubcategoryRelations, subCategories]);
 
   // When modal opens, populate with initialData or reset
   useEffect(() => {
@@ -428,13 +447,19 @@ const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
                 <select
                   required
                   disabled={isReadOnly}
-                  value={formData.category || Category.PengembanganAplikasi}
+                  value={formData.category || (masterCategories.length > 0 ? masterCategories[0].name : Category.PengembanganAplikasi)}
                   onChange={(e) => handleChange('category', e.target.value as Category)}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm text-slate-700 bg-white disabled:bg-slate-50 disabled:text-slate-500"
                 >
-                  {Object.values(Category).map(cat => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
+                  {masterCategories.length > 0 ? (
+                    masterCategories.map(cat => (
+                      <option key={cat.id} value={cat.name}>{cat.name}</option>
+                    ))
+                  ) : (
+                    Object.values(Category).map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))
+                  )}
                 </select>
               </div>
 
@@ -446,28 +471,43 @@ const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
 
                 <select
                   disabled={isReadOnly}
-                  value={formData.subCategory || (formData.category === Category.PengembanganAplikasi ? 'UI/UX Design' : (subCategories[0] || ''))}
+                  value={formData.subCategory || ''}
                   onChange={(e) => handleChange('subCategory', e.target.value)}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm text-slate-700 bg-white disabled:bg-slate-50 disabled:text-slate-500"
                 >
-                  {formData.category === Category.PengembanganAplikasi ? (
-                    // Sub-kategori khusus untuk Pengembangan Aplikasi
-                    <>
-                      <option value="UI/UX Design">UI/UX Design</option>
-                      <option value="Fitur Baru">Fitur Baru</option>
-                      <option value="Backend">Backend</option>
-                      <option value="Frontend">Frontend</option>
-                      <option value="QA & Pengujian">QA & Pengujian</option>
-                      <option value="Dokumentasi">Dokumentasi</option>
-                    </>
-                  ) : (
-                    // Sub-kategori umum dari database untuk kategori lain
-                    subCategories && subCategories.length > 0 ? (
-                      subCategories.map(sc => <option key={sc} value={sc}>{sc}</option>)
-                    ) : (
-                      <option value="">(Belum ada sub-kategori)</option>
-                    )
-                  )}
+                  <option value="">-- Pilih Sub Kategori --</option>
+                  {(() => {
+                    // Get current category ID
+                    const currentCategory = masterCategories.find(cat => cat.name === formData.category);
+                    if (currentCategory) {
+                      // Filter subcategories by current category through relations
+                      const relatedSubIds = categorySubcategoryRelations
+                        .filter(rel => rel.category_id === currentCategory.id)
+                        .map(rel => rel.subcategory_id);
+                      const filteredSubCategories = masterSubCategories.filter(sub => relatedSubIds.includes(sub.id));
+                      return filteredSubCategories.map(sub => (
+                        <option key={sub.id} value={sub.name}>{sub.name}</option>
+                      ));
+                    }
+                    
+                    // Fallback to legacy system
+                    if (formData.category === Category.PengembanganAplikasi) {
+                      return (
+                        <>
+                          <option value="UI/UX Design">UI/UX Design</option>
+                          <option value="Fitur Baru">Fitur Baru</option>
+                          <option value="Backend">Backend</option>
+                          <option value="Frontend">Frontend</option>
+                          <option value="QA & Pengujian">QA & Pengujian</option>
+                          <option value="Dokumentasi">Dokumentasi</option>
+                        </>
+                      );
+                    } else {
+                      return subCategories && subCategories.length > 0 ? (
+                        subCategories.map(sc => <option key={sc} value={sc}>{sc}</option>)
+                      ) : null;
+                    }
+                  })()}
                 </select>
               </div>
             </div>

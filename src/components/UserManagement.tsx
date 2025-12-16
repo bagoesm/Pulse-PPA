@@ -1,9 +1,490 @@
 import React, { useState } from 'react';
 import { User, Role } from '../../types';
-import { Plus, Search, Edit2, Trash2, Shield, User as UserIcon, X, Save, Key, Briefcase, Tag, Database } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Shield, User as UserIcon, X, Save, Key, Briefcase, Tag, Database, Folder } from 'lucide-react';
+import MultiSelectChip from './MultiSelectChip';
 import { useNotificationModal, useConfirmModal } from '../hooks/useModal';
 import NotificationModal from './NotificationModal';
 import ConfirmModal from './ConfirmModal';
+
+// Master Category Management Component
+interface MasterCategoryManagementProps {
+    masterCategories: any[];
+    masterSubCategories: any[];
+    categorySubcategoryRelations: any[];
+    onAddMasterCategory: (name: string, icon: string, color: string, selectedSubCategories?: string[]) => void;
+    onUpdateMasterCategory: (id: string, name: string, icon: string, color: string, selectedSubCategories?: string[]) => void;
+    onDeleteMasterCategory: (id: string) => void;
+}
+
+const MasterCategoryManagement: React.FC<MasterCategoryManagementProps> = ({
+    masterCategories,
+    masterSubCategories,
+    categorySubcategoryRelations,
+    onAddMasterCategory,
+    onUpdateMasterCategory,
+    onDeleteMasterCategory
+}) => {
+    const [editingCategory, setEditingCategory] = useState<string | null>(null);
+    const [showAddCategory, setShowAddCategory] = useState(false);
+    
+    const [newCategory, setNewCategory] = useState({ 
+        name: '', 
+        icon: 'Folder', 
+        color: '#3B82F6',
+        selectedSubCategories: [] as string[]
+    });
+    const [editCategoryData, setEditCategoryData] = useState({ 
+        name: '', 
+        icon: '', 
+        color: '',
+        selectedSubCategories: [] as string[]
+    });
+
+    const iconOptions = [
+        'Code', 'FileText', 'Users', 'HelpingHand', 'GraduationCap', 
+        'Inbox', 'Forward', 'FolderOpen', 'Activity', 'MoreHorizontal',
+        'Folder', 'Tag', 'Settings', 'Database', 'Globe'
+    ];
+
+    const colorOptions = [
+        '#3B82F6', '#10B981', '#8B5CF6', '#F59E0B', '#EF4444',
+        '#06B6D4', '#84CC16', '#6B7280', '#EC4899', '#64748B'
+    ];
+
+    const handleAddCategory = () => {
+        if (newCategory.name.trim()) {
+            onAddMasterCategory(newCategory.name.trim(), newCategory.icon, newCategory.color, newCategory.selectedSubCategories);
+            setNewCategory({ name: '', icon: 'Folder', color: '#3B82F6', selectedSubCategories: [] });
+            setShowAddCategory(false);
+        }
+    };
+
+    const handleUpdateCategory = (id: string) => {
+        if (editCategoryData.name.trim()) {
+            onUpdateMasterCategory(id, editCategoryData.name.trim(), editCategoryData.icon, editCategoryData.color, editCategoryData.selectedSubCategories);
+            setEditingCategory(null);
+        }
+    };
+
+    const startEditCategory = (category: any) => {
+        setEditingCategory(category.id);
+        const categorySubCategories = categorySubcategoryRelations
+            .filter(rel => rel.category_id === category.id)
+            .map(rel => rel.subcategory_id);
+        setEditCategoryData({
+            name: category.name,
+            icon: category.icon,
+            color: category.color,
+            selectedSubCategories: categorySubCategories
+        });
+    };
+
+    const getCategorySubCategories = (categoryId: string) => {
+        const relatedSubIds = categorySubcategoryRelations
+            .filter(rel => rel.category_id === categoryId)
+            .map(rel => rel.subcategory_id);
+        return masterSubCategories.filter(sub => relatedSubIds.includes(sub.id));
+    };
+
+    return (
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200">
+            <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-gov-50">
+                <div>
+                    <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                        <Folder className="text-gov-600" size={20} />
+                        Master Kategori
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-1">Kelola kategori utama dan hubungkan dengan sub kategori</p>
+                </div>
+                <button
+                    onClick={() => setShowAddCategory(true)}
+                    className="bg-gov-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-gov-700 transition-colors flex items-center gap-2"
+                >
+                    <Plus size={16} /> Tambah Kategori
+                </button>
+            </div>
+
+            {/* Add Category Form */}
+            {showAddCategory && (
+                <div className="p-4 border-b border-slate-200 bg-slate-50">
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <input
+                                type="text"
+                                placeholder="Nama kategori"
+                                value={newCategory.name}
+                                onChange={(e) => setNewCategory({...newCategory, name: e.target.value})}
+                                className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none"
+                            />
+                            <select
+                                value={newCategory.icon}
+                                onChange={(e) => setNewCategory({...newCategory, icon: e.target.value})}
+                                className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none"
+                            >
+                                {iconOptions.map(icon => (
+                                    <option key={icon} value={icon}>{icon}</option>
+                                ))}
+                            </select>
+                            <select
+                                value={newCategory.color}
+                                onChange={(e) => setNewCategory({...newCategory, color: e.target.value})}
+                                className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none"
+                            >
+                                {colorOptions.map(color => (
+                                    <option key={color} value={color} style={{backgroundColor: color, color: 'white'}}>
+                                        {color}
+                                    </option>
+                                ))}
+                            </select>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={handleAddCategory}
+                                    className="bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                                >
+                                    <Save size={16} />
+                                </button>
+                                <button
+                                    onClick={() => setShowAddCategory(false)}
+                                    className="bg-slate-400 text-white px-3 py-2 rounded-lg hover:bg-slate-500 transition-colors"
+                                >
+                                    <X size={16} />
+                                </button>
+                            </div>
+                        </div>
+                        
+                        {/* Sub Categories Multi Select */}
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-2">
+                                Sub Kategori yang Terhubung (Opsional)
+                            </label>
+                            <MultiSelectChip
+                                options={masterSubCategories.map(sub => ({ value: sub.id, label: sub.name }))}
+                                value={newCategory.selectedSubCategories}
+                                onChange={(selectedIds) => setNewCategory({...newCategory, selectedSubCategories: selectedIds})}
+                                placeholder="Pilih sub kategori..."
+                                className="w-full"
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Categories List */}
+            <div className="divide-y divide-slate-100">
+                {masterCategories.map(category => (
+                    <div key={category.id} className="p-4 hover:bg-slate-50 transition-colors">
+                        {editingCategory === category.id ? (
+                            <div className="space-y-4">
+                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                    <input
+                                        type="text"
+                                        value={editCategoryData.name}
+                                        onChange={(e) => setEditCategoryData({...editCategoryData, name: e.target.value})}
+                                        className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none"
+                                    />
+                                    <select
+                                        value={editCategoryData.icon}
+                                        onChange={(e) => setEditCategoryData({...editCategoryData, icon: e.target.value})}
+                                        className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none"
+                                    >
+                                        {iconOptions.map(icon => (
+                                            <option key={icon} value={icon}>{icon}</option>
+                                        ))}
+                                    </select>
+                                    <select
+                                        value={editCategoryData.color}
+                                        onChange={(e) => setEditCategoryData({...editCategoryData, color: e.target.value})}
+                                        className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none"
+                                    >
+                                        {colorOptions.map(color => (
+                                            <option key={color} value={color} style={{backgroundColor: color, color: 'white'}}>
+                                                {color}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => handleUpdateCategory(category.id)}
+                                            className="bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                                        >
+                                            <Save size={16} />
+                                        </button>
+                                        <button
+                                            onClick={() => setEditingCategory(null)}
+                                            className="bg-slate-400 text-white px-3 py-2 rounded-lg hover:bg-slate-500 transition-colors"
+                                        >
+                                            <X size={16} />
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                {/* Sub Categories Multi Select for Edit */}
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                                        Sub Kategori yang Terhubung
+                                    </label>
+                                    <MultiSelectChip
+                                        options={masterSubCategories.map(sub => ({ value: sub.id, label: sub.name }))}
+                                        value={editCategoryData.selectedSubCategories}
+                                        onChange={(selectedIds) => setEditCategoryData({...editCategoryData, selectedSubCategories: selectedIds})}
+                                        placeholder="Pilih sub kategori..."
+                                        className="w-full"
+                                    />
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div 
+                                            className="w-4 h-4 rounded"
+                                            style={{backgroundColor: category.color}}
+                                        />
+                                        <span className="font-medium text-slate-800">{category.name}</span>
+                                        <span className="text-xs text-slate-500">({category.icon})</span>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => startEditCategory(category)}
+                                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                        >
+                                            <Edit2 size={16} />
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                if (window.confirm(`Hapus kategori "${category.name}"? Semua relasi sub kategori akan ikut terhapus.`)) {
+                                                    onDeleteMasterCategory(category.id);
+                                                }
+                                            }}
+                                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    </div>
+                                </div>
+                                {/* Show connected subcategories */}
+                                <div className="ml-7">
+                                    <div className="flex flex-wrap gap-2">
+                                        {getCategorySubCategories(category.id).map(sub => (
+                                            <span key={sub.id} className="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded">
+                                                {sub.name}
+                                            </span>
+                                        ))}
+                                        {getCategorySubCategories(category.id).length === 0 && (
+                                            <span className="text-xs text-slate-400 italic">Belum ada sub kategori terhubung</span>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+// Master Sub Category Management Component
+interface MasterSubCategoryManagementProps {
+    masterCategories: any[];
+    masterSubCategories: any[];
+    categorySubcategoryRelations: any[];
+    onAddMasterSubCategory: (name: string, categoryId: string) => void;
+    onUpdateMasterSubCategory: (id: string, name: string, categoryId: string) => void;
+    onDeleteMasterSubCategory: (id: string) => void;
+}
+
+const MasterSubCategoryManagement: React.FC<MasterSubCategoryManagementProps> = ({
+    masterCategories,
+    masterSubCategories,
+    categorySubcategoryRelations,
+    onAddMasterSubCategory,
+    onUpdateMasterSubCategory,
+    onDeleteMasterSubCategory
+}) => {
+    const [editingSubCategory, setEditingSubCategory] = useState<string | null>(null);
+    const [showAddSubCategory, setShowAddSubCategory] = useState(false);
+    const [newSubCategory, setNewSubCategory] = useState({ 
+        name: ''
+    });
+    const [editSubCategoryData, setEditSubCategoryData] = useState({ 
+        name: ''
+    });
+
+    // Sub Category Management Functions
+    const handleAddSubCategory = () => {
+        if (newSubCategory.name.trim()) {
+            // Pass empty string as categoryId since sub categories are independent
+            onAddMasterSubCategory(newSubCategory.name.trim(), '');
+            setNewSubCategory({ name: '' });
+            setShowAddSubCategory(false);
+        }
+    };
+
+    const handleUpdateSubCategory = (id: string) => {
+        if (editSubCategoryData.name.trim()) {
+            // Keep existing category_id or pass empty string
+            const existingSubCategory = masterSubCategories.find(sub => sub.id === id);
+            const categoryId = existingSubCategory?.category_id || '';
+            onUpdateMasterSubCategory(id, editSubCategoryData.name.trim(), categoryId);
+            setEditingSubCategory(null);
+        }
+    };
+
+    const startEditSubCategory = (subCategory: any) => {
+        setEditingSubCategory(subCategory.id);
+        setEditSubCategoryData({
+            name: subCategory.name
+        });
+    };
+
+    const getConnectedCategories = (subCategoryId: string) => {
+        const relatedCategoryIds = categorySubcategoryRelations
+            .filter(rel => rel.subcategory_id === subCategoryId)
+            .map(rel => rel.category_id);
+        return masterCategories.filter(cat => relatedCategoryIds.includes(cat.id));
+    };
+
+    return (
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200">
+            <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-emerald-50">
+                <div>
+                    <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                        <Tag className="text-emerald-600" size={20} />
+                        Master Sub Kategori
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-1">Kelola sub kategori yang dapat dihubungkan ke multiple kategori</p>
+                </div>
+                <button
+                    onClick={() => setShowAddSubCategory(true)}
+                    className="bg-emerald-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-emerald-700 transition-colors flex items-center gap-2"
+                >
+                    <Plus size={16} /> Tambah Sub Kategori
+                </button>
+            </div>
+
+            {/* Add Sub Category Form */}
+            {showAddSubCategory && (
+                <div className="p-4 border-b border-slate-200 bg-slate-50">
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <input
+                                type="text"
+                                placeholder="Nama sub kategori"
+                                value={newSubCategory.name}
+                                onChange={(e) => setNewSubCategory({...newSubCategory, name: e.target.value})}
+                                className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-400 outline-none"
+                            />
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={handleAddSubCategory}
+                                    disabled={!newSubCategory.name.trim()}
+                                    className="bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-700 transition-colors disabled:bg-slate-300 disabled:cursor-not-allowed"
+                                >
+                                    <Save size={16} />
+                                </button>
+                                <button
+                                    onClick={() => setShowAddSubCategory(false)}
+                                    className="bg-slate-400 text-white px-3 py-2 rounded-lg hover:bg-slate-500 transition-colors"
+                                >
+                                    <X size={16} />
+                                </button>
+                            </div>
+                        </div>
+                        <div className="text-xs text-slate-500">
+                            <p>Sub kategori dibuat secara independen dan dapat dihubungkan ke kategori melalui pengaturan kategori.</p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Sub Categories List */}
+            <div className="divide-y divide-slate-100">
+                {masterSubCategories.length > 0 ? (
+                    masterSubCategories.map(subCategory => (
+                        <div key={subCategory.id} className="p-4 hover:bg-slate-50 transition-colors">
+                            {editingSubCategory === subCategory.id ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <input
+                                        type="text"
+                                        value={editSubCategoryData.name}
+                                        onChange={(e) => setEditSubCategoryData({...editSubCategoryData, name: e.target.value})}
+                                        className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-400 outline-none"
+                                    />
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => handleUpdateSubCategory(subCategory.id)}
+                                            disabled={!editSubCategoryData.name.trim()}
+                                            className="bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-700 transition-colors disabled:bg-slate-300 disabled:cursor-not-allowed"
+                                        >
+                                            <Save size={16} />
+                                        </button>
+                                        <button
+                                            onClick={() => setEditingSubCategory(null)}
+                                            className="bg-slate-400 text-white px-3 py-2 rounded-lg hover:bg-slate-500 transition-colors"
+                                        >
+                                            <X size={16} />
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <Tag className="text-emerald-600" size={16} />
+                                            <span className="font-medium text-slate-800">{subCategory.name}</span>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => startEditSubCategory(subCategory)}
+                                                className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                            >
+                                                <Edit2 size={16} />
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    if (window.confirm(`Hapus sub kategori "${subCategory.name}"?`)) {
+                                                        onDeleteMasterSubCategory(subCategory.id);
+                                                    }
+                                                }}
+                                                className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                    {/* Show connected categories */}
+                                    <div className="ml-7">
+                                        <div className="flex flex-wrap gap-2">
+                                            {getConnectedCategories(subCategory.id).map(category => (
+                                                <span key={category.id} className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded flex items-center gap-1">
+                                                    <div 
+                                                        className="w-2 h-2 rounded-full"
+                                                        style={{backgroundColor: category.color}}
+                                                    />
+                                                    {category.name}
+                                                </span>
+                                            ))}
+                                            {getConnectedCategories(subCategory.id).length === 0 && (
+                                                <span className="text-xs text-slate-400 italic">Belum terhubung ke kategori manapun</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    ))
+                ) : (
+                    <div className="p-8 text-center text-slate-400">
+                        <Tag size={48} className="mx-auto mb-3 text-slate-300" />
+                        <p className="text-sm">Belum ada sub kategori</p>
+                        <p className="text-xs text-slate-300 mt-1">Tambahkan sub kategori untuk mengorganisir task dengan lebih detail</p>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
 
 interface UserManagementProps {
   users: User[];
@@ -19,6 +500,17 @@ interface UserManagementProps {
   subCategories: string[];
   onAddSubCategory: (cat: string) => void;
   onDeleteSubCategory: (cat: string) => void;
+  
+  // Category Management Props
+  masterCategories: any[];
+  masterSubCategories: any[];
+  categorySubcategoryRelations: any[];
+  onAddMasterCategory: (name: string, icon: string, color: string, selectedSubCategories?: string[]) => void;
+  onUpdateMasterCategory: (id: string, name: string, icon: string, color: string, selectedSubCategories?: string[]) => void;
+  onDeleteMasterCategory: (id: string) => void;
+  onAddMasterSubCategory: (name: string, categoryId: string) => void;
+  onUpdateMasterSubCategory: (id: string, name: string, categoryId: string) => void;
+  onDeleteMasterSubCategory: (id: string) => void;
 }
 
 type Tab = 'Users' | 'Jabatan' | 'Kategori';
@@ -26,7 +518,10 @@ type Tab = 'Users' | 'Jabatan' | 'Kategori';
 const UserManagement: React.FC<UserManagementProps> = ({ 
     users, onAddUser, onEditUser, onDeleteUser, currentUser,
     jabatanList, onAddJabatan, onDeleteJabatan,
-    subCategories, onAddSubCategory, onDeleteSubCategory
+    subCategories, onAddSubCategory, onDeleteSubCategory,
+    masterCategories, masterSubCategories, categorySubcategoryRelations,
+    onAddMasterCategory, onUpdateMasterCategory, onDeleteMasterCategory,
+    onAddMasterSubCategory, onUpdateMasterSubCategory, onDeleteMasterSubCategory
 }) => {
   const [activeTab, setActiveTab] = useState<Tab>('Users');
   const [searchTerm, setSearchTerm] = useState('');
@@ -190,7 +685,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                     onClick={() => setActiveTab('Kategori')} 
                     className={`px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2 transition-all ${activeTab === 'Kategori' ? 'bg-gov-50 text-gov-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                 >
-                    <Tag size={16} /> Sub-Kategori
+                    <Tag size={16} /> Kategori
                 </button>
             </div>
         </div>
@@ -295,6 +790,26 @@ const UserManagement: React.FC<UserManagementProps> = ({
                          ))}
                      </tbody>
                  </table>
+                ) : activeTab === 'Kategori' ? (
+                    <div className="space-y-8">
+                        <MasterCategoryManagement 
+                            masterCategories={masterCategories}
+                            masterSubCategories={masterSubCategories}
+                            categorySubcategoryRelations={categorySubcategoryRelations}
+                            onAddMasterCategory={onAddMasterCategory}
+                            onUpdateMasterCategory={onUpdateMasterCategory}
+                            onDeleteMasterCategory={onDeleteMasterCategory}
+                        />
+                        
+                        <MasterSubCategoryManagement 
+                            masterCategories={masterCategories}
+                            masterSubCategories={masterSubCategories}
+                            categorySubcategoryRelations={categorySubcategoryRelations}
+                            onAddMasterSubCategory={onAddMasterSubCategory}
+                            onUpdateMasterSubCategory={onUpdateMasterSubCategory}
+                            onDeleteMasterSubCategory={onDeleteMasterSubCategory}
+                        />
+                    </div>
                 ) : (
                     <table className="w-full text-left border-collapse">
                         <thead className="bg-slate-50 border-b border-slate-200">
