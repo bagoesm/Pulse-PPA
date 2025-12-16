@@ -1534,6 +1534,23 @@ const App: React.FC = () => {
     }
   };
 
+  // Handle user card click from dashboard
+  const handleUserCardClick = (userName: string) => {
+    // Switch to "Semua Task" tab
+    setActiveTab('Semua Task');
+    
+    // Set filter to show only tasks for the clicked user
+    setFilters(prev => ({
+      ...prev,
+      pic: userName,
+      search: '', // Clear search to show all tasks for this user
+      category: 'All',
+      priority: 'All',
+      status: 'All',
+      projectId: 'All'
+    }));
+  };
+
   // --- Filtering ---
   const filteredTasks = useMemo(() => {
     return tasks.filter(task => {
@@ -1721,6 +1738,7 @@ const App: React.FC = () => {
             onCreateStatus={handleCreateStatus}
             onDeleteStatus={handleDeleteStatus}
             currentUser={currentUser}
+            onUserCardClick={handleUserCardClick}
           />
         ) : activeTab === 'Project' ? (
           <ProjectOverview

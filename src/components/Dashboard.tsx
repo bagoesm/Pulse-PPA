@@ -33,6 +33,7 @@ interface DashboardProps {
   onCreateStatus: () => void;
   onDeleteStatus: (statusId: string) => void;
   currentUser: User | null;
+  onUserCardClick?: (userName: string) => void; // New prop for handling card clicks
 }
 
 type WorkloadFilter = 'all' | 'relaxed' | 'balanced' | 'busy' | 'overload';
@@ -47,7 +48,8 @@ const Dashboard: React.FC<DashboardProps> = ({
   userStatuses, 
   onCreateStatus, 
   onDeleteStatus, 
-  currentUser 
+  currentUser,
+  onUserCardClick
 }) => {
   // State untuk filtering dan searching
   const [searchTerm, setSearchTerm] = useState('');
@@ -635,7 +637,12 @@ const Dashboard: React.FC<DashboardProps> = ({
           const userStatus = userStatuses.find(s => s.userId === data.user.id);
 
           return (
-            <div key={data.userName} className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-lg transition-all duration-300 group">
+            <div 
+              key={data.userName} 
+              className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-lg hover:border-gov-300 transition-all duration-300 group cursor-pointer transform hover:scale-[1.02]"
+              onClick={() => onUserCardClick?.(data.userName)}
+              title={`Klik untuk melihat semua task ${data.userName} (${data.activeCount} aktif, ${data.completedCount} selesai)`}
+            >
               {/* HEADER */}
               <div className="p-5 border-b border-slate-100">
                 <div className="flex justify-between items-start mb-3">
@@ -643,9 +650,12 @@ const Dashboard: React.FC<DashboardProps> = ({
                     <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold border-2 border-white shadow-sm ${data.visuals.color} text-white group-hover:scale-110 transition-transform`}>
                       {data.userName.charAt(0).toUpperCase()}
                     </div>
-                    <div>
+                    <div className="flex-1">
                       <h4 className="font-bold text-slate-800 group-hover:text-gov-700 transition-colors">{data.userName}</h4>
                       <p className="text-xs text-slate-500">{data.user.jabatan || 'Staff'}</p>
+                    </div>
+                    <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Eye size={16} className="text-gov-600" />
                     </div>
                   </div>
                   <span className={`px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 ${data.visuals.bg} ${data.visuals.textColor} shadow-sm`}>
@@ -747,6 +757,14 @@ const Dashboard: React.FC<DashboardProps> = ({
                     <span className="block text-lg font-bold text-slate-600">{data.lowCount}</span>
                     <span className="text-[9px] text-slate-500 font-semibold uppercase">Low</span>
                   </div>
+                </div>
+
+                {/* Click hint */}
+                <div className="mt-4 text-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <span className="text-xs text-gov-600 font-medium flex items-center justify-center gap-1">
+                    <Eye size={12} />
+                    Klik untuk lihat task
+                  </span>
                 </div>
               </div>
             </div>
