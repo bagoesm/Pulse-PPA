@@ -457,6 +457,7 @@ const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
                       <option value="Fitur Baru">Fitur Baru</option>
                       <option value="Backend">Backend</option>
                       <option value="Frontend">Frontend</option>
+                      <option value="QA & Pengujian">QA & Pengujian</option>
                     </>
                   ) : (
                     // Sub-kategori umum dari database untuk kategori lain
