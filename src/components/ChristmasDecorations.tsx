@@ -198,25 +198,25 @@ const ChristmasDecorations: React.FC<ChristmasDecorationsProps> = ({
   if (position === 'card-top' && baubleEnabled) {
     return (
       <div className={`absolute top-0 left-1/2 transform -translate-x-1/2 flex gap-1 z-10 ${className}`}>
-        <div className="w-8 h-8 animate-bounce" style={{ animationDelay: '0ms' }}>
+        <div className="w-8 h-8 group-hover:animate-bounce" style={{ animationDelay: '0ms' }}>
           <BaubleSVG className="w-full h-full" variant="red" />
         </div>
-        <div className="w-7 h-7 animate-bounce" style={{ animationDelay: '100ms' }}>
+        <div className="w-7 h-7 group-hover:animate-bounce" style={{ animationDelay: '100ms' }}>
           <BaubleSVG className="w-full h-full" variant="gold" />
         </div>
-        <div className="w-10 h-10 animate-bounce" style={{ animationDelay: '200ms' }}>
+        <div className="w-10 h-10 group-hover:animate-bounce" style={{ animationDelay: '200ms' }}>
           <BaubleSVG className="w-full h-full" variant="green" />
         </div>
-        <div className="w-6 h-6 animate-bounce" style={{ animationDelay: '300ms' }}>
+        <div className="w-6 h-6 group-hover:animate-bounce" style={{ animationDelay: '300ms' }}>
           <BaubleSVG className="w-full h-full" variant="red" />
         </div>
-        <div className="w-9 h-9 animate-bounce" style={{ animationDelay: '400ms' }}>
+        <div className="w-9 h-9 group-hover:animate-bounce" style={{ animationDelay: '400ms' }}>
           <BaubleSVG className="w-full h-full" variant="gold" />
         </div>
-        <div className="w-7 h-7 animate-bounce" style={{ animationDelay: '500ms' }}>
+        <div className="w-7 h-7 group-hover:animate-bounce" style={{ animationDelay: '500ms' }}>
           <BaubleSVG className="w-full h-full" variant="green" />
         </div>
-        <div className="w-8 h-8 animate-bounce" style={{ animationDelay: '600ms' }}>
+        <div className="w-8 h-8 group-hover:animate-bounce" style={{ animationDelay: '600ms' }}>
           <BaubleSVG className="w-full h-full" variant="red" />
         </div>
       </div>
