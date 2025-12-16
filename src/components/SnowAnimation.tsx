@@ -106,8 +106,8 @@ const SnowAnimation: React.FC<SnowAnimationProps> = ({
             top: `${flake.y}%`,
             transform: `rotate(${flake.rotation}deg) scale(${flake.size})`,
             opacity: flake.opacity,
-            width: '12px',
-            height: '12px'
+            width: '24px',
+            height: '24px'
           }}
         >
           <svg 
