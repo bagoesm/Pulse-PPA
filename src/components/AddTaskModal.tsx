@@ -86,7 +86,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
   useEffect(() => {
     if (formData.category === Category.PengembanganAplikasi) {
       // Set default subCategory untuk Pengembangan Aplikasi
-      if (!formData.subCategory || !['UI/UX Design', 'Fitur Baru', 'Backend', 'Frontend'].includes(formData.subCategory)) {
+      if (!formData.subCategory || !['UI/UX Design', 'Fitur Baru', 'Backend', 'Frontend', 'QA & Pengujian'].includes(formData.subCategory)) {
         setFormData(prev => ({ ...prev, subCategory: 'UI/UX Design' }));
       }
     } else {
