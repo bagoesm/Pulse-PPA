@@ -68,6 +68,17 @@ export interface User {
   jabatan?: string; // e.g. "Pranata Komputer Ahli Muda"
   password?: string; // For mock auth
   sakuraAnimationEnabled?: boolean; // Setting untuk animasi bunga sakura
+  snowAnimationEnabled?: boolean; // Setting untuk animasi salju
+}
+
+// Christmas Decoration Settings
+export interface ChristmasDecorationSettings {
+  id?: string;
+  santaHatEnabled: boolean;
+  baubleEnabled: boolean;
+  candyEnabled: boolean;
+  enabledBy?: string; // Admin who enabled it
+  enabledAt?: string; // When it was enabled
 }
 
 export type StatusType = 'text' | 'music' | 'mood' | 'activity' | 'location' | 'food';

@@ -1,7 +1,10 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { Task, Status, Priority, User, UserStatus } from '../../types';
+import { Task, Status, Priority, User, UserStatus, ChristmasDecorationSettings } from '../../types';
 import StatusBubble from './StatusBubble';
 import SakuraAnimation from './SakuraAnimation';
+import SnowAnimation from './SnowAnimation';
+import ChristmasDecorations from './ChristmasDecorations';
+import ChristmasSettingsModal from './ChristmasSettingsModal';
 import { 
   CheckCircle2, 
   AlertCircle, 
@@ -24,7 +27,8 @@ import {
   ChevronDown,
   RefreshCw,
   Plus,
-  MessageCircle
+  MessageCircle,
+  Gift
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -35,6 +39,8 @@ interface DashboardProps {
   onDeleteStatus: (statusId: string) => void;
   currentUser: User | null;
   onUserCardClick?: (userName: string) => void; // New prop for handling card clicks
+  christmasSettings?: ChristmasDecorationSettings;
+  onUpdateChristmasSettings?: (settings: ChristmasDecorationSettings) => void;
 }
 
 type WorkloadFilter = 'all' | 'relaxed' | 'balanced' | 'busy' | 'overload';
@@ -50,7 +56,9 @@ const Dashboard: React.FC<DashboardProps> = ({
   onCreateStatus, 
   onDeleteStatus, 
   currentUser,
-  onUserCardClick
+  onUserCardClick,
+  christmasSettings = { santaHatEnabled: false, baubleEnabled: false, candyEnabled: false },
+  onUpdateChristmasSettings
 }) => {
   // State untuk filtering dan searching
   const [searchTerm, setSearchTerm] = useState('');
@@ -66,6 +74,9 @@ const Dashboard: React.FC<DashboardProps> = ({
   
   // State untuk animasi sakura
   const [hoveredCard, setHoveredCard] = useState<string | null>(null);
+  
+  // State untuk Christmas settings modal
+  const [isChristmasModalOpen, setIsChristmasModalOpen] = useState(false);
 
   // Reset page saat filter berubah
   useEffect(() => {
@@ -360,14 +371,27 @@ const Dashboard: React.FC<DashboardProps> = ({
           <p className="text-slate-600">Pantau performa dan beban kerja tim secara real-time</p>
         </div>
         
-        {/* Create Status Button */}
-        <button
-          onClick={onCreateStatus}
-          className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-gov-600 to-blue-600 text-white rounded-lg font-medium hover:from-gov-700 hover:to-blue-700 shadow-md hover:shadow-lg transition-all"
-        >
-          <MessageCircle size={18} />
-          Buat Status
-        </button>
+        <div className="flex gap-3">
+          {/* Christmas Settings Button (Admin Only) */}
+          {currentUser?.role === 'Super Admin' && (
+            <button
+              onClick={() => setIsChristmasModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-red-600 to-green-600 text-white rounded-lg font-medium hover:from-red-700 hover:to-green-700 shadow-md hover:shadow-lg transition-all"
+            >
+              <Gift size={18} />
+              Dekorasi Natal
+            </button>
+          )}
+          
+          {/* Create Status Button */}
+          <button
+            onClick={onCreateStatus}
+            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-gov-600 to-blue-600 text-white rounded-lg font-medium hover:from-gov-700 hover:to-blue-700 shadow-md hover:shadow-lg transition-all"
+          >
+            <MessageCircle size={18} />
+            Buat Status
+          </button>
+        </div>
       </div>
 
       {/* TOP STATS CARDS */}
@@ -641,6 +665,8 @@ const Dashboard: React.FC<DashboardProps> = ({
           const userStatus = userStatuses.find(s => s.userId === data.user.id);
 
           const isHoveredWithSakura = hoveredCard === data.user.id && data.user.sakuraAnimationEnabled;
+          const isHoveredWithSnow = hoveredCard === data.user.id && data.user.snowAnimationEnabled;
+          const hasActiveAnimation = isHoveredWithSakura || isHoveredWithSnow;
 
           return (
             <div 
@@ -648,6 +674,8 @@ const Dashboard: React.FC<DashboardProps> = ({
               className={`rounded-2xl shadow-sm border overflow-hidden transition-all duration-300 group cursor-pointer transform hover:scale-[1.02] relative ${
                 isHoveredWithSakura 
                   ? 'bg-gradient-to-br from-pink-50 to-rose-50 border-pink-200 shadow-pink-100/50 hover:shadow-lg' 
+                  : isHoveredWithSnow
+                  ? 'bg-gradient-to-br from-blue-50 to-cyan-50 border-blue-200 shadow-blue-100/50 hover:shadow-lg'
                   : 'bg-white border-slate-200 hover:shadow-lg hover:border-gov-300'
               }`}
               onClick={() => onUserCardClick?.(data.userName)}
@@ -655,35 +683,78 @@ const Dashboard: React.FC<DashboardProps> = ({
               onMouseLeave={() => setHoveredCard(null)}
               title={`Klik untuk melihat semua task ${data.userName} (${data.activeCount} aktif, ${data.completedCount} selesai)`}
             >
+              {/* Christmas Decorations */}
+              <ChristmasDecorations 
+                santaHatEnabled={christmasSettings.santaHatEnabled}
+                baubleEnabled={christmasSettings.baubleEnabled}
+                candyEnabled={christmasSettings.candyEnabled}
+                position="card-top"
+              />
+              <ChristmasDecorations 
+                santaHatEnabled={christmasSettings.santaHatEnabled}
+                baubleEnabled={christmasSettings.baubleEnabled}
+                candyEnabled={christmasSettings.candyEnabled}
+                position="card-bottom"
+              />
               {/* Sakura Animation */}
               <SakuraAnimation 
                 isActive={hoveredCard === data.user.id && data.user.sakuraAnimationEnabled === true}
                 petalCount={6}
               />
+              {/* Snow Animation */}
+              <SnowAnimation 
+                isActive={hoveredCard === data.user.id && data.user.snowAnimationEnabled === true}
+                flakeCount={40}
+              />
               {/* HEADER */}
-              <div className={`p-5 border-b transition-colors ${isHoveredWithSakura ? 'border-pink-100' : 'border-slate-100'}`}>
+              <div className={`p-5 border-b transition-colors ${
+                isHoveredWithSakura ? 'border-pink-100' : 
+                isHoveredWithSnow ? 'border-blue-100' : 
+                'border-slate-100'
+              }`}>
                 <div className="flex justify-between items-start mb-3">
                   <div className="flex items-center gap-3 relative">
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold border-2 border-white shadow-sm ${
-                      isHoveredWithSakura ? 'bg-pink-400' : data.visuals.color
-                    } text-white group-hover:scale-110 transition-all`}>
-                      {data.userName.charAt(0).toUpperCase()}
+                    <div className="relative">
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold border-2 border-white shadow-sm ${
+                        isHoveredWithSakura ? 'bg-pink-400' : 
+                        isHoveredWithSnow ? 'bg-blue-400' : 
+                        data.visuals.color
+                      } text-white group-hover:scale-110 transition-all`}>
+                        {data.userName.charAt(0).toUpperCase()}
+                      </div>
+                      {/* Santa Hat Decoration */}
+                      <ChristmasDecorations 
+                        santaHatEnabled={christmasSettings.santaHatEnabled}
+                        baubleEnabled={christmasSettings.baubleEnabled}
+                        candyEnabled={christmasSettings.candyEnabled}
+                        position="avatar"
+                      />
                     </div>
                     <div className="flex-1">
                       <h4 className={`font-bold transition-colors ${
-                        isHoveredWithSakura ? 'text-pink-800' : 'text-slate-800 group-hover:text-gov-700'
+                        isHoveredWithSakura ? 'text-pink-800' : 
+                        isHoveredWithSnow ? 'text-blue-800' : 
+                        'text-slate-800 group-hover:text-gov-700'
                       }`}>{data.userName}</h4>
                       <p className={`text-xs transition-colors ${
-                        isHoveredWithSakura ? 'text-pink-600' : 'text-slate-500'
+                        isHoveredWithSakura ? 'text-pink-600' : 
+                        isHoveredWithSnow ? 'text-blue-600' : 
+                        'text-slate-500'
                       }`}>{data.user.jabatan || 'Staff'}</p>
                     </div>
                     <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Eye size={16} className={isHoveredWithSakura ? 'text-pink-600' : 'text-gov-600'} />
+                      <Eye size={16} className={
+                        isHoveredWithSakura ? 'text-pink-600' : 
+                        isHoveredWithSnow ? 'text-blue-600' : 
+                        'text-gov-600'
+                      } />
                     </div>
                   </div>
                   <span className={`px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 shadow-sm transition-colors ${
                     isHoveredWithSakura 
                       ? 'bg-pink-100 text-pink-700' 
+                      : isHoveredWithSnow
+                      ? 'bg-blue-100 text-blue-700'
                       : `${data.visuals.bg} ${data.visuals.textColor}`
                   }`}>
                     <VisualIcon size={12} />
@@ -707,34 +778,50 @@ const Dashboard: React.FC<DashboardProps> = ({
                 <div className="grid grid-cols-4 gap-2 text-center">
                   <div>
                     <span className={`block text-lg font-bold transition-colors ${
-                      isHoveredWithSakura ? 'text-pink-700' : 'text-slate-800'
+                      isHoveredWithSakura ? 'text-pink-700' : 
+                      isHoveredWithSnow ? 'text-blue-700' : 
+                      'text-slate-800'
                     }`}>{data.activeCount}</span>
                     <span className={`text-[9px] font-medium transition-colors ${
-                      isHoveredWithSakura ? 'text-pink-600' : 'text-slate-500'
+                      isHoveredWithSakura ? 'text-pink-600' : 
+                      isHoveredWithSnow ? 'text-blue-600' : 
+                      'text-slate-500'
                     }`}>Aktif</span>
                   </div>
                   <div>
                     <span className={`block text-lg font-bold transition-colors ${
-                      isHoveredWithSakura ? 'text-pink-700' : 'text-green-600'
+                      isHoveredWithSakura ? 'text-pink-700' : 
+                      isHoveredWithSnow ? 'text-blue-700' : 
+                      'text-green-600'
                     }`}>{data.completedCount}</span>
                     <span className={`text-[9px] font-medium transition-colors ${
-                      isHoveredWithSakura ? 'text-pink-600' : 'text-green-600'
+                      isHoveredWithSakura ? 'text-pink-600' : 
+                      isHoveredWithSnow ? 'text-blue-600' : 
+                      'text-green-600'
                     }`}>Selesai</span>
                   </div>
                   <div>
                     <span className={`block text-lg font-bold transition-colors ${
-                      isHoveredWithSakura ? 'text-pink-700' : 'text-gov-600'
+                      isHoveredWithSakura ? 'text-pink-700' : 
+                      isHoveredWithSnow ? 'text-blue-700' : 
+                      'text-gov-600'
                     }`}>{data.completionRate.toFixed(0)}%</span>
                     <span className={`text-[9px] font-medium transition-colors ${
-                      isHoveredWithSakura ? 'text-pink-600' : 'text-gov-600'
+                      isHoveredWithSakura ? 'text-pink-600' : 
+                      isHoveredWithSnow ? 'text-blue-600' : 
+                      'text-gov-600'
                     }`}>Rate</span>
                   </div>
                   <div>
                     <span className={`block text-lg font-bold transition-colors ${
-                      isHoveredWithSakura ? 'text-pink-700' : 'text-purple-600'
+                      isHoveredWithSakura ? 'text-pink-700' : 
+                      isHoveredWithSnow ? 'text-blue-700' : 
+                      'text-purple-600'
                     }`}>{data.performanceScore}</span>
                     <span className={`text-[9px] font-medium transition-colors ${
-                      isHoveredWithSakura ? 'text-pink-600' : 'text-purple-600'
+                      isHoveredWithSakura ? 'text-pink-600' : 
+                      isHoveredWithSnow ? 'text-blue-600' : 
+                      'text-purple-600'
                     }`}>Poin</span>
                   </div>
                 </div>
@@ -745,6 +832,8 @@ const Dashboard: React.FC<DashboardProps> = ({
                     <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium transition-colors ${
                       isHoveredWithSakura 
                         ? 'bg-pink-100 text-pink-700'
+                        : isHoveredWithSnow
+                        ? 'bg-blue-100 text-blue-700'
                         : data.performanceScore >= 10 ? 'bg-purple-100 text-purple-700' :
                           data.performanceScore >= 5 ? 'bg-blue-100 text-blue-700' :
                           'bg-slate-100 text-slate-600'
@@ -763,24 +852,34 @@ const Dashboard: React.FC<DashboardProps> = ({
                 <div className="mb-4">
                   <div className="flex justify-between text-xs mb-2">
                     <span className={`font-semibold transition-colors ${
-                      isHoveredWithSakura ? 'text-pink-700' : 'text-slate-600'
+                      isHoveredWithSakura ? 'text-pink-700' : 
+                      isHoveredWithSnow ? 'text-blue-700' : 
+                      'text-slate-600'
                     }`}>Beban Kerja: {data.score} poin</span>
                     <span className={`transition-colors ${
-                      isHoveredWithSakura ? 'text-pink-500' : 'text-slate-400'
+                      isHoveredWithSakura ? 'text-pink-500' : 
+                      isHoveredWithSnow ? 'text-blue-500' : 
+                      'text-slate-400'
                     }`}>{percentage.toFixed(0)}% kapasitas</span>
                   </div>
                   <div className={`h-2.5 w-full rounded-full overflow-hidden transition-colors ${
-                    isHoveredWithSakura ? 'bg-pink-100' : 'bg-slate-100'
+                    isHoveredWithSakura ? 'bg-pink-100' : 
+                    isHoveredWithSnow ? 'bg-blue-100' : 
+                    'bg-slate-100'
                   }`}>
                     <div 
                       className={`h-full rounded-full transition-all duration-1000 ${
-                        isHoveredWithSakura ? 'bg-pink-400' : data.visuals.color
+                        isHoveredWithSakura ? 'bg-pink-400' : 
+                        isHoveredWithSnow ? 'bg-blue-400' : 
+                        data.visuals.color
                       }`} 
                       style={{ width: `${percentage}%` }}
                     />
                   </div>
                   <p className={`text-xs mt-2 italic transition-colors ${
-                    isHoveredWithSakura ? 'text-pink-600' : 'text-slate-500'
+                    isHoveredWithSakura ? 'text-pink-600' : 
+                    isHoveredWithSnow ? 'text-blue-600' : 
+                    'text-slate-500'
                   }`}>"{data.visuals.message}"</p>
                 </div>
 
@@ -789,11 +888,19 @@ const Dashboard: React.FC<DashboardProps> = ({
                   <div className={`mb-4 p-2 rounded-lg flex items-center gap-2 transition-colors ${
                     isHoveredWithSakura 
                       ? 'bg-pink-50 border border-pink-200' 
+                      : isHoveredWithSnow
+                      ? 'bg-blue-50 border border-blue-200'
                       : 'bg-orange-50 border border-orange-200'
                   }`}>
-                    <Clock size={14} className={isHoveredWithSakura ? 'text-pink-600' : 'text-orange-600'} />
+                    <Clock size={14} className={
+                      isHoveredWithSakura ? 'text-pink-600' : 
+                      isHoveredWithSnow ? 'text-blue-600' : 
+                      'text-orange-600'
+                    } />
                     <span className={`text-xs font-medium transition-colors ${
-                      isHoveredWithSakura ? 'text-pink-700' : 'text-orange-700'
+                      isHoveredWithSakura ? 'text-pink-700' : 
+                      isHoveredWithSnow ? 'text-blue-700' : 
+                      'text-orange-700'
                     }`}>
                       {data.upcomingDeadlines} deadline dalam 3 hari
                     </span>
@@ -805,49 +912,73 @@ const Dashboard: React.FC<DashboardProps> = ({
                   <div className={`text-center p-2 rounded-lg transition-colors ${
                     isHoveredWithSakura 
                       ? 'bg-pink-50 border border-pink-100 hover:bg-pink-100' 
+                      : isHoveredWithSnow
+                      ? 'bg-blue-50 border border-blue-100 hover:bg-blue-100'
                       : 'bg-red-50 border border-red-100 hover:bg-red-100'
                   }`}>
                     <span className={`block text-lg font-bold transition-colors ${
-                      isHoveredWithSakura ? 'text-pink-700' : 'text-red-600'
+                      isHoveredWithSakura ? 'text-pink-700' : 
+                      isHoveredWithSnow ? 'text-blue-700' : 
+                      'text-red-600'
                     }`}>{data.urgentCount}</span>
                     <span className={`text-[9px] font-semibold uppercase transition-colors ${
-                      isHoveredWithSakura ? 'text-pink-600' : 'text-red-500'
+                      isHoveredWithSakura ? 'text-pink-600' : 
+                      isHoveredWithSnow ? 'text-blue-600' : 
+                      'text-red-500'
                     }`}>Urgent</span>
                   </div>
                   <div className={`text-center p-2 rounded-lg transition-colors ${
                     isHoveredWithSakura 
                       ? 'bg-pink-50 border border-pink-100 hover:bg-pink-100' 
+                      : isHoveredWithSnow
+                      ? 'bg-blue-50 border border-blue-100 hover:bg-blue-100'
                       : 'bg-orange-50 border border-orange-100 hover:bg-orange-100'
                   }`}>
                     <span className={`block text-lg font-bold transition-colors ${
-                      isHoveredWithSakura ? 'text-pink-700' : 'text-orange-600'
+                      isHoveredWithSakura ? 'text-pink-700' : 
+                      isHoveredWithSnow ? 'text-blue-700' : 
+                      'text-orange-600'
                     }`}>{data.highCount}</span>
                     <span className={`text-[9px] font-semibold uppercase transition-colors ${
-                      isHoveredWithSakura ? 'text-pink-600' : 'text-orange-500'
+                      isHoveredWithSakura ? 'text-pink-600' : 
+                      isHoveredWithSnow ? 'text-blue-600' : 
+                      'text-orange-500'
                     }`}>High</span>
                   </div>
                   <div className={`text-center p-2 rounded-lg transition-colors ${
                     isHoveredWithSakura 
                       ? 'bg-pink-50 border border-pink-100 hover:bg-pink-100' 
+                      : isHoveredWithSnow
+                      ? 'bg-blue-50 border border-blue-100 hover:bg-blue-100'
                       : 'bg-blue-50 border border-blue-100 hover:bg-blue-100'
                   }`}>
                     <span className={`block text-lg font-bold transition-colors ${
-                      isHoveredWithSakura ? 'text-pink-700' : 'text-blue-600'
+                      isHoveredWithSakura ? 'text-pink-700' : 
+                      isHoveredWithSnow ? 'text-blue-700' : 
+                      'text-blue-600'
                     }`}>{data.mediumCount}</span>
                     <span className={`text-[9px] font-semibold uppercase transition-colors ${
-                      isHoveredWithSakura ? 'text-pink-600' : 'text-blue-500'
+                      isHoveredWithSakura ? 'text-pink-600' : 
+                      isHoveredWithSnow ? 'text-blue-600' : 
+                      'text-blue-500'
                     }`}>Med</span>
                   </div>
                   <div className={`text-center p-2 rounded-lg transition-colors ${
                     isHoveredWithSakura 
                       ? 'bg-pink-50 border border-pink-100 hover:bg-pink-100' 
+                      : isHoveredWithSnow
+                      ? 'bg-blue-50 border border-blue-100 hover:bg-blue-100'
                       : 'bg-slate-50 border border-slate-100 hover:bg-slate-100'
                   }`}>
                     <span className={`block text-lg font-bold transition-colors ${
-                      isHoveredWithSakura ? 'text-pink-700' : 'text-slate-600'
+                      isHoveredWithSakura ? 'text-pink-700' : 
+                      isHoveredWithSnow ? 'text-blue-700' : 
+                      'text-slate-600'
                     }`}>{data.lowCount}</span>
                     <span className={`text-[9px] font-semibold uppercase transition-colors ${
-                      isHoveredWithSakura ? 'text-pink-600' : 'text-slate-500'
+                      isHoveredWithSakura ? 'text-pink-600' : 
+                      isHoveredWithSnow ? 'text-blue-600' : 
+                      'text-slate-500'
                     }`}>Low</span>
                   </div>
                 </div>
@@ -855,7 +986,9 @@ const Dashboard: React.FC<DashboardProps> = ({
                 {/* Click hint */}
                 <div className="mt-4 text-center opacity-0 group-hover:opacity-100 transition-opacity">
                   <span className={`text-xs font-medium flex items-center justify-center gap-1 transition-colors ${
-                    isHoveredWithSakura ? 'text-pink-600' : 'text-gov-600'
+                    isHoveredWithSakura ? 'text-pink-600' : 
+                    isHoveredWithSnow ? 'text-blue-600' : 
+                    'text-gov-600'
                   }`}>
                     <Eye size={12} />
                     Klik untuk lihat task
@@ -912,6 +1045,17 @@ const Dashboard: React.FC<DashboardProps> = ({
             Reset Filter
           </button>
         </div>
+      )}
+
+      {/* Christmas Settings Modal */}
+      {isChristmasModalOpen && onUpdateChristmasSettings && (
+        <ChristmasSettingsModal
+          isOpen={isChristmasModalOpen}
+          onClose={() => setIsChristmasModalOpen(false)}
+          currentSettings={christmasSettings}
+          onSave={onUpdateChristmasSettings}
+          currentUserName={currentUser?.name || 'Admin'}
+        />
       )}
 
     </div>

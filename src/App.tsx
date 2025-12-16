@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from './lib/supabaseClient';
 import { Plus, Search, Layout, CalendarRange, Briefcase, FileText, ListTodo, Loader2 } from 'lucide-react';
-import { Task, Status, Category, Priority, FilterState, User, ProjectDefinition, ViewMode, Feedback, FeedbackCategory, FeedbackStatus, DocumentTemplate, UserStatus, Attachment, Comment } from '../types';
+import { Task, Status, Category, Priority, FilterState, User, ProjectDefinition, ViewMode, Feedback, FeedbackCategory, FeedbackStatus, DocumentTemplate, UserStatus, Attachment, Comment, ChristmasDecorationSettings } from '../types';
 import Sidebar from './components/Sidebar';
 import TaskCard from './components/TaskCard';
 import AddTaskModal from './components/AddTaskModal';
@@ -35,6 +35,13 @@ const App: React.FC = () => {
   const [templateFilePaths, setTemplateFilePaths] = useState<{[key: string]: string}>({});
   const [userStatuses, setUserStatuses] = useState<UserStatus[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
+  
+  // Christmas Decoration Settings
+  const [christmasSettings, setChristmasSettings] = useState<ChristmasDecorationSettings>({
+    santaHatEnabled: false,
+    baubleEnabled: false,
+    candyEnabled: false
+  });
   
   // Filtered users (exclude Super Admin from task assignments and dashboard)
   const taskAssignableUsers = useMemo(() => 
@@ -228,7 +235,8 @@ const App: React.FC = () => {
       } else if (data) {
         const mappedUser = {
           ...data,
-          sakuraAnimationEnabled: data.sakura_animation_enabled || false
+          sakuraAnimationEnabled: data.sakura_animation_enabled || false,
+          snowAnimationEnabled: data.snow_animation_enabled || false
         } as User;
         setCurrentUser(mappedUser);
       }
@@ -252,7 +260,8 @@ const App: React.FC = () => {
       if (usersData) {
         const mappedUsers = usersData.map((user: any) => ({
           ...user,
-          sakuraAnimationEnabled: user.sakura_animation_enabled || false
+          sakuraAnimationEnabled: user.sakura_animation_enabled || false,
+          snowAnimationEnabled: user.snow_animation_enabled || false
         })) as User[];
         setAllUsers(mappedUsers);
       }
@@ -423,6 +432,22 @@ const App: React.FC = () => {
         }));
         setComments(mappedComments);
       }
+
+      // --- Christmas Decoration Settings ---
+      const { data: christmasData, error: christmasErr } = await supabase.from('christmas_settings').select('*').single();
+      if (christmasErr && christmasErr.code !== 'PGRST116') { // PGRST116 = no rows returned
+        console.error('Error fetch christmas_settings:', christmasErr);
+      }
+      if (christmasData) {
+        setChristmasSettings({
+          id: christmasData.id,
+          santaHatEnabled: christmasData.santa_hat_enabled || false,
+          baubleEnabled: christmasData.bauble_enabled || false,
+          candyEnabled: christmasData.candy_enabled || false,
+          enabledBy: christmasData.enabled_by,
+          enabledAt: christmasData.enabled_at
+        });
+      }
     } catch (err) {
       console.error('fetch All Data error', err);
     }
@@ -574,7 +599,8 @@ const App: React.FC = () => {
                   role: newUser.role,
                   jabatan: newUser.jabatan || null,
                   initials: newUser.initials,
-                  sakura_animation_enabled: newUser.sakuraAnimationEnabled || false
+                  sakura_animation_enabled: newUser.sakuraAnimationEnabled || false,
+                  snow_animation_enabled: newUser.snowAnimationEnabled || false
               };
 
               // Create profile record using main supabase client (admin session)
@@ -630,7 +656,8 @@ const App: React.FC = () => {
               jabatan: updatedUser.jabatan,
               initials: updatedUser.initials,
               email: updatedUser.email,
-              sakura_animation_enabled: updatedUser.sakuraAnimationEnabled || false
+              sakura_animation_enabled: updatedUser.sakuraAnimationEnabled || false,
+              snow_animation_enabled: updatedUser.snowAnimationEnabled || false
           }).eq('id', updatedUser.id);
           
           if (profileError) {
@@ -1021,6 +1048,86 @@ const App: React.FC = () => {
        setFeedbacks(prev => prev.map(f => f.id === feedbackId ? { ...f, upvotes: newUpvotes, downvotes: newDownvotes } : f));
        
        await supabase.from('feedbacks').update({ upvotes: newUpvotes, downvotes: newDownvotes }).eq('id', feedbackId);
+  };
+
+  // --- Christmas Decoration Settings handlers ---
+  const handleUpdateChristmasSettings = async (settings: ChristmasDecorationSettings) => {
+    try {
+      const payload = {
+        santa_hat_enabled: settings.santaHatEnabled,
+        bauble_enabled: settings.baubleEnabled,
+        candy_enabled: settings.candyEnabled,
+        enabled_by: settings.enabledBy,
+        enabled_at: settings.enabledAt
+      };
+
+      // Try to update first, if no rows affected, insert new record
+      const { data: updateData, error: updateError } = await supabase
+        .from('christmas_settings')
+        .update(payload)
+        .eq('id', settings.id || 1) // Assume single row with id=1
+        .select()
+        .single();
+
+      if (updateError && updateError.code === 'PGRST116') {
+        // No rows found, insert new record
+        const { data: insertData, error: insertError } = await supabase
+          .from('christmas_settings')
+          .insert([{ ...payload, id: 1 }])
+          .select()
+          .single();
+
+        if (insertError) {
+          console.error('Error inserting christmas settings:', insertError);
+          showNotification('Gagal Menyimpan', 'Gagal menyimpan pengaturan dekorasi Natal.', 'error');
+          return;
+        }
+
+        if (insertData) {
+          setChristmasSettings({
+            id: insertData.id,
+            santaHatEnabled: insertData.santa_hat_enabled,
+            baubleEnabled: insertData.bauble_enabled,
+            candyEnabled: insertData.candy_enabled,
+            enabledBy: insertData.enabled_by,
+            enabledAt: insertData.enabled_at
+          });
+        }
+      } else if (updateError) {
+        console.error('Error updating christmas settings:', updateError);
+        showNotification('Gagal Menyimpan', 'Gagal menyimpan pengaturan dekorasi Natal.', 'error');
+        return;
+      } else if (updateData) {
+        setChristmasSettings({
+          id: updateData.id,
+          santaHatEnabled: updateData.santa_hat_enabled,
+          baubleEnabled: updateData.bauble_enabled,
+          candyEnabled: updateData.candy_enabled,
+          enabledBy: updateData.enabled_by,
+          enabledAt: updateData.enabled_at
+        });
+      }
+
+      // Show success notification
+      const enabledCount = [settings.santaHatEnabled, settings.baubleEnabled, settings.candyEnabled].filter(Boolean).length;
+      if (enabledCount > 0) {
+        showNotification(
+          'Dekorasi Natal Diaktifkan! 🎄', 
+          `${enabledCount} dekorasi Natal berhasil diaktifkan untuk semua pengguna di dashboard.`, 
+          'success'
+        );
+      } else {
+        showNotification(
+          'Dekorasi Natal Dimatikan', 
+          'Semua dekorasi Natal telah dimatikan.', 
+          'info'
+        );
+      }
+
+    } catch (error: any) {
+      console.error('Unexpected error updating christmas settings:', error);
+      showNotification('Kesalahan Tidak Terduga', `Terjadi kesalahan: ${error.message}`, 'error');
+    }
   };
 
   // --- Tasks & Projects handlers ---
@@ -1751,6 +1858,8 @@ const App: React.FC = () => {
             onDeleteStatus={handleDeleteStatus}
             currentUser={currentUser}
             onUserCardClick={handleUserCardClick}
+            christmasSettings={christmasSettings}
+            onUpdateChristmasSettings={handleUpdateChristmasSettings}
           />
         ) : activeTab === 'Project' ? (
           <ProjectOverview

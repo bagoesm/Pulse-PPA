@@ -534,7 +534,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [userFormData, setUserFormData] = useState<Partial<User>>({
-      name: '', email: '', role: 'Staff', jabatan: '', password: '', sakuraAnimationEnabled: false,
+      name: '', email: '', role: 'Staff', jabatan: '', password: '', sakuraAnimationEnabled: false, snowAnimationEnabled: false,
   });
 
   // Simple Input State for Jabatan/Kategori
@@ -568,6 +568,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
               jabatan: defaultJabatan,
               password: '',
               sakuraAnimationEnabled: false,
+              snowAnimationEnabled: false,
           });
       }
       setIsModalOpen(true);
@@ -956,35 +957,68 @@ const UserManagement: React.FC<UserManagementProps> = ({
                             </select>
                         </div>
                         
-                        {/* Sakura Animation Setting */}
+                        {/* Animation Settings */}
                         <div>
                             <label className="block text-xs font-bold text-slate-600 uppercase mb-2">Pengaturan Animasi</label>
-                            <div className="flex items-center gap-3 p-3 bg-pink-50 border border-pink-200 rounded-lg">
-                                <span className="text-pink-500 text-lg">🌸</span>
-                                <div className="flex-1">
-                                    <p className="text-sm font-medium text-slate-700">Animasi Bunga Sakura</p>
-                                    <p className="text-xs text-slate-500">Tampilkan animasi bunga sakura saat hover di dashboard</p>
-                                </div>
-                                <div className="flex items-center">
-                                    <input
-                                        type="checkbox"
-                                        id="sakuraAnimation"
-                                        checked={userFormData.sakuraAnimationEnabled || false}
-                                        onChange={e => setUserFormData({...userFormData, sakuraAnimationEnabled: e.target.checked})}
-                                        className="sr-only"
-                                    />
-                                    <label
-                                        htmlFor="sakuraAnimation"
-                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
-                                            userFormData.sakuraAnimationEnabled ? 'bg-pink-500' : 'bg-slate-300'
-                                        }`}
-                                    >
-                                        <span
-                                            className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${
-                                                userFormData.sakuraAnimationEnabled ? 'translate-x-6' : 'translate-x-1'
-                                            }`}
+                            <div className="space-y-3">
+                                {/* Sakura Animation */}
+                                <div className="flex items-center gap-3 p-3 bg-pink-50 border border-pink-200 rounded-lg">
+                                    <span className="text-pink-500 text-lg">🌸</span>
+                                    <div className="flex-1">
+                                        <p className="text-sm font-medium text-slate-700">Animasi Bunga Sakura</p>
+                                        <p className="text-xs text-slate-500">Tampilkan animasi bunga sakura saat hover di dashboard</p>
+                                    </div>
+                                    <div className="flex items-center">
+                                        <input
+                                            type="checkbox"
+                                            id="sakuraAnimation"
+                                            checked={userFormData.sakuraAnimationEnabled || false}
+                                            onChange={e => setUserFormData({...userFormData, sakuraAnimationEnabled: e.target.checked})}
+                                            className="sr-only"
                                         />
-                                    </label>
+                                        <label
+                                            htmlFor="sakuraAnimation"
+                                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
+                                                userFormData.sakuraAnimationEnabled ? 'bg-pink-500' : 'bg-slate-300'
+                                            }`}
+                                        >
+                                            <span
+                                                className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${
+                                                    userFormData.sakuraAnimationEnabled ? 'translate-x-6' : 'translate-x-1'
+                                                }`}
+                                            />
+                                        </label>
+                                    </div>
+                                </div>
+                                
+                                {/* Snow Animation */}
+                                <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                    <span className="text-blue-500 text-lg">❄️</span>
+                                    <div className="flex-1">
+                                        <p className="text-sm font-medium text-slate-700">Animasi Salju</p>
+                                        <p className="text-xs text-slate-500">Tampilkan animasi salju jatuh saat hover di dashboard</p>
+                                    </div>
+                                    <div className="flex items-center">
+                                        <input
+                                            type="checkbox"
+                                            id="snowAnimation"
+                                            checked={userFormData.snowAnimationEnabled || false}
+                                            onChange={e => setUserFormData({...userFormData, snowAnimationEnabled: e.target.checked})}
+                                            className="sr-only"
+                                        />
+                                        <label
+                                            htmlFor="snowAnimation"
+                                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
+                                                userFormData.snowAnimationEnabled ? 'bg-blue-500' : 'bg-slate-300'
+                                            }`}
+                                        >
+                                            <span
+                                                className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${
+                                                    userFormData.snowAnimationEnabled ? 'translate-x-6' : 'translate-x-1'
+                                                }`}
+                                            />
+                                        </label>
+                                    </div>
                                 </div>
                             </div>
                         </div>
