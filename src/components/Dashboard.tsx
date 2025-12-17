@@ -48,6 +48,7 @@ interface DashboardProps {
   onMarkAllAsRead?: () => void;
   onNotificationClick?: (notification: any) => void;
   onDeleteNotification?: (notificationId: string) => void;
+  onDismissAll?: () => void;
   // Announcement props
   announcements?: Announcement[];
   onDismissAnnouncement?: (id: string) => void;
@@ -73,6 +74,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   onMarkAllAsRead,
   onNotificationClick,
   onDeleteNotification,
+  onDismissAll,
   announcements = [],
   onDismissAnnouncement
 }) => {
@@ -389,12 +391,13 @@ const Dashboard: React.FC<DashboardProps> = ({
         
         <div className="flex items-center gap-3">
           {/* Notification Icon */}
-          {onNotificationClick && onMarkAllAsRead && onDeleteNotification && (
+          {onNotificationClick && onMarkAllAsRead && onDeleteNotification && onDismissAll && (
             <NotificationIcon
               notifications={notifications}
               onMarkAllAsRead={onMarkAllAsRead}
               onNotificationClick={onNotificationClick}
               onDeleteNotification={onDeleteNotification}
+              onDismissAll={onDismissAll}
             />
           )}
           

@@ -7,16 +7,29 @@ interface NotificationIconProps {
   onMarkAllAsRead: () => void;
   onNotificationClick: (notification: Notification) => void;
   onDeleteNotification: (notificationId: string) => void;
+  onDismissAll: () => void;
 }
 
 const NotificationIcon: React.FC<NotificationIconProps> = ({
   notifications,
   onMarkAllAsRead,
   onNotificationClick,
-  onDeleteNotification
+  onDeleteNotification,
+  onDismissAll
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Handle dropdown open - dismiss all notifications when user opens dropdown
+  const handleDropdownToggle = () => {
+    const newIsOpen = !isOpen;
+    setIsOpen(newIsOpen);
+    
+    // When opening dropdown, mark all notifications as dismissed (seen)
+    if (newIsOpen && notifications.length > 0) {
+      onDismissAll();
+    }
+  };
 
   const unreadCount = useMemo(() => 
     notifications.filter(n => !n.isRead).length, 
@@ -68,7 +81,7 @@ const NotificationIcon: React.FC<NotificationIconProps> = ({
     <div className="relative" ref={dropdownRef}>
       {/* Notification Bell Icon */}
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={handleDropdownToggle}
         className="relative p-2 text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-all duration-200"
         title={`${unreadCount} notifikasi belum dibaca`}
       >

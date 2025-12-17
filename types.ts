@@ -169,6 +169,7 @@ export interface Notification {
   taskId: string; // Task yang terkait dengan notifikasi
   taskTitle: string; // Judul task untuk referensi
   isRead: boolean;
+  isDismissed: boolean; // Whether user has seen this notification in dropdown
   createdAt: string; // ISO Date string
   expiresAt: string; // ISO Date string - auto hapus setelah 1 minggu
 }

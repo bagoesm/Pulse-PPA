@@ -1924,7 +1924,8 @@ const App: React.FC = () => {
     markAllAsRead,
     deleteNotification,
     handleNotificationClick,
-    cleanupDuplicateNotifications
+    cleanupDuplicateNotifications,
+    dismissAllNotifications
   } = useNotifications({
     currentUser,
     tasks,
@@ -2003,6 +2004,7 @@ const App: React.FC = () => {
                   onMarkAllAsRead={markAllAsRead}
                   onNotificationClick={handleNotificationClick}
                   onDeleteNotification={deleteNotification}
+                  onDismissAll={dismissAllNotifications}
                 />
              </div>
              
@@ -2135,6 +2137,7 @@ const App: React.FC = () => {
             onMarkAllAsRead={markAllAsRead}
             onNotificationClick={handleNotificationClick}
             onDeleteNotification={deleteNotification}
+            onDismissAll={dismissAllNotifications}
             announcements={announcements}
           />
         ) : activeTab === 'Project' ? (

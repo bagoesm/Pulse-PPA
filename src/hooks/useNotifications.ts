@@ -10,28 +10,33 @@ interface UseNotificationsProps {
 
 export const useNotifications = ({ currentUser, tasks, onTaskNavigation }: UseNotificationsProps) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Reset notifications when user changes
   useEffect(() => {
     if (!currentUser) {
       setNotifications([]);
-      // Clear notification-related localStorage when user logs out
-      const keysToRemove = Object.keys(localStorage).filter(key => 
-        key.startsWith('lastDeadlineCheck_')
-      );
-      keysToRemove.forEach(key => localStorage.removeItem(key));
+      setIsLoading(false);
     }
   }, [currentUser?.id]); // Use currentUser.id to detect user changes
 
   // Fetch notifications from database
   const fetchNotifications = useCallback(async () => {
-    if (!currentUser) return;
+    if (!currentUser) {
+      return;
+    }
+
+    if (isLoading) {
+      return;
+    }
 
     try {
+      setIsLoading(true);
       const { data, error } = await supabase
         .from('notifications')
         .select('*')
         .eq('user_id', currentUser.id)
+        .eq('is_dismissed', false) // Only get non-dismissed notifications
         .gt('expires_at', new Date().toISOString()) // Only get non-expired notifications
         .order('created_at', { ascending: false });
 
@@ -50,16 +55,20 @@ export const useNotifications = ({ currentUser, tasks, onTaskNavigation }: UseNo
           taskId: n.task_id,
           taskTitle: n.task_title,
           isRead: n.is_read,
+          isDismissed: n.is_dismissed || false,
           createdAt: n.created_at,
           expiresAt: n.expires_at
         }));
 
+        console.log(`Fetched ${mappedNotifications.length} notifications, ${mappedNotifications.filter(n => !n.isRead).length} unread`);
         setNotifications(mappedNotifications);
       }
     } catch (error) {
       console.error('Error fetching notifications:', error);
+    } finally {
+      setIsLoading(false);
     }
-  }, [currentUser]);
+  }, [currentUser, isLoading]);
 
   // Create notification for comment
   const createCommentNotification = useCallback(async (
@@ -183,16 +192,21 @@ export const useNotifications = ({ currentUser, tasks, onTaskNavigation }: UseNo
 
     // Create notifications for each upcoming task
     for (const task of upcomingTasks) {
-      // Check if notification already exists for this task (any deadline notification)
+      // Check if notification already exists for this task for current user
+      // Include both active and deleted notifications to prevent recreation
       const { data: existingNotifications } = await supabase
         .from('notifications')
-        .select('id')
+        .select('id, is_read, created_at')
         .eq('task_id', task.id)
         .eq('type', 'deadline')
-        .gt('expires_at', now.toISOString()); // Only check non-expired notifications
+        .eq('user_id', currentUser.id)
+        .gte('created_at', new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString()); // Check notifications created in last 24 hours
 
+      // Only create notification if no recent deadline notification exists for this user and task
       if (!existingNotifications || existingNotifications.length === 0) {
         await createDeadlineNotification(task);
+      } else {
+        console.log(`Skipping deadline notification for task ${task.id} - already exists for user`);
       }
     }
   }, [currentUser, tasks, createDeadlineNotification]);
@@ -209,7 +223,7 @@ export const useNotifications = ({ currentUser, tasks, onTaskNavigation }: UseNo
         console.error('Error marking notification as read:', error);
         return;
       }
-
+      
       // Update local state
       setNotifications(prev => 
         prev.map(n => n.id === notificationId ? { ...n, isRead: true } : n)
@@ -244,6 +258,31 @@ export const useNotifications = ({ currentUser, tasks, onTaskNavigation }: UseNo
     }
   }, [currentUser]);
 
+  // Dismiss all notifications (mark as seen in dropdown)
+  const dismissAllNotifications = useCallback(async () => {
+    if (!currentUser) return;
+
+    try {
+      const notificationIds = notifications.map(n => n.id);
+      if (notificationIds.length === 0) return;
+
+      const { error } = await supabase
+        .from('notifications')
+        .update({ is_dismissed: true })
+        .in('id', notificationIds);
+
+      if (error) {
+        console.error('Error dismissing notifications:', error);
+        return;
+      }
+
+      // Clear local notifications since they're now dismissed
+      setNotifications([]);
+    } catch (error) {
+      console.error('Error dismissing notifications:', error);
+    }
+  }, [currentUser, notifications]);
+
   // Delete notification
   const deleteNotification = useCallback(async (notificationId: string) => {
     try {
@@ -256,8 +295,8 @@ export const useNotifications = ({ currentUser, tasks, onTaskNavigation }: UseNo
         console.error('Error deleting notification:', error);
         return;
       }
-
-      // Update local state
+      
+      // Update local state immediately
       setNotifications(prev => prev.filter(n => n.id !== notificationId));
     } catch (error) {
       console.error('Error deleting notification:', error);
@@ -348,37 +387,51 @@ export const useNotifications = ({ currentUser, tasks, onTaskNavigation }: UseNo
 
   // Initialize notifications and cleanup when user changes
   useEffect(() => {
-    if (currentUser) {
-      fetchNotifications();
-    } else {
+    if (currentUser && !isLoading) {
+      // Debounce to prevent multiple rapid calls
+      const timeoutId = setTimeout(() => {
+        fetchNotifications();
+      }, 100);
+      
+      return () => clearTimeout(timeoutId);
+    } else if (!currentUser) {
       // Clear notifications when user logs out
       setNotifications([]);
     }
-  }, [fetchNotifications, currentUser]);
+  }, [currentUser?.id]); // Only depend on user ID, not the whole fetchNotifications function
 
   // Check for upcoming deadlines daily
   useEffect(() => {
     if (!currentUser || !tasks.length) return;
 
-    // Only check once per day to prevent spam
-    const lastCheck = localStorage.getItem(`lastDeadlineCheck_${currentUser.id}`);
-    const today = new Date().toDateString();
-    
-    if (lastCheck !== today) {
-      checkUpcomingDeadlines();
-      localStorage.setItem(`lastDeadlineCheck_${currentUser.id}`, today);
-    }
-
-    // Set up daily check (every 24 hours)
-    const interval = setInterval(() => {
-      const currentDay = new Date().toDateString();
-      const lastCheckDay = localStorage.getItem(`lastDeadlineCheck_${currentUser.id}`);
+    const checkDeadlinesOnce = async () => {
+      const today = new Date().toDateString();
       
-      if (lastCheckDay !== currentDay) {
-        checkUpcomingDeadlines();
-        localStorage.setItem(`lastDeadlineCheck_${currentUser.id}`, currentDay);
+      // Check if we already created deadline notifications today by looking at database
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      
+      const { data: todayNotifications } = await supabase
+        .from('notifications')
+        .select('id')
+        .eq('user_id', currentUser.id)
+        .eq('type', 'deadline')
+        .gte('created_at', todayStart.toISOString());
+
+      // Only run deadline check if no deadline notifications were created today
+      if (!todayNotifications || todayNotifications.length === 0) {
+        console.log('Running daily deadline check...');
+        await checkUpcomingDeadlines();
+      } else {
+        console.log('Deadline check already done today, skipping...');
       }
-    }, 60 * 60 * 1000); // Check every hour, but only run once per day
+    };
+
+    // Run once when component mounts
+    checkDeadlinesOnce();
+
+    // Set up daily check (every 4 hours, but with database check to prevent duplicates)
+    const interval = setInterval(checkDeadlinesOnce, 4 * 60 * 60 * 1000);
 
     return () => clearInterval(interval);
   }, [checkUpcomingDeadlines, currentUser, tasks]);
@@ -403,6 +456,7 @@ export const useNotifications = ({ currentUser, tasks, onTaskNavigation }: UseNo
     deleteNotification,
     handleNotificationClick,
     fetchNotifications,
-    cleanupDuplicateNotifications
+    cleanupDuplicateNotifications,
+    dismissAllNotifications
   };
 };
