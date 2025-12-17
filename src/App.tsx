@@ -1504,7 +1504,9 @@ const App: React.FC = () => {
       let query = supabase.from('projects').select('*', { count: 'exact' });
 
       if (filters.search) {
-        query = query.or(`name.ilike.%${filters.search}%,manager.ilike.%${filters.search}%,description.ilike.%${filters.search}%`);
+        // Enhanced search: case-insensitive search in name, manager, and description
+        const searchTerm = filters.search.toLowerCase();
+        query = query.or(`name.ilike.%${searchTerm}%,manager.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`);
       }
 
       if (filters.status && filters.status !== 'All') {
@@ -1563,7 +1565,9 @@ const App: React.FC = () => {
       query = query.eq('project_id', projectId);
 
       if (filters.search) {
-        query = query.or(`title.ilike.%${filters.search}%,pic.ilike.%${filters.search}%`);
+        // Enhanced search: search in multiple fields
+        const searchTerm = filters.search.toLowerCase();
+        query = query.or(`title.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,sub_category.ilike.%${searchTerm}%,category.ilike.%${searchTerm}%`);
       }
 
       if (filters.status && filters.status !== 'All') {
@@ -1585,7 +1589,7 @@ const App: React.FC = () => {
       const { data: tasksData, count } = await query;
 
       if (tasksData) {
-        const processedTasks = await Promise.all(
+        let processedTasks = await Promise.all(
           tasksData.map(async (task: any) => {
             let attachments: any[] = [];
             if (task.attachments && Array.isArray(task.attachments)) {
@@ -1620,6 +1624,24 @@ const App: React.FC = () => {
             } as Task;
           })
         );
+
+        // Additional client-side filtering for PIC search (since PIC can be array)
+        if (filters.search) {
+          const searchTerm = filters.search.toLowerCase();
+          processedTasks = processedTasks.filter(task => {
+            // Check if search term matches any PIC
+            const picArray = Array.isArray(task.pic) ? task.pic : [task.pic];
+            const picMatch = picArray.some(pic => 
+              typeof pic === 'string' && pic.toLowerCase().includes(searchTerm)
+            );
+            
+            // Check if search term matches createdBy
+            const createdByMatch = task.createdBy && 
+              task.createdBy.toLowerCase().includes(searchTerm);
+            
+            return picMatch || createdByMatch;
+          });
+        }
 
         return {
           tasks: processedTasks,
@@ -2007,7 +2029,7 @@ const App: React.FC = () => {
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                         <input 
                         type="text" 
-                        placeholder="Cari task atau PIC..." 
+                        placeholder="Cari task, PIC, kategori, deskripsi..." 
                         value={filters.search}
                         onChange={(e) => setFilters(prev => ({...prev, search: e.target.value}))}
                         className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gov-300 focus:bg-white transition-all"

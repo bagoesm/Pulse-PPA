@@ -905,10 +905,10 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
                     <Search size={14} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input
                       type="text"
-                      placeholder="Cari..."
+                      placeholder="Cari task, PIC, kategori..."
                       value={taskSearch}
                       onChange={(e) => setTaskSearch(e.target.value)}
-                      className="pl-7 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:ring-1 focus:ring-gov-400 outline-none w-40"
+                      className="pl-7 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:ring-1 focus:ring-gov-400 outline-none w-48"
                     />
                   </div>
 
