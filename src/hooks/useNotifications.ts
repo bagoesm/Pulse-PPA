@@ -11,6 +11,18 @@ interface UseNotificationsProps {
 export const useNotifications = ({ currentUser, tasks, onTaskNavigation }: UseNotificationsProps) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
+  // Reset notifications when user changes
+  useEffect(() => {
+    if (!currentUser) {
+      setNotifications([]);
+      // Clear notification-related localStorage when user logs out
+      const keysToRemove = Object.keys(localStorage).filter(key => 
+        key.startsWith('lastDeadlineCheck_')
+      );
+      keysToRemove.forEach(key => localStorage.removeItem(key));
+    }
+  }, [currentUser?.id]); // Use currentUser.id to detect user changes
+
   // Fetch notifications from database
   const fetchNotifications = useCallback(async () => {
     if (!currentUser) return;
@@ -334,10 +346,15 @@ export const useNotifications = ({ currentUser, tasks, onTaskNavigation }: UseNo
     }
   }, [currentUser, fetchNotifications]);
 
-  // Initialize notifications
+  // Initialize notifications and cleanup when user changes
   useEffect(() => {
-    fetchNotifications();
-  }, [fetchNotifications]);
+    if (currentUser) {
+      fetchNotifications();
+    } else {
+      // Clear notifications when user logs out
+      setNotifications([]);
+    }
+  }, [fetchNotifications, currentUser]);
 
   // Check for upcoming deadlines daily
   useEffect(() => {

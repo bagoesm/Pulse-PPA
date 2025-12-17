@@ -543,6 +543,16 @@ const App: React.FC = () => {
       
       // Clear notification state to prevent delayed notifications
       hideNotification();
+      
+      // Clear all app data to prevent cross-user contamination
+      setTasks([]);
+      setProjects([]);
+      setAnnouncements([]);
+      setAllUsers([]);
+      setFeedbacks([]);
+      setDocumentTemplates([]);
+      setUserStatuses([]);
+      setComments([]);
     } catch (error: any) {
       console.error('Logout error:', error);
       // Force logout even if there's an error
@@ -554,6 +564,16 @@ const App: React.FC = () => {
       
       // Clear notification state
       hideNotification();
+      
+      // Clear all app data to prevent cross-user contamination
+      setTasks([]);
+      setProjects([]);
+      setAnnouncements([]);
+      setAllUsers([]);
+      setFeedbacks([]);
+      setDocumentTemplates([]);
+      setUserStatuses([]);
+      setComments([]);
     }
   };
 
@@ -1564,11 +1584,11 @@ const App: React.FC = () => {
 
       query = query.eq('project_id', projectId);
 
-      if (filters.search) {
-        // Enhanced search: search in multiple fields
-        const searchTerm = filters.search.toLowerCase();
-        query = query.or(`title.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,sub_category.ilike.%${searchTerm}%,category.ilike.%${searchTerm}%`);
-      }
+      // Remove search filtering temporarily to test basic functionality
+      // if (filters.search) {
+      //   const searchTerm = filters.search.toLowerCase();
+      //   query = query.or(`title.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,sub_category.ilike.%${searchTerm}%,category.ilike.%${searchTerm}%`);
+      // }
 
       if (filters.status && filters.status !== 'All') {
         query = query.eq('status', filters.status);
@@ -1586,10 +1606,23 @@ const App: React.FC = () => {
 
       query = query.order('created_at', { ascending: false });
 
-      const { data: tasksData, count } = await query;
+      const { data: tasksData, count, error } = await query;
+
+      console.log('fetchProjectTasks result:', { 
+        projectId, 
+        filters, 
+        tasksData: tasksData?.length, 
+        count, 
+        error 
+      });
+
+      if (error) {
+        console.error('Database query error:', error);
+        return { tasks: [], totalCount: 0, totalPages: 0 };
+      }
 
       if (tasksData) {
-        let processedTasks = await Promise.all(
+        const processedTasks = await Promise.all(
           tasksData.map(async (task: any) => {
             let attachments: any[] = [];
             if (task.attachments && Array.isArray(task.attachments)) {
@@ -1625,26 +1658,31 @@ const App: React.FC = () => {
           })
         );
 
-        // Additional client-side filtering for PIC search (since PIC can be array)
+        // Apply search filtering client-side for now
+        let filteredTasks = processedTasks;
         if (filters.search) {
           const searchTerm = filters.search.toLowerCase();
-          processedTasks = processedTasks.filter(task => {
-            // Check if search term matches any PIC
+          filteredTasks = processedTasks.filter(task => {
+            const titleMatch = task.title?.toLowerCase().includes(searchTerm);
+            const descMatch = task.description?.toLowerCase().includes(searchTerm);
+            const categoryMatch = task.category?.toLowerCase().includes(searchTerm);
+            const subCategoryMatch = task.subCategory?.toLowerCase().includes(searchTerm);
+            
+            // Check PIC array
             const picArray = Array.isArray(task.pic) ? task.pic : [task.pic];
             const picMatch = picArray.some(pic => 
               typeof pic === 'string' && pic.toLowerCase().includes(searchTerm)
             );
             
-            // Check if search term matches createdBy
-            const createdByMatch = task.createdBy && 
-              task.createdBy.toLowerCase().includes(searchTerm);
+            // Check createdBy
+            const createdByMatch = task.createdBy?.toLowerCase().includes(searchTerm);
             
-            return picMatch || createdByMatch;
+            return titleMatch || descMatch || categoryMatch || subCategoryMatch || picMatch || createdByMatch;
           });
         }
 
         return {
-          tasks: processedTasks,
+          tasks: filteredTasks,
           totalCount: count || 0,
           totalPages: Math.ceil((count || 0) / limit)
         };
@@ -1652,6 +1690,7 @@ const App: React.FC = () => {
 
       return { tasks: [], totalCount: 0, totalPages: 0 };
     } catch (error) {
+      console.error('fetchProjectTasks error:', error);
       return { tasks: [], totalCount: 0, totalPages: 0 };
     }
   }, [allUsers]);
