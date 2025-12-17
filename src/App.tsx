@@ -1924,7 +1924,6 @@ const App: React.FC = () => {
     markAllAsRead,
     deleteNotification,
     handleNotificationClick,
-    cleanupDuplicateNotifications,
     dismissAllNotifications
   } = useNotifications({
     currentUser,

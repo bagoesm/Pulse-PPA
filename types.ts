@@ -162,16 +162,16 @@ export type NotificationType = 'comment' | 'deadline';
 
 export interface Notification {
   id: string;
-  userId: string; // User yang menerima notifikasi
+  userId: string;
   type: NotificationType;
   title: string;
   message: string;
-  taskId: string; // Task yang terkait dengan notifikasi
-  taskTitle: string; // Judul task untuk referensi
+  taskId: string;
+  taskTitle: string;
   isRead: boolean;
-  isDismissed: boolean; // Whether user has seen this notification in dropdown
-  createdAt: string; // ISO Date string
-  expiresAt: string; // ISO Date string - auto hapus setelah 1 minggu
+  isDismissed: boolean; // Kept for backward compatibility
+  createdAt: string;
+  expiresAt: string; // Computed: 7 days from createdAt
 }
 
 export type AnnouncementType = 'info' | 'success' | 'warning' | 'urgent';
