@@ -1,10 +1,12 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { Task, Status, Priority, User, UserStatus, ChristmasDecorationSettings } from '../../types';
+import { Task, Status, Priority, User, UserStatus, ChristmasDecorationSettings, Announcement } from '../../types';
 import StatusBubble from './StatusBubble';
 import SakuraAnimation from './SakuraAnimation';
 import SnowAnimation from './SnowAnimation';
 import ChristmasDecorations from './ChristmasDecorations';
 import ChristmasSettingsModal from './ChristmasSettingsModal';
+import NotificationIcon from './NotificationIcon';
+import AnnouncementBanner from './AnnouncementBanner';
 import { 
   CheckCircle2, 
   AlertCircle, 
@@ -41,6 +43,14 @@ interface DashboardProps {
   onUserCardClick?: (userName: string) => void; // New prop for handling card clicks
   christmasSettings?: ChristmasDecorationSettings;
   onUpdateChristmasSettings?: (settings: ChristmasDecorationSettings) => void;
+  // Notification props
+  notifications?: any[];
+  onMarkAllAsRead?: () => void;
+  onNotificationClick?: (notification: any) => void;
+  onDeleteNotification?: (notificationId: string) => void;
+  // Announcement props
+  announcements?: Announcement[];
+  onDismissAnnouncement?: (id: string) => void;
 }
 
 type WorkloadFilter = 'all' | 'relaxed' | 'balanced' | 'busy' | 'overload';
@@ -58,7 +68,13 @@ const Dashboard: React.FC<DashboardProps> = ({
   currentUser,
   onUserCardClick,
   christmasSettings = { santaHatEnabled: false, baubleEnabled: false, candyEnabled: false },
-  onUpdateChristmasSettings
+  onUpdateChristmasSettings,
+  notifications = [],
+  onMarkAllAsRead,
+  onNotificationClick,
+  onDeleteNotification,
+  announcements = [],
+  onDismissAnnouncement
 }) => {
   // State untuk filtering dan searching
   const [searchTerm, setSearchTerm] = useState('');
@@ -371,7 +387,17 @@ const Dashboard: React.FC<DashboardProps> = ({
           <p className="text-slate-600">Pantau performa dan beban kerja tim secara real-time</p>
         </div>
         
-        <div className="flex gap-3">
+        <div className="flex items-center gap-3">
+          {/* Notification Icon */}
+          {onNotificationClick && onMarkAllAsRead && onDeleteNotification && (
+            <NotificationIcon
+              notifications={notifications}
+              onMarkAllAsRead={onMarkAllAsRead}
+              onNotificationClick={onNotificationClick}
+              onDeleteNotification={onDeleteNotification}
+            />
+          )}
+          
           {/* Christmas Settings Button (Admin Only) */}
           {currentUser?.role === 'Super Admin' && (
             <button
@@ -393,6 +419,26 @@ const Dashboard: React.FC<DashboardProps> = ({
           </button>
         </div>
       </div>
+
+      {/* ANNOUNCEMENTS SECTION */}
+      {announcements.length > 0 && (
+        <div className="space-y-4">
+          {announcements
+            .filter(announcement => {
+              const now = new Date();
+              const isNotExpired = !announcement.expiresAt || new Date(announcement.expiresAt) > now;
+              return announcement.isActive && isNotExpired;
+            })
+            .map(announcement => (
+              <AnnouncementBanner
+                key={announcement.id}
+                announcement={announcement}
+                onDismiss={onDismissAnnouncement ? () => onDismissAnnouncement(announcement.id) : undefined}
+                canDismiss={false} // Users can't dismiss announcements, only admins can deactivate
+              />
+            ))}
+        </div>
+      )}
 
       {/* TOP STATS CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">

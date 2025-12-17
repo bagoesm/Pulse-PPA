@@ -158,6 +158,38 @@ export interface Comment {
   updatedAt?: string; // ISO Date string
 }
 
+export type NotificationType = 'comment' | 'deadline';
+
+export interface Notification {
+  id: string;
+  userId: string; // User yang menerima notifikasi
+  type: NotificationType;
+  title: string;
+  message: string;
+  taskId: string; // Task yang terkait dengan notifikasi
+  taskTitle: string; // Judul task untuk referensi
+  isRead: boolean;
+  createdAt: string; // ISO Date string
+  expiresAt: string; // ISO Date string - auto hapus setelah 1 minggu
+}
+
+export type AnnouncementType = 'info' | 'success' | 'warning' | 'urgent';
+
+export interface Announcement {
+  id: string;
+  title: string;
+  description: string;
+  type: AnnouncementType;
+  emoji?: string;
+  backgroundColor?: string;
+  textColor?: string;
+  isActive: boolean;
+  createdBy: string; // Admin yang membuat
+  createdAt: string; // ISO Date string
+  updatedAt?: string; // ISO Date string
+  expiresAt?: string; // Optional - pengumuman bisa expired
+}
+
 export const SIDEBAR_ITEMS = [
   { name: 'Dashboard', icon: 'LayoutDashboard' },
   { name: 'Semua Task', icon: 'ListTodo' },
@@ -172,4 +204,5 @@ export const SIDEBAR_ITEMS = [
   { name: 'Administrasi', icon: 'FolderOpen' },
   { name: 'Monitoring', icon: 'Activity' },
   { name: 'Lainnya', icon: 'MoreHorizontal' },
+  { name: 'Pengumuman', icon: 'Megaphone' },
 ];

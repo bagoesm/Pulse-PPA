@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from './lib/supabaseClient';
 import { Plus, Search, Layout, CalendarRange, Briefcase, FileText, ListTodo, Loader2 } from 'lucide-react';
-import { Task, Status, Category, Priority, FilterState, User, ProjectDefinition, ViewMode, Feedback, FeedbackCategory, FeedbackStatus, DocumentTemplate, UserStatus, Attachment, Comment, ChristmasDecorationSettings } from '../types';
+import { Task, Status, Category, Priority, FilterState, User, ProjectDefinition, ViewMode, Feedback, FeedbackCategory, FeedbackStatus, DocumentTemplate, UserStatus, Attachment, Comment, ChristmasDecorationSettings, Announcement } from '../types';
 import Sidebar from './components/Sidebar';
 import TaskCard from './components/TaskCard';
 import AddTaskModal from './components/AddTaskModal';
@@ -18,6 +18,10 @@ import DocumentTemplates from './components/DocumentTemplates';
 import StatusModal from './components/StatusModal';
 import NotificationModal from './components/NotificationModal';
 import ConfirmModal from './components/ConfirmModal';
+import NotificationIcon from './components/NotificationIcon';
+import { useNotifications } from './hooks/useNotifications';
+import AnnouncementModal from './components/AnnouncementModal';
+import AnnouncementManager from './components/AnnouncementManager';
 
 const App: React.FC = () => {
   // Auth State
@@ -35,6 +39,7 @@ const App: React.FC = () => {
   const [templateFilePaths, setTemplateFilePaths] = useState<{[key: string]: string}>({});
   const [userStatuses, setUserStatuses] = useState<UserStatus[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   
   // Christmas Decoration Settings
   const [christmasSettings, setChristmasSettings] = useState<ChristmasDecorationSettings>({
@@ -78,9 +83,11 @@ const App: React.FC = () => {
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
   const [isTaskViewModalOpen, setIsTaskViewModalOpen] = useState(false);
+  const [isAnnouncementModalOpen, setIsAnnouncementModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [viewingTask, setViewingTask] = useState<Task | null>(null);
   const [editingProject, setEditingProject] = useState<ProjectDefinition | null>(null);
+  const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null);
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('Board');
   
@@ -447,6 +454,27 @@ const App: React.FC = () => {
           enabledBy: christmasData.enabled_by,
           enabledAt: christmasData.enabled_at
         });
+      }
+
+      // --- Announcements ---
+      const { data: announcementsData, error: announcementsErr } = await supabase.from('announcements').select('*').order('created_at', { ascending: false });
+      if (announcementsErr) console.error('Error fetch announcements:', announcementsErr);
+      if (announcementsData) {
+        const mappedAnnouncements = announcementsData.map((a: any) => ({
+          id: a.id,
+          title: a.title,
+          description: a.description,
+          type: a.type,
+          emoji: a.emoji,
+          backgroundColor: a.background_color,
+          textColor: a.text_color,
+          isActive: a.is_active,
+          createdBy: a.created_by,
+          createdAt: a.created_at,
+          updatedAt: a.updated_at,
+          expiresAt: a.expires_at
+        }));
+        setAnnouncements(mappedAnnouncements);
       }
     } catch (err) {
       console.error('fetch All Data error', err);
@@ -1445,6 +1473,13 @@ const App: React.FC = () => {
       };
 
       setComments(prev => prev.map(c => c.id === tempId ? realComment : c));
+
+      // Create notification for task PICs
+      const task = tasks.find(t => t.id === taskId);
+      if (task) {
+        const taskPics = Array.isArray(task.pic) ? task.pic : [task.pic];
+        await createCommentNotification(taskId, task.title, currentUser.name, taskPics);
+      }
     } catch (error) {
       // If save fails, remove temp comment from local state
       setComments(prev => prev.filter(c => c.id !== tempId));
@@ -1670,6 +1705,173 @@ const App: React.FC = () => {
     }));
   };
 
+  // --- Announcement handlers ---
+  const handleCreateAnnouncement = () => {
+    setEditingAnnouncement(null);
+    setIsAnnouncementModalOpen(true);
+  };
+
+  const handleEditAnnouncement = (announcement: Announcement) => {
+    setEditingAnnouncement(announcement);
+    setIsAnnouncementModalOpen(true);
+  };
+
+  const handleSaveAnnouncement = async (announcementData: Omit<Announcement, 'id' | 'createdAt' | 'updatedAt'>) => {
+    try {
+      const payload = {
+        title: announcementData.title,
+        description: announcementData.description,
+        type: announcementData.type,
+        emoji: announcementData.emoji || null,
+        background_color: announcementData.backgroundColor || null,
+        text_color: announcementData.textColor || null,
+        is_active: announcementData.isActive,
+        created_by: announcementData.createdBy,
+        expires_at: announcementData.expiresAt || null
+      };
+
+      if (editingAnnouncement) {
+        // Update existing announcement
+        const { data, error } = await supabase
+          .from('announcements')
+          .update(payload)
+          .eq('id', editingAnnouncement.id)
+          .select()
+          .single();
+
+        if (error) {
+          showNotification('Gagal Update Pengumuman', error.message, 'error');
+          return;
+        }
+
+        if (data) {
+          const mappedAnnouncement: Announcement = {
+            id: data.id,
+            title: data.title,
+            description: data.description,
+            type: data.type,
+            emoji: data.emoji,
+            backgroundColor: data.background_color,
+            textColor: data.text_color,
+            isActive: data.is_active,
+            createdBy: data.created_by,
+            createdAt: data.created_at,
+            updatedAt: data.updated_at,
+            expiresAt: data.expires_at
+          };
+
+          setAnnouncements(prev => prev.map(a => a.id === editingAnnouncement.id ? mappedAnnouncement : a));
+          showNotification('Pengumuman Berhasil Diupdate!', `Pengumuman "${announcementData.title}" berhasil diperbarui.`, 'success');
+        }
+      } else {
+        // Create new announcement
+        const { data, error } = await supabase
+          .from('announcements')
+          .insert([payload])
+          .select()
+          .single();
+
+        if (error) {
+          showNotification('Gagal Buat Pengumuman', error.message, 'error');
+          return;
+        }
+
+        if (data) {
+          const mappedAnnouncement: Announcement = {
+            id: data.id,
+            title: data.title,
+            description: data.description,
+            type: data.type,
+            emoji: data.emoji,
+            backgroundColor: data.background_color,
+            textColor: data.text_color,
+            isActive: data.is_active,
+            createdBy: data.created_by,
+            createdAt: data.created_at,
+            updatedAt: data.updated_at,
+            expiresAt: data.expires_at
+          };
+
+          setAnnouncements(prev => [mappedAnnouncement, ...prev]);
+          showNotification('Pengumuman Berhasil Dibuat!', `Pengumuman "${announcementData.title}" berhasil ditambahkan.`, 'success');
+        }
+      }
+
+      setIsAnnouncementModalOpen(false);
+      setEditingAnnouncement(null);
+    } catch (error: any) {
+      console.error('Error saving announcement:', error);
+      showNotification('Kesalahan Tidak Terduga', `Terjadi kesalahan: ${error.message}`, 'error');
+    }
+  };
+
+  const handleDeleteAnnouncement = async (id: string) => {
+    try {
+      const { error } = await supabase.from('announcements').delete().eq('id', id);
+      
+      if (error) {
+        showNotification('Gagal Hapus Pengumuman', error.message, 'error');
+        return;
+      }
+
+      setAnnouncements(prev => prev.filter(a => a.id !== id));
+      showNotification('Pengumuman Berhasil Dihapus!', 'Pengumuman telah dihapus dari sistem.', 'success');
+    } catch (error: any) {
+      console.error('Error deleting announcement:', error);
+      showNotification('Kesalahan Tidak Terduga', `Terjadi kesalahan: ${error.message}`, 'error');
+    }
+  };
+
+  const handleToggleAnnouncementActive = async (id: string, isActive: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('announcements')
+        .update({ is_active: isActive })
+        .eq('id', id);
+
+      if (error) {
+        showNotification('Gagal Update Status', error.message, 'error');
+        return;
+      }
+
+      setAnnouncements(prev => prev.map(a => a.id === id ? { ...a, isActive } : a));
+      showNotification(
+        isActive ? 'Pengumuman Diaktifkan' : 'Pengumuman Dinonaktifkan',
+        `Pengumuman berhasil ${isActive ? 'diaktifkan' : 'dinonaktifkan'}.`,
+        'success'
+      );
+    } catch (error: any) {
+      console.error('Error toggling announcement:', error);
+      showNotification('Kesalahan Tidak Terduga', `Terjadi kesalahan: ${error.message}`, 'error');
+    }
+  };
+
+  // Handle task navigation from notification
+  const handleTaskNavigation = (taskId: string) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (task) {
+      setViewingTask(task);
+      setIsTaskViewModalOpen(true);
+    }
+  };
+
+  // Initialize notifications hook
+  const {
+    notifications,
+    createCommentNotification,
+    markAsRead,
+    markAllAsRead,
+    deleteNotification,
+    handleNotificationClick,
+    cleanupDuplicateNotifications
+  } = useNotifications({
+    currentUser,
+    tasks,
+    onTaskNavigation: handleTaskNavigation
+  });
+
+
+
   // --- Filtering ---
   const filteredTasks = useMemo(() => {
     return tasks.filter(task => {
@@ -1723,9 +1925,9 @@ const App: React.FC = () => {
       {/* Main Content */}
       <main className="flex-1 ml-0 md:ml-64 flex flex-col h-screen overflow-hidden">
         
-        {/* Top Header / Filter Bar - HIDDEN for Saran Masukan */}
-        {activeTab !== 'Dashboard' && activeTab !== 'Project' && activeTab !== 'Master Data' && activeTab !== 'Saran Masukan' && (
-        <header className="bg-white border-b border-slate-200 px-6 py-4 z-20">
+        {/* Top Header / Filter Bar - HIDDEN for special pages */}
+        {activeTab !== 'Dashboard' && activeTab !== 'Project' && activeTab !== 'Master Data' && activeTab !== 'Saran Masukan' && activeTab !== 'Pengumuman' && (
+        <header className="bg-white border-b border-slate-200 px-6 py-4 z-20 relative">
           <div className="flex flex-col gap-4 mb-4">
              {/* Title Section */}
              <div className="flex justify-between items-start">
@@ -1733,6 +1935,14 @@ const App: React.FC = () => {
                     <h2 className="text-2xl font-bold text-slate-800">{activeTab}</h2>
                     <p className="text-sm text-slate-500">Kelola dan pantau aktivitas tim anda.</p>
                 </div>
+                
+                {/* Notification Icon */}
+                <NotificationIcon
+                  notifications={notifications}
+                  onMarkAllAsRead={markAllAsRead}
+                  onNotificationClick={handleNotificationClick}
+                  onDeleteNotification={deleteNotification}
+                />
              </div>
              
              {/* Buttons Row - All buttons in horizontal alignment */}
@@ -1860,6 +2070,11 @@ const App: React.FC = () => {
             onUserCardClick={handleUserCardClick}
             christmasSettings={christmasSettings}
             onUpdateChristmasSettings={handleUpdateChristmasSettings}
+            notifications={notifications}
+            onMarkAllAsRead={markAllAsRead}
+            onNotificationClick={handleNotificationClick}
+            onDeleteNotification={deleteNotification}
+            announcements={announcements}
           />
         ) : activeTab === 'Project' ? (
           <ProjectOverview
@@ -1927,6 +2142,17 @@ const App: React.FC = () => {
             onDeleteFeedback={handleDeleteFeedback}
             onUpdateStatus={handleUpdateFeedbackStatus}
           />
+        ) : activeTab === 'Pengumuman' ? (
+          <div className="p-6 h-full overflow-y-auto bg-slate-50">
+            <AnnouncementManager
+              announcements={announcements}
+              onCreateAnnouncement={handleCreateAnnouncement}
+              onEditAnnouncement={handleEditAnnouncement}
+              onDeleteAnnouncement={handleDeleteAnnouncement}
+              onToggleActive={handleToggleAnnouncementActive}
+              currentUser={currentUser}
+            />
+          </div>
         ) : activeTab === 'Master Data' ? (
           <UserManagement 
             users={allUsers}
@@ -2090,6 +2316,17 @@ const App: React.FC = () => {
         type={confirmModal.type}
         confirmText={confirmModal.confirmText}
         cancelText={confirmModal.cancelText}
+      />
+
+      <AnnouncementModal
+        isOpen={isAnnouncementModalOpen}
+        onClose={() => {
+          setIsAnnouncementModalOpen(false);
+          setEditingAnnouncement(null);
+        }}
+        onSave={handleSaveAnnouncement}
+        editingAnnouncement={editingAnnouncement}
+        currentUser={currentUser}
       />
     </div>
   );

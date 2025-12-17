@@ -16,7 +16,8 @@ import {
   LogOut,
   MessageSquarePlus,
   Code,
-  Settings
+  Settings,
+  Megaphone
 } from 'lucide-react';
 import { SIDEBAR_ITEMS, User } from '../../types';
 
@@ -43,7 +44,8 @@ const IconMap: Record<string, React.ElementType> = {
   'Activity': Activity,
   'MoreHorizontal': MoreHorizontal,
   'MessageSquarePlus': MessageSquarePlus,
-  'Code': Code
+  'Code': Code,
+  'Megaphone': Megaphone
 };
 
 const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser, users, onSwitchUser, onLogout }) => {
