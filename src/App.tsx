@@ -484,13 +484,18 @@ const App: React.FC = () => {
   const checkEditPermission = (task: Task) => {
       if (!currentUser) return false;
       if (currentUser.role === 'Super Admin') return true;
-      return currentUser.role === 'Atasan' || task.createdBy === currentUser.name;
+      if (currentUser.role === 'Atasan') return true;
+      // Staff can edit tasks they created or tasks where they are PIC
+      const taskPics = Array.isArray(task.pic) ? task.pic : [task.pic];
+      return task.createdBy === currentUser.name || taskPics.includes(currentUser.name);
   };
 
   const checkDeletePermission = (task: Task) => {
       if (!currentUser) return false;
       if (currentUser.role === 'Super Admin') return true;
-      return currentUser.role === 'Atasan' || task.createdBy === currentUser.name;
+      if (currentUser.role === 'Atasan') return true;
+      // Staff can only delete tasks they created
+      return task.createdBy === currentUser.name;
   };
 
   // --- Auth handlers ---
@@ -1608,14 +1613,6 @@ const App: React.FC = () => {
 
       const { data: tasksData, count, error } = await query;
 
-      console.log('fetchProjectTasks result:', { 
-        projectId, 
-        filters, 
-        tasksData: tasksData?.length, 
-        count, 
-        error 
-      });
-
       if (error) {
         console.error('Database query error:', error);
         return { tasks: [], totalCount: 0, totalPages: 0 };
@@ -2190,7 +2187,7 @@ const App: React.FC = () => {
               setEditingProject(null);
               setIsProjectModalOpen(true);
             }}
-            canManageProjects={currentUser?.role === 'Super Admin' || currentUser?.role === 'Atasan'}
+            canManageProjects={currentUser?.role === 'Super Admin' || currentUser?.role === 'Atasan' || currentUser?.role === 'Staff'}
             refreshTrigger={projectRefreshTrigger}
             fetchProjects={fetchProjects}
             fetchProjectTasks={fetchProjectTasks}

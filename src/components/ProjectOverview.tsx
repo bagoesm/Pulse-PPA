@@ -170,7 +170,6 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
   // Cache project stats to avoid repeated API calls
   const [projectStatsCache, setProjectStatsCache] = useState<Record<string, any>>({});
   const [loadingStats, setLoadingStats] = useState<Record<string, boolean>>({});
-  const [statsVersion, setStatsVersion] = useState(0); // Force refresh counter
   const loadingRef = useRef<Record<string, boolean>>({});
 
   const getMemberWorkloadInProject = (pic: string, projectTasks: Task[]) => {
@@ -315,43 +314,57 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
     }
   }, [fetchUniqueManagers]);
 
+  // Track if initial load has been done
+  const initialLoadDone = useRef(false);
+  const lastRefreshTrigger = useRef(refreshTrigger);
+
   // Load projects when filters change
   useEffect(() => {
     if (!selectedProjectId) {
       loadProjects();
     }
-  }, [loadProjects, selectedProjectId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch, projectStatusFilter, managerFilter, projectPage, selectedProjectId]);
 
   // Load tasks when project is selected or filters change
   useEffect(() => {
     if (selectedProjectId) {
       loadProjectTasks();
     }
-  }, [loadProjectTasks, selectedProjectId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedProjectId, taskSearch, statusFilter, priorityFilter, currentPage]);
 
-  // Load managers on mount
+  // Load managers on mount only
   useEffect(() => {
-    loadUniqueManagers();
-  }, [loadUniqueManagers]);
+    if (!initialLoadDone.current) {
+      initialLoadDone.current = true;
+      loadUniqueManagers();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // Refresh data when tasks are updated
+  // Refresh data when refreshTrigger changes (not on initial render)
   useEffect(() => {
-    if (refreshTrigger && refreshTrigger > 0) {
+    if (refreshTrigger && refreshTrigger !== lastRefreshTrigger.current) {
+      lastRefreshTrigger.current = refreshTrigger;
+      
       // Refresh project tasks if we're in project detail view
       if (selectedProjectId) {
         loadProjectTasks();
-      }
-      // Refresh project list if we're in project list view
-      if (!selectedProjectId) {
+      } else {
+        // Refresh project list if we're in project list view
         loadProjects();
       }
       // Clear and reload project stats cache
       setProjectStatsCache({});
     }
-  }, [refreshTrigger, selectedProjectId, loadProjectTasks, loadProjects]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshTrigger]);
 
   // Load project stats when projects change
   useEffect(() => {
+    if (projects.length === 0) return;
+
     const loadStatsSequentially = async () => {
       for (let i = 0; i < projects.length; i++) {
         const project = projects[i];
@@ -361,8 +374,8 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
           continue;
         }
         
-        // Skip if has valid cached stats and not forced refresh
-        if (projectStatsCache[project.id] && statsVersion === 0) {
+        // Skip if has valid cached stats
+        if (projectStatsCache[project.id]) {
           continue;
         }
         
@@ -394,21 +407,13 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
       }
     };
 
-    if (projects.length > 0) {
-      loadStatsSequentially();
-    }
-  }, [projects, getProjectStats, statsVersion]);
+    loadStatsSequentially();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projects.map(p => p.id).join(',')]); // Only re-run when project IDs change
 
-  // Force refresh project stats when refreshTrigger changes
-  useEffect(() => {
-    if (refreshTrigger && refreshTrigger > 0) {
-      // Clear existing cache and force reload
-      setProjectStatsCache({});
-      setLoadingStats({});
-      loadingRef.current = {}; // Clear loading ref
-      setStatsVersion(prev => prev + 1); // This will trigger the other useEffect
-    }
-  }, [refreshTrigger]);
+  // Note: Stats refresh is now handled by the projects dependency change
+  // When refreshTrigger changes, loadProjects is called which updates projects
+  // This triggers the stats loading useEffect automatically
 
   // ---------------------------------------------------------------------------
   // PROJECT LIST VIEW
@@ -426,11 +431,10 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
             {/* Refresh Button */}
             <button
               onClick={() => {
-                loadProjects();
                 setProjectStatsCache({});
                 setLoadingStats({});
                 loadingRef.current = {};
-                setStatsVersion(prev => prev + 1);
+                loadProjects();
                 onRefreshNeeded?.();
               }}
               disabled={projectsLoading}

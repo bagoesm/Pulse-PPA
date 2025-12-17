@@ -83,8 +83,10 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ isOpen, onClose, onSa
     { name: 'teal', bg: 'bg-teal-100', text: 'text-teal-700', ring: 'ring-teal-200', label: 'Teal' },
   ];
 
-  // When users prop changes or editing project changes, update form
+  // Reset form when modal opens or editing project changes
   React.useEffect(() => {
+    if (!isOpen) return; // Only update when modal is open
+    
     if (editingProject) {
       setFormData({
         name: editingProject.name,
@@ -96,6 +98,7 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ isOpen, onClose, onSa
         status: (editingProject.status || 'In Progress') as ProjectStatus,
       });
     } else {
+      // Reset to empty form for new project
       setFormData({
         name: '',
         manager: defaultManager,
@@ -106,7 +109,7 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ isOpen, onClose, onSa
         status: 'In Progress' as ProjectStatus,
       });
     }
-  }, [editingProject, defaultManager]);
+  }, [isOpen, editingProject, defaultManager]);
 
   const selectedIconData = projectIcons.find(i => i.name === formData.icon);
   const selectedColorData = colorThemes.find(c => c.name === formData.color);
@@ -128,7 +131,6 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ isOpen, onClose, onSa
       status: formData.status,
     };
 
-    console.log('Submitting project data:', projectData);
     onSave(projectData);
     onClose();
   };
