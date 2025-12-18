@@ -8,6 +8,7 @@ import ChristmasSettingsModal from './ChristmasSettingsModal';
 import NotificationIcon from './NotificationIcon';
 import AnnouncementBanner from './AnnouncementBanner';
 import UserAvatar from './UserAvatar';
+import SiPalingSection from './SiPalingSection';
 import { 
   CheckCircle2, 
   AlertCircle, 
@@ -600,6 +601,9 @@ const Dashboard: React.FC<DashboardProps> = ({
           </div>
         </div>
       </div>
+
+      {/* SI PALING SECTION */}
+      <SiPalingSection tasks={tasks} users={users} />
 
       {/* FILTERS & SEARCH */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
