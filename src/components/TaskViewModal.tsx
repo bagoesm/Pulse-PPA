@@ -258,7 +258,10 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                             );
                           })}
                           {task.pic.length > 3 && (
-                            <div className="w-8 h-8 rounded-full bg-gray-400 border-2 border-white flex items-center justify-center text-white text-xs font-medium">
+                            <div 
+                              className="w-8 h-8 rounded-full bg-gray-400 border-2 border-white flex items-center justify-center text-white text-xs font-medium cursor-help"
+                              title={task.pic.slice(3).join(', ')}
+                            >
                               +{task.pic.length - 3}
                             </div>
                           )}
@@ -270,7 +273,10 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                             </span>
                           ))}
                           {task.pic.length > 2 && (
-                            <span className="text-xs text-gray-500">
+                            <span 
+                              className="text-xs text-gray-500 cursor-help"
+                              title={task.pic.slice(2).join(', ')}
+                            >
                               +{task.pic.length - 2} lainnya
                             </span>
                           )}
