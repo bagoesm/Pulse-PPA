@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Task, Status, Priority, User, UserStatus, ChristmasDecorationSettings, Announcement } from '../../types';
 import StatusBubble from './StatusBubble';
 import SakuraAnimation from './SakuraAnimation';
@@ -82,8 +82,9 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [workloadFilter, setWorkloadFilter] = useState<WorkloadFilter>('all');
   const [sortBy, setSortBy] = useState<SortOption>('workload');
-  const [currentPage, setCurrentPage] = useState(1);
+  const [displayedUsers, setDisplayedUsers] = useState(USERS_PER_PAGE);
   const [isLoading, setIsLoading] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   
   // State untuk filter tanggal
   const [dateFilter, setDateFilter] = useState<DateFilter>('all');
@@ -96,9 +97,9 @@ const Dashboard: React.FC<DashboardProps> = ({
   // State untuk Christmas settings modal
   const [isChristmasModalOpen, setIsChristmasModalOpen] = useState(false);
 
-  // Reset page saat filter berubah
+  // Reset displayed users saat filter berubah
   useEffect(() => {
-    setCurrentPage(1);
+    setDisplayedUsers(USERS_PER_PAGE);
   }, [searchTerm, workloadFilter, sortBy, dateFilter, customStartDate, customEndDate]);
 
   // Fungsi untuk mendapatkan range tanggal berdasarkan filter
@@ -339,24 +340,42 @@ const Dashboard: React.FC<DashboardProps> = ({
     return filtered;
   }, [analyzedUsers, searchTerm, workloadFilter, sortBy]);
 
-  // Pagination
-  const totalPages = Math.ceil(filteredAndSortedUsers.length / USERS_PER_PAGE);
-  const paginatedUsers = filteredAndSortedUsers.slice(
-    (currentPage - 1) * USERS_PER_PAGE,
-    currentPage * USERS_PER_PAGE
-  );
+  // Infinity scroll data
+  const visibleUsers = filteredAndSortedUsers.slice(0, displayedUsers);
+  const hasMoreUsers = displayedUsers < filteredAndSortedUsers.length;
 
-  // Load more function untuk lazy loading
+  // Load more function untuk infinity scroll
   const loadMore = useCallback(() => {
-    if (currentPage < totalPages && !isLoading) {
+    if (hasMoreUsers && !isLoading) {
       setIsLoading(true);
       // Simulate loading delay
       setTimeout(() => {
-        setCurrentPage(prev => prev + 1);
+        setDisplayedUsers(prev => Math.min(prev + USERS_PER_PAGE, filteredAndSortedUsers.length));
         setIsLoading(false);
       }, 300);
     }
-  }, [currentPage, totalPages, isLoading]);
+  }, [hasMoreUsers, isLoading, filteredAndSortedUsers.length]);
+
+  // Infinity scroll handler
+  useEffect(() => {
+    const handleScroll = () => {
+      if (!scrollContainerRef.current || isLoading || !hasMoreUsers) return;
+
+      const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
+      const scrollPercentage = (scrollTop + clientHeight) / scrollHeight;
+
+      // Load more when user scrolls to 80% of the content
+      if (scrollPercentage > 0.8) {
+        loadMore();
+      }
+    };
+
+    const scrollContainer = scrollContainerRef.current;
+    if (scrollContainer) {
+      scrollContainer.addEventListener('scroll', handleScroll);
+      return () => scrollContainer.removeEventListener('scroll', handleScroll);
+    }
+  }, [loadMore, isLoading, hasMoreUsers]);
 
   // Stats untuk dashboard
   const dashboardStats = useMemo(() => {
@@ -380,7 +399,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   }, [analyzedUsers]);
 
   return (
-    <div className="p-6 h-full overflow-y-auto bg-slate-50">
+    <div ref={scrollContainerRef} className="p-6 h-full overflow-y-auto bg-slate-50">
 
       {/* HEADER */}
       <div className="mb-8 flex justify-between items-start">
@@ -587,7 +606,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           <div>
             <h3 className="text-lg font-bold text-slate-800 mb-1 flex items-center gap-2">
               <Users size={20} className="text-gov-600" />
-              Analisis Tim ({filteredAndSortedUsers.length} dari {users.length} anggota)
+              Analisis Tim ({visibleUsers.length} dari {filteredAndSortedUsers.length} ditampilkan, {users.length} total)
             </h3>
             <div className="flex items-center gap-4">
               <p className="text-sm text-slate-500">Pantau beban kerja dan performa setiap anggota tim</p>
@@ -706,7 +725,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
       {/* USER GRID */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mb-6">
-        {paginatedUsers.map(data => {
+        {visibleUsers.map(data => {
           const VisualIcon = data.visuals.icon;
           const percentage = Math.min((data.score / 30) * 100, 100);
           
@@ -1049,32 +1068,25 @@ const Dashboard: React.FC<DashboardProps> = ({
         })}
       </div>
 
-      {/* PAGINATION / LOAD MORE */}
-      {filteredAndSortedUsers.length > USERS_PER_PAGE && (
-        <div className="text-center">
-          {currentPage < totalPages ? (
-            <button
-              onClick={loadMore}
-              disabled={isLoading}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-gov-600 text-white rounded-lg font-medium hover:bg-gov-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-            >
-              {isLoading ? (
-                <>
-                  <RefreshCw size={16} className="animate-spin" />
-                  Loading...
-                </>
-              ) : (
-                <>
-                  Muat Lebih Banyak
-                  <ChevronDown size={16} />
-                </>
-              )}
-            </button>
-          ) : (
-            <p className="text-sm text-slate-500 py-4">
+      {/* INFINITY SCROLL LOADING INDICATOR */}
+      {isLoading && (
+        <div className="text-center py-8">
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-lg shadow-sm border border-slate-200">
+            <RefreshCw size={16} className="animate-spin text-gov-600" />
+            <span className="text-sm text-slate-600 font-medium">Memuat data...</span>
+          </div>
+        </div>
+      )}
+
+      {/* END OF DATA INDICATOR */}
+      {!hasMoreUsers && filteredAndSortedUsers.length > USERS_PER_PAGE && (
+        <div className="text-center py-8">
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-lg border border-slate-200">
+            <CheckCircle2 size={16} className="text-green-600" />
+            <span className="text-sm text-slate-600">
               Menampilkan semua {filteredAndSortedUsers.length} anggota tim
-            </p>
-          )}
+            </span>
+          </div>
         </div>
       )}
 
