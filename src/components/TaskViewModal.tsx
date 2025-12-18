@@ -1,6 +1,6 @@
 // src/components/TaskViewModal.tsx
 import React, { useState } from 'react';
-import { X, Edit, Calendar, Layers, Paperclip, Download, User, Clock, Flag, FileText, Info, MessageSquare, Eye, Share2, MoreHorizontal, ArrowRight, Send, ExternalLink } from 'lucide-react';
+import { X, Edit, Calendar, Layers, Paperclip, Download, User, Clock, Flag, FileText, Info, MessageSquare, Eye, Share2, MoreHorizontal, ArrowRight, Send, ExternalLink, Trash2 } from 'lucide-react';
 import { Task, User as UserType, ProjectDefinition, Attachment, Priority, Status, Comment, TaskLink } from '../../types';
 import { supabase } from '../lib/supabaseClient';
 import PICDisplay from './PICDisplay';
@@ -17,6 +17,7 @@ interface TaskViewModalProps {
   users: UserType[];
   comments?: Comment[];
   onAddComment?: (taskId: string, content: string) => void;
+  onDeleteComment?: (commentId: string) => void;
 }
 
 const formatFileSize = (bytes: number): string => {
@@ -78,7 +79,8 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
   projects,
   users,
   comments = [],
-  onAddComment
+  onAddComment,
+  onDeleteComment
 }) => {
   const [newComment, setNewComment] = useState('');
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
@@ -530,8 +532,14 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
                       .map((comment) => {
                         const commentUser = users.find(u => u.name === comment.userName || u.id === comment.userId);
+                        const canDeleteComment = currentUser && (
+                          comment.userId === currentUser.id || 
+                          comment.userName === currentUser.name ||
+                          currentUser.role === 'Super Admin' ||
+                          currentUser.role === 'Atasan'
+                        );
                         return (
-                          <div key={comment.id} className="flex gap-3">
+                          <div key={comment.id} className="flex gap-3 group">
                             <UserAvatar
                               name={comment.userName || 'Unknown'}
                               profilePhoto={commentUser?.profilePhoto}
@@ -544,9 +552,20 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                                   <span className="text-sm font-medium text-gray-900">
                                     {comment.userName}
                                   </span>
-                                  <span className="text-xs text-gray-500">
-                                    {formatCommentDate(comment.createdAt)}
-                                  </span>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs text-gray-500">
+                                      {formatCommentDate(comment.createdAt)}
+                                    </span>
+                                    {canDeleteComment && onDeleteComment && (
+                                      <button
+                                        onClick={() => onDeleteComment(comment.id)}
+                                        className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-all"
+                                        title="Hapus komentar"
+                                      >
+                                        <Trash2 size={12} />
+                                      </button>
+                                    )}
+                                  </div>
                                 </div>
                                 <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
                                   {comment.content}

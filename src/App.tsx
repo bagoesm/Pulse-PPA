@@ -1659,7 +1659,24 @@ const App: React.FC = () => {
       console.error('Error saving comment:', error);
       throw error;
     }
-  }
+  };
+
+  // Handle delete comment
+  const handleDeleteComment = async (commentId: string) => {
+    try {
+      const { error } = await supabase.from('task_comments').delete().eq('id', commentId);
+      
+      if (error) {
+        showNotification('Gagal Hapus Komentar', error.message, 'error');
+        return;
+      }
+
+      setComments(prev => prev.filter(c => c.id !== commentId));
+    } catch (error: any) {
+      console.error('Error deleting comment:', error);
+      showNotification('Kesalahan', `Gagal menghapus komentar: ${error.message}`, 'error');
+    }
+  };
 
   const openNewTaskModal = () => {
       setEditingTask(null);
@@ -2711,6 +2728,7 @@ const App: React.FC = () => {
         users={taskAssignableUsers}
         comments={comments}
         onAddComment={handleAddComment}
+        onDeleteComment={handleDeleteComment}
       />
 
       <AddTaskModal
