@@ -915,6 +915,75 @@ const App: React.FC = () => {
   };
 
   // --- Document Templates handlers ---
+  
+  // Fungsi untuk memperbaiki template lama yang tidak memiliki file_path
+  const fixLegacyTemplates = async () => {
+      try {
+          const templatesWithoutPath = documentTemplates.filter(t => !t.filePath);
+          
+          if (templatesWithoutPath.length === 0) {
+              console.log('Semua template sudah memiliki file path');
+              return;
+          }
+
+          console.log(`Memperbaiki ${templatesWithoutPath.length} template lama...`);
+          
+          // List semua file di bucket
+          const { data: fileList, error: listError } = await supabase.storage
+              .from('document-templates')
+              .list();
+
+          if (listError) {
+              console.error('Error listing files:', listError);
+              return;
+          }
+
+          // Coba cocokkan setiap template dengan file di bucket
+          for (const template of templatesWithoutPath) {
+              const matchingFile = fileList?.find(file => {
+                  const fileName = file.name.toLowerCase();
+                  const templateName = template.name.toLowerCase();
+                  
+                  return fileName.includes(templateName) ||
+                         templateName.includes(fileName.replace(/\.[^/.]+$/, "")) ||
+                         fileName.includes(template.id) ||
+                         // Coba cocokkan berdasarkan kata kunci dalam nama
+                         templateName.split(' ').some(word => 
+                             word.length > 3 && fileName.includes(word)
+                         );
+              });
+
+              if (matchingFile) {
+                  // Update database
+                  await supabase.from('document_templates')
+                      .update({ file_path: matchingFile.name })
+                      .eq('id', template.id);
+                  
+                  console.log(`Fixed template: ${template.name} -> ${matchingFile.name}`);
+              }
+          }
+
+          // Reload templates
+          const { data: tmplData } = await supabase.from('document_templates').select('*');
+          if (tmplData) {
+              const mappedTmpl = tmplData.map((t: any) => ({
+                  ...t,
+                  fileType: t.file_type ?? t.fileType ?? '',
+                  fileSize: typeof t.file_size === 'number' ? t.file_size : Number(t.file_size) || 0,
+                  uploadedBy: t.uploaded_by ?? t.uploadedBy ?? '',
+                  updatedAt: t.updated_at ? new Date(t.updated_at).toISOString().split('T')[0] : (t.updatedAt || ''),
+                  filePath: t.file_path ?? t.filePath ?? '',
+                  fileUrl: t.file_url ?? t.fileUrl ?? '',
+                  downloadCount: t.download_count ?? t.downloadCount ?? 0
+              }));
+              setDocumentTemplates(mappedTmpl);
+          }
+
+      } catch (error) {
+          console.error('Error fixing legacy templates:', error);
+      }
+  };
+
   const handleAddTemplate = async (name: string, description: string, fileType: string, fileSize: number, file: File) => {
       if (!currentUser) return;
       
@@ -940,13 +1009,15 @@ const App: React.FC = () => {
               return;
           }
 
-          // Insert without new columns for now (until migration is run)
+          // Insert dengan file_path dan file_url
           const { data, error } = await supabase.from('document_templates').insert([{
               name, 
               description, 
               file_type: fileType, 
               file_size: fileSize, 
-              uploaded_by: currentUser.name
+              uploaded_by: currentUser.name,
+              file_path: fileName,
+              file_url: urlData.signedUrl
           }]).select().single();
 
           if (data && !error) {
@@ -1008,12 +1079,57 @@ const App: React.FC = () => {
   const handleDownloadTemplate = async (id: string, fileName: string) => {
       try {
           const template = documentTemplates.find(t => t.id === id);
-          const filePath = template?.filePath || templateFilePaths[id];
+          let filePath = template?.filePath || templateFilePaths[id];
           
+          // Jika filePath tidak ada, coba cari file di bucket
           if (!filePath) {
-              console.error('File path not found for template');
-              alert('File tidak ditemukan. Template mungkin diupload sebelum sistem file storage diaktifkan.');
-              return;
+              console.log(`File path not found for template "${template?.name}" (ID: ${id}), searching in bucket...`);
+              
+              // List semua file di bucket
+              const { data: fileList, error: listError } = await supabase.storage
+                  .from('document-templates')
+                  .list();
+
+              if (listError) {
+                  console.error('Error listing files:', listError);
+                  alert('Gagal mengakses storage. Silakan coba lagi.');
+                  return;
+              }
+
+              // Cari file yang cocok dengan nama template (lebih akurat)
+              const templateName = template?.name || '';
+              const baseFileName = fileName.split('.')[0];
+              
+              const matchingFile = fileList?.find(file => {
+                  const fileName = file.name.toLowerCase();
+                  const templateNameLower = templateName.toLowerCase();
+                  const baseFileNameLower = baseFileName.toLowerCase();
+                  
+                  return fileName.includes(templateNameLower) || 
+                         fileName.includes(baseFileNameLower) ||
+                         templateNameLower.includes(fileName.replace(/\.[^/.]+$/, "")) ||
+                         // Coba cocokkan dengan ID template jika ada di nama file
+                         fileName.includes(template?.id || '');
+              });
+
+              if (matchingFile) {
+                  filePath = matchingFile.name;
+                  console.log('Found matching file:', filePath);
+                  
+                  // Update database dengan file_path yang ditemukan
+                  await supabase.from('document_templates')
+                      .update({ file_path: filePath })
+                      .eq('id', id);
+                  
+                  // Update local state
+                  setDocumentTemplates(prev => 
+                      prev.map(t => t.id === id ? { ...t, filePath } : t)
+                  );
+              } else {
+                  console.error('File not found in bucket');
+                  alert('File tidak ditemukan di storage. Silakan hubungi administrator.');
+                  return;
+              }
           }
 
           // Create a fresh signed URL for download
@@ -1023,6 +1139,7 @@ const App: React.FC = () => {
 
           if (signedError || !signedData?.signedUrl) {
               console.error('Error creating signed URL:', signedError);
+              alert('Gagal membuat link download. Silakan coba lagi.');
               return;
           }
 
@@ -1030,6 +1147,7 @@ const App: React.FC = () => {
           const response = await fetch(signedData.signedUrl);
           if (!response.ok) {
               console.error('Error downloading file:', response.statusText);
+              alert('Gagal mendownload file. Silakan coba lagi.');
               return;
           }
 
@@ -1047,7 +1165,7 @@ const App: React.FC = () => {
 
           // Update download count
           await supabase.from('document_templates')
-              .update({ download_count: (template.downloadCount || 0) + 1 })
+              .update({ download_count: (template?.downloadCount || 0) + 1 })
               .eq('id', id);
 
           // Update local state
@@ -1057,6 +1175,7 @@ const App: React.FC = () => {
 
       } catch (error) {
           console.error('Error downloading template:', error);
+          alert('Terjadi kesalahan saat mendownload. Silakan coba lagi.');
       }
   };
   // --- Feedback handlers ---
@@ -2243,6 +2362,7 @@ const App: React.FC = () => {
             onAddTemplate={handleAddTemplate}
             onDeleteTemplate={handleDeleteTemplate}
             onDownloadTemplate={handleDownloadTemplate}
+            onFixLegacyTemplates={fixLegacyTemplates}
           />
         ) : (
             <div className="flex-1 overflow-x-auto overflow-y-hidden bg-slate-50 p-6">

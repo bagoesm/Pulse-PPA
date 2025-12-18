@@ -11,10 +11,11 @@ interface DocumentTemplatesProps {
     onAddTemplate: (name: string, description: string, fileType: string, fileSize: number, file: File) => void;
     onDeleteTemplate: (id: string) => void;
     onDownloadTemplate: (id: string, fileName: string) => void;
+    onFixLegacyTemplates?: () => void;
 }
 
 const DocumentTemplates: React.FC<DocumentTemplatesProps> = ({ 
-    templates, currentUser, onAddTemplate, onDeleteTemplate, onDownloadTemplate 
+    templates, currentUser, onAddTemplate, onDeleteTemplate, onDownloadTemplate, onFixLegacyTemplates 
 }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -79,12 +80,23 @@ const DocumentTemplates: React.FC<DocumentTemplatesProps> = ({
                 </div>
                 
                 {canManage && (
-                    <button 
-                        onClick={() => setIsModalOpen(true)}
-                        className="bg-gov-600 text-white px-5 py-2.5 rounded-lg font-bold shadow-lg shadow-gov-200 hover:bg-gov-700 hover:shadow-xl transition-all flex items-center gap-2"
-                    >
-                        <Upload size={18} /> Upload Template
-                    </button>
+                    <div className="flex gap-3">
+                        {onFixLegacyTemplates && (
+                            <button 
+                                onClick={onFixLegacyTemplates}
+                                className="bg-amber-600 text-white px-4 py-2.5 rounded-lg font-bold shadow-lg shadow-amber-200 hover:bg-amber-700 hover:shadow-xl transition-all flex items-center gap-2"
+                                title="Perbaiki template lama yang tidak memiliki file path"
+                            >
+                                <FileText size={16} /> Perbaiki Template Lama
+                            </button>
+                        )}
+                        <button 
+                            onClick={() => setIsModalOpen(true)}
+                            className="bg-gov-600 text-white px-5 py-2.5 rounded-lg font-bold shadow-lg shadow-gov-200 hover:bg-gov-700 hover:shadow-xl transition-all flex items-center gap-2"
+                        >
+                            <Upload size={18} /> Upload Template
+                        </button>
+                    </div>
                 )}
             </div>
 
