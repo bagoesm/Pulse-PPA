@@ -247,6 +247,7 @@ const App: React.FC = () => {
           ...data,
           sakuraAnimationEnabled: data.sakura_animation_enabled || false,
           snowAnimationEnabled: data.snow_animation_enabled || false,
+          moneyAnimationEnabled: data.money_animation_enabled || false,
           profilePhoto: data.profile_photo || undefined,
           profilePhotoPath: data.profile_photo_path || undefined
         } as User;
@@ -274,6 +275,7 @@ const App: React.FC = () => {
           ...user,
           sakuraAnimationEnabled: user.sakura_animation_enabled || false,
           snowAnimationEnabled: user.snow_animation_enabled || false,
+          moneyAnimationEnabled: user.money_animation_enabled || false,
           profilePhoto: user.profile_photo || undefined,
           profilePhotoPath: user.profile_photo_path || undefined
         })) as User[];
@@ -660,7 +662,8 @@ const App: React.FC = () => {
                   jabatan: newUser.jabatan || null,
                   initials: newUser.initials,
                   sakura_animation_enabled: newUser.sakuraAnimationEnabled || false,
-                  snow_animation_enabled: newUser.snowAnimationEnabled || false
+                  snow_animation_enabled: newUser.snowAnimationEnabled || false,
+                  money_animation_enabled: newUser.moneyAnimationEnabled || false
               };
 
               // Create profile record using main supabase client (admin session)
@@ -717,7 +720,8 @@ const App: React.FC = () => {
               initials: updatedUser.initials,
               email: updatedUser.email,
               sakura_animation_enabled: updatedUser.sakuraAnimationEnabled || false,
-              snow_animation_enabled: updatedUser.snowAnimationEnabled || false
+              snow_animation_enabled: updatedUser.snowAnimationEnabled || false,
+              money_animation_enabled: updatedUser.moneyAnimationEnabled || false
           }).eq('id', updatedUser.id);
           
           if (profileError) {
