@@ -69,6 +69,8 @@ export interface User {
   password?: string; // For mock auth
   sakuraAnimationEnabled?: boolean; // Setting untuk animasi bunga sakura
   snowAnimationEnabled?: boolean; // Setting untuk animasi salju
+  profilePhoto?: string; // URL foto profil dari Supabase Storage
+  profilePhotoPath?: string; // Path file di bucket
 }
 
 // Christmas Decoration Settings

@@ -1,8 +1,10 @@
 // src/components/PICDisplay.tsx
 import React from 'react';
+import { User } from '../../types';
 
 interface PICDisplayProps {
   pic: string | string[];
+  users?: User[];
   maxVisible?: number;
   size?: 'sm' | 'md' | 'lg';
   showNames?: boolean;
@@ -11,6 +13,7 @@ interface PICDisplayProps {
 
 const PICDisplay: React.FC<PICDisplayProps> = ({ 
   pic, 
+  users = [],
   maxVisible = 3, 
   size = 'sm',
   showNames = false,
@@ -35,19 +38,37 @@ const PICDisplay: React.FC<PICDisplayProps> = ({
   const visiblePics = picArray.slice(0, maxVisible);
   const hiddenCount = picArray.length - visiblePics.length;
 
+  // Helper to get user by name
+  const getUserByName = (name: string) => users.find(u => u.name === name);
+
   return (
     <div className={`flex items-center gap-1 ${className}`}>
       {/* Avatar circles */}
       <div className="flex items-center -space-x-1">
-        {visiblePics.map((picName, index) => (
-          <div 
-            key={index} 
-            className={`${sizeClasses[size]} rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold ring-2 ring-white z-${10 - index}`}
-            title={picName}
-          >
-            {picName && typeof picName === 'string' ? picName.charAt(0).toUpperCase() : '?'}
-          </div>
-        ))}
+        {visiblePics.map((picName, index) => {
+          const user = getUserByName(picName);
+          const hasPhoto = user?.profilePhoto;
+          
+          return hasPhoto ? (
+            <img
+              key={index}
+              src={user.profilePhoto}
+              alt={picName}
+              className={`${sizeClasses[size]} rounded-full object-cover ring-2 ring-white`}
+              style={{ zIndex: 10 - index }}
+              title={picName}
+            />
+          ) : (
+            <div 
+              key={index} 
+              className={`${sizeClasses[size]} rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold ring-2 ring-white`}
+              style={{ zIndex: 10 - index }}
+              title={picName}
+            >
+              {picName && typeof picName === 'string' ? picName.charAt(0).toUpperCase() : '?'}
+            </div>
+          );
+        })}
         {hiddenCount > 0 && (
           <div 
             className={`${sizeClasses[size]} rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-bold ring-2 ring-white`}

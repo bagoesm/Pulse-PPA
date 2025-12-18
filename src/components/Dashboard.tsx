@@ -7,6 +7,7 @@ import ChristmasDecorations from './ChristmasDecorations';
 import ChristmasSettingsModal from './ChristmasSettingsModal';
 import NotificationIcon from './NotificationIcon';
 import AnnouncementBanner from './AnnouncementBanner';
+import UserAvatar from './UserAvatar';
 import { 
   CheckCircle2, 
   AlertCircle, 
@@ -783,13 +784,25 @@ const Dashboard: React.FC<DashboardProps> = ({
                 <div className="flex justify-between items-start mb-3">
                   <div className="flex items-center gap-3 relative">
                     <div className="relative">
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold border-2 border-white shadow-sm ${
-                        isHoveredWithSakura ? 'bg-pink-400' : 
-                        isHoveredWithSnow ? 'bg-blue-400' : 
-                        data.visuals.color
-                      } text-white group-hover:scale-110 transition-all`}>
-                        {data.userName.charAt(0).toUpperCase()}
-                      </div>
+                      {data.user.profilePhoto ? (
+                        <UserAvatar
+                          name={data.userName}
+                          profilePhoto={data.user.profilePhoto}
+                          size="lg"
+                          className={`border-2 border-white shadow-sm group-hover:scale-110 transition-all ${
+                            isHoveredWithSakura ? 'ring-2 ring-pink-400' : 
+                            isHoveredWithSnow ? 'ring-2 ring-blue-400' : ''
+                          }`}
+                        />
+                      ) : (
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold border-2 border-white shadow-sm ${
+                          isHoveredWithSakura ? 'bg-pink-400' : 
+                          isHoveredWithSnow ? 'bg-blue-400' : 
+                          data.visuals.color
+                        } text-white group-hover:scale-110 transition-all`}>
+                          {data.userName.charAt(0).toUpperCase()}
+                        </div>
+                      )}
                       {/* Santa Hat Decoration */}
                       <ChristmasDecorations 
                         santaHatEnabled={christmasSettings.santaHatEnabled}

@@ -1,7 +1,8 @@
 // src/components/ProjectOverview.tsx
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Task, ProjectDefinition, Status, Priority, ProjectStatus } from '../../types';
+import { Task, ProjectDefinition, Status, Priority, ProjectStatus, User } from '../../types';
+import UserAvatar from './UserAvatar';
 import { 
   Briefcase, 
   Users, 
@@ -51,6 +52,7 @@ interface ProjectOverviewProps {
   fetchUniqueManagers: () => Promise<string[]>;
   // Callback to force refresh from parent
   onRefreshNeeded?: () => void;
+  users?: User[]; // For profile photos
 }
 
 const ITEMS_PER_PAGE = 10;
@@ -66,7 +68,8 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
   fetchProjects,
   fetchProjectTasks,
   fetchUniqueManagers,
-  onRefreshNeeded
+  onRefreshNeeded,
+  users = []
 }) => {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -693,9 +696,16 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
                   {/* PIC Project Section */}
                   <div className="flex items-center justify-between pt-3 border-t border-slate-100">
                     <div className="flex items-center gap-2">
-                      <div className={`w-8 h-8 rounded-full ${colorClasses.bg} ${colorClasses.text} flex items-center justify-center text-sm font-bold`}>
-                        {project.manager && typeof project.manager === 'string' ? project.manager.charAt(0).toUpperCase() : '?'}
-                      </div>
+                      {(() => {
+                        const managerUser = users.find(u => u.name === project.manager);
+                        return (
+                          <UserAvatar
+                            name={project.manager || 'Unknown'}
+                            profilePhoto={managerUser?.profilePhoto}
+                            size="sm"
+                          />
+                        );
+                      })()}
                       <div>
                         <div className="text-xs font-semibold text-slate-700">{project.manager}</div>
                         <div className="text-xs text-slate-500">PIC Project</div>
@@ -985,11 +995,18 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
                                   task.pic.length > 0 ? (
                                     <>
                                       <div className="flex items-center -space-x-1">
-                                        {task.pic.slice(0, 2).map((picName, index) => (
-                                          <div key={index} className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-600 ring-2 ring-white" title={picName}>
-                                            {picName && typeof picName === 'string' ? picName.charAt(0).toUpperCase() : '?'}
-                                          </div>
-                                        ))}
+                                        {task.pic.slice(0, 2).map((picName, index) => {
+                                          const picUser = users.find(u => u.name === picName);
+                                          return (
+                                            <UserAvatar
+                                              key={index}
+                                              name={picName}
+                                              profilePhoto={picUser?.profilePhoto}
+                                              size="xs"
+                                              className="ring-2 ring-white"
+                                            />
+                                          );
+                                        })}
                                         {task.pic.length > 2 && (
                                           <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-500 ring-2 ring-white" title={`+${task.pic.length - 2} more`}>
                                             +{task.pic.length - 2}
@@ -1006,9 +1023,17 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
                                 ) : (
                                   // Backward compatibility
                                   <>
-                                    <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-600">
-                                      {typeof task.pic === 'string' && (task.pic as string).length > 0 ? (task.pic as string).charAt(0) : '?'}
-                                    </div>
+                                    {(() => {
+                                      const picName = typeof task.pic === 'string' ? task.pic : '';
+                                      const picUser = users.find(u => u.name === picName);
+                                      return (
+                                        <UserAvatar
+                                          name={picName || 'Unknown'}
+                                          profilePhoto={picUser?.profilePhoto}
+                                          size="xs"
+                                        />
+                                      );
+                                    })()}
                                     <span className="text-slate-600">{typeof task.pic === 'string' ? task.pic : 'No PIC'}</span>
                                   </>
                                 )}

@@ -4,6 +4,7 @@ import { X, Edit, Calendar, Layers, Paperclip, Download, User, Clock, Flag, File
 import { Task, User as UserType, ProjectDefinition, Attachment, Priority, Status, Comment, TaskLink } from '../../types';
 import { supabase } from '../lib/supabaseClient';
 import PICDisplay from './PICDisplay';
+import UserAvatar from './UserAvatar';
 
 interface TaskViewModalProps {
   isOpen: boolean;
@@ -242,15 +243,18 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                     task.pic.length > 0 ? (
                       <>
                         <div className="flex -space-x-2">
-                          {task.pic.slice(0, 3).map((picName, index) => (
-                            <div 
-                              key={index}
-                              className="w-8 h-8 rounded-full bg-blue-500 border-2 border-white flex items-center justify-center text-white text-xs font-medium"
-                              title={picName}
-                            >
-                              {picName && typeof picName === 'string' ? picName.charAt(0).toUpperCase() : '?'}
-                            </div>
-                          ))}
+                          {task.pic.slice(0, 3).map((picName, index) => {
+                            const picUser = users.find(u => u.name === picName);
+                            return (
+                              <UserAvatar
+                                key={index}
+                                name={picName}
+                                profilePhoto={picUser?.profilePhoto}
+                                size="sm"
+                                className="border-2 border-white"
+                              />
+                            );
+                          })}
                           {task.pic.length > 3 && (
                             <div className="w-8 h-8 rounded-full bg-gray-400 border-2 border-white flex items-center justify-center text-white text-xs font-medium">
                               +{task.pic.length - 3}
@@ -275,9 +279,17 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                     )
                   ) : (
                     <>
-                      <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-medium">
-                        {typeof task.pic === 'string' && (task.pic as string).length > 0 ? (task.pic as string).charAt(0).toUpperCase() : '?'}
-                      </div>
+                      {(() => {
+                        const picName = typeof task.pic === 'string' ? task.pic : '';
+                        const picUser = users.find(u => u.name === picName);
+                        return (
+                          <UserAvatar
+                            name={picName || 'Unknown'}
+                            profilePhoto={picUser?.profilePhoto}
+                            size="sm"
+                          />
+                        );
+                      })()}
                       <span className="text-sm font-medium text-gray-900">{typeof task.pic === 'string' ? task.pic : 'No PIC'}</span>
                     </>
                   )}
@@ -516,28 +528,34 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                   {taskComments.length > 0 ? (
                     taskComments
                       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-                      .map((comment) => (
-                        <div key={comment.id} className="flex gap-3">
-                          <div className="w-8 h-8 rounded-full bg-gray-400 flex items-center justify-center text-white text-xs font-medium shrink-0">
-                            {comment.userName && typeof comment.userName === 'string' ? comment.userName.charAt(0).toUpperCase() : '?'}
-                          </div>
-                          <div className="flex-1">
-                            <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                              <div className="flex items-center justify-between mb-2">
-                                <span className="text-sm font-medium text-gray-900">
-                                  {comment.userName}
-                                </span>
-                                <span className="text-xs text-gray-500">
-                                  {formatCommentDate(comment.createdAt)}
-                                </span>
+                      .map((comment) => {
+                        const commentUser = users.find(u => u.name === comment.userName || u.id === comment.userId);
+                        return (
+                          <div key={comment.id} className="flex gap-3">
+                            <UserAvatar
+                              name={comment.userName || 'Unknown'}
+                              profilePhoto={commentUser?.profilePhoto}
+                              size="sm"
+                              className="shrink-0"
+                            />
+                            <div className="flex-1">
+                              <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="text-sm font-medium text-gray-900">
+                                    {comment.userName}
+                                  </span>
+                                  <span className="text-xs text-gray-500">
+                                    {formatCommentDate(comment.createdAt)}
+                                  </span>
+                                </div>
+                                <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                                  {comment.content}
+                                </p>
                               </div>
-                              <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
-                                {comment.content}
-                              </p>
                             </div>
                           </div>
-                        </div>
-                      ))
+                        );
+                      })
                   ) : (
                     <div className="text-center py-8">
                       <MessageSquare size={32} className="text-gray-300 mx-auto mb-3" />

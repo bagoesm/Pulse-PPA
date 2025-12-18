@@ -1,11 +1,12 @@
 import React from 'react';
-import { Task, Priority, Category, ProjectDefinition } from '../../types';
+import { Task, Priority, Category, ProjectDefinition, User } from '../../types';
 import { Calendar, Layers, Paperclip } from 'lucide-react';
 import PICDisplay from './PICDisplay';
 
 interface TaskCardProps {
   task: Task;
   projects: ProjectDefinition[];
+  users?: User[];
   onDragStart: (e: React.DragEvent, id: string) => void;
   onClick: (task: Task) => void;
   canEdit: boolean;
@@ -31,7 +32,7 @@ const getCategoryColor = (category: Category) => {
     return 'bg-teal-50 text-teal-700 border-teal-100';
 };
 
-const TaskCard: React.FC<TaskCardProps> = ({ task, projects, onDragStart, onClick, canEdit }) => {
+const TaskCard: React.FC<TaskCardProps> = ({ task, projects, users = [], onDragStart, onClick, canEdit }) => {
   const project = task.projectId ? projects.find(p => p.id === task.projectId) : null;
   const hasAttachments = task.attachments && task.attachments.length > 0;
 
@@ -95,6 +96,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, projects, onDragStart, onClic
         
         <PICDisplay 
           pic={task.pic} 
+          users={users}
           maxVisible={2} 
           size="sm" 
           showNames={true}

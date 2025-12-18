@@ -22,6 +22,8 @@ import NotificationIcon from './components/NotificationIcon';
 import { useNotifications } from './hooks/useNotifications';
 import AnnouncementModal from './components/AnnouncementModal';
 import AnnouncementManager from './components/AnnouncementManager';
+import UserAvatar from './components/UserAvatar';
+import ProfilePhotoModal from './components/ProfilePhotoModal';
 
 const App: React.FC = () => {
   // Auth State
@@ -84,6 +86,7 @@ const App: React.FC = () => {
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
   const [isTaskViewModalOpen, setIsTaskViewModalOpen] = useState(false);
   const [isAnnouncementModalOpen, setIsAnnouncementModalOpen] = useState(false);
+  const [isProfilePhotoModalOpen, setIsProfilePhotoModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [viewingTask, setViewingTask] = useState<Task | null>(null);
   const [editingProject, setEditingProject] = useState<ProjectDefinition | null>(null);
@@ -243,7 +246,9 @@ const App: React.FC = () => {
         const mappedUser = {
           ...data,
           sakuraAnimationEnabled: data.sakura_animation_enabled || false,
-          snowAnimationEnabled: data.snow_animation_enabled || false
+          snowAnimationEnabled: data.snow_animation_enabled || false,
+          profilePhoto: data.profile_photo || undefined,
+          profilePhotoPath: data.profile_photo_path || undefined
         } as User;
         setCurrentUser(mappedUser);
       }
@@ -268,7 +273,9 @@ const App: React.FC = () => {
         const mappedUsers = usersData.map((user: any) => ({
           ...user,
           sakuraAnimationEnabled: user.sakura_animation_enabled || false,
-          snowAnimationEnabled: user.snow_animation_enabled || false
+          snowAnimationEnabled: user.snow_animation_enabled || false,
+          profilePhoto: user.profile_photo || undefined,
+          profilePhotoPath: user.profile_photo_path || undefined
         })) as User[];
         setAllUsers(mappedUsers);
       }
@@ -1865,6 +1872,101 @@ const App: React.FC = () => {
     }
   };
 
+  // Profile Photo handlers
+  const handleUploadProfilePhoto = async (file: File) => {
+    if (!currentUser) return;
+
+    try {
+      // Store old photo path for deletion after successful upload
+      const oldPhotoPath = currentUser.profilePhotoPath;
+
+      // Upload new photo first
+      const fileName = `${currentUser.id}_${Date.now()}.jpg`;
+      const { error: uploadError } = await supabase.storage
+        .from('profile-photos')
+        .upload(fileName, file, { upsert: true });
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('profile-photos')
+        .getPublicUrl(fileName);
+
+      // Update user in database
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({
+          profile_photo: urlData.publicUrl,
+          profile_photo_path: fileName
+        })
+        .eq('id', currentUser.id);
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      // Delete old photo AFTER successful upload and database update
+      if (oldPhotoPath && oldPhotoPath !== fileName) {
+        await supabase.storage
+          .from('profile-photos')
+          .remove([oldPhotoPath]);
+      }
+
+      // Update local state
+      const updatedUser = {
+        ...currentUser,
+        profilePhoto: urlData.publicUrl,
+        profilePhotoPath: fileName
+      };
+      setCurrentUser(updatedUser);
+      setAllUsers(prev => prev.map(u => u.id === currentUser.id ? updatedUser : u));
+
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const handleRemoveProfilePhoto = async () => {
+    if (!currentUser) return;
+
+    try {
+      // Delete from storage
+      if (currentUser.profilePhotoPath) {
+        await supabase.storage
+          .from('profile-photos')
+          .remove([currentUser.profilePhotoPath]);
+      }
+
+      // Update user in database
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({
+          profile_photo: null,
+          profile_photo_path: null
+        })
+        .eq('id', currentUser.id);
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      // Update local state
+      const updatedUser = {
+        ...currentUser,
+        profilePhoto: undefined,
+        profilePhotoPath: undefined
+      };
+      setCurrentUser(updatedUser);
+      setAllUsers(prev => prev.map(u => u.id === currentUser.id ? updatedUser : u));
+
+    } catch (error) {
+      throw error;
+    }
+  };
+
   // Handle user card click from dashboard
   const handleUserCardClick = (userName: string) => {
     // Switch to "Semua Task" tab
@@ -2113,14 +2215,25 @@ const App: React.FC = () => {
                     <p className="text-sm text-slate-500">Kelola dan pantau aktivitas tim anda.</p>
                 </div>
                 
-                {/* Notification Icon */}
-                <NotificationIcon
-                  notifications={notifications}
-                  onMarkAllAsRead={markAllAsRead}
-                  onNotificationClick={handleNotificationClick}
-                  onDeleteNotification={deleteNotification}
-                  onDismissAll={dismissAllNotifications}
-                />
+                {/* Notification Icon & Profile Photo */}
+                <div className="flex items-center gap-3">
+                  <NotificationIcon
+                    notifications={notifications}
+                    onMarkAllAsRead={markAllAsRead}
+                    onNotificationClick={handleNotificationClick}
+                    onDeleteNotification={deleteNotification}
+                    onDismissAll={dismissAllNotifications}
+                  />
+                  {currentUser && (
+                    <UserAvatar
+                      name={currentUser.name}
+                      profilePhoto={currentUser.profilePhoto}
+                      size="md"
+                      onClick={() => setIsProfilePhotoModalOpen(true)}
+                      showEditHint
+                    />
+                  )}
+                </div>
              </div>
              
              {/* Buttons Row - All buttons in horizontal alignment */}
@@ -2311,6 +2424,7 @@ const App: React.FC = () => {
             fetchProjects={fetchProjects}
             fetchProjectTasks={fetchProjectTasks}
             fetchUniqueManagers={fetchUniqueManagers}
+            users={allUsers}
           />
         ) : activeTab === 'Saran Masukan' ? (
           <WallOfFeedback 
@@ -2398,6 +2512,7 @@ const App: React.FC = () => {
                                                     key={task.id} 
                                                     task={task} 
                                                     projects={projects}
+                                                    users={allUsers}
                                                     onDragStart={handleDragStart} 
                                                     onClick={handleTaskClick}
                                                     canEdit={checkEditPermission(task)}
@@ -2476,6 +2591,16 @@ const App: React.FC = () => {
         onSave={handleSaveStatus}
         currentUser={currentUser}
       />
+
+      {currentUser && (
+        <ProfilePhotoModal
+          isOpen={isProfilePhotoModalOpen}
+          onClose={() => setIsProfilePhotoModalOpen(false)}
+          currentUser={currentUser}
+          onSave={handleUploadProfilePhoto}
+          onRemove={handleRemoveProfilePhoto}
+        />
+      )}
 
       <NotificationModal
         isOpen={notificationModal.isOpen}
