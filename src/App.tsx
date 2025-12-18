@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from './lib/supabaseClient';
 import { Plus, Search, Layout, CalendarRange, Briefcase, FileText, ListTodo, Loader2 } from 'lucide-react';
-import { Task, Status, Category, Priority, FilterState, User, ProjectDefinition, ViewMode, Feedback, FeedbackCategory, FeedbackStatus, DocumentTemplate, UserStatus, Attachment, Comment, ChristmasDecorationSettings, Announcement } from '../types';
+import { Task, Status, Category, Priority, FilterState, User, ProjectDefinition, ViewMode, Feedback, FeedbackCategory, FeedbackStatus, DocumentTemplate, UserStatus, Attachment, Comment, ChristmasDecorationSettings, Announcement, DataInventoryItem } from '../types';
 import Sidebar from './components/Sidebar';
 import TaskCard from './components/TaskCard';
 import AddTaskModal from './components/AddTaskModal';
@@ -24,6 +24,7 @@ import AnnouncementModal from './components/AnnouncementModal';
 import AnnouncementManager from './components/AnnouncementManager';
 import UserAvatar from './components/UserAvatar';
 import ProfilePhotoModal from './components/ProfilePhotoModal';
+import DataInventory from './components/DataInventory';
 
 const App: React.FC = () => {
   // Auth State
@@ -42,6 +43,7 @@ const App: React.FC = () => {
   const [userStatuses, setUserStatuses] = useState<UserStatus[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [dataInventory, setDataInventory] = useState<DataInventoryItem[]>([]);
   
   // Christmas Decoration Settings
   const [christmasSettings, setChristmasSettings] = useState<ChristmasDecorationSettings>({
@@ -484,6 +486,22 @@ const App: React.FC = () => {
           expiresAt: a.expires_at
         }));
         setAnnouncements(mappedAnnouncements);
+      }
+
+      // --- Data Inventory ---
+      const { data: inventoryData, error: inventoryErr } = await supabase.from('data_inventory').select('*').order('created_at', { ascending: false });
+      if (inventoryErr) console.error('Error fetch data_inventory:', inventoryErr);
+      if (inventoryData) {
+        const mappedInventory = inventoryData.map((item: any) => ({
+          id: item.id,
+          title: item.title,
+          description: item.description,
+          links: item.links || [],
+          createdBy: item.created_by,
+          createdAt: item.created_at,
+          updatedAt: item.updated_at
+        }));
+        setDataInventory(mappedInventory);
       }
     } catch (err) {
       console.error('fetch All Data error', err);
@@ -1691,7 +1709,8 @@ const App: React.FC = () => {
           icon: project.icon,
           color: project.color,
           targetLiveDate: project.target_live_date,
-          status: project.status
+          status: project.status,
+          pinnedLinks: project.pinned_links || []
         }));
 
         return {
@@ -1837,6 +1856,32 @@ const App: React.FC = () => {
       return [];
     }
   }, []);
+
+  // Update pinned links for a project
+  const updatePinnedLinks = useCallback(async (projectId: string, pinnedLinks: string[]) => {
+    try {
+      const { error } = await supabase
+        .from('projects')
+        .update({ pinned_links: pinnedLinks })
+        .eq('id', projectId);
+      
+      if (error) {
+        console.error('Error updating pinned links:', error);
+        return false;
+      }
+      
+      // Update local state
+      setProjects(prev => prev.map(p => 
+        p.id === projectId ? { ...p, pinnedLinks } : p
+      ));
+      
+      return true;
+    } catch (error) {
+      console.error('Error updating pinned links:', error);
+      return false;
+    }
+  }, []);
+
   // Status handlers
   const handleCreateStatus = () => {
     setIsStatusModalOpen(true);
@@ -2129,6 +2174,104 @@ const App: React.FC = () => {
     }
   };
 
+  // --- Data Inventory Handlers ---
+  const handleAddDataInventory = async (itemData: Omit<DataInventoryItem, 'id' | 'createdAt' | 'createdBy'>) => {
+    if (!currentUser) return;
+    try {
+      const payload = {
+        title: itemData.title,
+        description: itemData.description,
+        links: itemData.links,
+        created_by: currentUser.name
+      };
+
+      const { data, error } = await supabase
+        .from('data_inventory')
+        .insert([payload])
+        .select()
+        .single();
+
+      if (error) {
+        showNotification('Gagal Tambah Data', error.message, 'error');
+        return;
+      }
+
+      if (data) {
+        const mappedItem: DataInventoryItem = {
+          id: data.id,
+          title: data.title,
+          description: data.description,
+          links: data.links || [],
+          createdBy: data.created_by,
+          createdAt: data.created_at,
+          updatedAt: data.updated_at
+        };
+        setDataInventory(prev => [mappedItem, ...prev]);
+        showNotification('Data Berhasil Ditambahkan!', `"${itemData.title}" berhasil ditambahkan ke inventori.`, 'success');
+      }
+    } catch (error: any) {
+      console.error('Error adding data inventory:', error);
+      showNotification('Kesalahan Tidak Terduga', `Terjadi kesalahan: ${error.message}`, 'error');
+    }
+  };
+
+  const handleUpdateDataInventory = async (item: DataInventoryItem) => {
+    try {
+      const payload = {
+        title: item.title,
+        description: item.description,
+        links: item.links,
+        updated_at: new Date().toISOString()
+      };
+
+      const { data, error } = await supabase
+        .from('data_inventory')
+        .update(payload)
+        .eq('id', item.id)
+        .select()
+        .single();
+
+      if (error) {
+        showNotification('Gagal Update Data', error.message, 'error');
+        return;
+      }
+
+      if (data) {
+        const mappedItem: DataInventoryItem = {
+          id: data.id,
+          title: data.title,
+          description: data.description,
+          links: data.links || [],
+          createdBy: data.created_by,
+          createdAt: data.created_at,
+          updatedAt: data.updated_at
+        };
+        setDataInventory(prev => prev.map(i => i.id === item.id ? mappedItem : i));
+        showNotification('Data Berhasil Diupdate!', `"${item.title}" berhasil diperbarui.`, 'success');
+      }
+    } catch (error: any) {
+      console.error('Error updating data inventory:', error);
+      showNotification('Kesalahan Tidak Terduga', `Terjadi kesalahan: ${error.message}`, 'error');
+    }
+  };
+
+  const handleDeleteDataInventory = async (id: string) => {
+    try {
+      const { error } = await supabase.from('data_inventory').delete().eq('id', id);
+      
+      if (error) {
+        showNotification('Gagal Hapus Data', error.message, 'error');
+        return;
+      }
+
+      setDataInventory(prev => prev.filter(i => i.id !== id));
+      showNotification('Data Berhasil Dihapus!', 'Data telah dihapus dari inventori.', 'success');
+    } catch (error: any) {
+      console.error('Error deleting data inventory:', error);
+      showNotification('Kesalahan Tidak Terduga', `Terjadi kesalahan: ${error.message}`, 'error');
+    }
+  };
+
   // Handle task navigation from notification
   const handleTaskNavigation = (taskId: string) => {
     const task = tasks.find(t => t.id === taskId);
@@ -2209,7 +2352,7 @@ const App: React.FC = () => {
       <main className="flex-1 ml-0 md:ml-64 flex flex-col h-screen overflow-hidden">
         
         {/* Top Header / Filter Bar - HIDDEN for special pages */}
-        {activeTab !== 'Dashboard' && activeTab !== 'Project' && activeTab !== 'Master Data' && activeTab !== 'Saran Masukan' && activeTab !== 'Pengumuman' && (
+        {activeTab !== 'Dashboard' && activeTab !== 'Project' && activeTab !== 'Master Data' && activeTab !== 'Saran Masukan' && activeTab !== 'Pengumuman' && activeTab !== 'Inventori Data' && (
         <header className="bg-white border-b border-slate-200 px-6 py-4 z-20 relative">
           <div className="flex flex-col gap-4 mb-4">
              {/* Title Section */}
@@ -2428,6 +2571,7 @@ const App: React.FC = () => {
             fetchProjects={fetchProjects}
             fetchProjectTasks={fetchProjectTasks}
             fetchUniqueManagers={fetchUniqueManagers}
+            onUpdatePinnedLinks={updatePinnedLinks}
             users={allUsers}
           />
         ) : activeTab === 'Saran Masukan' ? (
@@ -2450,6 +2594,14 @@ const App: React.FC = () => {
               currentUser={currentUser}
             />
           </div>
+        ) : activeTab === 'Inventori Data' ? (
+          <DataInventory
+            items={dataInventory}
+            currentUser={currentUser}
+            onAddItem={handleAddDataInventory}
+            onUpdateItem={handleUpdateDataInventory}
+            onDeleteItem={handleDeleteDataInventory}
+          />
         ) : activeTab === 'Master Data' ? (
           <UserManagement 
             users={allUsers}

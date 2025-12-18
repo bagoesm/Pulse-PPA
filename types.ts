@@ -107,6 +107,7 @@ export interface ProjectDefinition {
   color?: string; // Color theme for the project
   targetLiveDate?: string; // ISO Date string - Target go-live date
   status?: ProjectStatus; // Project status
+  pinnedLinks?: string[]; // Array of link IDs that are pinned
 }
 
 export interface Attachment {
@@ -194,6 +195,23 @@ export interface Announcement {
   expiresAt?: string; // Optional - pengumuman bisa expired
 }
 
+// Data Inventory - untuk menyimpan informasi umum seperti link pelaporan, akun zoom, dll
+export interface DataInventoryLink {
+  id: string;
+  title: string;
+  url: string;
+}
+
+export interface DataInventoryItem {
+  id: string;
+  title: string;
+  description: string;
+  links: DataInventoryLink[];
+  createdBy: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
 export const SIDEBAR_ITEMS = [
   { name: 'Dashboard', icon: 'LayoutDashboard' },
   { name: 'Semua Task', icon: 'ListTodo' },
@@ -209,4 +227,5 @@ export const SIDEBAR_ITEMS = [
   { name: 'Monitoring', icon: 'Activity' },
   { name: 'Lainnya', icon: 'MoreHorizontal' },
   { name: 'Pengumuman', icon: 'Megaphone' },
+  { name: 'Inventori Data', icon: 'Database' },
 ];

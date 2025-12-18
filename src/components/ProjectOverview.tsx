@@ -35,7 +35,10 @@ import {
   Edit3,
   Trash2,
   Plus,
-  RefreshCw
+  RefreshCw,
+  Link2,
+  Pin,
+  ExternalLink
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';       // for generating signed URLs
 
@@ -52,6 +55,7 @@ interface ProjectOverviewProps {
   fetchUniqueManagers: () => Promise<string[]>;
   // Callback to force refresh from parent
   onRefreshNeeded?: () => void;
+  onUpdatePinnedLinks?: (projectId: string, pinnedLinks: string[]) => Promise<boolean>;
   users?: User[]; // For profile photos
 }
 
@@ -69,11 +73,13 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
   fetchProjectTasks,
   fetchUniqueManagers,
   onRefreshNeeded,
+  onUpdatePinnedLinks,
   users = []
 }) => {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [projectPage, setProjectPage] = useState(1);
+  const [linksPage, setLinksPage] = useState(1);
 
   // Server-side data state
   const [projects, setProjects] = useState<ProjectDefinition[]>([]);
@@ -87,6 +93,9 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
   const [tasksTotalPages, setTasksTotalPages] = useState(0);
 
   const [uniqueManagers, setUniqueManagers] = useState<string[]>([]);
+  
+  // Pinned links state (stored in database per project)
+  const [pinnedLinkIds, setPinnedLinkIds] = useState<Set<string>>(new Set());
 
   // Icon mapping for projects
   const iconMap: Record<string, React.ElementType> = {
@@ -146,7 +155,42 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
 
   useEffect(() => {
     setCurrentPage(1);
+    setLinksPage(1);
   }, [selectedProjectId, taskSearch, statusFilter, priorityFilter]);
+
+  // Load pinned links from database when project changes
+  useEffect(() => {
+    if (selectedProjectId) {
+      const project = projects.find(p => p.id === selectedProjectId);
+      if (project?.pinnedLinks) {
+        setPinnedLinkIds(new Set(project.pinnedLinks));
+      } else {
+        setPinnedLinkIds(new Set());
+      }
+    }
+  }, [selectedProjectId, projects]);
+
+  // Toggle pin function - saves to database
+  const togglePinLink = async (linkId: string) => {
+    if (!selectedProjectId || !onUpdatePinnedLinks) return;
+    
+    const newSet = new Set(pinnedLinkIds);
+    if (newSet.has(linkId)) {
+      newSet.delete(linkId);
+    } else {
+      newSet.add(linkId);
+    }
+    
+    // Optimistic update
+    setPinnedLinkIds(newSet);
+    
+    // Save to database
+    const success = await onUpdatePinnedLinks(selectedProjectId, [...newSet]);
+    if (!success) {
+      // Revert on failure
+      setPinnedLinkIds(pinnedLinkIds);
+    }
+  };
 
   // ---------------------------------------------------------------------------
   // Project-level statistics (now uses server-side data)
@@ -1189,6 +1233,152 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
                   </div>
                 )}
               </div>
+            </section>
+
+            {/* LINKS SECTION */}
+            <section>
+              {(() => {
+                const LINKS_PER_PAGE = 10;
+                
+                // Collect all links from tasks
+                const linksList = tasks.flatMap(t =>
+                  (t.links || []).map(link => ({
+                    ...link,
+                    taskId: t.id,
+                    taskTitle: t.title,
+                    uniqueId: `${t.id}_${link.id}`
+                  }))
+                );
+
+                // Sort: pinned first, then by title
+                const sortedLinks = [...linksList].sort((a, b) => {
+                  const aPinned = pinnedLinkIds.has(a.uniqueId);
+                  const bPinned = pinnedLinkIds.has(b.uniqueId);
+                  if (aPinned && !bPinned) return -1;
+                  if (!aPinned && bPinned) return 1;
+                  return a.title.localeCompare(b.title);
+                });
+
+                // Pagination
+                const totalLinksPages = Math.ceil(sortedLinks.length / LINKS_PER_PAGE);
+                const paginatedLinks = sortedLinks.slice(
+                  (linksPage - 1) * LINKS_PER_PAGE,
+                  linksPage * LINKS_PER_PAGE
+                );
+
+                return (
+                  <>
+                    <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-2">
+                      <Link2 size={16} /> Link Project ({linksList.length})
+                    </h3>
+
+                    <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+                      {sortedLinks.length > 0 ? (
+                        <>
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-sm min-w-[600px]">
+                              <thead className="bg-slate-50 border-b text-xs uppercase text-slate-500">
+                                <tr>
+                                  <th className="px-4 py-3 w-8"></th>
+                                  <th className="px-4 py-3">Judul Link</th>
+                                  <th className="px-4 py-3">Task</th>
+                                  <th className="px-4 py-3 text-right">Aksi</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y">
+                                {paginatedLinks.map((link) => {
+                                  const isPinned = pinnedLinkIds.has(link.uniqueId);
+                                  return (
+                                    <tr 
+                                      key={link.uniqueId} 
+                                      className={`hover:bg-slate-50 transition ${isPinned ? 'bg-amber-50/50' : ''}`}
+                                    >
+                                      <td className="px-4 py-3">
+                                        <button
+                                          onClick={() => togglePinLink(link.uniqueId)}
+                                          className={`p-1 rounded transition-colors ${
+                                            isPinned 
+                                              ? 'text-amber-500 hover:text-amber-600' 
+                                              : 'text-slate-300 hover:text-slate-500'
+                                          }`}
+                                          title={isPinned ? 'Unpin' : 'Pin to top'}
+                                        >
+                                          <Pin size={14} className={isPinned ? 'fill-current' : ''} />
+                                        </button>
+                                      </td>
+                                      <td className="px-4 py-3">
+                                        <div className="flex items-center gap-2 text-slate-700">
+                                          <Link2 size={14} className="text-gov-500 flex-shrink-0" />
+                                          <span className="truncate max-w-[200px]" title={link.title}>
+                                            {link.title}
+                                          </span>
+                                          {isPinned && (
+                                            <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[9px] font-bold rounded">
+                                              PINNED
+                                            </span>
+                                          )}
+                                        </div>
+                                      </td>
+                                      <td className="px-4 py-3 text-slate-500 text-xs">
+                                        {link.taskTitle}
+                                      </td>
+                                      <td className="px-4 py-3 text-right">
+                                        <a
+                                          href={link.url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="inline-flex items-center gap-1 px-2 py-1 text-xs text-gov-600 hover:text-gov-700 hover:bg-gov-50 rounded transition-colors"
+                                        >
+                                          <ExternalLink size={12} />
+                                          Buka
+                                        </a>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+
+                          {/* Pagination */}
+                          {totalLinksPages > 1 && (
+                            <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-t">
+                              <span className="text-xs text-slate-500">
+                                Halaman <b>{linksPage}</b> dari {totalLinksPages}
+                                <span className="ml-2 text-slate-400">
+                                  ({paginatedLinks.length} dari {sortedLinks.length} link)
+                                </span>
+                              </span>
+
+                              <div className="flex gap-2">
+                                <button
+                                  disabled={linksPage === 1}
+                                  onClick={() => setLinksPage(p => p - 1)}
+                                  className="p-1.5 rounded-md border disabled:opacity-40 hover:bg-slate-100"
+                                >
+                                  <ChevronLeft size={14} />
+                                </button>
+
+                                <button
+                                  disabled={linksPage === totalLinksPages}
+                                  onClick={() => setLinksPage(p => p + 1)}
+                                  className="p-1.5 rounded-md border disabled:opacity-40 hover:bg-slate-100"
+                                >
+                                  <ChevronRight size={14} />
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <div className="p-8 text-center text-slate-400">
+                          Belum ada link yang ditambahkan di task.
+                        </div>
+                      )}
+                    </div>
+                  </>
+                );
+              })()}
             </section>
           </div>
 

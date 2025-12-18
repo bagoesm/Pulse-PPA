@@ -45,7 +45,8 @@ const IconMap: Record<string, React.ElementType> = {
   'MoreHorizontal': MoreHorizontal,
   'MessageSquarePlus': MessageSquarePlus,
   'Code': Code,
-  'Megaphone': Megaphone
+  'Megaphone': Megaphone,
+  'Database': Database
 };
 
 const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser, users, onSwitchUser, onLogout }) => {
