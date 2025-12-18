@@ -534,7 +534,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [userFormData, setUserFormData] = useState<Partial<User>>({
-      name: '', email: '', role: 'Staff', jabatan: '', password: '', sakuraAnimationEnabled: false, snowAnimationEnabled: false,
+      name: '', email: '', role: 'Staff', jabatan: '', password: '', sakuraAnimationEnabled: false, snowAnimationEnabled: false, moneyAnimationEnabled: false,
   });
 
   // Simple Input State for Jabatan/Kategori
@@ -569,6 +569,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
               password: '',
               sakuraAnimationEnabled: false,
               snowAnimationEnabled: false,
+              moneyAnimationEnabled: false,
           });
       }
       setIsModalOpen(true);
@@ -1015,6 +1016,37 @@ const UserManagement: React.FC<UserManagementProps> = ({
                                             <span
                                                 className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${
                                                     userFormData.snowAnimationEnabled ? 'translate-x-6' : 'translate-x-1'
+                                                }`}
+                                            />
+                                        </label>
+                                    </div>
+                                </div>
+
+                                {/* Money Animation Toggle */}
+                                <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-100">
+                                    <div>
+                                        <p className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                                            💵 Animasi Uang
+                                        </p>
+                                        <p className="text-xs text-slate-500">Tampilkan animasi uang jatuh saat hover di dashboard</p>
+                                    </div>
+                                    <div className="flex items-center">
+                                        <input
+                                            type="checkbox"
+                                            id="moneyAnimation"
+                                            checked={userFormData.moneyAnimationEnabled || false}
+                                            onChange={e => setUserFormData({...userFormData, moneyAnimationEnabled: e.target.checked})}
+                                            className="sr-only"
+                                        />
+                                        <label
+                                            htmlFor="moneyAnimation"
+                                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
+                                                userFormData.moneyAnimationEnabled ? 'bg-green-500' : 'bg-slate-300'
+                                            }`}
+                                        >
+                                            <span
+                                                className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${
+                                                    userFormData.moneyAnimationEnabled ? 'translate-x-6' : 'translate-x-1'
                                                 }`}
                                             />
                                         </label>

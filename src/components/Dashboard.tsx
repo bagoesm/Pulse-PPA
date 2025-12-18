@@ -3,6 +3,7 @@ import { Task, Status, Priority, User, UserStatus, ChristmasDecorationSettings, 
 import StatusBubble from './StatusBubble';
 import SakuraAnimation from './SakuraAnimation';
 import SnowAnimation from './SnowAnimation';
+import MoneyAnimation from './MoneyAnimation';
 import ChristmasDecorations from './ChristmasDecorations';
 import ChristmasSettingsModal from './ChristmasSettingsModal';
 import NotificationIcon from './NotificationIcon';
@@ -739,7 +740,8 @@ const Dashboard: React.FC<DashboardProps> = ({
 
           const isHoveredWithSakura = hoveredCard === data.user.id && data.user.sakuraAnimationEnabled;
           const isHoveredWithSnow = hoveredCard === data.user.id && data.user.snowAnimationEnabled;
-          const hasActiveAnimation = isHoveredWithSakura || isHoveredWithSnow;
+          const isHoveredWithMoney = hoveredCard === data.user.id && data.user.moneyAnimationEnabled;
+          const hasActiveAnimation = isHoveredWithSakura || isHoveredWithSnow || isHoveredWithMoney;
 
           return (
             <div 
@@ -749,6 +751,8 @@ const Dashboard: React.FC<DashboardProps> = ({
                   ? 'bg-gradient-to-br from-pink-50 to-rose-50 border-pink-200 shadow-pink-100/50 hover:shadow-lg' 
                   : isHoveredWithSnow
                   ? 'bg-gradient-to-br from-blue-50 to-cyan-50 border-blue-200 shadow-blue-100/50 hover:shadow-lg'
+                  : isHoveredWithMoney
+                  ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-200 shadow-green-100/50 hover:shadow-lg'
                   : 'bg-white border-slate-200 hover:shadow-lg hover:border-gov-300'
               }`}
               onClick={() => onUserCardClick?.(data.userName)}
@@ -779,10 +783,16 @@ const Dashboard: React.FC<DashboardProps> = ({
                 isActive={hoveredCard === data.user.id && data.user.snowAnimationEnabled === true}
                 flakeCount={40}
               />
+              {/* Money Animation */}
+              <MoneyAnimation 
+                isActive={hoveredCard === data.user.id && data.user.moneyAnimationEnabled === true}
+                billCount={25}
+              />
               {/* HEADER */}
               <div className={`p-5 border-b transition-colors ${
                 isHoveredWithSakura ? 'border-pink-100' : 
                 isHoveredWithSnow ? 'border-blue-100' : 
+                isHoveredWithMoney ? 'border-green-100' :
                 'border-slate-100'
               }`}>
                 <div className="flex justify-between items-start mb-3">
@@ -795,13 +805,15 @@ const Dashboard: React.FC<DashboardProps> = ({
                           size="lg"
                           className={`border-2 border-white shadow-sm group-hover:scale-110 transition-all ${
                             isHoveredWithSakura ? 'ring-2 ring-pink-400' : 
-                            isHoveredWithSnow ? 'ring-2 ring-blue-400' : ''
+                            isHoveredWithSnow ? 'ring-2 ring-blue-400' : 
+                            isHoveredWithMoney ? 'ring-2 ring-green-400' : ''
                           }`}
                         />
                       ) : (
                         <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold border-2 border-white shadow-sm ${
                           isHoveredWithSakura ? 'bg-pink-400' : 
                           isHoveredWithSnow ? 'bg-blue-400' : 
+                          isHoveredWithMoney ? 'bg-green-400' :
                           data.visuals.color
                         } text-white group-hover:scale-110 transition-all`}>
                           {data.userName.charAt(0).toUpperCase()}
@@ -819,11 +831,13 @@ const Dashboard: React.FC<DashboardProps> = ({
                       <h4 className={`font-bold transition-colors ${
                         isHoveredWithSakura ? 'text-pink-800' : 
                         isHoveredWithSnow ? 'text-blue-800' : 
+                        isHoveredWithMoney ? 'text-green-800' :
                         'text-slate-800 group-hover:text-gov-700'
                       }`}>{data.userName}</h4>
                       <p className={`text-xs transition-colors ${
                         isHoveredWithSakura ? 'text-pink-600' : 
                         isHoveredWithSnow ? 'text-blue-600' : 
+                        isHoveredWithMoney ? 'text-green-600' :
                         'text-slate-500'
                       }`}>{data.user.jabatan || 'Staff'}</p>
                     </div>
@@ -831,6 +845,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                       <Eye size={16} className={
                         isHoveredWithSakura ? 'text-pink-600' : 
                         isHoveredWithSnow ? 'text-blue-600' : 
+                        isHoveredWithMoney ? 'text-green-600' :
                         'text-gov-600'
                       } />
                     </div>
@@ -840,6 +855,8 @@ const Dashboard: React.FC<DashboardProps> = ({
                       ? 'bg-pink-100 text-pink-700' 
                       : isHoveredWithSnow
                       ? 'bg-blue-100 text-blue-700'
+                      : isHoveredWithMoney
+                      ? 'bg-green-100 text-green-700'
                       : `${data.visuals.bg} ${data.visuals.textColor}`
                   }`}>
                     <VisualIcon size={12} />
@@ -865,11 +882,13 @@ const Dashboard: React.FC<DashboardProps> = ({
                     <span className={`block text-lg font-bold transition-colors ${
                       isHoveredWithSakura ? 'text-pink-700' : 
                       isHoveredWithSnow ? 'text-blue-700' : 
+                      isHoveredWithMoney ? 'text-green-700' :
                       'text-slate-800'
                     }`}>{data.activeCount}</span>
                     <span className={`text-[9px] font-medium transition-colors ${
                       isHoveredWithSakura ? 'text-pink-600' : 
                       isHoveredWithSnow ? 'text-blue-600' : 
+                      isHoveredWithMoney ? 'text-green-600' :
                       'text-slate-500'
                     }`}>Aktif</span>
                   </div>
@@ -877,11 +896,13 @@ const Dashboard: React.FC<DashboardProps> = ({
                     <span className={`block text-lg font-bold transition-colors ${
                       isHoveredWithSakura ? 'text-pink-700' : 
                       isHoveredWithSnow ? 'text-blue-700' : 
+                      isHoveredWithMoney ? 'text-green-700' :
                       'text-green-600'
                     }`}>{data.completedCount}</span>
                     <span className={`text-[9px] font-medium transition-colors ${
                       isHoveredWithSakura ? 'text-pink-600' : 
                       isHoveredWithSnow ? 'text-blue-600' : 
+                      isHoveredWithMoney ? 'text-green-600' :
                       'text-green-600'
                     }`}>Selesai</span>
                   </div>
@@ -889,11 +910,13 @@ const Dashboard: React.FC<DashboardProps> = ({
                     <span className={`block text-lg font-bold transition-colors ${
                       isHoveredWithSakura ? 'text-pink-700' : 
                       isHoveredWithSnow ? 'text-blue-700' : 
+                      isHoveredWithMoney ? 'text-green-700' :
                       'text-gov-600'
                     }`}>{data.completionRate.toFixed(0)}%</span>
                     <span className={`text-[9px] font-medium transition-colors ${
                       isHoveredWithSakura ? 'text-pink-600' : 
                       isHoveredWithSnow ? 'text-blue-600' : 
+                      isHoveredWithMoney ? 'text-green-600' :
                       'text-gov-600'
                     }`}>Rate</span>
                   </div>
@@ -901,11 +924,13 @@ const Dashboard: React.FC<DashboardProps> = ({
                     <span className={`block text-lg font-bold transition-colors ${
                       isHoveredWithSakura ? 'text-pink-700' : 
                       isHoveredWithSnow ? 'text-blue-700' : 
+                      isHoveredWithMoney ? 'text-green-700' :
                       'text-purple-600'
                     }`}>{data.performanceScore}</span>
                     <span className={`text-[9px] font-medium transition-colors ${
                       isHoveredWithSakura ? 'text-pink-600' : 
                       isHoveredWithSnow ? 'text-blue-600' : 
+                      isHoveredWithMoney ? 'text-green-600' :
                       'text-purple-600'
                     }`}>Poin</span>
                   </div>
@@ -919,6 +944,8 @@ const Dashboard: React.FC<DashboardProps> = ({
                         ? 'bg-pink-100 text-pink-700'
                         : isHoveredWithSnow
                         ? 'bg-blue-100 text-blue-700'
+                        : isHoveredWithMoney
+                        ? 'bg-green-100 text-green-700'
                         : data.performanceScore >= 10 ? 'bg-purple-100 text-purple-700' :
                           data.performanceScore >= 5 ? 'bg-blue-100 text-blue-700' :
                           'bg-slate-100 text-slate-600'
@@ -939,23 +966,27 @@ const Dashboard: React.FC<DashboardProps> = ({
                     <span className={`font-semibold transition-colors ${
                       isHoveredWithSakura ? 'text-pink-700' : 
                       isHoveredWithSnow ? 'text-blue-700' : 
+                      isHoveredWithMoney ? 'text-green-700' :
                       'text-slate-600'
                     }`}>Beban Kerja: {data.score} poin</span>
                     <span className={`transition-colors ${
                       isHoveredWithSakura ? 'text-pink-500' : 
                       isHoveredWithSnow ? 'text-blue-500' : 
+                      isHoveredWithMoney ? 'text-green-500' :
                       'text-slate-400'
                     }`}>{percentage.toFixed(0)}% kapasitas</span>
                   </div>
                   <div className={`h-2.5 w-full rounded-full overflow-hidden transition-colors ${
                     isHoveredWithSakura ? 'bg-pink-100' : 
                     isHoveredWithSnow ? 'bg-blue-100' : 
+                    isHoveredWithMoney ? 'bg-green-100' :
                     'bg-slate-100'
                   }`}>
                     <div 
                       className={`h-full rounded-full transition-all duration-1000 ${
                         isHoveredWithSakura ? 'bg-pink-400' : 
                         isHoveredWithSnow ? 'bg-blue-400' : 
+                        isHoveredWithMoney ? 'bg-green-400' :
                         data.visuals.color
                       }`} 
                       style={{ width: `${percentage}%` }}
@@ -964,6 +995,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                   <p className={`text-xs mt-2 italic transition-colors ${
                     isHoveredWithSakura ? 'text-pink-600' : 
                     isHoveredWithSnow ? 'text-blue-600' : 
+                    isHoveredWithMoney ? 'text-green-600' :
                     'text-slate-500'
                   }`}>"{data.visuals.message}"</p>
                 </div>
@@ -975,16 +1007,20 @@ const Dashboard: React.FC<DashboardProps> = ({
                       ? 'bg-pink-50 border border-pink-200' 
                       : isHoveredWithSnow
                       ? 'bg-blue-50 border border-blue-200'
+                      : isHoveredWithMoney
+                      ? 'bg-green-50 border border-green-200'
                       : 'bg-orange-50 border border-orange-200'
                   }`}>
                     <Clock size={14} className={
                       isHoveredWithSakura ? 'text-pink-600' : 
                       isHoveredWithSnow ? 'text-blue-600' : 
+                      isHoveredWithMoney ? 'text-green-600' :
                       'text-orange-600'
                     } />
                     <span className={`text-xs font-medium transition-colors ${
                       isHoveredWithSakura ? 'text-pink-700' : 
                       isHoveredWithSnow ? 'text-blue-700' : 
+                      isHoveredWithMoney ? 'text-green-700' :
                       'text-orange-700'
                     }`}>
                       {data.upcomingDeadlines} deadline dalam 3 hari
@@ -999,16 +1035,20 @@ const Dashboard: React.FC<DashboardProps> = ({
                       ? 'bg-pink-50 border border-pink-100 hover:bg-pink-100' 
                       : isHoveredWithSnow
                       ? 'bg-blue-50 border border-blue-100 hover:bg-blue-100'
+                      : isHoveredWithMoney
+                      ? 'bg-green-50 border border-green-100 hover:bg-green-100'
                       : 'bg-red-50 border border-red-100 hover:bg-red-100'
                   }`}>
                     <span className={`block text-lg font-bold transition-colors ${
                       isHoveredWithSakura ? 'text-pink-700' : 
                       isHoveredWithSnow ? 'text-blue-700' : 
+                      isHoveredWithMoney ? 'text-green-700' :
                       'text-red-600'
                     }`}>{data.urgentCount}</span>
                     <span className={`text-[9px] font-semibold uppercase transition-colors ${
                       isHoveredWithSakura ? 'text-pink-600' : 
                       isHoveredWithSnow ? 'text-blue-600' : 
+                      isHoveredWithMoney ? 'text-green-600' :
                       'text-red-500'
                     }`}>Urgent</span>
                   </div>
@@ -1017,16 +1057,20 @@ const Dashboard: React.FC<DashboardProps> = ({
                       ? 'bg-pink-50 border border-pink-100 hover:bg-pink-100' 
                       : isHoveredWithSnow
                       ? 'bg-blue-50 border border-blue-100 hover:bg-blue-100'
+                      : isHoveredWithMoney
+                      ? 'bg-green-50 border border-green-100 hover:bg-green-100'
                       : 'bg-orange-50 border border-orange-100 hover:bg-orange-100'
                   }`}>
                     <span className={`block text-lg font-bold transition-colors ${
                       isHoveredWithSakura ? 'text-pink-700' : 
                       isHoveredWithSnow ? 'text-blue-700' : 
+                      isHoveredWithMoney ? 'text-green-700' :
                       'text-orange-600'
                     }`}>{data.highCount}</span>
                     <span className={`text-[9px] font-semibold uppercase transition-colors ${
                       isHoveredWithSakura ? 'text-pink-600' : 
                       isHoveredWithSnow ? 'text-blue-600' : 
+                      isHoveredWithMoney ? 'text-green-600' :
                       'text-orange-500'
                     }`}>High</span>
                   </div>
@@ -1035,16 +1079,20 @@ const Dashboard: React.FC<DashboardProps> = ({
                       ? 'bg-pink-50 border border-pink-100 hover:bg-pink-100' 
                       : isHoveredWithSnow
                       ? 'bg-blue-50 border border-blue-100 hover:bg-blue-100'
+                      : isHoveredWithMoney
+                      ? 'bg-green-50 border border-green-100 hover:bg-green-100'
                       : 'bg-blue-50 border border-blue-100 hover:bg-blue-100'
                   }`}>
                     <span className={`block text-lg font-bold transition-colors ${
                       isHoveredWithSakura ? 'text-pink-700' : 
                       isHoveredWithSnow ? 'text-blue-700' : 
+                      isHoveredWithMoney ? 'text-green-700' :
                       'text-blue-600'
                     }`}>{data.mediumCount}</span>
                     <span className={`text-[9px] font-semibold uppercase transition-colors ${
                       isHoveredWithSakura ? 'text-pink-600' : 
                       isHoveredWithSnow ? 'text-blue-600' : 
+                      isHoveredWithMoney ? 'text-green-600' :
                       'text-blue-500'
                     }`}>Med</span>
                   </div>
@@ -1053,16 +1101,20 @@ const Dashboard: React.FC<DashboardProps> = ({
                       ? 'bg-pink-50 border border-pink-100 hover:bg-pink-100' 
                       : isHoveredWithSnow
                       ? 'bg-blue-50 border border-blue-100 hover:bg-blue-100'
+                      : isHoveredWithMoney
+                      ? 'bg-green-50 border border-green-100 hover:bg-green-100'
                       : 'bg-slate-50 border border-slate-100 hover:bg-slate-100'
                   }`}>
                     <span className={`block text-lg font-bold transition-colors ${
                       isHoveredWithSakura ? 'text-pink-700' : 
                       isHoveredWithSnow ? 'text-blue-700' : 
+                      isHoveredWithMoney ? 'text-green-700' :
                       'text-slate-600'
                     }`}>{data.lowCount}</span>
                     <span className={`text-[9px] font-semibold uppercase transition-colors ${
                       isHoveredWithSakura ? 'text-pink-600' : 
                       isHoveredWithSnow ? 'text-blue-600' : 
+                      isHoveredWithMoney ? 'text-green-600' :
                       'text-slate-500'
                     }`}>Low</span>
                   </div>
@@ -1073,6 +1125,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                   <span className={`text-xs font-medium flex items-center justify-center gap-1 transition-colors ${
                     isHoveredWithSakura ? 'text-pink-600' : 
                     isHoveredWithSnow ? 'text-blue-600' : 
+                    isHoveredWithMoney ? 'text-green-600' :
                     'text-gov-600'
                   }`}>
                     <Eye size={12} />
