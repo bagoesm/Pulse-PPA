@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from './lib/supabaseClient';
 import { Plus, Search, Layout, CalendarRange, Briefcase, FileText, ListTodo, Loader2 } from 'lucide-react';
-import { Task, Status, Category, Priority, FilterState, User, ProjectDefinition, ViewMode, Feedback, FeedbackCategory, FeedbackStatus, DocumentTemplate, UserStatus, Attachment, Comment, ChristmasDecorationSettings, Announcement, DataInventoryItem } from '../types';
+import { Task, Status, Category, Priority, FilterState, User, ProjectDefinition, ViewMode, Feedback, FeedbackCategory, FeedbackStatus, DocumentTemplate, UserStatus, Attachment, Comment, ChristmasDecorationSettings, Announcement, DataInventoryItem, TaskActivity } from '../types';
 import Sidebar from './components/Sidebar';
 import TaskCard from './components/TaskCard';
 import AddTaskModal from './components/AddTaskModal';
@@ -42,6 +42,7 @@ const App: React.FC = () => {
   const [templateFilePaths, setTemplateFilePaths] = useState<{[key: string]: string}>({});
   const [userStatuses, setUserStatuses] = useState<UserStatus[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
+  const [taskActivities, setTaskActivities] = useState<TaskActivity[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [dataInventory, setDataInventory] = useState<DataInventoryItem[]>([]);
   
@@ -449,6 +450,26 @@ const App: React.FC = () => {
           updatedAt: c.updated_at
         }));
         setComments(mappedComments);
+      }
+
+      // --- Task Activities ---
+      const { data: activitiesData, error: activitiesErr } = await supabase
+        .from('task_activities')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (activitiesErr) console.error('Error fetch task_activities:', activitiesErr);
+      if (activitiesData) {
+        const mappedActivities = activitiesData.map((a: any) => ({
+          id: a.id,
+          taskId: a.task_id,
+          userId: a.user_id,
+          userName: a.user_name,
+          actionType: a.action_type,
+          oldValue: a.old_value,
+          newValue: a.new_value,
+          createdAt: a.created_at
+        }));
+        setTaskActivities(mappedActivities);
       }
 
       // --- Christmas Decoration Settings ---
@@ -1347,8 +1368,17 @@ const App: React.FC = () => {
   const handleDrop = async (e: React.DragEvent, status: Status) => {
     e.preventDefault();
     if (draggedTaskId) {
+      const task = tasks.find(t => t.id === draggedTaskId);
+      const oldStatus = task?.status;
+      
       setTasks(prev => prev.map(t => t.id === draggedTaskId ? { ...t, status } : t));
       await supabase.from('tasks').update({ status }).eq('id', draggedTaskId);
+      
+      // Log status change activity
+      if (oldStatus && oldStatus !== status) {
+        await logTaskActivity(draggedTaskId, 'status_change', oldStatus, status);
+      }
+      
       setDraggedTaskId(null);
     }
   };
@@ -1412,6 +1442,25 @@ const App: React.FC = () => {
                 }
             }
 
+            // Log activity for changes
+            if (editingTask.status !== newTaskData.status) {
+                await logTaskActivity(editingTask.id, 'status_change', editingTask.status, newTaskData.status);
+            }
+            if (JSON.stringify(editingTask.pic) !== JSON.stringify(newTaskData.pic)) {
+                const oldPic = Array.isArray(editingTask.pic) ? editingTask.pic.join(', ') : editingTask.pic;
+                const newPic = Array.isArray(newTaskData.pic) ? newTaskData.pic.join(', ') : newTaskData.pic;
+                await logTaskActivity(editingTask.id, 'pic_change', oldPic, newPic);
+            }
+            if (editingTask.priority !== newTaskData.priority) {
+                await logTaskActivity(editingTask.id, 'priority_change', editingTask.priority, newTaskData.priority);
+            }
+            if (editingTask.deadline !== newTaskData.deadline) {
+                await logTaskActivity(editingTask.id, 'deadline_change', editingTask.deadline, newTaskData.deadline);
+            }
+            if (editingTask.category !== newTaskData.category) {
+                await logTaskActivity(editingTask.id, 'category_change', editingTask.category, newTaskData.category);
+            }
+
             setTasks(prev =>
                 prev.map(t =>
                     t.id === editingTask.id
@@ -1452,6 +1501,10 @@ const App: React.FC = () => {
     };
 
     setTasks(prev => [...prev, mapped]);
+    
+    // Log activity for task creation
+    await logTaskActivity(data.id, 'created', undefined, newTaskData.title);
+    
     // Trigger refresh for ProjectOverview
     setProjectRefreshTrigger(prev => prev + 1);
     setIsModalOpen(false);
@@ -1675,6 +1728,48 @@ const App: React.FC = () => {
     } catch (error: any) {
       console.error('Error deleting comment:', error);
       showNotification('Kesalahan', `Gagal menghapus komentar: ${error.message}`, 'error');
+    }
+  };
+
+  // Log task activity
+  const logTaskActivity = async (
+    taskId: string,
+    actionType: 'created' | 'status_change' | 'pic_change' | 'priority_change' | 'deadline_change' | 'category_change',
+    oldValue?: string,
+    newValue?: string
+  ) => {
+    if (!currentUser) return;
+    
+    try {
+      const { data, error } = await supabase.from('task_activities').insert([{
+        task_id: taskId,
+        user_id: currentUser.id,
+        user_name: currentUser.name,
+        action_type: actionType,
+        old_value: oldValue || null,
+        new_value: newValue || null
+      }]).select().single();
+
+      if (error) {
+        console.error('Error logging activity:', error);
+        return;
+      }
+
+      if (data) {
+        const mappedActivity: TaskActivity = {
+          id: data.id,
+          taskId: data.task_id,
+          userId: data.user_id,
+          userName: data.user_name,
+          actionType: data.action_type,
+          oldValue: data.old_value,
+          newValue: data.new_value,
+          createdAt: data.created_at
+        };
+        setTaskActivities(prev => [mappedActivity, ...prev]);
+      }
+    } catch (err) {
+      console.error('Error logging activity:', err);
     }
   };
 
@@ -2727,6 +2822,7 @@ const App: React.FC = () => {
         projects={projects}
         users={taskAssignableUsers}
         comments={comments}
+        activities={taskActivities}
         onAddComment={handleAddComment}
         onDeleteComment={handleDeleteComment}
       />

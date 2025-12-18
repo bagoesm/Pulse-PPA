@@ -1,7 +1,7 @@
 // src/components/TaskViewModal.tsx
 import React, { useState } from 'react';
-import { X, Edit, Calendar, Layers, Paperclip, Download, User, Clock, Flag, FileText, Info, MessageSquare, Eye, Share2, MoreHorizontal, ArrowRight, Send, ExternalLink, Trash2 } from 'lucide-react';
-import { Task, User as UserType, ProjectDefinition, Attachment, Priority, Status, Comment, TaskLink } from '../../types';
+import { X, Edit, Calendar, Layers, Paperclip, Download, User, Clock, Flag, FileText, Info, MessageSquare, Eye, Share2, MoreHorizontal, ArrowRight, Send, ExternalLink, Trash2, Activity } from 'lucide-react';
+import { Task, User as UserType, ProjectDefinition, Attachment, Priority, Status, Comment, TaskLink, TaskActivity } from '../../types';
 import { supabase } from '../lib/supabaseClient';
 import PICDisplay from './PICDisplay';
 import UserAvatar from './UserAvatar';
@@ -16,6 +16,7 @@ interface TaskViewModalProps {
   projects: ProjectDefinition[];
   users: UserType[];
   comments?: Comment[];
+  activities?: TaskActivity[];
   onAddComment?: (taskId: string, content: string) => void;
   onDeleteComment?: (commentId: string) => void;
 }
@@ -79,17 +80,20 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
   projects,
   users,
   comments = [],
+  activities = [],
   onAddComment,
   onDeleteComment
 }) => {
   const [newComment, setNewComment] = useState('');
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  const [activeTab, setActiveTab] = useState<'comments' | 'activity'>('comments');
 
   if (!isOpen || !task) return null;
 
   const project = task.projectId ? projects.find(p => p.id === task.projectId) : null;
   const hasAttachments = task.attachments && task.attachments.length > 0;
   const taskComments = comments.filter(comment => comment.taskId === task.id);
+  const taskActivities = activities.filter(activity => activity.taskId === task.id);
 
   const handleSubmitComment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -482,113 +486,228 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                 </div>
               </div>
 
-              {/* Comments Section */}
+              {/* Comments & Activity Section with Tabs */}
               <div className="pt-6 border-t border-gray-200 mt-8">
-                <div className="flex items-center gap-3 mb-6">
-                  <MessageSquare size={16} className="text-gray-500" />
-                  <span className="text-sm font-medium text-gray-900">
+                {/* Tab Bar */}
+                <div className="flex gap-1 mb-4 bg-gray-100 p-1 rounded-lg">
+                  <button
+                    onClick={() => setActiveTab('comments')}
+                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                      activeTab === 'comments'
+                        ? 'bg-white text-gray-900 shadow-sm'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    <MessageSquare size={14} />
                     Komentar ({taskComments.length})
-                  </span>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('activity')}
+                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                      activeTab === 'activity'
+                        ? 'bg-white text-gray-900 shadow-sm'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    <Activity size={14} />
+                    Aktivitas ({taskActivities.length})
+                  </button>
                 </div>
 
-                {/* Comment Form */}
-                {currentUser && onAddComment && (
-                  <form onSubmit={handleSubmitComment} className="mb-6">
-                    <div className="flex gap-3">
-                      <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-medium shrink-0">
-                        {currentUser?.name && typeof currentUser.name === 'string' ? currentUser.name.charAt(0).toUpperCase() : '?'}
-                      </div>
-                      <div className="flex-1">
-                        <textarea
-                          value={newComment}
-                          onChange={(e) => setNewComment(e.target.value)}
-                          placeholder="Tulis komentar..."
-                          className="w-full px-3 py-2 border border-gray-200 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm"
-                          rows={3}
-                          disabled={isSubmittingComment}
-                        />
-                        <div className="flex justify-end mt-2">
-                          <button
-                            type="submit"
-                            disabled={!newComment.trim() || isSubmittingComment}
-                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
-                          >
-                            {isSubmittingComment ? (
-                              <>
-                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                Mengirim...
-                              </>
-                            ) : (
-                              <>
-                                <Send size={14} />
-                                Kirim
-                              </>
-                            )}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </form>
-                )}
-
-                {/* Comments List */}
-                <div className="space-y-4">
-                  {taskComments.length > 0 ? (
-                    taskComments
-                      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-                      .map((comment) => {
-                        const commentUser = users.find(u => u.name === comment.userName || u.id === comment.userId);
-                        const canDeleteComment = currentUser && (
-                          comment.userId === currentUser.id || 
-                          comment.userName === currentUser.name ||
-                          currentUser.role === 'Super Admin' ||
-                          currentUser.role === 'Atasan'
-                        );
-                        return (
-                          <div key={comment.id} className="flex gap-3 group">
-                            <UserAvatar
-                              name={comment.userName || 'Unknown'}
-                              profilePhoto={commentUser?.profilePhoto}
-                              size="sm"
-                              className="shrink-0"
+                {/* Comments Tab Content */}
+                {activeTab === 'comments' && (
+                  <>
+                    {/* Comment Form */}
+                    {currentUser && onAddComment && (
+                      <form onSubmit={handleSubmitComment} className="mb-6">
+                        <div className="flex gap-3">
+                          <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-medium shrink-0">
+                            {currentUser?.name && typeof currentUser.name === 'string' ? currentUser.name.charAt(0).toUpperCase() : '?'}
+                          </div>
+                          <div className="flex-1">
+                            <textarea
+                              value={newComment}
+                              onChange={(e) => setNewComment(e.target.value)}
+                              placeholder="Tulis komentar..."
+                              className="w-full px-3 py-2 border border-gray-200 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm"
+                              rows={3}
+                              disabled={isSubmittingComment}
                             />
-                            <div className="flex-1">
-                              <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                                <div className="flex items-center justify-between mb-2">
-                                  <span className="text-sm font-medium text-gray-900">
-                                    {comment.userName}
-                                  </span>
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-xs text-gray-500">
-                                      {formatCommentDate(comment.createdAt)}
-                                    </span>
-                                    {canDeleteComment && onDeleteComment && (
-                                      <button
-                                        onClick={() => onDeleteComment(comment.id)}
-                                        className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-all"
-                                        title="Hapus komentar"
-                                      >
-                                        <Trash2 size={12} />
-                                      </button>
-                                    )}
+                            <div className="flex justify-end mt-2">
+                              <button
+                                type="submit"
+                                disabled={!newComment.trim() || isSubmittingComment}
+                                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
+                              >
+                                {isSubmittingComment ? (
+                                  <>
+                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                    Mengirim...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Send size={14} />
+                                    Kirim
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </form>
+                    )}
+
+                    {/* Comments List */}
+                    <div className="space-y-4">
+                      {taskComments.length > 0 ? (
+                        taskComments
+                          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                          .map((comment) => {
+                            const commentUser = users.find(u => u.name === comment.userName || u.id === comment.userId);
+                            const canDeleteComment = currentUser && (
+                              comment.userId === currentUser.id || 
+                              comment.userName === currentUser.name ||
+                              currentUser.role === 'Super Admin' ||
+                              currentUser.role === 'Atasan'
+                            );
+                            return (
+                              <div key={comment.id} className="flex gap-3 group">
+                                <UserAvatar
+                                  name={comment.userName || 'Unknown'}
+                                  profilePhoto={commentUser?.profilePhoto}
+                                  size="sm"
+                                  className="shrink-0"
+                                />
+                                <div className="flex-1">
+                                  <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                                    <div className="flex items-center justify-between mb-2">
+                                      <span className="text-sm font-medium text-gray-900">
+                                        {comment.userName}
+                                      </span>
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-xs text-gray-500">
+                                          {formatCommentDate(comment.createdAt)}
+                                        </span>
+                                        {canDeleteComment && onDeleteComment && (
+                                          <button
+                                            onClick={() => onDeleteComment(comment.id)}
+                                            className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-all"
+                                            title="Hapus komentar"
+                                          >
+                                            <Trash2 size={12} />
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                                      {comment.content}
+                                    </p>
                                   </div>
                                 </div>
-                                <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
-                                  {comment.content}
-                                </p>
+                              </div>
+                            );
+                          })
+                      ) : (
+                        <div className="text-center py-8">
+                          <MessageSquare size={32} className="text-gray-300 mx-auto mb-3" />
+                          <p className="text-sm text-gray-500">Belum ada komentar</p>
+                          <p className="text-xs text-gray-400 mt-1">Jadilah yang pertama berkomentar</p>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                {/* Activity Tab Content */}
+                {activeTab === 'activity' && (
+                  <div className="space-y-3">
+                    {taskActivities.length > 0 ? (
+                      taskActivities.map((activity) => {
+                        const activityUser = users.find(u => u.name === activity.userName || u.id === activity.userId);
+                        
+                        const getActivityIcon = () => {
+                          switch (activity.actionType) {
+                            case 'created': return '🆕';
+                            case 'status_change': return '📊';
+                            case 'pic_change': return '👤';
+                            case 'priority_change': return '🎯';
+                            case 'deadline_change': return '📅';
+                            case 'category_change': return '📁';
+                            default: return '📝';
+                          }
+                        };
+
+                        const getActivityText = () => {
+                          switch (activity.actionType) {
+                            case 'created':
+                              return 'membuat task ini';
+                            case 'status_change':
+                              return (
+                                <>
+                                  mengubah status dari <span className="font-medium text-gray-700">{activity.oldValue}</span> ke <span className="font-medium text-gray-700">{activity.newValue}</span>
+                                </>
+                              );
+                            case 'pic_change':
+                              return (
+                                <>
+                                  mengubah PIC dari <span className="font-medium text-gray-700">{activity.oldValue || '-'}</span> ke <span className="font-medium text-gray-700">{activity.newValue}</span>
+                                </>
+                              );
+                            case 'priority_change':
+                              return (
+                                <>
+                                  mengubah prioritas dari <span className="font-medium text-gray-700">{activity.oldValue}</span> ke <span className="font-medium text-gray-700">{activity.newValue}</span>
+                                </>
+                              );
+                            case 'deadline_change':
+                              return (
+                                <>
+                                  mengubah deadline dari <span className="font-medium text-gray-700">{activity.oldValue}</span> ke <span className="font-medium text-gray-700">{activity.newValue}</span>
+                                </>
+                              );
+                            case 'category_change':
+                              return (
+                                <>
+                                  mengubah kategori dari <span className="font-medium text-gray-700">{activity.oldValue}</span> ke <span className="font-medium text-gray-700">{activity.newValue}</span>
+                                </>
+                              );
+                            default:
+                              return 'melakukan perubahan';
+                          }
+                        };
+
+                        return (
+                          <div key={activity.id} className="flex gap-3 items-start">
+                            <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-sm shrink-0">
+                              {getActivityIcon()}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm text-gray-600">
+                                <UserAvatar
+                                  name={activity.userName || 'Unknown'}
+                                  profilePhoto={activityUser?.profilePhoto}
+                                  size="sm"
+                                  className="inline-block mr-2 align-middle"
+                                />
+                                <span className="font-medium text-gray-900">{activity.userName}</span>{' '}
+                                {getActivityText()}
+                              </div>
+                              <div className="text-xs text-gray-400 mt-1">
+                                {formatCommentDate(activity.createdAt)}
                               </div>
                             </div>
                           </div>
                         );
                       })
-                  ) : (
-                    <div className="text-center py-8">
-                      <MessageSquare size={32} className="text-gray-300 mx-auto mb-3" />
-                      <p className="text-sm text-gray-500">Belum ada komentar</p>
-                      <p className="text-xs text-gray-400 mt-1">Jadilah yang pertama berkomentar</p>
-                    </div>
-                  )}
-                </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <Activity size={32} className="text-gray-300 mx-auto mb-3" />
+                        <p className="text-sm text-gray-500">Belum ada aktivitas</p>
+                        <p className="text-xs text-gray-400 mt-1">Aktivitas akan muncul saat ada perubahan pada task</p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
             </div>

@@ -212,6 +212,20 @@ export interface DataInventoryItem {
   updatedAt?: string;
 }
 
+// Task Activity Log
+export type ActivityType = 'created' | 'status_change' | 'pic_change' | 'priority_change' | 'deadline_change' | 'category_change';
+
+export interface TaskActivity {
+  id: string;
+  taskId: string;
+  userId: string;
+  userName: string;
+  actionType: ActivityType;
+  oldValue?: string;
+  newValue?: string;
+  createdAt: string;
+}
+
 export const SIDEBAR_ITEMS = [
   { name: 'Dashboard', icon: 'LayoutDashboard' },
   { name: 'Semua Task', icon: 'ListTodo' },
