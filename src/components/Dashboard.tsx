@@ -13,6 +13,7 @@ import SiPalingSection from './SiPalingSection';
 import ShareButton from './ShareButton';
 import ShareModal from './ShareModal';
 import TaskShareModal from './TaskShareModal';
+import MotivationCard from './MotivationCard';
 import { useTaskShare } from '../hooks/useTaskShare';
 import { 
   CheckCircle2, 
@@ -531,83 +532,85 @@ const Dashboard: React.FC<DashboardProps> = ({
         </div>
       </div>
 
-      {/* WORKLOAD DISTRIBUTION */}
+      {/* WORKLOAD DISTRIBUTION WITH INSIGHTS & MOTIVATION */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        {/* Workload Distribution Chart */}
+        {/* Workload Distribution & Insights */}
         <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-          <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+          <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
             <BarChart3 size={20} className="text-gov-600" />
-            Distribusi Beban Kerja Tim
+            Distribusi Beban Kerja Tim & Insights
           </h3>
           
-          <div className="grid grid-cols-4 gap-4">
-            <div className="text-center p-4 bg-emerald-50 rounded-lg border border-emerald-100">
-              <div className="w-8 h-8 bg-emerald-500 rounded-full mx-auto mb-2 flex items-center justify-center">
-                <Coffee size={16} className="text-white" />
+          {/* Workload Distribution Chart */}
+          <div className="mb-6">
+            <div className="grid grid-cols-4 gap-4">
+              <div className="text-center p-4 bg-emerald-50 rounded-lg border border-emerald-100">
+                <div className="w-8 h-8 bg-emerald-500 rounded-full mx-auto mb-2 flex items-center justify-center">
+                  <Coffee size={16} className="text-white" />
+                </div>
+                <span className="block text-2xl font-bold text-emerald-700">{dashboardStats.workloadDistribution.relaxed}</span>
+                <span className="text-xs text-emerald-600 font-medium">Relaxed</span>
               </div>
-              <span className="block text-2xl font-bold text-emerald-700">{dashboardStats.workloadDistribution.relaxed}</span>
-              <span className="text-xs text-emerald-600 font-medium">Relaxed</span>
+              
+              <div className="text-center p-4 bg-gov-50 rounded-lg border border-gov-100">
+                <div className="w-8 h-8 bg-gov-500 rounded-full mx-auto mb-2 flex items-center justify-center">
+                  <Zap size={16} className="text-white" />
+                </div>
+                <span className="block text-2xl font-bold text-gov-700">{dashboardStats.workloadDistribution.balanced}</span>
+                <span className="text-xs text-gov-600 font-medium">Balanced</span>
+              </div>
+              
+              <div className="text-center p-4 bg-orange-50 rounded-lg border border-orange-100">
+                <div className="w-8 h-8 bg-orange-500 rounded-full mx-auto mb-2 flex items-center justify-center">
+                  <AlertTriangle size={16} className="text-white" />
+                </div>
+                <span className="block text-2xl font-bold text-orange-700">{dashboardStats.workloadDistribution.busy}</span>
+                <span className="text-xs text-orange-600 font-medium">Busy</span>
+              </div>
+              
+              <div className="text-center p-4 bg-red-50 rounded-lg border border-red-100">
+                <div className="w-8 h-8 bg-red-500 rounded-full mx-auto mb-2 flex items-center justify-center">
+                  <Flame size={16} className="text-white" />
+                </div>
+                <span className="block text-2xl font-bold text-red-700">{dashboardStats.workloadDistribution.overload}</span>
+                <span className="text-xs text-red-600 font-medium">Overload</span>
+              </div>
             </div>
+          </div>
+
+          {/* Quick Insights */}
+          <div className="border-t border-slate-200 pt-6">
             
-            <div className="text-center p-4 bg-gov-50 rounded-lg border border-gov-100">
-              <div className="w-8 h-8 bg-gov-500 rounded-full mx-auto mb-2 flex items-center justify-center">
-                <Zap size={16} className="text-white" />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="flex items-center gap-3 p-3 bg-orange-50 rounded-lg border border-orange-100">
+                <Clock size={16} className="text-orange-600" />
+                <div>
+                  <p className="text-sm font-bold text-orange-800">{dashboardStats.totalUpcomingDeadlines}</p>
+                  <p className="text-xs text-orange-600">Deadline 3 hari ke depan</p>
+                </div>
               </div>
-              <span className="block text-2xl font-bold text-gov-700">{dashboardStats.workloadDistribution.balanced}</span>
-              <span className="text-xs text-gov-600 font-medium">Balanced</span>
-            </div>
-            
-            <div className="text-center p-4 bg-orange-50 rounded-lg border border-orange-100">
-              <div className="w-8 h-8 bg-orange-500 rounded-full mx-auto mb-2 flex items-center justify-center">
-                <AlertTriangle size={16} className="text-white" />
+              
+              <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-100">
+                <TrendingUp size={16} className="text-green-600" />
+                <div>
+                  <p className="text-sm font-bold text-green-800">{dashboardStats.avgCompletionRate.toFixed(1)}%</p>
+                  <p className="text-xs text-green-600">Rata-rata completion rate</p>
+                </div>
               </div>
-              <span className="block text-2xl font-bold text-orange-700">{dashboardStats.workloadDistribution.busy}</span>
-              <span className="text-xs text-orange-600 font-medium">Busy</span>
-            </div>
-            
-            <div className="text-center p-4 bg-red-50 rounded-lg border border-red-100">
-              <div className="w-8 h-8 bg-red-500 rounded-full mx-auto mb-2 flex items-center justify-center">
-                <Flame size={16} className="text-white" />
+              
+              <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg border border-blue-100">
+                <Users size={16} className="text-blue-600" />
+                <div>
+                  <p className="text-sm font-bold text-blue-800">{users.length}</p>
+                  <p className="text-xs text-blue-600">Total anggota tim</p>
+                </div>
               </div>
-              <span className="block text-2xl font-bold text-red-700">{dashboardStats.workloadDistribution.overload}</span>
-              <span className="text-xs text-red-600 font-medium">Overload</span>
             </div>
           </div>
         </div>
 
-        {/* Quick Insights */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-          <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-            <Eye size={20} className="text-gov-600" />
-            Insights
-          </h3>
-          
-          <div className="space-y-4">
-            <div className="flex items-center gap-3 p-3 bg-orange-50 rounded-lg border border-orange-100">
-              <Clock size={16} className="text-orange-600" />
-              <div>
-                <p className="text-sm font-bold text-orange-800">{dashboardStats.totalUpcomingDeadlines}</p>
-                <p className="text-xs text-orange-600">Deadline 3 hari ke depan</p>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-100">
-              <TrendingUp size={16} className="text-green-600" />
-              <div>
-                <p className="text-sm font-bold text-green-800">{dashboardStats.avgCompletionRate.toFixed(1)}%</p>
-                <p className="text-xs text-green-600">Rata-rata completion rate</p>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg border border-blue-100">
-              <Users size={16} className="text-blue-600" />
-              <div>
-                <p className="text-sm font-bold text-blue-800">{users.length}</p>
-                <p className="text-xs text-blue-600">Total anggota tim</p>
-              </div>
-            </div>
-          </div>
-        </div>
+        {/* Motivation Card */}
+        <MotivationCard />
       </div>
 
       {/* SI PALING SECTION */}
