@@ -152,7 +152,7 @@ const ShareModal: React.FC<ShareModalProps> = ({
 
       // Load and draw logo
       try {
-        const logoImage = await loadSVGAsImage('/Logo.svg');
+        const logoImage = await loadSVGAsImage('./Logo.svg');
         const logoSize = 120; // Logo size
         const logoX = 80; // Left margin
         const logoY = 80; // Top margin

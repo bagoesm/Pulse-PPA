@@ -151,7 +151,7 @@ const TaskShareModal: React.FC<TaskShareModalProps> = ({
 
       // Load and draw logo
       try {
-        const logoImage = await loadSVGAsImage('/Logo.svg');
+        const logoImage = await loadSVGAsImage('./Logo.svg');
         const logoSize = 100; // Logo size (slightly smaller for task modal)
         const logoX = 80; // Left margin
         const logoY = 60; // Top margin

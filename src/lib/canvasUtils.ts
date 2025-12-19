@@ -30,27 +30,40 @@ export const loadImage = (src: string): Promise<HTMLImageElement> => {
   });
 };
 
-// Load SVG and convert to image
+// Load SVG and convert to image with fallback
 export const loadSVGAsImage = (src: string): Promise<HTMLImageElement> => {
   return new Promise((resolve, reject) => {
-    fetch(src)
-      .then(response => response.text())
-      .then(svgText => {
-        const blob = new Blob([svgText], { type: 'image/svg+xml' });
-        const url = URL.createObjectURL(blob);
-        
-        const img = new Image();
-        img.onload = () => {
-          URL.revokeObjectURL(url);
-          resolve(img);
-        };
-        img.onerror = () => {
-          URL.revokeObjectURL(url);
-          reject(new Error('Failed to load SVG'));
-        };
-        img.src = url;
-      })
-      .catch(reject);
+    // Try to load as regular image first (works better in production)
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    
+    img.onload = () => resolve(img);
+    img.onerror = () => {
+      // Fallback: try to fetch and convert SVG
+      fetch(src)
+        .then(response => {
+          if (!response.ok) throw new Error('Failed to fetch SVG');
+          return response.text();
+        })
+        .then(svgText => {
+          const blob = new Blob([svgText], { type: 'image/svg+xml' });
+          const url = URL.createObjectURL(blob);
+          
+          const fallbackImg = new Image();
+          fallbackImg.onload = () => {
+            URL.revokeObjectURL(url);
+            resolve(fallbackImg);
+          };
+          fallbackImg.onerror = () => {
+            URL.revokeObjectURL(url);
+            reject(new Error('Failed to load SVG'));
+          };
+          fallbackImg.src = url;
+        })
+        .catch(reject);
+    };
+    
+    img.src = src;
   });
 };
 
