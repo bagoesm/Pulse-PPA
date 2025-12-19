@@ -15,9 +15,10 @@ const MotivationCard: React.FC<MotivationCardProps> = ({ className = '' }) => {
   const [backgroundImage, setBackgroundImage] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<number>(0);
+  const [currentGradient, setCurrentGradient] = useState<string>('');
 
-  // Fungsi untuk mendapatkan gradient berdasarkan hari
-  const getDailyGradient = () => {
+  // Fungsi untuk mendapatkan gradient random
+  const getRandomGradient = () => {
     const gradients = [
       'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
       'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
@@ -31,13 +32,10 @@ const MotivationCard: React.FC<MotivationCardProps> = ({ className = '' }) => {
       'linear-gradient(135deg, #fad0c4 0%, #ffd1ff 100%)'
     ];
     
-    // Gunakan hari dalam tahun untuk konsistensi gradient harian
-    const today = new Date();
-    const dayOfYear = Math.floor((today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) / (1000 * 60 * 60 * 24));
-    return gradients[dayOfYear % gradients.length];
+    return gradients[Math.floor(Math.random() * gradients.length)];
   };
 
-  // Array quotes lokal sebagai fallback
+  // Array quotes lokal berkualitas tinggi sebagai fallback
   const getLocalQuotes = () => {
     const quotes = [
       { text: "The only way to do great work is to love what you do.", author: "Steve Jobs" },
@@ -45,21 +43,31 @@ const MotivationCard: React.FC<MotivationCardProps> = ({ className = '' }) => {
       { text: "Innovation distinguishes between a leader and a follower.", author: "Steve Jobs" },
       { text: "The future belongs to those who believe in the beauty of their dreams.", author: "Eleanor Roosevelt" },
       { text: "It is during our darkest moments that we must focus to see the light.", author: "Aristotle" },
-      { text: "Success is not how high you have climbed, but how you make a positive difference to the world.", author: "Roy T. Bennett" },
-      { text: "Don't be afraid to give yourself everything you've ever wanted in life.", author: "Unknown" },
-      { text: "The way to get started is to quit talking and begin doing.", author: "Walt Disney" },
-      { text: "If life were predictable it would cease to be life, and be without flavor.", author: "Eleanor Roosevelt" },
-      { text: "Life is what happens to you while you're busy making other plans.", author: "John Lennon" },
       { text: "Believe you can and you're halfway there.", author: "Theodore Roosevelt" },
       { text: "The only impossible journey is the one you never begin.", author: "Tony Robbins" },
       { text: "In the middle of difficulty lies opportunity.", author: "Albert Einstein" },
       { text: "Success is walking from failure to failure with no loss of enthusiasm.", author: "Winston Churchill" },
       { text: "The best time to plant a tree was 20 years ago. The second best time is now.", author: "Chinese Proverb" },
-      { text: "Your limitation—it's only your imagination.", author: "Unknown" },
-      { text: "Push yourself, because no one else is going to do it for you.", author: "Unknown" },
-      { text: "Great things never come from comfort zones.", author: "Unknown" },
-      { text: "Dream it. Wish it. Do it.", author: "Unknown" },
-      { text: "Success doesn't just find you. You have to go out and get it.", author: "Unknown" }
+      { text: "The way to get started is to quit talking and begin doing.", author: "Walt Disney" },
+      { text: "Life is what happens to you while you're busy making other plans.", author: "John Lennon" },
+      { text: "Whether you think you can or you think you can't, you're right.", author: "Henry Ford" },
+      { text: "The mind is everything. What you think you become.", author: "Buddha" },
+      { text: "Strive not to be a success, but rather to be of value.", author: "Albert Einstein" },
+      { text: "Two roads diverged in a wood, and I took the one less traveled by, and that made all the difference.", author: "Robert Frost" },
+      { text: "I have not failed. I've just found 10,000 ways that won't work.", author: "Thomas A. Edison" },
+      { text: "A person who never made a mistake never tried anything new.", author: "Albert Einstein" },
+      { text: "The person who says it cannot be done should not interrupt the person who is doing it.", author: "Chinese Proverb" },
+      { text: "There are no traffic jams along the extra mile.", author: "Roger Staubach" },
+      { text: "It is never too late to be what you might have been.", author: "George Eliot" },
+      { text: "You become what you believe.", author: "Oprah Winfrey" },
+      { text: "I would rather die of passion than of boredom.", author: "Vincent van Gogh" },
+      { text: "A truly rich man is one whose children run into his arms when his hands are empty.", author: "Unknown" },
+      { text: "It is impossible for a man to learn what he thinks he already knows.", author: "Epictetus" },
+      { text: "If you want to lift yourself up, lift up someone else.", author: "Booker T. Washington" },
+      { text: "What we think, we become.", author: "Buddha" },
+      { text: "Education costs money. But then so does ignorance.", author: "Sir Claus Moser" },
+      { text: "I am not a product of my circumstances. I am a product of my decisions.", author: "Stephen Covey" },
+      { text: "Every child is an artist. The problem is how to remain an artist once he grows up.", author: "Pablo Picasso" }
     ];
     
     // Gunakan hari dalam tahun untuk konsistensi quote harian
@@ -71,51 +79,25 @@ const MotivationCard: React.FC<MotivationCardProps> = ({ className = '' }) => {
   // Fungsi untuk mendapatkan quote motivasi
   const fetchQuote = async () => {
     try {
-      // Coba beberapa API quotes secara berurutan
-      const apis = [
-        // ZenQuotes API
-        'https://zenquotes.io/api/random',
-        // Quotable API (backup)
-        'https://api.quotable.io/random?minLength=50&maxLength=150'
-      ];
+      // Menggunakan well300/quotes-api
+      const response = await fetch('https://quotes-api-self.vercel.app/quote');
       
-      for (const apiUrl of apis) {
-        try {
-          const response = await fetch(apiUrl);
-          
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
-          
-          const data = await response.json();
-          
-          let quote = null;
-          
-          // Handle ZenQuotes format
-          if (Array.isArray(data) && data[0]) {
-            quote = {
-              text: data[0].q || data[0].text,
-              author: data[0].a || data[0].author
-            };
-          }
-          // Handle Quotable format
-          else if (data.content && data.author) {
-            quote = {
-              text: data.content,
-              author: data.author
-            };
-          }
-          
-          if (quote && quote.text && quote.author) {
-            setQuote(quote);
-            return;
-          }
-        } catch (apiError) {
-          continue;
-        }
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
       
-      // Jika semua API gagal, gunakan quote lokal
+      const data = await response.json();
+      
+      // Handle well300 quotes-api format
+      if (data.quote && data.author) {
+        setQuote({
+          text: data.quote,
+          author: data.author
+        });
+        return;
+      }
+      
+      // Jika API gagal, gunakan quote lokal berkualitas tinggi
       const localQuote = getLocalQuotes();
       setQuote(localQuote);
       
@@ -129,10 +111,8 @@ const MotivationCard: React.FC<MotivationCardProps> = ({ className = '' }) => {
   // Fungsi untuk mendapatkan background image
   const fetchBackgroundImage = async () => {
     try {
-      // Generate seed berdasarkan hari untuk variasi harian
-      const today = new Date();
-      const dayOfYear = Math.floor((today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) / (1000 * 60 * 60 * 24));
-      const seed = dayOfYear;
+      // Generate seed random untuk variasi setiap refresh
+      const seed = Math.floor(Math.random() * 10000);
       
       // Coba Picsum Photos terlebih dahulu
       const picsumUrl = `https://picsum.photos/seed/motivation${seed}/800/400`;
@@ -174,6 +154,8 @@ const MotivationCard: React.FC<MotivationCardProps> = ({ className = '' }) => {
   // Fungsi untuk refresh konten
   const refreshContent = async () => {
     setIsLoading(true);
+    // Update gradient setiap refresh
+    setCurrentGradient(getRandomGradient());
     await Promise.all([fetchQuote(), fetchBackgroundImage()]);
     setLastUpdate(Date.now());
     setIsLoading(false);
@@ -194,6 +176,9 @@ const MotivationCard: React.FC<MotivationCardProps> = ({ className = '' }) => {
   // Effect untuk load initial content dan auto-refresh harian
   useEffect(() => {
     const loadContent = async () => {
+      // Inisialisasi gradient
+      setCurrentGradient(getRandomGradient());
+      
       const savedQuote = localStorage.getItem('motivationQuote');
       const savedImage = localStorage.getItem('motivationImage');
       const savedTimestamp = localStorage.getItem('motivationTimestamp');
@@ -255,7 +240,7 @@ const MotivationCard: React.FC<MotivationCardProps> = ({ className = '' }) => {
         style={{
           backgroundImage: backgroundImage 
             ? `url(${backgroundImage})` 
-            : getDailyGradient()
+            : currentGradient || getRandomGradient()
         }}
       />
       <div className="absolute inset-0 bg-black/40" />
