@@ -10,6 +10,10 @@ import NotificationIcon from './NotificationIcon';
 import AnnouncementBanner from './AnnouncementBanner';
 import UserAvatar from './UserAvatar';
 import SiPalingSection from './SiPalingSection';
+import ShareButton from './ShareButton';
+import ShareModal from './ShareModal';
+import TaskShareModal from './TaskShareModal';
+import { useTaskShare } from '../hooks/useTaskShare';
 import { 
   CheckCircle2, 
   AlertCircle, 
@@ -99,6 +103,9 @@ const Dashboard: React.FC<DashboardProps> = ({
   
   // State untuk Christmas settings modal
   const [isChristmasModalOpen, setIsChristmasModalOpen] = useState(false);
+  
+  // Share functionality
+  const { shareState, openWeeklyShare, closeShare } = useTaskShare();
 
   // Reset displayed users saat filter berubah
   useEffect(() => {
@@ -841,7 +848,14 @@ const Dashboard: React.FC<DashboardProps> = ({
                         'text-slate-500'
                       }`}>{data.user.jabatan || 'Staff'}</p>
                     </div>
-                    <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {/* Share button only for current user */}
+                      {currentUser && data.userName === currentUser.name && (
+                        <ShareButton 
+                          onClick={() => openWeeklyShare()}
+                          className="p-1 bg-white/90 hover:bg-white"
+                        />
+                      )}
                       <Eye size={16} className={
                         isHoveredWithSakura ? 'text-pink-600' : 
                         isHoveredWithSnow ? 'text-blue-600' : 
@@ -1186,6 +1200,24 @@ const Dashboard: React.FC<DashboardProps> = ({
           currentSettings={christmasSettings}
           onSave={onUpdateChristmasSettings}
           currentUserName={currentUser?.name || 'Admin'}
+        />
+      )}
+
+      {/* Share Modals */}
+      <ShareModal
+        isOpen={shareState.isWeeklyShareOpen}
+        onClose={closeShare}
+        tasks={tasks}
+        users={users}
+        currentUser={currentUser}
+      />
+      
+      {shareState.selectedTask && (
+        <TaskShareModal
+          isOpen={shareState.isTaskShareOpen}
+          onClose={closeShare}
+          task={shareState.selectedTask}
+          users={users}
         />
       )}
 

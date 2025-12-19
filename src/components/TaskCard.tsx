@@ -2,6 +2,7 @@ import React from 'react';
 import { Task, Priority, Category, ProjectDefinition, User } from '../../types';
 import { Calendar, Layers, Paperclip } from 'lucide-react';
 import PICDisplay from './PICDisplay';
+import ShareButton from './ShareButton';
 
 interface TaskCardProps {
   task: Task;
@@ -9,6 +10,7 @@ interface TaskCardProps {
   users?: User[];
   onDragStart: (e: React.DragEvent, id: string) => void;
   onClick: (task: Task) => void;
+  onShare?: (task: Task) => void;
   canEdit: boolean;
 }
 
@@ -32,7 +34,7 @@ const getCategoryColor = (category: Category) => {
     return 'bg-teal-50 text-teal-700 border-teal-100';
 };
 
-const TaskCard: React.FC<TaskCardProps> = ({ task, projects, users = [], onDragStart, onClick, canEdit }) => {
+const TaskCard: React.FC<TaskCardProps> = ({ task, projects, users = [], onDragStart, onClick, onShare, canEdit }) => {
   const project = task.projectId ? projects.find(p => p.id === task.projectId) : null;
   const hasAttachments = task.attachments && task.attachments.length > 0;
 
@@ -49,9 +51,17 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, projects, users = [], onDragS
         <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded border ${getCategoryColor(task.category)}`}>
           {task.category}
         </span>
-        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${getPriorityColor(task.priority)}`}>
-          {task.priority}
-        </span>
+        <div className="flex items-center gap-2">
+          {onShare && (
+            <ShareButton 
+              onClick={() => onShare(task)}
+              className="opacity-0 group-hover:opacity-100 transition-opacity"
+            />
+          )}
+          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${getPriorityColor(task.priority)}`}>
+            {task.priority}
+          </span>
+        </div>
       </div>
 
       <h3 className="text-sm font-semibold text-slate-800 mb-1 leading-snug group-hover:text-gov-700 transition-colors">

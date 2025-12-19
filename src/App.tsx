@@ -25,6 +25,8 @@ import AnnouncementManager from './components/AnnouncementManager';
 import UserAvatar from './components/UserAvatar';
 import ProfilePhotoModal from './components/ProfilePhotoModal';
 import DataInventory from './components/DataInventory';
+import TaskShareModal from './components/TaskShareModal';
+import { useTaskShare } from './hooks/useTaskShare';
 
 const App: React.FC = () => {
   // Auth State
@@ -96,6 +98,9 @@ const App: React.FC = () => {
   const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null);
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('Board');
+  
+  // Share functionality
+  const { shareState, openTaskShare, closeShare } = useTaskShare();
   
   // Notification Modal State
   const [notificationModal, setNotificationModal] = useState({
@@ -2783,6 +2788,7 @@ const App: React.FC = () => {
                                                     users={allUsers}
                                                     onDragStart={handleDragStart} 
                                                     onClick={handleTaskClick}
+                                                    onShare={openTaskShare}
                                                     canEdit={checkEditPermission(task)}
                                                 />
                                             ))
@@ -2903,6 +2909,16 @@ const App: React.FC = () => {
         editingAnnouncement={editingAnnouncement}
         currentUser={currentUser}
       />
+
+      {/* Task Share Modal */}
+      {shareState.selectedTask && (
+        <TaskShareModal
+          isOpen={shareState.isTaskShareOpen}
+          onClose={closeShare}
+          task={shareState.selectedTask}
+          users={allUsers}
+        />
+      )}
     </div>
   );
 };

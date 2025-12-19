@@ -10,6 +10,7 @@ interface KanbanColumnProps {
   onDrop: (e: React.DragEvent, status: Status) => void;
   onDragStart: (e: React.DragEvent, id: string) => void;
   onTaskClick: (task: Task) => void;
+  onTaskShare?: (task: Task) => void;
   checkEditPermission: (task: Task) => boolean;
 }
 
@@ -23,6 +24,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
   onDrop,
   onDragStart,
   onTaskClick,
+  onTaskShare,
   checkEditPermission
 }) => {
   const [visibleTasks, setVisibleTasks] = useState<Task[]>([]);
@@ -128,6 +130,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                 projects={projects}
                 onDragStart={onDragStart} 
                 onClick={onTaskClick}
+                onShare={onTaskShare}
                 canEdit={checkEditPermission(task)}
               />
             ))}
