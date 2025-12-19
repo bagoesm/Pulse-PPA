@@ -105,6 +105,10 @@ const Dashboard: React.FC<DashboardProps> = ({
   // State untuk Christmas settings modal
   const [isChristmasModalOpen, setIsChristmasModalOpen] = useState(false);
   
+  // State untuk High Performer Leaderboard Modal
+  const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
+  const [leaderboardPeriod, setLeaderboardPeriod] = useState<'week' | 'month' | 'all'>('month');
+  
   // Share functionality
   const { shareState, openWeeklyShare, closeShare } = useTaskShare();
 
@@ -292,18 +296,91 @@ const Dashboard: React.FC<DashboardProps> = ({
     };
   };
 
+  // Fungsi untuk menghitung skor high performer
+  const calculateHighPerformerScore = (userData: any) => {
+    let score = 0;
+    
+    // Poin dari completion rate (max 40 poin)
+    score += Math.min(userData.completionRate * 0.4, 40);
+    
+    // Poin dari performance score (max 30 poin)
+    score += Math.min(userData.performanceScore * 3, 30);
+    
+    // Poin dari aktivitas (max 20 poin)
+    if (userData.completedCount > 0) score += 10;
+    if (userData.activeCount > 0) score += 10;
+    
+    // Poin dari konsistensi (max 10 poin)
+    if (userData.completedCount >= 3) score += 5;
+    if (userData.upcomingDeadlines === 0) score += 5; // Tidak ada deadline mendesak
+    
+    return Math.round(score);
+  };
+
+  // Fungsi untuk mendapatkan range tanggal leaderboard
+  const getLeaderboardDateRange = (period: 'week' | 'month' | 'all') => {
+    const today = new Date();
+    const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    
+    switch (period) {
+      case 'week':
+        const startOfWeek = new Date(startOfToday);
+        startOfWeek.setDate(startOfToday.getDate() - startOfToday.getDay());
+        const endOfWeek = new Date(startOfWeek);
+        endOfWeek.setDate(startOfWeek.getDate() + 6);
+        endOfWeek.setHours(23, 59, 59, 999);
+        return { start: startOfWeek, end: endOfWeek };
+      case 'month':
+        const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+        const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+        endOfMonth.setHours(23, 59, 59, 999);
+        return { start: startOfMonth, end: endOfMonth };
+      default:
+        return null;
+    }
+  };
+
+  // Fungsi untuk filter tasks berdasarkan periode leaderboard
+  const getLeaderboardFilteredTasks = (userTasks: Task[], period: 'week' | 'month' | 'all') => {
+    const dateRange = getLeaderboardDateRange(period);
+    if (!dateRange) return userTasks;
+
+    return userTasks.filter(task => {
+      let taskDate: Date;
+      
+      if (task.status === Status.Done) {
+        // Untuk task selesai, gunakan tanggal deadline sebagai estimasi selesai
+        taskDate = new Date(task.deadline);
+      } else {
+        // Untuk task aktif, gunakan start date
+        taskDate = new Date(task.startDate);
+      }
+
+      return taskDate >= dateRange.start && taskDate <= dateRange.end;
+    });
+  };
+
   // Analisis data users dengan workload
   const analyzedUsers = useMemo(() => {
     return users.map(u => {
       const userTasks = tasks.filter(t => Array.isArray(t.pic) ? t.pic.includes(u.name) : t.pic === u.name);
       const analysis = getWorkloadAnalysis(userTasks);
       const visuals = getWorkloadVisuals(analysis.score);
-      
-      return { 
+      const userData = { 
         user: u, 
         userName: u.name,
         ...analysis,
         visuals
+      };
+      
+      // Tambahkan skor high performer
+      const highPerformerScore = calculateHighPerformerScore(userData);
+      const isHighPerformer = highPerformerScore >= 60;
+      
+      return { 
+        ...userData,
+        highPerformerScore,
+        isHighPerformer
       };
     });
   }, [users, tasks]);
@@ -388,6 +465,33 @@ const Dashboard: React.FC<DashboardProps> = ({
     }
   }, [loadMore, isLoading, hasMoreUsers]);
 
+  // Data untuk leaderboard dengan periode terpisah
+  const leaderboardData = useMemo(() => {
+    return users.map(u => {
+      const userTasks = tasks.filter(t => Array.isArray(t.pic) ? t.pic.includes(u.name) : t.pic === u.name);
+      const filteredTasks = getLeaderboardFilteredTasks(userTasks, leaderboardPeriod);
+      const analysis = getWorkloadAnalysis(filteredTasks);
+      const visuals = getWorkloadVisuals(analysis.score);
+      
+      const userData = { 
+        user: u, 
+        userName: u.name,
+        ...analysis,
+        visuals
+      };
+      
+      // Tambahkan skor high performer untuk leaderboard
+      const highPerformerScore = calculateHighPerformerScore(userData);
+      const isHighPerformer = highPerformerScore >= 60;
+      
+      return { 
+        ...userData,
+        highPerformerScore,
+        isHighPerformer
+      };
+    });
+  }, [users, tasks, leaderboardPeriod]);
+
   // Stats untuk dashboard
   const dashboardStats = useMemo(() => {
     const workloadDistribution = {
@@ -399,7 +503,28 @@ const Dashboard: React.FC<DashboardProps> = ({
 
     const avgCompletionRate = analyzedUsers.reduce((sum, u) => sum + u.completionRate, 0) / analyzedUsers.length;
     const totalUpcomingDeadlines = analyzedUsers.reduce((sum, u) => sum + u.upcomingDeadlines, 0);
-    const highPerformers = analyzedUsers.filter(u => u.completionRate > 80 && u.activeCount > 0).length;
+    
+    // High Performer dengan sistem skor gabungan (0-100)
+    const highPerformers = analyzedUsers.filter(u => {
+      let score = 0;
+      
+      // Poin dari completion rate (max 40 poin)
+      score += Math.min(u.completionRate * 0.4, 40);
+      
+      // Poin dari performance score (max 30 poin)
+      score += Math.min(u.performanceScore * 3, 30);
+      
+      // Poin dari aktivitas (max 20 poin)
+      if (u.completedCount > 0) score += 10;
+      if (u.activeCount > 0) score += 10;
+      
+      // Poin dari konsistensi (max 10 poin)
+      if (u.completedCount >= 3) score += 5;
+      if (u.upcomingDeadlines === 0) score += 5; // Tidak ada deadline mendesak
+      
+      // High performer jika skor >= 60 dari 100
+      return score >= 60;
+    }).length;
 
     return {
       workloadDistribution,
@@ -518,18 +643,21 @@ const Dashboard: React.FC<DashboardProps> = ({
         </div>
 
         {/* High Performers */}
-        <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
+        <button
+          onClick={() => setIsLeaderboardOpen(true)}
+          className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-all hover:scale-105 text-left w-full group"
+        >
           <div className="flex items-center justify-between mb-3">
-            <div className="p-2 bg-purple-100 text-purple-600 rounded-lg">
+            <div className="p-2 bg-purple-100 text-purple-600 rounded-lg group-hover:bg-purple-200 transition-colors">
               <Award size={20} />
             </div>
-            <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2 py-1 rounded-full">
-              Top
+            <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2 py-1 rounded-full group-hover:bg-purple-100 transition-colors">
+              Klik untuk Leaderboard
             </span>
           </div>
           <h3 className="text-2xl font-bold text-slate-800 mb-1">{dashboardStats.highPerformers}</h3>
           <p className="text-sm text-slate-500">High Performers</p>
-        </div>
+        </button>
       </div>
 
       {/* WORKLOAD DISTRIBUTION WITH INSIGHTS & MOTIVATION */}
@@ -953,26 +1081,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                   </div>
                 </div>
 
-                {/* Performance Badge untuk periode tertentu */}
-                {dateFilter !== 'all' && data.performanceScore > 0 && (
-                  <div className="mt-3 text-center">
-                    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium transition-colors ${
-                      isHoveredWithSakura 
-                        ? 'bg-pink-100 text-pink-700'
-                        : isHoveredWithSnow
-                        ? 'bg-blue-100 text-blue-700'
-                        : isHoveredWithMoney
-                        ? 'bg-green-100 text-green-700'
-                        : data.performanceScore >= 10 ? 'bg-purple-100 text-purple-700' :
-                          data.performanceScore >= 5 ? 'bg-blue-100 text-blue-700' :
-                          'bg-slate-100 text-slate-600'
-                    }`}>
-                      <Award size={10} />
-                      {data.performanceScore >= 10 ? 'Top Performer' :
-                       data.performanceScore >= 5 ? 'Good Performer' : 'Active'}
-                    </span>
-                  </div>
-                )}
+
               </div>
 
               {/* BODY */}
@@ -1204,6 +1313,243 @@ const Dashboard: React.FC<DashboardProps> = ({
           onSave={onUpdateChristmasSettings}
           currentUserName={currentUser?.name || 'Admin'}
         />
+      )}
+
+      {/* High Performer Leaderboard Modal */}
+      {isLeaderboardOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-gradient-to-r from-purple-500 to-yellow-500 text-white rounded-lg">
+                    <Award size={24} />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold text-slate-800">🏆 Performance Leaderboard</h2>
+                    <p className="text-sm text-slate-600">
+                      Ranking berdasarkan Performance Score (0-100)
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsLeaderboardOpen(false)}
+                  className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Period Filter */}
+              <div className="mb-6 flex items-center justify-center gap-2">
+                <span className="text-sm font-medium text-slate-600">Periode:</span>
+                <div className="flex bg-slate-100 rounded-lg p-1">
+                  <button
+                    onClick={() => setLeaderboardPeriod('week')}
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                      leaderboardPeriod === 'week'
+                        ? 'bg-white text-gov-600 shadow-sm'
+                        : 'text-slate-600 hover:text-slate-800'
+                    }`}
+                  >
+                    Minggu Ini
+                  </button>
+                  <button
+                    onClick={() => setLeaderboardPeriod('month')}
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                      leaderboardPeriod === 'month'
+                        ? 'bg-white text-gov-600 shadow-sm'
+                        : 'text-slate-600 hover:text-slate-800'
+                    }`}
+                  >
+                    Bulan Ini
+                  </button>
+                  <button
+                    onClick={() => setLeaderboardPeriod('all')}
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                      leaderboardPeriod === 'all'
+                        ? 'bg-white text-gov-600 shadow-sm'
+                        : 'text-slate-600 hover:text-slate-800'
+                    }`}
+                  >
+                    Sepanjang Masa
+                  </button>
+                </div>
+              </div>
+
+              {/* Period Stats */}
+              <div className="grid grid-cols-3 gap-4 mb-6">
+                <div className="bg-purple-50 p-4 rounded-lg border border-purple-200 text-center">
+                  <div className="text-2xl font-bold text-purple-600">
+                    {leaderboardData.filter(u => u.isHighPerformer).length}
+                  </div>
+                  <div className="text-sm text-purple-700">High Performers</div>
+                </div>
+                <div className="bg-green-50 p-4 rounded-lg border border-green-200 text-center">
+                  <div className="text-2xl font-bold text-green-600">
+                    {Math.round(leaderboardData.reduce((sum, u) => sum + u.completionRate, 0) / leaderboardData.length)}%
+                  </div>
+                  <div className="text-sm text-green-700">Avg Completion Rate</div>
+                </div>
+                <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 text-center">
+                  <div className="text-2xl font-bold text-blue-600">
+                    {leaderboardData.reduce((sum, u) => sum + u.completedCount, 0)}
+                  </div>
+                  <div className="text-sm text-blue-700">Total Tasks Selesai</div>
+                </div>
+              </div>
+
+              {/* Leaderboard */}
+              <div className="space-y-3 mb-6">
+                {leaderboardData
+                  .sort((a, b) => b.highPerformerScore - a.highPerformerScore)
+                  .map((data, index) => {
+                    const isTop3 = index < 3;
+                    const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '';
+                    
+                    return (
+                      <div
+                        key={data.userName}
+                        className={`p-4 rounded-lg border transition-all hover:shadow-md ${
+                          data.isHighPerformer 
+                            ? 'bg-gradient-to-r from-purple-50 to-yellow-50 border-purple-200' 
+                            : 'bg-slate-50 border-slate-200'
+                        } ${isTop3 ? 'ring-2 ring-yellow-300' : ''}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-2">
+                              <span className="text-lg font-bold text-slate-600 w-8">#{index + 1}</span>
+                              {medal && <span className="text-xl">{medal}</span>}
+                            </div>
+                            
+                            <UserAvatar 
+                              name={data.userName}
+                              profilePhoto={data.user.profilePhoto}
+                              size="md"
+                              className="flex-shrink-0"
+                            />
+                            
+                            <div>
+                              <h3 className="font-bold text-slate-800">{data.userName}</h3>
+                              <p className="text-sm text-slate-600">{data.user.jabatan || 'Staff'}</p>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center gap-6">
+                            {/* Stats */}
+                            <div className="grid grid-cols-4 gap-4 text-center">
+                              <div>
+                                <span className="block text-sm font-bold text-slate-800">{data.activeCount}</span>
+                                <span className="text-xs text-slate-500">Aktif</span>
+                              </div>
+                              <div>
+                                <span className="block text-sm font-bold text-green-600">{data.completedCount}</span>
+                                <span className="text-xs text-slate-500">Selesai</span>
+                              </div>
+                              <div>
+                                <span className="block text-sm font-bold text-gov-600">{data.completionRate.toFixed(0)}%</span>
+                                <span className="text-xs text-slate-500">Rate</span>
+                              </div>
+                              <div>
+                                <span className="block text-sm font-bold text-purple-600">{data.performanceScore}</span>
+                                <span className="text-xs text-slate-500">Task Poin</span>
+                              </div>
+                            </div>
+                            
+                            {/* Performance Score */}
+                            <div className="text-right">
+                              <div className={`text-2xl font-bold ${
+                                data.isHighPerformer ? 'text-purple-600' : 'text-slate-600'
+                              }`}>
+                                {data.highPerformerScore}
+                              </div>
+                              <div className="text-xs text-slate-500">/ 100</div>
+                              {data.isHighPerformer && (
+                                <div className="text-xs text-purple-600 font-medium mt-1">
+                                  🏆 High Performer
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+
+              {/* Info Perhitungan */}
+              <div className="border-t border-slate-200 pt-6">
+                <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                  📊 Cara Perhitungan Performance Score
+                </h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-200">
+                      <div className="w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center text-sm font-bold">40</div>
+                      <div>
+                        <h4 className="font-semibold text-green-800 text-sm">Completion Rate</h4>
+                        <p className="text-xs text-green-700">Persentase × 0.4</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                      <div className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-bold">30</div>
+                      <div>
+                        <h4 className="font-semibold text-blue-800 text-sm">Task Points</h4>
+                        <p className="text-xs text-blue-700">Poin task selesai × 3</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3 p-3 bg-orange-50 rounded-lg border border-orange-200">
+                      <div className="w-8 h-8 bg-orange-500 text-white rounded-full flex items-center justify-center text-sm font-bold">20</div>
+                      <div>
+                        <h4 className="font-semibold text-orange-800 text-sm">Aktivitas</h4>
+                        <p className="text-xs text-orange-700">Ada task selesai/aktif</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-3 p-3 bg-purple-50 rounded-lg border border-purple-200">
+                      <div className="w-8 h-8 bg-purple-500 text-white rounded-full flex items-center justify-center text-sm font-bold">10</div>
+                      <div>
+                        <h4 className="font-semibold text-purple-800 text-sm">Konsistensi</h4>
+                        <p className="text-xs text-purple-700">≥3 task + no deadline</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-gradient-to-r from-purple-50 to-yellow-50 p-4 rounded-lg border border-purple-200">
+                    <p className="text-sm text-purple-700 text-center">
+                      <strong>High Performer:</strong> Skor ≥ 60/100<br/>
+                      <strong>Task Points:</strong> Urgent=4, High=3, Medium=2, Low=1
+                    </p>
+                  </div>
+                  
+                  <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                    <p className="text-sm text-blue-700 text-center">
+                      <strong>🔄 Reset setiap tanggal 1</strong><br/>
+                      <strong>📅 {new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}</strong>
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6 text-center">
+                <button
+                  onClick={() => setIsLeaderboardOpen(false)}
+                  className="px-6 py-2 bg-gradient-to-r from-purple-600 to-yellow-600 text-white rounded-lg font-medium hover:from-purple-700 hover:to-yellow-700 transition-all"
+                >
+                  Tutup Leaderboard
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Share Modals */}

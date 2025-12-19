@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, Quote } from 'lucide-react';
+import { RefreshCw, Quote, Languages } from 'lucide-react';
 
 interface Quote {
   text: string;
   author: string;
+  translatedText?: string;
 }
 
 interface MotivationCardProps {
@@ -16,6 +17,8 @@ const MotivationCard: React.FC<MotivationCardProps> = ({ className = '' }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<number>(0);
   const [currentGradient, setCurrentGradient] = useState<string>('');
+  const [showTranslation, setShowTranslation] = useState(false);
+  const [isTranslating, setIsTranslating] = useState(false);
 
   // Fungsi untuk mendapatkan gradient random
   const getRandomGradient = () => {
@@ -76,6 +79,34 @@ const MotivationCard: React.FC<MotivationCardProps> = ({ className = '' }) => {
     return quotes[dayOfYear % quotes.length];
   };
 
+  // Fungsi untuk translate quote ke bahasa Indonesia
+  const translateQuote = async (text: string) => {
+    try {
+      setIsTranslating(true);
+      
+      // Menggunakan MyMemory API untuk translate
+      const response = await fetch(
+        `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|id`
+      );
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.responseData && data.responseData.translatedText) {
+        return data.responseData.translatedText;
+      }
+      
+      return null;
+    } catch (error) {
+      return null;
+    } finally {
+      setIsTranslating(false);
+    }
+  };
+
   // Fungsi untuk mendapatkan quote motivasi
   const fetchQuote = async () => {
     try {
@@ -90,21 +121,49 @@ const MotivationCard: React.FC<MotivationCardProps> = ({ className = '' }) => {
       
       // Handle well300 quotes-api format
       if (data.quote && data.author) {
-        setQuote({
+        const newQuote: Quote = {
           text: data.quote,
           author: data.author
-        });
+        };
+        
+        // Auto-translate quote ke bahasa Indonesia
+        const translatedText = await translateQuote(data.quote);
+        if (translatedText) {
+          newQuote.translatedText = translatedText;
+        }
+        
+        setQuote(newQuote);
         return;
       }
       
       // Jika API gagal, gunakan quote lokal berkualitas tinggi
       const localQuote = getLocalQuotes();
-      setQuote(localQuote);
+      const quoteWithTranslation: Quote = { ...localQuote };
+      
+      // Auto-translate local quote jika belum ada terjemahan
+      const translatedText = await translateQuote(localQuote.text);
+      if (translatedText) {
+        quoteWithTranslation.translatedText = translatedText;
+      }
+      
+      setQuote(quoteWithTranslation);
       
     } catch (error) {
       // Fallback ke quote lokal
       const localQuote = getLocalQuotes();
-      setQuote(localQuote);
+      const quoteWithTranslation: Quote = { ...localQuote };
+      
+      // Auto-translate local quote jika belum ada terjemahan
+      try {
+        const translatedText = await translateQuote(localQuote.text);
+        if (translatedText) {
+          quoteWithTranslation.translatedText = translatedText;
+        }
+      } catch (translateError) {
+        // Jika translate gagal, tetap gunakan quote tanpa terjemahan
+      }
+      
+      setQuote(quoteWithTranslation);
     }
   };
 
@@ -253,14 +312,33 @@ const MotivationCard: React.FC<MotivationCardProps> = ({ className = '' }) => {
             <Quote size={20} className="text-white/90" />
             <h3 className="text-lg font-bold">Daily Motivation</h3>
           </div>
-          <button
-            onClick={refreshContent}
-            disabled={isLoading}
-            className="p-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors disabled:opacity-50"
-            title="Refresh quote dan background"
-          >
-            <RefreshCw size={16} className={`${isLoading ? 'animate-spin' : ''}`} />
-          </button>
+          <div className="flex gap-2">
+            {/* Translation Toggle Button */}
+            {quote.translatedText && (
+              <button
+                onClick={() => setShowTranslation(!showTranslation)}
+                disabled={isTranslating}
+                className={`p-2 rounded-lg transition-colors disabled:opacity-50 ${
+                  showTranslation 
+                    ? 'bg-white/30 text-white' 
+                    : 'bg-white/20 hover:bg-white/30 text-white/90'
+                }`}
+                title={showTranslation ? "Tampilkan bahasa Inggris" : "Tampilkan terjemahan Indonesia"}
+              >
+                <Languages size={16} />
+              </button>
+            )}
+            
+            {/* Refresh Button */}
+            <button
+              onClick={refreshContent}
+              disabled={isLoading}
+              className="p-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors disabled:opacity-50"
+              title="Refresh quote dan background"
+            >
+              <RefreshCw size={16} className={`${isLoading ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
         </div>
 
         {/* Quote Content */}
@@ -276,11 +354,30 @@ const MotivationCard: React.FC<MotivationCardProps> = ({ className = '' }) => {
           ) : (
             <>
               <blockquote className="text-lg font-medium leading-relaxed mb-4 text-center">
-                "{quote.text}"
+                "{showTranslation && quote.translatedText ? quote.translatedText : quote.text}"
               </blockquote>
               <cite className="text-sm text-white/80 text-center font-medium">
                 — {quote.author}
               </cite>
+              
+              {/* Translation Status */}
+              {isTranslating && (
+                <div className="text-center mt-2">
+                  <span className="text-xs text-white/60 flex items-center justify-center gap-1">
+                    <RefreshCw size={12} className="animate-spin" />
+                    Menerjemahkan...
+                  </span>
+                </div>
+              )}
+              
+              {/* Language Indicator */}
+              {quote.translatedText && (
+                <div className="text-center mt-2">
+                  <span className="text-xs text-white/60 px-2 py-1 bg-white/10 rounded-full">
+                    {showTranslation ? '🇮🇩 Indonesia' : '🇺🇸 English'}
+                  </span>
+                </div>
+              )}
             </>
           )}
         </div>
