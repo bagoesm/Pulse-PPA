@@ -71,7 +71,7 @@ export const useNotifications = ({ currentUser, tasks, onTaskNavigation }: UseNo
     }
   }, [currentUser, isLoading]);
 
-  // Create notification (handles duplicates via database constraint)
+  // Create notification using RPC function (bypasses RLS for cross-user notifications)
   const createNotification = useCallback(async (
     userId: string,
     type: 'deadline' | 'comment' | 'assignment',
@@ -98,27 +98,22 @@ export const useNotifications = ({ currentUser, tasks, onTaskNavigation }: UseNo
         }
       }
 
-      // Direct insert
-      const { data, error } = await supabase
-        .from('notifications')
-        .insert({
-          user_id: userId,
-          type,
-          title,
-          message,
-          task_id: taskId,
-          task_title: taskTitle,
-          is_read: false
-        })
-        .select()
-        .single();
+      // Use RPC function to bypass RLS for cross-user notifications
+      const { data, error } = await supabase.rpc('create_notification', {
+        p_user_id: userId,
+        p_type: type,
+        p_title: title,
+        p_message: message,
+        p_task_id: taskId,
+        p_task_title: taskTitle
+      });
       
       if (error) {
         console.error('Failed to create notification:', error);
         return null;
       }
 
-      return data?.id;
+      return data;
     } catch (error) {
       console.error('Error creating notification:', error);
       return null;
