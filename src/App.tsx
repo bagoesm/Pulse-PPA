@@ -28,6 +28,8 @@ import DataInventory from './components/DataInventory';
 import TaskShareModal from './components/TaskShareModal';
 import MobileNav from './components/MobileNav';
 import { useTaskShare } from './hooks/useTaskShare';
+import { usePushNotifications } from './hooks/usePushNotifications';
+import PushNotificationPrompt from './components/PushNotificationPrompt';
 
 const App: React.FC = () => {
   // Auth State
@@ -102,6 +104,14 @@ const App: React.FC = () => {
   
   // Share functionality
   const { shareState, openTaskShare, closeShare } = useTaskShare();
+
+  // Push Notifications
+  const {
+    isSupported: isPushSupported,
+    showPrompt: showPushPrompt,
+    subscribe: subscribeToPush,
+    dismissPrompt: dismissPushPrompt
+  } = usePushNotifications({ userId: currentUser?.id || null });
   
   // Notification Modal State
   const [notificationModal, setNotificationModal] = useState({
@@ -1456,6 +1466,18 @@ const App: React.FC = () => {
                 const oldPic = Array.isArray(editingTask.pic) ? editingTask.pic.join(', ') : editingTask.pic;
                 const newPic = Array.isArray(newTaskData.pic) ? newTaskData.pic.join(', ') : newTaskData.pic;
                 await logTaskActivity(editingTask.id, 'pic_change', oldPic, newPic);
+                
+                // Notify newly assigned PICs
+                const oldPics = Array.isArray(editingTask.pic) ? editingTask.pic : [editingTask.pic];
+                const newPics = Array.isArray(newTaskData.pic) ? newTaskData.pic : [newTaskData.pic];
+                await createAssignmentNotification(
+                    editingTask.id,
+                    newTaskData.title,
+                    currentUser?.name || 'Unknown',
+                    newPics,
+                    oldPics,
+                    false
+                );
             }
             if (editingTask.priority !== newTaskData.priority) {
                 await logTaskActivity(editingTask.id, 'priority_change', editingTask.priority, newTaskData.priority);
@@ -1510,6 +1532,17 @@ const App: React.FC = () => {
     
     // Log activity for task creation
     await logTaskActivity(data.id, 'created', undefined, newTaskData.title);
+    
+    // Notify PICs about new task assignment (exclude creator)
+    const taskPics = Array.isArray(newTaskData.pic) ? newTaskData.pic : [newTaskData.pic];
+    await createAssignmentNotification(
+        data.id,
+        newTaskData.title,
+        currentUser?.name || 'Unknown',
+        taskPics,
+        [],
+        true
+    );
     
     // Trigger refresh for ProjectOverview
     setProjectRefreshTrigger(prev => prev + 1);
@@ -2427,6 +2460,7 @@ const App: React.FC = () => {
   const {
     notifications,
     createCommentNotification,
+    createAssignmentNotification,
     markAsRead,
     markAllAsRead,
     deleteNotification,
@@ -2958,6 +2992,14 @@ const App: React.FC = () => {
           onClose={closeShare}
           task={shareState.selectedTask}
           users={allUsers}
+        />
+      )}
+
+      {/* Push Notification Prompt */}
+      {isPushSupported && showPushPrompt && currentUser && (
+        <PushNotificationPrompt
+          onAllow={subscribeToPush}
+          onDismiss={dismissPushPrompt}
         />
       )}
     </div>

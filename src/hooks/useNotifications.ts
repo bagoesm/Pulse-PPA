@@ -11,7 +11,7 @@ interface UseNotificationsProps {
 interface DbNotification {
   id: string;
   user_id: string;
-  type: 'deadline' | 'comment';
+  type: 'deadline' | 'comment' | 'assignment';
   title: string;
   message: string;
   task_id: string;
@@ -71,10 +71,29 @@ export const useNotifications = ({ currentUser, tasks, onTaskNavigation }: UseNo
     }
   }, [currentUser, isLoading]);
 
+  // Send push notification via Edge Function
+  const sendPushNotification = useCallback(async (
+    userId: string,
+    title: string,
+    message: string,
+    taskId: string,
+    taskTitle: string,
+    type: string
+  ) => {
+    try {
+      await supabase.functions.invoke('send-push-notification', {
+        body: { userId, title, message, taskId, taskTitle, type }
+      });
+    } catch (error) {
+      // Silent fail - push is optional
+      console.log('Push notification skipped:', error);
+    }
+  }, []);
+
   // Create notification (handles duplicates via database constraint)
   const createNotification = useCallback(async (
     userId: string,
-    type: 'deadline' | 'comment',
+    type: 'deadline' | 'comment' | 'assignment',
     title: string,
     message: string,
     taskId: string,
@@ -108,11 +127,14 @@ export const useNotifications = ({ currentUser, tasks, onTaskNavigation }: UseNo
           });
       }
 
+      // Send push notification to user's devices
+      await sendPushNotification(userId, title, message, taskId, taskTitle, type);
+
       return data;
     } catch (error) {
       console.error('Error creating notification:', error);
     }
-  }, []);
+  }, [sendPushNotification]);
 
   // Create comment notification
   const createCommentNotification = useCallback(async (
@@ -151,6 +173,57 @@ export const useNotifications = ({ currentUser, tasks, onTaskNavigation }: UseNo
       }
     } catch (error) {
       console.error('Error creating comment notification:', error);
+    }
+  }, [currentUser, createNotification, fetchNotifications]);
+
+  // Create assignment notification (when user is assigned as PIC)
+  const createAssignmentNotification = useCallback(async (
+    taskId: string,
+    taskTitle: string,
+    assignerName: string,
+    newPics: string[],
+    oldPics: string[] = [],
+    isNewTask: boolean = false
+  ) => {
+    if (!currentUser) return;
+
+    try {
+      // Find PICs that are newly assigned (not in oldPics)
+      const newlyAssignedPics = newPics.filter(pic => !oldPics.includes(pic));
+      
+      // Don't notify the person who created/edited the task
+      const picsToNotify = newlyAssignedPics.filter(pic => pic !== assignerName);
+      
+      if (picsToNotify.length === 0) return;
+
+      const { data: users } = await supabase
+        .from('profiles')
+        .select('id, name')
+        .in('name', picsToNotify);
+
+      if (!users || users.length === 0) return;
+
+      for (const user of users) {
+        const message = isNewTask
+          ? `${assignerName} menugaskan Anda sebagai PIC pada task baru "${taskTitle}"`
+          : `${assignerName} menambahkan Anda sebagai PIC pada task "${taskTitle}"`;
+        
+        await createNotification(
+          user.id,
+          'assignment',
+          isNewTask ? 'Task Baru' : 'Ditugaskan ke Task',
+          message,
+          taskId,
+          taskTitle
+        );
+      }
+
+      // Refresh if current user is a target
+      if (users.some(u => u.id === currentUser.id)) {
+        fetchNotifications();
+      }
+    } catch (error) {
+      console.error('Error creating assignment notification:', error);
     }
   }, [currentUser, createNotification, fetchNotifications]);
 
@@ -339,6 +412,7 @@ export const useNotifications = ({ currentUser, tasks, onTaskNavigation }: UseNo
   return {
     notifications,
     createCommentNotification,
+    createAssignmentNotification,
     markAsRead,
     markAllAsRead,
     deleteNotification,

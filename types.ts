@@ -162,7 +162,7 @@ export interface Comment {
   updatedAt?: string; // ISO Date string
 }
 
-export type NotificationType = 'comment' | 'deadline';
+export type NotificationType = 'comment' | 'deadline' | 'assignment';
 
 export interface Notification {
   id: string;
