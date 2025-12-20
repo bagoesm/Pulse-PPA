@@ -215,7 +215,7 @@ const NotificationIcon: React.FC<NotificationIconProps> = ({
 
       {/* Desktop Dropdown */}
       {isOpen && (
-        <div className="hidden sm:block absolute right-0 top-full mt-2 w-80 bg-white rounded-xl shadow-2xl border border-slate-200 z-50 max-h-96 overflow-hidden">
+        <div className="hidden sm:flex sm:flex-col absolute right-0 top-full mt-2 w-80 bg-white rounded-xl shadow-2xl border border-slate-200 z-50 max-h-[70vh] overflow-hidden">
           <NotificationContent />
         </div>
       )}

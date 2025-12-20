@@ -1814,11 +1814,34 @@ const App: React.FC = () => {
 
       setComments(prev => prev.map(c => c.id === tempId ? realComment : c));
 
-      // Create notification for task PICs
+      // Get task info for notifications
       const task = tasks.find(t => t.id === taskId);
       if (task) {
+        // Parse mentions from content - match full user names
+        const mentionedNames: string[] = [];
+        
+        // Check each user if their name is mentioned with @
+        for (const user of allUsers) {
+          // Create regex to match @username (case insensitive)
+          const escapedName = user.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const mentionPattern = new RegExp(`@${escapedName}(?:\\s|$|[.,!?])`, 'i');
+          
+          if (mentionPattern.test(content) && !mentionedNames.includes(user.name)) {
+            mentionedNames.push(user.name);
+          }
+        }
+
+        // Create mention notifications (separate from PIC notifications)
+        if (mentionedNames.length > 0) {
+          await createMentionNotification(taskId, task.title, currentUser.name, mentionedNames);
+        }
+
+        // Create notification for task PICs (excluding mentioned users to avoid duplicate)
         const taskPics = Array.isArray(task.pic) ? task.pic : [task.pic];
-        await createCommentNotification(taskId, task.title, currentUser.name, taskPics);
+        const picsToNotify = taskPics.filter(pic => !mentionedNames.includes(pic));
+        if (picsToNotify.length > 0) {
+          await createCommentNotification(taskId, task.title, currentUser.name, picsToNotify);
+        }
       }
     } catch (error) {
       // If save fails, remove temp comment from local state
@@ -2511,6 +2534,7 @@ const App: React.FC = () => {
   const {
     notifications,
     createCommentNotification,
+    createMentionNotification,
     createAssignmentNotification,
     markAsRead,
     markAllAsRead,

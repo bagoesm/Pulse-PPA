@@ -81,36 +81,47 @@ export const useNotifications = ({ currentUser, tasks, onTaskNavigation }: UseNo
     taskTitle: string
   ) => {
     try {
-      const { data, error } = await supabase.rpc('insert_notification', {
-        p_user_id: userId,
-        p_type: type,
-        p_title: title,
-        p_message: message,
-        p_task_id: taskId,
-        p_task_title: taskTitle
-      });
-
-      if (error) {
-        // Fallback: direct insert with upsert behavior
-        await supabase
+      // For deadline type, check if notification already exists today
+      if (type === 'deadline') {
+        const today = new Date().toISOString().split('T')[0];
+        const { data: existing } = await supabase
           .from('notifications')
-          .upsert({
-            user_id: userId,
-            type,
-            title,
-            message,
-            task_id: taskId,
-            task_title: taskTitle,
-            is_read: false
-          }, {
-            onConflict: 'user_id,task_id,type',
-            ignoreDuplicates: true
-          });
+          .select('id')
+          .eq('user_id', userId)
+          .eq('task_id', taskId)
+          .eq('type', type)
+          .gte('created_at', today)
+          .limit(1);
+        
+        if (existing && existing.length > 0) {
+          return null; // Skip duplicate deadline notification
+        }
       }
 
-      return data;
+      // Direct insert
+      const { data, error } = await supabase
+        .from('notifications')
+        .insert({
+          user_id: userId,
+          type,
+          title,
+          message,
+          task_id: taskId,
+          task_title: taskTitle,
+          is_read: false
+        })
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('Failed to create notification:', error);
+        return null;
+      }
+
+      return data?.id;
     } catch (error) {
       console.error('Error creating notification:', error);
+      return null;
     }
   }, []);
 
@@ -151,6 +162,46 @@ export const useNotifications = ({ currentUser, tasks, onTaskNavigation }: UseNo
       }
     } catch (error) {
       console.error('Error creating comment notification:', error);
+    }
+  }, [currentUser, createNotification, fetchNotifications]);
+
+  // Create mention notification (when user is mentioned in a comment)
+  const createMentionNotification = useCallback(async (
+    taskId: string,
+    taskTitle: string,
+    mentionerName: string,
+    mentionedNames: string[]
+  ) => {
+    if (!currentUser || mentionedNames.length === 0) return;
+
+    try {
+      const { data: users } = await supabase
+        .from('profiles')
+        .select('id, name')
+        .in('name', mentionedNames);
+
+      if (!users || users.length === 0) return;
+
+      // Notify all mentioned users except the mentioner
+      const targetUsers = users.filter(u => u.name !== mentionerName);
+      
+      for (const user of targetUsers) {
+        await createNotification(
+          user.id,
+          'comment', // Using 'comment' type for mentions
+          'Anda Di-mention',
+          `${mentionerName} menyebut Anda dalam komentar pada task "${taskTitle}"`,
+          taskId,
+          taskTitle
+        );
+      }
+
+      // Refresh if current user is a target
+      if (targetUsers.some(u => u.id === currentUser.id)) {
+        fetchNotifications();
+      }
+    } catch (error) {
+      console.error('Error creating mention notification:', error);
     }
   }, [currentUser, createNotification, fetchNotifications]);
 
@@ -390,6 +441,7 @@ export const useNotifications = ({ currentUser, tasks, onTaskNavigation }: UseNo
   return {
     notifications,
     createCommentNotification,
+    createMentionNotification,
     createAssignmentNotification,
     markAsRead,
     markAllAsRead,

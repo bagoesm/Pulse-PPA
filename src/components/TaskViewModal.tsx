@@ -5,6 +5,7 @@ import { Task, User as UserType, ProjectDefinition, Attachment, Priority, Status
 import { supabase } from '../lib/supabaseClient';
 import PICDisplay from './PICDisplay';
 import UserAvatar from './UserAvatar';
+import MentionInput, { renderMentionText } from './MentionInput';
 
 interface TaskViewModalProps {
   isOpen: boolean;
@@ -127,8 +128,8 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
   const taskComments = comments.filter(comment => comment.taskId === task.id);
   const taskActivities = activities.filter(activity => activity.taskId === task.id);
 
-  const handleSubmitComment = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmitComment = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!newComment.trim() || !currentUser || !onAddComment || isSubmittingComment) return;
 
     setIsSubmittingComment(true);
@@ -140,6 +141,11 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
     } finally {
       setIsSubmittingComment(false);
     }
+  };
+
+  // Wrapper for MentionInput onSubmit (no event parameter)
+  const handleMentionSubmit = () => {
+    handleSubmitComment();
   };
 
   const formatCommentDate = (dateString: string) => {
@@ -599,13 +605,14 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                             {currentUser?.name && typeof currentUser.name === 'string' ? currentUser.name.charAt(0).toUpperCase() : '?'}
                           </div>
                           <div className="flex-1">
-                            <textarea
+                            <MentionInput
                               value={newComment}
-                              onChange={(e) => setNewComment(e.target.value)}
-                              placeholder="Tulis komentar..."
-                              className="w-full px-3 py-2 border border-gray-200 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm"
-                              rows={3}
+                              onChange={setNewComment}
+                              onSubmit={handleMentionSubmit}
+                              users={users}
+                              placeholder="Tulis komentar... Gunakan @ untuk mention"
                               disabled={isSubmittingComment}
+                              rows={3}
                             />
                             <div className="flex justify-end mt-2">
                               <button
@@ -674,7 +681,7 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                                       </div>
                                     </div>
                                     <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
-                                      {comment.content}
+                                      {renderMentionText(comment.content, users)}
                                     </p>
                                   </div>
                                 </div>
