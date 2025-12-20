@@ -13,6 +13,7 @@ import {
   Settings,
 } from 'lucide-react';
 import { User } from '../../types';
+import UserAvatar from './UserAvatar';
 
 interface MobileNavProps {
   activeTab: string;
@@ -164,9 +165,12 @@ const MobileNav: React.FC<MobileNavProps> = ({
                 }`}
               >
                 {item.isProfile ? (
-                  <div className="w-6 h-6 rounded-full bg-gov-100 text-gov-700 flex items-center justify-center font-bold text-[10px]">
-                    {currentUser.initials}
-                  </div>
+                  <UserAvatar
+                    name={currentUser.name}
+                    profilePhoto={currentUser.profilePhoto}
+                    size="sm"
+                    className="w-6 h-6"
+                  />
                 ) : (
                   <Icon size={20} />
                 )}

@@ -1,6 +1,6 @@
 // src/components/TaskViewModal.tsx
-import React, { useState } from 'react';
-import { X, Edit, Calendar, Layers, Paperclip, Download, User, Clock, Flag, FileText, Info, MessageSquare, Eye, Share2, MoreHorizontal, ArrowRight, Send, ExternalLink, Trash2, Activity } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { X, Edit, Calendar, Layers, Paperclip, Download, User, Clock, Flag, FileText, Info, MessageSquare, Eye, Share2, MoreHorizontal, ArrowRight, Send, ExternalLink, Trash2, Activity, ChevronDown } from 'lucide-react';
 import { Task, User as UserType, ProjectDefinition, Attachment, Priority, Status, Comment, TaskLink, TaskActivity } from '../../types';
 import { supabase } from '../lib/supabaseClient';
 import PICDisplay from './PICDisplay';
@@ -19,6 +19,7 @@ interface TaskViewModalProps {
   activities?: TaskActivity[];
   onAddComment?: (taskId: string, content: string) => void;
   onDeleteComment?: (commentId: string) => void;
+  onStatusChange?: (taskId: string, newStatus: Status) => void;
 }
 
 const formatFileSize = (bytes: number): string => {
@@ -82,11 +83,42 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
   comments = [],
   activities = [],
   onAddComment,
-  onDeleteComment
+  onDeleteComment,
+  onStatusChange
 }) => {
   const [newComment, setNewComment] = useState('');
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [activeTab, setActiveTab] = useState<'comments' | 'activity'>('comments');
+  const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
+  const statusDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (statusDropdownRef.current && !statusDropdownRef.current.contains(event.target as Node)) {
+        setIsStatusDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Check if current user is PIC of this task
+  const isCurrentUserPIC = () => {
+    if (!currentUser || !task) return false;
+    const taskPics = Array.isArray(task.pic) ? task.pic : [task.pic];
+    return taskPics.includes(currentUser.name);
+  };
+
+  // Can change status: PIC or canEdit (Super Admin/Atasan)
+  const canChangeStatus = isCurrentUserPIC() || canEdit;
+
+  const handleStatusChange = async (newStatus: Status) => {
+    if (!task || !onStatusChange) return;
+    await onStatusChange(task.id, newStatus);
+    setIsStatusDropdownOpen(false);
+  };
 
   if (!isOpen || !task) return null;
 
@@ -223,7 +255,49 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                   </div>
                   <span className="text-sm">Status</span>
                 </div>
-                <span className="text-sm font-medium text-gray-900">{task.status}</span>
+                {canChangeStatus && onStatusChange ? (
+                  <div className="relative" ref={statusDropdownRef}>
+                    <button
+                      onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all ${
+                        isStatusDropdownOpen 
+                          ? 'border-blue-300 bg-blue-50 ring-2 ring-blue-100' 
+                          : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      <span className={`w-2 h-2 rounded-full ${getStatusConfig(task.status).color}`}></span>
+                      <span className="text-sm font-medium text-gray-900">{task.status}</span>
+                      <ChevronDown 
+                        size={14} 
+                        className={`text-gray-400 transition-transform ${isStatusDropdownOpen ? 'rotate-180' : ''}`} 
+                      />
+                    </button>
+                    
+                    {isStatusDropdownOpen && (
+                      <div className="absolute top-full left-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                        {Object.values(Status).map((status) => (
+                          <button
+                            key={status}
+                            onClick={() => handleStatusChange(status)}
+                            className={`w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-gray-50 transition-colors ${
+                              task.status === status ? 'bg-blue-50' : ''
+                            }`}
+                          >
+                            <span className={`w-2.5 h-2.5 rounded-full ${getStatusConfig(status).color}`}></span>
+                            <span className={`text-sm ${task.status === status ? 'font-medium text-blue-700' : 'text-gray-700'}`}>
+                              {status}
+                            </span>
+                            {task.status === status && (
+                              <span className="ml-auto text-blue-600">✓</span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <span className="text-sm font-medium text-gray-900">{task.status}</span>
+                )}
               </div>
 
               {/* Due Date */}

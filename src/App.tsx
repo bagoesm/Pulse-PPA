@@ -1663,6 +1663,30 @@ const App: React.FC = () => {
       }
   }
 
+  // Handle status change from view modal (for PIC quick status update)
+  const handleStatusChangeFromView = async (taskId: string, newStatus: Status) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    const oldStatus = task.status;
+    
+    // Update local state
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
+    
+    // Update viewing task if it's the same task
+    if (viewingTask && viewingTask.id === taskId) {
+      setViewingTask({ ...viewingTask, status: newStatus });
+    }
+    
+    // Update in database
+    await supabase.from('tasks').update({ status: newStatus }).eq('id', taskId);
+    
+    // Log activity
+    if (oldStatus !== newStatus) {
+      await logTaskActivity(taskId, 'status_change', oldStatus, newStatus);
+    }
+  };
+
 
 
   // Handle add comment
@@ -2502,13 +2526,15 @@ const App: React.FC = () => {
                     onDismissAll={dismissAllNotifications}
                   />
                   {currentUser && (
-                    <UserAvatar
-                      name={currentUser.name}
-                      profilePhoto={currentUser.profilePhoto}
-                      size="md"
-                      onClick={() => setIsProfilePhotoModalOpen(true)}
-                      showEditHint
-                    />
+                    <div className="hidden md:block">
+                      <UserAvatar
+                        name={currentUser.name}
+                        profilePhoto={currentUser.profilePhoto}
+                        size="md"
+                        onClick={() => setIsProfilePhotoModalOpen(true)}
+                        showEditHint
+                      />
+                    </div>
                   )}
                 </div>
              </div>
@@ -2845,6 +2871,7 @@ const App: React.FC = () => {
         activities={taskActivities}
         onAddComment={handleAddComment}
         onDeleteComment={handleDeleteComment}
+        onStatusChange={handleStatusChangeFromView}
       />
 
       <AddTaskModal
