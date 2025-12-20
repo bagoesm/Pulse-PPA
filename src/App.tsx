@@ -28,8 +28,6 @@ import DataInventory from './components/DataInventory';
 import TaskShareModal from './components/TaskShareModal';
 import MobileNav from './components/MobileNav';
 import { useTaskShare } from './hooks/useTaskShare';
-import { usePushNotifications } from './hooks/usePushNotifications';
-import PushNotificationPrompt from './components/PushNotificationPrompt';
 
 const App: React.FC = () => {
   // Auth State
@@ -105,14 +103,6 @@ const App: React.FC = () => {
   // Share functionality
   const { shareState, openTaskShare, closeShare } = useTaskShare();
 
-  // Push Notifications
-  const {
-    isSupported: isPushSupported,
-    showPrompt: showPushPrompt,
-    subscribe: subscribeToPush,
-    dismissPrompt: dismissPushPrompt
-  } = usePushNotifications({ userId: currentUser?.id || null });
-  
   // Notification Modal State
   const [notificationModal, setNotificationModal] = useState({
     isOpen: false,
@@ -1257,14 +1247,32 @@ const App: React.FC = () => {
       }
   };
   const handleUpdateFeedbackStatus = async (id: string, status: FeedbackStatus, response?: string) => {
-      const { error } = await supabase.from('feedbacks').update({ status, admin_response: response }).eq('id', id);
-      if (!error) {
+      const { data: updatedData, error } = await supabase
+        .from('feedbacks')
+        .update({ status, admin_response: response })
+        .eq('id', id)
+        .select();
+      
+      if (!error && updatedData && updatedData.length > 0) {
           setFeedbacks(prev => prev.map(fb => fb.id === id ? { ...fb, status, adminResponse: response } : fb));
+      } else {
+          console.error('Update feedback failed:', error || 'No rows updated (RLS policy may have blocked this action)');
+          showNotification('Gagal Update Feedback', 'Anda tidak memiliki izin untuk mengubah feedback ini.', 'error');
       }
   };
   const handleDeleteFeedback = async (id: string) => {
-       const { error } = await supabase.from('feedbacks').delete().eq('id', id);
-       if (!error) setFeedbacks(prev => prev.filter(fb => fb.id !== id));
+       const { data: deletedData, error } = await supabase
+         .from('feedbacks')
+         .delete()
+         .eq('id', id)
+         .select();
+       
+       if (!error && deletedData && deletedData.length > 0) {
+         setFeedbacks(prev => prev.filter(fb => fb.id !== id));
+       } else {
+         console.error('Delete feedback failed:', error || 'No rows deleted (RLS policy may have blocked this action)');
+         showNotification('Gagal Hapus Feedback', 'Anda tidak memiliki izin untuk menghapus feedback ini.', 'error');
+       }
   };
   const handleVoteFeedback = async (feedbackId: string, type: 'up' | 'down') => {
        if (!currentUser) return;
@@ -1387,12 +1395,26 @@ const App: React.FC = () => {
       const task = tasks.find(t => t.id === draggedTaskId);
       const oldStatus = task?.status;
       
+      // Optimistic update
       setTasks(prev => prev.map(t => t.id === draggedTaskId ? { ...t, status } : t));
-      await supabase.from('tasks').update({ status }).eq('id', draggedTaskId);
       
-      // Log status change activity
-      if (oldStatus && oldStatus !== status) {
-        await logTaskActivity(draggedTaskId, 'status_change', oldStatus, status);
+      const { data: updatedData, error } = await supabase
+        .from('tasks')
+        .update({ status })
+        .eq('id', draggedTaskId)
+        .select();
+      
+      // Check if update actually succeeded
+      if (!error && updatedData && updatedData.length > 0) {
+        // Log status change activity only if update succeeded
+        if (oldStatus && oldStatus !== status) {
+          await logTaskActivity(draggedTaskId, 'status_change', oldStatus, status);
+        }
+      } else {
+        // Revert optimistic update if failed
+        setTasks(prev => prev.map(t => t.id === draggedTaskId ? { ...t, status: oldStatus || t.status } : t));
+        console.error('Update status failed:', error || 'No rows updated (RLS policy may have blocked this action)');
+        showNotification('Gagal Update Status', 'Anda tidak memiliki izin untuk mengubah status task ini.', 'error');
       }
       
       setDraggedTaskId(null);
@@ -1434,12 +1456,14 @@ const App: React.FC = () => {
             !newAttachments.some(newAtt => newAtt.id === oldAtt.id)
         );
 
-        const { error } = await supabase
+        const { data: updatedData, error } = await supabase
             .from('tasks')
             .update(payload)
-            .eq('id', editingTask.id);
+            .eq('id', editingTask.id)
+            .select();
 
-        if (!error) {
+        // Check if update actually succeeded (RLS might silently block without error)
+        if (!error && updatedData && updatedData.length > 0) {
             // Clean up removed attachments from storage
             if (removedAttachments.length > 0) {
                 const filePaths = removedAttachments
@@ -1498,6 +1522,10 @@ const App: React.FC = () => {
             );
             // Trigger refresh for ProjectOverview
             setProjectRefreshTrigger(prev => prev + 1);
+        } else {
+            // Update failed - either error or RLS blocked the update
+            console.error('Update task failed:', error || 'No rows updated (RLS policy may have blocked this action)');
+            showNotification('Gagal Update Task', 'Anda tidak memiliki izin untuk mengubah task ini.', 'error');
         }
 
         setEditingTask(null);
@@ -1553,8 +1581,13 @@ const App: React.FC = () => {
       // Find the task to get its attachments before deletion
       const taskToDelete = tasks.find(t => t.id === id);
       
-      const { error } = await supabase.from('tasks').delete().eq('id', id);
-      if (!error) {
+      const { data: deletedData, error } = await supabase
+        .from('tasks')
+        .delete()
+        .eq('id', id)
+        .select();
+      
+      if (!error && deletedData && deletedData.length > 0) {
           // Clean up attachments from storage
           if (taskToDelete?.attachments && taskToDelete.attachments.length > 0) {
               const filePaths = taskToDelete.attachments
@@ -1578,6 +1611,9 @@ const App: React.FC = () => {
           setProjectRefreshTrigger(prev => prev + 1);
           setIsModalOpen(false);
           setEditingTask(null);
+      } else {
+          console.error('Delete task failed:', error || 'No rows deleted (RLS policy may have blocked this action)');
+          showNotification('Gagal Hapus Task', 'Anda tidak memiliki izin untuk menghapus task ini.', 'error');
       }
   };
 
@@ -1703,7 +1739,7 @@ const App: React.FC = () => {
 
     const oldStatus = task.status;
     
-    // Update local state
+    // Optimistic update local state
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
     
     // Update viewing task if it's the same task
@@ -1712,11 +1748,26 @@ const App: React.FC = () => {
     }
     
     // Update in database
-    await supabase.from('tasks').update({ status: newStatus }).eq('id', taskId);
+    const { data: updatedData, error } = await supabase
+      .from('tasks')
+      .update({ status: newStatus })
+      .eq('id', taskId)
+      .select();
     
-    // Log activity
-    if (oldStatus !== newStatus) {
-      await logTaskActivity(taskId, 'status_change', oldStatus, newStatus);
+    // Check if update actually succeeded
+    if (!error && updatedData && updatedData.length > 0) {
+      // Log activity only if update succeeded
+      if (oldStatus !== newStatus) {
+        await logTaskActivity(taskId, 'status_change', oldStatus, newStatus);
+      }
+    } else {
+      // Revert optimistic update if failed
+      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: oldStatus } : t));
+      if (viewingTask && viewingTask.id === taskId) {
+        setViewingTask({ ...viewingTask, status: oldStatus });
+      }
+      console.error('Update status failed:', error || 'No rows updated (RLS policy may have blocked this action)');
+      showNotification('Gagal Update Status', 'Anda tidak memiliki izin untuk mengubah status task ini.', 'error');
     }
   };
 
@@ -2992,14 +3043,6 @@ const App: React.FC = () => {
           onClose={closeShare}
           task={shareState.selectedTask}
           users={allUsers}
-        />
-      )}
-
-      {/* Push Notification Prompt */}
-      {isPushSupported && showPushPrompt && currentUser && (
-        <PushNotificationPrompt
-          onAllow={subscribeToPush}
-          onDismiss={dismissPushPrompt}
         />
       )}
     </div>

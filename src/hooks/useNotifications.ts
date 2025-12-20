@@ -71,25 +71,6 @@ export const useNotifications = ({ currentUser, tasks, onTaskNavigation }: UseNo
     }
   }, [currentUser, isLoading]);
 
-  // Send push notification via Edge Function
-  const sendPushNotification = useCallback(async (
-    userId: string,
-    title: string,
-    message: string,
-    taskId: string,
-    taskTitle: string,
-    type: string
-  ) => {
-    try {
-      await supabase.functions.invoke('send-push-notification', {
-        body: { userId, title, message, taskId, taskTitle, type }
-      });
-    } catch (error) {
-      // Silent fail - push is optional
-      console.log('Push notification skipped:', error);
-    }
-  }, []);
-
   // Create notification (handles duplicates via database constraint)
   const createNotification = useCallback(async (
     userId: string,
@@ -127,14 +108,11 @@ export const useNotifications = ({ currentUser, tasks, onTaskNavigation }: UseNo
           });
       }
 
-      // Send push notification to user's devices
-      await sendPushNotification(userId, title, message, taskId, taskTitle, type);
-
       return data;
     } catch (error) {
       console.error('Error creating notification:', error);
     }
-  }, [sendPushNotification]);
+  }, []);
 
   // Create comment notification
   const createCommentNotification = useCallback(async (
