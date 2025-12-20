@@ -17,7 +17,8 @@ import {
   MessageSquarePlus,
   Code,
   Settings,
-  Megaphone
+  Megaphone,
+  CalendarDays
 } from 'lucide-react';
 import { SIDEBAR_ITEMS, User } from '../../types';
 
@@ -46,7 +47,8 @@ const IconMap: Record<string, React.ElementType> = {
   'MessageSquarePlus': MessageSquarePlus,
   'Code': Code,
   'Megaphone': Megaphone,
-  'Database': Database
+  'Database': Database,
+  'CalendarDays': CalendarDays
 };
 
 const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser, users, onSwitchUser, onLogout }) => {

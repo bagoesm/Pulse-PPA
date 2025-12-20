@@ -17,8 +17,6 @@ export enum Category {
   PengembanganAplikasi = 'Pengembangan Aplikasi',
   SuratDokumen = 'Surat & Dokumen',
   AudiensiRapat = 'Audiensi/Rapat',
-  Asistensi = 'Asistensi',
-  Bimtek = 'Bimtek',
   PermintaanSatker = 'Permintaan Satker',
   TindakLanjut = 'Tindak Lanjut',
   Administrasi = 'Administrasi',
@@ -141,6 +139,8 @@ export interface Task {
   attachments: Attachment[];
   links: TaskLink[]; // Links related to the task
   comments?: Comment[]; // OPSIONAL - Comments for the task
+  isMeeting?: boolean; // Flag untuk menandai task dari meeting
+  meetingId?: string; // ID meeting jika task berasal dari meeting
 }
 
 export interface FilterState {
@@ -162,7 +162,7 @@ export interface Comment {
   updatedAt?: string; // ISO Date string
 }
 
-export type NotificationType = 'comment' | 'deadline' | 'assignment';
+export type NotificationType = 'comment' | 'deadline' | 'assignment' | 'meeting_pic' | 'meeting_invitee';
 
 export interface Notification {
   id: string;
@@ -172,6 +172,8 @@ export interface Notification {
   message: string;
   taskId: string;
   taskTitle: string;
+  meetingId?: string; // For meeting notifications
+  meetingTitle?: string; // For meeting notifications
   isRead: boolean;
   isDismissed: boolean; // Kept for backward compatibility
   createdAt: string;
@@ -226,15 +228,49 @@ export interface TaskActivity {
   createdAt: string;
 }
 
+// Meeting/Agenda Types
+export type MeetingType = 'internal' | 'external' | 'bimtek' | 'audiensi';
+
+export interface MeetingInviter {
+  id: string;
+  name: string;
+  organization?: string;
+}
+
+export interface Meeting {
+  id: string;
+  title: string;
+  type: MeetingType;
+  description?: string;
+  date: string; // ISO Date string
+  startTime: string; // HH:mm format
+  endTime: string; // HH:mm format
+  location: string;
+  isOnline: boolean;
+  onlineLink?: string;
+  inviter: MeetingInviter; // Yang mengundang
+  invitees: string[]; // Daftar undangan (nama)
+  pic: string[]; // PIC dari tim kita
+  projectId?: string; // Opsional - terkait project
+  suratUndangan?: Attachment; // Surat undangan
+  suratTugas?: Attachment; // Surat tugas
+  laporan?: Attachment; // Laporan hasil rapat
+  attachments: Attachment[]; // Lampiran lainnya
+  links: TaskLink[]; // Link terkait
+  notes?: string; // Catatan tambahan
+  status: 'scheduled' | 'ongoing' | 'completed' | 'cancelled';
+  createdBy: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
 export const SIDEBAR_ITEMS = [
   { name: 'Dashboard', icon: 'LayoutDashboard' },
   { name: 'Semua Task', icon: 'ListTodo' },
   { name: 'Project', icon: 'Briefcase' },
   { name: 'Pengembangan Aplikasi', icon: 'Code' },
   { name: 'Surat & Dokumen', icon: 'FileText' },
-  { name: 'Audiensi/Rapat', icon: 'Users' },
-  { name: 'Asistensi', icon: 'HelpingHand' },
-  { name: 'Bimtek', icon: 'GraduationCap' },
+  { name: 'Jadwal Kegiatan', icon: 'CalendarDays' },
   { name: 'Permintaan Satker', icon: 'Inbox' },
   { name: 'Tindak Lanjut', icon: 'Forward' },
   { name: 'Administrasi', icon: 'FolderOpen' },

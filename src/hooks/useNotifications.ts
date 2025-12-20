@@ -1,21 +1,24 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { Notification, Task, User } from '../../types';
+import { Notification, Task, User, NotificationType } from '../../types';
 
 interface UseNotificationsProps {
   currentUser: User | null;
   tasks: Task[];
   onTaskNavigation: (taskId: string) => void;
+  onMeetingNavigation?: (meetingId: string) => void;
 }
 
 interface DbNotification {
   id: string;
   user_id: string;
-  type: 'deadline' | 'comment' | 'assignment';
+  type: NotificationType;
   title: string;
   message: string;
   task_id: string;
   task_title: string;
+  meeting_id?: string;
+  meeting_title?: string;
   is_read: boolean;
   created_at: string;
 }
@@ -28,13 +31,15 @@ const mapDbToNotification = (n: DbNotification): Notification => ({
   message: n.message,
   taskId: n.task_id,
   taskTitle: n.task_title,
+  meetingId: n.meeting_id,
+  meetingTitle: n.meeting_title,
   isRead: n.is_read,
   isDismissed: false,
   createdAt: n.created_at,
   expiresAt: new Date(new Date(n.created_at).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString()
 });
 
-export const useNotifications = ({ currentUser, tasks, onTaskNavigation }: UseNotificationsProps) => {
+export const useNotifications = ({ currentUser, tasks, onTaskNavigation, onMeetingNavigation }: UseNotificationsProps) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const deadlineCheckDone = useRef(false);
@@ -74,11 +79,13 @@ export const useNotifications = ({ currentUser, tasks, onTaskNavigation }: UseNo
   // Create notification using RPC function (bypasses RLS for cross-user notifications)
   const createNotification = useCallback(async (
     userId: string,
-    type: 'deadline' | 'comment' | 'assignment',
+    type: NotificationType,
     title: string,
     message: string,
     taskId: string,
-    taskTitle: string
+    taskTitle: string,
+    meetingId?: string,
+    meetingTitle?: string
   ) => {
     try {
       // For deadline type, check if notification already exists today
@@ -97,6 +104,21 @@ export const useNotifications = ({ currentUser, tasks, onTaskNavigation }: UseNo
           return null; // Skip duplicate deadline notification
         }
       }
+      
+      // For meeting notifications, check if already exists for this meeting
+      if ((type === 'meeting_pic' || type === 'meeting_invitee') && meetingId) {
+        const { data: existing } = await supabase
+          .from('notifications')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('meeting_id', meetingId)
+          .eq('type', type)
+          .limit(1);
+        
+        if (existing && existing.length > 0) {
+          return null; // Skip duplicate meeting notification
+        }
+      }
 
       // Use RPC function to bypass RLS for cross-user notifications
       const { data, error } = await supabase.rpc('create_notification', {
@@ -104,8 +126,10 @@ export const useNotifications = ({ currentUser, tasks, onTaskNavigation }: UseNo
         p_type: type,
         p_title: title,
         p_message: message,
-        p_task_id: taskId,
-        p_task_title: taskTitle
+        p_task_id: taskId && taskId.length > 0 ? taskId : null,
+        p_task_title: taskTitle || null,
+        p_meeting_id: meetingId || null,
+        p_meeting_title: meetingTitle || null
       });
       
       if (error) {
@@ -342,8 +366,14 @@ export const useNotifications = ({ currentUser, tasks, onTaskNavigation }: UseNo
     if (!notification.isRead) {
       await markAsRead(notification.id);
     }
-    onTaskNavigation(notification.taskId);
-  }, [markAsRead, onTaskNavigation]);
+    
+    // Check if it's a meeting notification
+    if ((notification.type === 'meeting_pic' || notification.type === 'meeting_invitee') && notification.meetingId && onMeetingNavigation) {
+      onMeetingNavigation(notification.meetingId);
+    } else if (notification.taskId) {
+      onTaskNavigation(notification.taskId);
+    }
+  }, [markAsRead, onTaskNavigation, onMeetingNavigation]);
 
   // Dismiss all (just mark as read for simplicity)
   const dismissAllNotifications = useCallback(async () => {
@@ -433,11 +463,71 @@ export const useNotifications = ({ currentUser, tasks, onTaskNavigation }: UseNo
     return () => clearInterval(interval);
   }, []);
 
+  // Create meeting notification (when user is assigned as PIC or invited)
+  const createMeetingNotification = useCallback(async (
+    meetingId: string,
+    meetingTitle: string,
+    meetingDate: string,
+    picNames: string[],
+    inviteeNames: string[],
+    creatorName: string,
+    allUsers: User[]
+  ) => {
+    if (!currentUser) return;
+    
+    try {
+      // Notify PICs (excluding creator)
+      for (const picName of picNames) {
+        if (picName === creatorName) continue; // Don't notify creator
+        
+        const user = allUsers.find(u => u.name === picName);
+        if (!user) continue;
+        
+        await createNotification(
+          user.id,
+          'meeting_pic',
+          '📅 Anda ditunjuk sebagai PIC',
+          `${creatorName} menunjuk Anda sebagai PIC untuk jadwal "${meetingTitle}" pada ${meetingDate}`,
+          '', // No task ID
+          '', // No task title
+          meetingId,
+          meetingTitle
+        );
+      }
+      
+      // Notify invitees (excluding creator and PICs)
+      for (const inviteeName of inviteeNames) {
+        if (inviteeName === creatorName) continue;
+        if (picNames.includes(inviteeName)) continue; // Already notified as PIC
+        
+        const user = allUsers.find(u => u.name === inviteeName);
+        if (!user) continue;
+        
+        await createNotification(
+          user.id,
+          'meeting_invitee',
+          '📅 Anda diundang ke rapat',
+          `${creatorName} mengundang Anda ke "${meetingTitle}" pada ${meetingDate}`,
+          '', // No task ID
+          '', // No task title
+          meetingId,
+          meetingTitle
+        );
+      }
+      
+      // Refresh notifications
+      fetchNotifications();
+    } catch (error) {
+      console.error('Error creating meeting notification:', error);
+    }
+  }, [currentUser, createNotification, fetchNotifications]);
+
   return {
     notifications,
     createCommentNotification,
     createMentionNotification,
     createAssignmentNotification,
+    createMeetingNotification,
     markAsRead,
     markAllAsRead,
     deleteNotification,

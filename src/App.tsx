@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from './lib/supabaseClient';
 import { Plus, Search, Layout, CalendarRange, Briefcase, FileText, ListTodo, Loader2 } from 'lucide-react';
-import { Task, Status, Category, Priority, FilterState, User, ProjectDefinition, ViewMode, Feedback, FeedbackCategory, FeedbackStatus, DocumentTemplate, UserStatus, Attachment, Comment, ChristmasDecorationSettings, Announcement, DataInventoryItem, TaskActivity } from '../types';
+import { Task, Status, Category, Priority, FilterState, User, ProjectDefinition, ViewMode, Feedback, FeedbackCategory, FeedbackStatus, DocumentTemplate, UserStatus, Attachment, Comment, ChristmasDecorationSettings, Announcement, DataInventoryItem, TaskActivity, Meeting, MeetingInviter } from '../types';
 import Sidebar from './components/Sidebar';
 import TaskCard from './components/TaskCard';
 import AddTaskModal from './components/AddTaskModal';
@@ -28,6 +28,9 @@ import DataInventory from './components/DataInventory';
 import TaskShareModal from './components/TaskShareModal';
 import MobileNav from './components/MobileNav';
 import { useTaskShare } from './hooks/useTaskShare';
+import MeetingCalendar from './components/MeetingCalendar';
+import AddMeetingModal from './components/AddMeetingModal';
+import MeetingViewModal from './components/MeetingViewModal';
 
 const App: React.FC = () => {
   // Auth State
@@ -48,6 +51,15 @@ const App: React.FC = () => {
   const [taskActivities, setTaskActivities] = useState<TaskActivity[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [dataInventory, setDataInventory] = useState<DataInventoryItem[]>([]);
+  
+  // Meeting/Jadwal Kegiatan State
+  const [meetings, setMeetings] = useState<Meeting[]>([]);
+  const [meetingInviters, setMeetingInviters] = useState<MeetingInviter[]>([]);
+  const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false);
+  const [isMeetingViewModalOpen, setIsMeetingViewModalOpen] = useState(false);
+  const [isMeetingFromTask, setIsMeetingFromTask] = useState(false); // Track jika modal meeting dibuka dari task
+  const [editingMeeting, setEditingMeeting] = useState<Meeting | null>(null);
+  const [viewingMeeting, setViewingMeeting] = useState<Meeting | null>(null);
   
   // Christmas Decoration Settings
   const [christmasSettings, setChristmasSettings] = useState<ChristmasDecorationSettings>({
@@ -529,6 +541,54 @@ const App: React.FC = () => {
           updatedAt: item.updated_at
         }));
         setDataInventory(mappedInventory);
+      }
+
+      // --- Meetings / Jadwal Kegiatan ---
+      const { data: meetingsData, error: meetingsErr } = await supabase.from('meetings').select('*').order('date', { ascending: true });
+      if (meetingsErr) console.error('Error fetch meetings:', meetingsErr);
+      if (meetingsData) {
+        const mappedMeetings = meetingsData.map((m: any) => ({
+          id: m.id,
+          title: m.title,
+          type: m.type,
+          description: m.description,
+          date: m.date,
+          startTime: m.start_time,
+          endTime: m.end_time,
+          location: m.location,
+          isOnline: m.is_online,
+          onlineLink: m.online_link,
+          inviter: m.inviter || { id: '', name: '', organization: '' },
+          invitees: m.invitees || [],
+          pic: m.pic || [],
+          projectId: m.project_id,
+          suratUndangan: m.surat_undangan,
+          suratTugas: m.surat_tugas,
+          laporan: m.laporan,
+          attachments: (m.attachments || []).map((att: any, idx: number) => ({
+            ...att,
+            id: att.id || `att_${m.id}_${idx}` // Ensure each attachment has an id
+          })),
+          links: (m.links || []).map((link: any, idx: number) => ({
+            ...link,
+            id: link.id || `link_${m.id}_${idx}` // Ensure each link has an id
+          })),
+          notes: m.notes,
+          status: m.status,
+          createdBy: m.created_by,
+          createdAt: m.created_at,
+          updatedAt: m.updated_at
+        }));
+        setMeetings(mappedMeetings);
+        
+        // Extract unique inviters
+        const invitersMap = new Map<string, MeetingInviter>();
+        mappedMeetings.forEach((m: Meeting) => {
+          if (m.inviter?.id && m.inviter?.name) {
+            invitersMap.set(m.inviter.id, m.inviter);
+          }
+        });
+        setMeetingInviters(Array.from(invitersMap.values()));
       }
     } catch (err) {
       console.error('fetch All Data error', err);
@@ -1711,8 +1771,16 @@ const App: React.FC = () => {
       }
   }
 
-  // Handle task click - opens view modal
+  // Handle task click - opens view modal (or meeting view modal if it's a meeting)
   const handleTaskClick = (task: Task) => {
+      // Check if this task is actually a meeting
+      if (task.isMeeting && task.meetingId) {
+        const meeting = meetings.find(m => m.id === task.meetingId);
+        if (meeting) {
+          handleViewMeeting(meeting);
+          return;
+        }
+      }
       setViewingTask(task);
       setIsTaskViewModalOpen(true);
   }
@@ -2076,10 +2144,69 @@ const App: React.FC = () => {
           });
         }
 
+        // Get meetings for this project and convert to tasks
+        const projectMeetings = meetings.filter(m => m.projectId === projectId);
+        const meetingTasks: Task[] = projectMeetings.map(meeting => {
+          let taskStatus: Status;
+          switch (meeting.status) {
+            case 'scheduled': taskStatus = Status.ToDo; break;
+            case 'ongoing': taskStatus = Status.InProgress; break;
+            case 'completed':
+            case 'cancelled': taskStatus = Status.Done; break;
+            default: taskStatus = Status.ToDo;
+          }
+          
+          const typeLabels: Record<string, string> = {
+            internal: 'Internal Kementerian',
+            external: 'Eksternal Kementerian',
+            bimtek: 'Bimtek',
+            audiensi: 'Audiensi'
+          };
+          
+          return {
+            id: `meeting_${meeting.id}`,
+            title: meeting.title,
+            category: Category.AudiensiRapat,
+            subCategory: typeLabels[meeting.type] || meeting.type,
+            startDate: meeting.date,
+            deadline: meeting.date,
+            pic: meeting.pic,
+            priority: Priority.Medium,
+            status: taskStatus,
+            description: meeting.description || '',
+            createdBy: meeting.createdBy,
+            projectId: meeting.projectId,
+            attachments: meeting.attachments || [],
+            links: [],
+            isMeeting: true,
+            meetingId: meeting.id
+          };
+        });
+        
+        // Filter meeting tasks by status and priority if needed
+        let filteredMeetingTasks = meetingTasks;
+        if (filters.status && filters.status !== 'All') {
+          filteredMeetingTasks = filteredMeetingTasks.filter(t => t.status === filters.status);
+        }
+        if (filters.priority && filters.priority !== 'All') {
+          filteredMeetingTasks = filteredMeetingTasks.filter(t => t.priority === filters.priority);
+        }
+        if (filters.search) {
+          const searchTerm = filters.search.toLowerCase();
+          filteredMeetingTasks = filteredMeetingTasks.filter(task => 
+            task.title?.toLowerCase().includes(searchTerm) ||
+            task.description?.toLowerCase().includes(searchTerm)
+          );
+        }
+        
+        // Combine tasks and meeting tasks
+        const allTasks = [...filteredTasks, ...filteredMeetingTasks];
+        const totalWithMeetings = (count || 0) + projectMeetings.length;
+
         return {
-          tasks: filteredTasks,
-          totalCount: count || 0,
-          totalPages: Math.ceil((count || 0) / limit)
+          tasks: allTasks,
+          totalCount: totalWithMeetings,
+          totalPages: Math.ceil(totalWithMeetings / limit)
         };
       }
 
@@ -2088,7 +2215,7 @@ const App: React.FC = () => {
       console.error('fetchProjectTasks error:', error);
       return { tasks: [], totalCount: 0, totalPages: 0 };
     }
-  }, [allUsers]);
+  }, [allUsers, meetings]);
 
   const fetchUniqueManagers = useCallback(async () => {
     try {
@@ -2521,6 +2648,247 @@ const App: React.FC = () => {
     }
   };
 
+  // --- Meeting / Jadwal Kegiatan Handlers ---
+  const handleAddMeeting = (fromTask: boolean = false) => {
+    setEditingMeeting(null);
+    setViewingMeeting(null);
+    setIsMeetingViewModalOpen(false);
+    setIsMeetingFromTask(fromTask);
+    setIsMeetingModalOpen(true);
+  };
+
+  const handleBackToTask = () => {
+    setIsMeetingModalOpen(false);
+    setIsMeetingFromTask(false);
+    setIsModalOpen(true); // Buka kembali modal task
+  };
+
+  const handleEditMeeting = (meeting: Meeting) => {
+    setEditingMeeting(meeting);
+    setViewingMeeting(null);
+    setIsMeetingViewModalOpen(false);
+    setIsMeetingFromTask(false);
+    setIsMeetingModalOpen(true);
+  };
+
+  const handleViewMeeting = (meeting: Meeting) => {
+    setViewingMeeting(meeting);
+    setEditingMeeting(null);
+    setIsMeetingModalOpen(false);
+    setIsMeetingViewModalOpen(true);
+  };
+
+  const handleEditMeetingFromView = () => {
+    if (viewingMeeting) {
+      setEditingMeeting(viewingMeeting);
+      setIsMeetingViewModalOpen(false);
+      setIsMeetingModalOpen(true);
+    }
+  };
+
+  const handleDeleteMeetingFromView = () => {
+    if (viewingMeeting) {
+      handleDeleteMeeting(viewingMeeting.id);
+    }
+  };
+
+  const handleSaveMeeting = async (meetingData: Omit<Meeting, 'id' | 'createdAt'>) => {
+    try {
+      const payload = {
+        title: meetingData.title,
+        type: meetingData.type,
+        description: meetingData.description,
+        date: meetingData.date,
+        start_time: meetingData.startTime,
+        end_time: meetingData.endTime,
+        location: meetingData.location,
+        is_online: meetingData.isOnline,
+        online_link: meetingData.onlineLink,
+        inviter: meetingData.inviter,
+        invitees: meetingData.invitees,
+        pic: meetingData.pic,
+        project_id: meetingData.projectId || null,
+        surat_undangan: meetingData.suratUndangan,
+        surat_tugas: meetingData.suratTugas,
+        laporan: meetingData.laporan,
+        attachments: meetingData.attachments,
+        links: meetingData.links || [],
+        notes: meetingData.notes,
+        status: meetingData.status,
+        created_by: meetingData.createdBy,
+        updated_at: new Date().toISOString()
+      };
+
+      if (editingMeeting) {
+        // Update existing meeting
+        const { data, error } = await supabase
+          .from('meetings')
+          .update(payload)
+          .eq('id', editingMeeting.id)
+          .select()
+          .single();
+
+        if (error) {
+          showNotification('Gagal Update Jadwal', error.message, 'error');
+          return;
+        }
+
+        if (data) {
+          const mappedMeeting: Meeting = {
+            id: data.id,
+            title: data.title,
+            type: data.type,
+            description: data.description,
+            date: data.date,
+            startTime: data.start_time,
+            endTime: data.end_time,
+            location: data.location,
+            isOnline: data.is_online,
+            onlineLink: data.online_link,
+            inviter: data.inviter,
+            invitees: data.invitees || [],
+            pic: data.pic || [],
+            projectId: data.project_id,
+            suratUndangan: data.surat_undangan,
+            suratTugas: data.surat_tugas,
+            laporan: data.laporan,
+            attachments: (data.attachments || []).map((att: any, idx: number) => ({
+              ...att,
+              id: att.id || `att_${data.id}_${idx}`
+            })),
+            links: (data.links || []).map((link: any, idx: number) => ({
+              ...link,
+              id: link.id || `link_${data.id}_${idx}`
+            })),
+            notes: data.notes,
+            status: data.status,
+            createdBy: data.created_by,
+            createdAt: data.created_at,
+            updatedAt: data.updated_at
+          };
+          setMeetings(prev => prev.map(m => m.id === editingMeeting.id ? mappedMeeting : m));
+          showNotification('Jadwal Berhasil Diupdate!', `"${meetingData.title}" berhasil diperbarui.`, 'success');
+        }
+      } else {
+        // Create new meeting
+        const { data, error } = await supabase
+          .from('meetings')
+          .insert([{ ...payload, created_at: new Date().toISOString() }])
+          .select()
+          .single();
+
+        if (error) {
+          showNotification('Gagal Tambah Jadwal', error.message, 'error');
+          return;
+        }
+
+        if (data) {
+          const mappedMeeting: Meeting = {
+            id: data.id,
+            title: data.title,
+            type: data.type,
+            description: data.description,
+            date: data.date,
+            startTime: data.start_time,
+            endTime: data.end_time,
+            location: data.location,
+            isOnline: data.is_online,
+            onlineLink: data.online_link,
+            inviter: data.inviter,
+            invitees: data.invitees || [],
+            pic: data.pic || [],
+            projectId: data.project_id,
+            suratUndangan: data.surat_undangan,
+            suratTugas: data.surat_tugas,
+            laporan: data.laporan,
+            attachments: (data.attachments || []).map((att: any, idx: number) => ({
+              ...att,
+              id: att.id || `att_${data.id}_${idx}`
+            })),
+            links: (data.links || []).map((link: any, idx: number) => ({
+              ...link,
+              id: link.id || `link_${data.id}_${idx}`
+            })),
+            notes: data.notes,
+            status: data.status,
+            createdBy: data.created_by,
+            createdAt: data.created_at,
+            updatedAt: data.updated_at
+          };
+          setMeetings(prev => [...prev, mappedMeeting].sort((a, b) => a.date.localeCompare(b.date)));
+          
+          // Update inviters list if new inviter
+          if (meetingData.inviter?.id && !meetingInviters.find(i => i.id === meetingData.inviter.id)) {
+            setMeetingInviters(prev => [...prev, meetingData.inviter]);
+          }
+          
+          showNotification('Jadwal Berhasil Ditambahkan!', `"${meetingData.title}" berhasil ditambahkan.`, 'success');
+          
+          // Send notifications to PICs and invitees
+          const formattedDate = new Date(meetingData.date).toLocaleDateString('id-ID', {
+            weekday: 'long',
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric'
+          });
+          
+          createMeetingNotification(
+            data.id,
+            meetingData.title,
+            formattedDate,
+            meetingData.pic || [],
+            meetingData.invitees || [],
+            currentUser?.name || 'Unknown',
+            allUsers
+          );
+        }
+      }
+
+      setIsMeetingModalOpen(false);
+      setEditingMeeting(null);
+      setViewingMeeting(null);
+    } catch (error: any) {
+      console.error('Error saving meeting:', error);
+      showNotification('Kesalahan Tidak Terduga', `Terjadi kesalahan: ${error.message}`, 'error');
+    }
+  };
+
+  const handleDeleteMeeting = async (id: string) => {
+    try {
+      const { error } = await supabase.from('meetings').delete().eq('id', id);
+      
+      if (error) {
+        showNotification('Gagal Hapus Jadwal', error.message, 'error');
+        return;
+      }
+
+      setMeetings(prev => prev.filter(m => m.id !== id));
+      setIsMeetingModalOpen(false);
+      setIsMeetingViewModalOpen(false);
+      setEditingMeeting(null);
+      setViewingMeeting(null);
+      showNotification('Jadwal Berhasil Dihapus!', 'Jadwal telah dihapus.', 'success');
+    } catch (error: any) {
+      console.error('Error deleting meeting:', error);
+      showNotification('Kesalahan Tidak Terduga', `Terjadi kesalahan: ${error.message}`, 'error');
+    }
+  };
+
+  const checkMeetingEditPermission = (meeting: Meeting) => {
+    if (!currentUser) return false;
+    if (currentUser.role === 'Super Admin') return true;
+    if (currentUser.role === 'Atasan') return true;
+    return meeting.createdBy === currentUser.name || meeting.pic.includes(currentUser.name);
+  };
+
+  const checkMeetingDeletePermission = (meeting: Meeting) => {
+    if (!currentUser) return false;
+    if (currentUser.role === 'Super Admin') return true;
+    if (currentUser.role === 'Atasan') return true;
+    // Yang membuat atau PIC bisa hapus
+    return meeting.createdBy === currentUser.name || meeting.pic.includes(currentUser.name);
+  };
+
   // Handle task navigation from notification
   const handleTaskNavigation = (taskId: string) => {
     const task = tasks.find(t => t.id === taskId);
@@ -2530,12 +2898,23 @@ const App: React.FC = () => {
     }
   };
 
+  // Handle meeting navigation from notification
+  const handleMeetingNavigation = useCallback((meetingId: string) => {
+    const meeting = meetings.find(m => m.id === meetingId);
+    if (meeting) {
+      setActiveTab('Jadwal Kegiatan');
+      setViewingMeeting(meeting);
+      setIsMeetingViewModalOpen(true);
+    }
+  }, [meetings]);
+
   // Initialize notifications hook
   const {
     notifications,
     createCommentNotification,
     createMentionNotification,
     createAssignmentNotification,
+    createMeetingNotification,
     markAsRead,
     markAllAsRead,
     deleteNotification,
@@ -2544,14 +2923,69 @@ const App: React.FC = () => {
   } = useNotifications({
     currentUser,
     tasks,
-    onTaskNavigation: handleTaskNavigation
+    onTaskNavigation: handleTaskNavigation,
+    onMeetingNavigation: handleMeetingNavigation
   });
 
 
 
+  // --- Convert Meetings to Tasks ---
+  const meetingsAsTasks = useMemo((): Task[] => {
+    return meetings.map(meeting => {
+      // Map meeting status to task status
+      let taskStatus: Status;
+      switch (meeting.status) {
+        case 'scheduled':
+          taskStatus = Status.ToDo;
+          break;
+        case 'ongoing':
+          taskStatus = Status.InProgress;
+          break;
+        case 'completed':
+        case 'cancelled':
+          taskStatus = Status.Done;
+          break;
+        default:
+          taskStatus = Status.ToDo;
+      }
+
+      // Map meeting type to sub category
+      const typeLabels: Record<string, string> = {
+        internal: 'Internal Kementerian',
+        external: 'Eksternal Kementerian',
+        bimtek: 'Bimtek',
+        audiensi: 'Audiensi'
+      };
+
+      return {
+        id: `meeting_${meeting.id}`,
+        title: meeting.title,
+        category: Category.AudiensiRapat,
+        subCategory: typeLabels[meeting.type] || meeting.type,
+        startDate: meeting.date,
+        deadline: meeting.date,
+        pic: meeting.pic,
+        priority: Priority.Medium,
+        status: taskStatus,
+        description: meeting.description || '',
+        createdBy: meeting.createdBy,
+        projectId: meeting.projectId,
+        attachments: meeting.attachments || [],
+        links: [],
+        isMeeting: true,
+        meetingId: meeting.id
+      };
+    });
+  }, [meetings]);
+
+  // --- Combined Tasks (regular tasks + meetings as tasks) ---
+  const allTasksWithMeetings = useMemo(() => {
+    return [...tasks, ...meetingsAsTasks];
+  }, [tasks, meetingsAsTasks]);
+
   // --- Filtering ---
   const filteredTasks = useMemo(() => {
-    return tasks.filter(task => {
+    return allTasksWithMeetings.filter(task => {
       // Handle both array and string PIC for backward compatibility
       const taskPics = Array.isArray(task.pic) ? task.pic : [task.pic];
       const matchesSearch = task.title?.toLowerCase().includes(filters.search.toLowerCase()) || 
@@ -2615,7 +3049,7 @@ const App: React.FC = () => {
       <main className="flex-1 ml-0 md:ml-64 flex flex-col h-screen overflow-hidden pt-14 pb-16 md:pt-0 md:pb-0">
         
         {/* Top Header / Filter Bar - HIDDEN for special pages */}
-        {activeTab !== 'Dashboard' && activeTab !== 'Project' && activeTab !== 'Master Data' && activeTab !== 'Saran Masukan' && activeTab !== 'Pengumuman' && activeTab !== 'Inventori Data' && (
+        {activeTab !== 'Dashboard' && activeTab !== 'Project' && activeTab !== 'Master Data' && activeTab !== 'Saran Masukan' && activeTab !== 'Pengumuman' && activeTab !== 'Inventori Data' && activeTab !== 'Jadwal Kegiatan' && (
         <header className="bg-white border-b border-slate-200 px-3 sm:px-6 py-3 sm:py-4 z-20 relative">
           <div className="flex flex-col gap-3 sm:gap-4 mb-3 sm:mb-4">
              {/* Title Section */}
@@ -2765,7 +3199,7 @@ const App: React.FC = () => {
         {/* Content Area */}
         {activeTab === 'Dashboard' ? (
           <Dashboard 
-            tasks={tasks} 
+            tasks={allTasksWithMeetings} 
             users={taskAssignableUsers} 
             userStatuses={userStatuses}
             onCreateStatus={handleCreateStatus}
@@ -2860,6 +3294,16 @@ const App: React.FC = () => {
               currentUser={currentUser}
             />
           </div>
+        ) : activeTab === 'Jadwal Kegiatan' ? (
+          <MeetingCalendar
+            meetings={meetings}
+            users={taskAssignableUsers}
+            projects={projects}
+            currentUser={currentUser}
+            onAddMeeting={() => handleAddMeeting(false)}
+            onEditMeeting={handleEditMeeting}
+            onViewMeeting={handleViewMeeting}
+          />
         ) : activeTab === 'Inventori Data' ? (
           <DataInventory
             items={dataInventory}
@@ -2998,6 +3442,11 @@ const App: React.FC = () => {
         masterCategories={masterCategories}
         masterSubCategories={masterSubCategories}
         categorySubcategoryRelations={categorySubcategoryRelations}
+        onSwitchToMeeting={() => {
+          setIsModalOpen(false);
+          setEditingTask(null);
+          handleAddMeeting(true); // true = dari task modal
+        }}
       />
 
       <AddProjectModal
@@ -3069,6 +3518,45 @@ const App: React.FC = () => {
           users={allUsers}
         />
       )}
+
+      {/* Meeting View Modal */}
+      <MeetingViewModal
+        isOpen={isMeetingViewModalOpen}
+        onClose={() => {
+          setIsMeetingViewModalOpen(false);
+          setViewingMeeting(null);
+        }}
+        meeting={viewingMeeting}
+        projects={projects}
+        canEdit={viewingMeeting ? checkMeetingEditPermission(viewingMeeting) : false}
+        canDelete={viewingMeeting ? checkMeetingDeletePermission(viewingMeeting) : false}
+        onEdit={handleEditMeetingFromView}
+        onDelete={handleDeleteMeetingFromView}
+      />
+
+      {/* Meeting Edit Modal */}
+      <AddMeetingModal
+        isOpen={isMeetingModalOpen}
+        onClose={() => {
+          setIsMeetingModalOpen(false);
+          setEditingMeeting(null);
+          setIsMeetingFromTask(false);
+        }}
+        onSave={(data) => {
+          handleSaveMeeting(data);
+          setIsMeetingFromTask(false);
+        }}
+        onDelete={handleDeleteMeeting}
+        initialData={editingMeeting}
+        currentUser={currentUser}
+        canEdit={true}
+        canDelete={editingMeeting ? checkMeetingDeletePermission(editingMeeting) : false}
+        projects={projects}
+        users={taskAssignableUsers}
+        existingInviters={meetingInviters}
+        fromTaskModal={isMeetingFromTask}
+        onBackToTask={handleBackToTask}
+      />
     </div>
   );
 };

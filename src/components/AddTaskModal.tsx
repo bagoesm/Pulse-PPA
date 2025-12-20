@@ -24,6 +24,7 @@ interface AddTaskModalProps {
   masterCategories: any[];   // dynamic categories from DB
   masterSubCategories: any[]; // dynamic subcategories from DB
   categorySubcategoryRelations: any[]; // relations between categories and subcategories
+  onSwitchToMeeting?: () => void; // Callback ketika user pilih kategori Jadwal Kegiatan
 }
 
 const formatFileSize = (bytes: number): string => {
@@ -48,7 +49,8 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
   subCategories,
   masterCategories,
   masterSubCategories,
-  categorySubcategoryRelations
+  categorySubcategoryRelations,
+  onSwitchToMeeting
 }) => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   
@@ -151,6 +153,14 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
 
   const handleChange = (key: keyof Task, value: any) => {
     if (isReadOnly) return;
+    
+    // Jika user memilih kategori "Audiensi/Rapat" dan ini bukan edit mode, switch ke meeting modal
+    // Cek berdasarkan nama string karena kategori bisa dari database
+    if (key === 'category' && value === 'Audiensi/Rapat' && !initialData && onSwitchToMeeting) {
+      onSwitchToMeeting();
+      return;
+    }
+    
     setFormData(prev => ({ ...prev, [key]: value }));
   };
 

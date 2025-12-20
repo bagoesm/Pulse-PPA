@@ -11,6 +11,7 @@ import {
   Database,
   X,
   Settings,
+  CalendarDays,
 } from 'lucide-react';
 import { User } from '../../types';
 import UserAvatar from './UserAvatar';
@@ -43,6 +44,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
 
   // Sub-menu items for "Lainnya"
   const moreMenuItems = [
+    { name: 'Jadwal Kegiatan', icon: CalendarDays, color: 'text-indigo-600', bg: 'bg-indigo-50' },
     { name: 'Saran Masukan', icon: MessageSquarePlus, color: 'text-emerald-600', bg: 'bg-emerald-50' },
     { name: 'Pengumuman', icon: Megaphone, color: 'text-blue-600', bg: 'bg-blue-50' },
     { name: 'Inventori Data', icon: Database, color: 'text-purple-600', bg: 'bg-purple-50' },

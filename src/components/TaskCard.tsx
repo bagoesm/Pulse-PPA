@@ -47,11 +47,11 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, projects, users = [], onDragS
         ${canEdit ? 'cursor-grab active:cursor-grabbing hover:shadow-md hover:border-gov-300' : 'cursor-default opacity-90'}
       `}
     >
-      <div className="flex justify-between items-start mb-2">
+      <div className="flex justify-between items-center mb-2">
         <span className={`text-[9px] sm:text-[10px] uppercase font-bold px-1.5 sm:px-2 py-0.5 rounded border ${getCategoryColor(task.category)}`}>
           {task.category}
         </span>
-        <div className="flex items-center gap-1 sm:gap-2">
+        <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
           {onShare && (
             <ShareButton 
               onClick={() => onShare(task)}
