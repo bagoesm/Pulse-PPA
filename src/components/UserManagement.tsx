@@ -660,79 +660,79 @@ const UserManagement: React.FC<UserManagementProps> = ({
 
 
   return (
-    <div className="p-8 h-full overflow-y-auto bg-slate-50">
+    <div className="p-4 sm:p-8 h-full overflow-y-auto bg-slate-50">
         
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+        <div className="flex flex-col gap-4 mb-6 sm:mb-8">
             <div>
-                <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-3">
-                    <Database className="text-gov-600" />
-                    Master Data Management
+                <h2 className="text-xl sm:text-2xl font-bold text-slate-800 flex items-center gap-2 sm:gap-3">
+                    <Database className="text-gov-600" size={20} />
+                    Master Data
                 </h2>
-                <p className="text-sm text-slate-500 mt-1">Kelola data referensi dan pengguna sistem.</p>
+                <p className="text-xs sm:text-sm text-slate-500 mt-1">Kelola data referensi dan pengguna sistem.</p>
             </div>
             
             {/* Tabs */}
-            <div className="flex bg-white p-1 rounded-lg border border-slate-200">
+            <div className="flex bg-white p-1 rounded-lg border border-slate-200 overflow-x-auto">
                 <button 
                     onClick={() => setActiveTab('Users')} 
-                    className={`px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2 transition-all ${activeTab === 'Users' ? 'bg-gov-50 text-gov-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                    className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium flex items-center justify-center gap-1.5 sm:gap-2 transition-all whitespace-nowrap ${activeTab === 'Users' ? 'bg-gov-50 text-gov-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                 >
-                    <UserIcon size={16} /> Pengguna
+                    <UserIcon size={14} className="sm:w-4 sm:h-4" /> Pengguna
                 </button>
                 <button 
                     onClick={() => setActiveTab('Jabatan')} 
-                    className={`px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2 transition-all ${activeTab === 'Jabatan' ? 'bg-gov-50 text-gov-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                    className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium flex items-center justify-center gap-1.5 sm:gap-2 transition-all whitespace-nowrap ${activeTab === 'Jabatan' ? 'bg-gov-50 text-gov-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                 >
-                    <Briefcase size={16} /> Jabatan
+                    <Briefcase size={14} className="sm:w-4 sm:h-4" /> Jabatan
                 </button>
                 <button 
                     onClick={() => setActiveTab('Kategori')} 
-                    className={`px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2 transition-all ${activeTab === 'Kategori' ? 'bg-gov-50 text-gov-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                    className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium flex items-center justify-center gap-1.5 sm:gap-2 transition-all whitespace-nowrap ${activeTab === 'Kategori' ? 'bg-gov-50 text-gov-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                 >
-                    <Tag size={16} /> Kategori
+                    <Tag size={14} className="sm:w-4 sm:h-4" /> Kategori
                 </button>
             </div>
         </div>
 
         {/* Content Area */}
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
             
             {/* Action Bar */}
-            <div className="flex flex-col md:flex-row gap-4 justify-between">
-                <div className="relative flex-1 max-w-md">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <div className="flex flex-col gap-3 sm:gap-4">
+                <div className="relative w-full">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                     <input 
                         type="text" 
                         placeholder={`Cari ${activeTab}...`}
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gov-300 transition-all shadow-sm"
+                        className="w-full pl-9 pr-4 py-2 sm:py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gov-300 transition-all shadow-sm"
                     />
                 </div>
 
                 {activeTab === 'Users' ? (
                      <button 
                         onClick={() => handleOpenUserModal()}
-                        className="bg-gov-600 text-white px-4 py-2.5 rounded-lg font-semibold hover:bg-gov-700 flex items-center gap-2 shadow-sm transition-all"
+                        className="w-full sm:w-auto bg-gov-600 text-white px-4 py-2.5 rounded-lg font-semibold hover:bg-gov-700 flex items-center justify-center gap-2 shadow-sm transition-all text-sm"
                     >
                         <Plus size={18} /> Tambah User
                     </button>
                 ) : (
-                    <div className="flex gap-2 w-full md:w-auto">
+                    <div className="flex gap-2">
                         <input 
                             type="text"
                             value={newItemInput}
                             onChange={(e) => setNewItemInput(e.target.value)}
                             placeholder={`Tambah ${activeTab} baru...`}
-                            className="flex-1 md:w-64 px-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gov-300 transition-all shadow-sm"
+                            className="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gov-300 transition-all shadow-sm"
                         />
                         <button 
                             onClick={handleAddItem}
                             disabled={!newItemInput.trim()}
-                            className="bg-gov-600 text-white px-4 py-2.5 rounded-lg font-semibold hover:bg-gov-700 disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm transition-all"
+                            className="bg-gov-600 text-white px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg font-semibold hover:bg-gov-700 disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center gap-1 sm:gap-2 shadow-sm transition-all text-sm"
                         >
-                            <Plus size={18} /> Tambah
+                            <Plus size={16} /> <span className="hidden sm:inline">Tambah</span>
                         </button>
                     </div>
                 )}
@@ -741,60 +741,110 @@ const UserManagement: React.FC<UserManagementProps> = ({
             {/* Tables */}
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                 {activeTab === 'Users' ? (
-                     <table className="w-full text-left border-collapse">
-                     <thead className="bg-slate-50 border-b border-slate-200">
-                         <tr>
-                             <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Pegawai</th>
-                             <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Jabatan</th>
-                             <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Role</th>
-                             <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Aksi</th>
-                         </tr>
-                     </thead>
-                     <tbody className="divide-y divide-slate-100">
-                         {filteredUsers.map(user => (
-                             <tr key={user.id} className="hover:bg-slate-50/50 transition-colors">
-                                 <td className="px-6 py-4">
-                                     <div className="flex items-center gap-3">
-                                         <div className="w-9 h-9 rounded-full bg-gov-100 text-gov-700 flex items-center justify-center font-bold text-sm">
-                                             {user.initials}
-                                         </div>
-                                         <div>
-                                             <p className="font-bold text-slate-800 text-sm">{user.name}</p>
-                                             <p className="text-xs text-slate-500">{user.email}</p>
-                                         </div>
-                                     </div>
-                                 </td>
-                                 <td className="px-6 py-4">
-                                     <span className="text-sm text-slate-600">{user.jabatan || '-'}</span>
-                                 </td>
-                                 <td className="px-6 py-4">
-                                     <span className={`text-[10px] font-bold px-2 py-1 rounded-full uppercase ${
-                                         user.role === 'Super Admin' ? 'bg-purple-100 text-purple-700' :
-                                         user.role === 'Atasan' ? 'bg-blue-100 text-blue-700' :
-                                         'bg-slate-100 text-slate-600'
-                                     }`}>
-                                         {user.role}
-                                     </span>
-                                 </td>
-                                 <td className="px-6 py-4 text-right">
-                                     <div className="flex items-center justify-end gap-2">
-                                         <button onClick={() => handleOpenUserModal(user)} className="p-2 text-slate-400 hover:text-gov-600 hover:bg-gov-50 rounded-lg transition-colors"><Edit2 size={16} /></button>
-                                         <button onClick={() => {
-                                             showConfirm(
-                                                 'Hapus User',
-                                                 `Apakah Anda yakin ingin menghapus user "${user.name}"?`,
-                                                 () => onDeleteUser(user.id),
-                                                 'error',
-                                                 'Hapus',
-                                                 'Batal'
-                                             );
-                                         }} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={16} /></button>
-                                     </div>
-                                 </td>
-                             </tr>
-                         ))}
-                     </tbody>
-                 </table>
+                    <>
+                        {/* Desktop Table */}
+                        <table className="hidden sm:table w-full text-left border-collapse">
+                            <thead className="bg-slate-50 border-b border-slate-200">
+                                <tr>
+                                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Pegawai</th>
+                                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Jabatan</th>
+                                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Role</th>
+                                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {filteredUsers.map(user => (
+                                    <tr key={user.id} className="hover:bg-slate-50/50 transition-colors">
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-9 h-9 rounded-full bg-gov-100 text-gov-700 flex items-center justify-center font-bold text-sm">
+                                                    {user.initials}
+                                                </div>
+                                                <div>
+                                                    <p className="font-bold text-slate-800 text-sm">{user.name}</p>
+                                                    <p className="text-xs text-slate-500">{user.email}</p>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className="text-sm text-slate-600">{user.jabatan || '-'}</span>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className={`text-[10px] font-bold px-2 py-1 rounded-full uppercase ${
+                                                user.role === 'Super Admin' ? 'bg-purple-100 text-purple-700' :
+                                                user.role === 'Atasan' ? 'bg-blue-100 text-blue-700' :
+                                                'bg-slate-100 text-slate-600'
+                                            }`}>
+                                                {user.role}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            <div className="flex items-center justify-end gap-2">
+                                                <button onClick={() => handleOpenUserModal(user)} className="p-2 text-slate-400 hover:text-gov-600 hover:bg-gov-50 rounded-lg transition-colors"><Edit2 size={16} /></button>
+                                                <button onClick={() => {
+                                                    showConfirm(
+                                                        'Hapus User',
+                                                        `Apakah Anda yakin ingin menghapus user "${user.name}"?`,
+                                                        () => onDeleteUser(user.id),
+                                                        'error',
+                                                        'Hapus',
+                                                        'Batal'
+                                                    );
+                                                }} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={16} /></button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        
+                        {/* Mobile Card List */}
+                        <div className="sm:hidden divide-y divide-slate-100">
+                            {filteredUsers.map(user => (
+                                <div key={user.id} className="p-4">
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-full bg-gov-100 text-gov-700 flex items-center justify-center font-bold text-sm flex-shrink-0">
+                                                {user.initials}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <p className="font-bold text-slate-800 text-sm truncate">{user.name}</p>
+                                                <p className="text-xs text-slate-500 truncate">{user.email}</p>
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    <span className="text-xs text-slate-600">{user.jabatan || '-'}</span>
+                                                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase ${
+                                                        user.role === 'Super Admin' ? 'bg-purple-100 text-purple-700' :
+                                                        user.role === 'Atasan' ? 'bg-blue-100 text-blue-700' :
+                                                        'bg-slate-100 text-slate-600'
+                                                    }`}>
+                                                        {user.role}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                            <button onClick={() => handleOpenUserModal(user)} className="p-2 text-slate-400 hover:text-gov-600 hover:bg-gov-50 rounded-lg transition-colors"><Edit2 size={16} /></button>
+                                            <button onClick={() => {
+                                                showConfirm(
+                                                    'Hapus User',
+                                                    `Apakah Anda yakin ingin menghapus user "${user.name}"?`,
+                                                    () => onDeleteUser(user.id),
+                                                    'error',
+                                                    'Hapus',
+                                                    'Batal'
+                                                );
+                                            }} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={16} /></button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                            {filteredUsers.length === 0 && (
+                                <div className="p-8 text-center text-slate-400 text-sm">
+                                    Data tidak ditemukan.
+                                </div>
+                            )}
+                        </div>
+                    </>
                 ) : activeTab === 'Kategori' ? (
                     <div className="space-y-8">
                         <MasterCategoryManagement 
@@ -865,24 +915,28 @@ const UserManagement: React.FC<UserManagementProps> = ({
 
         {/* User Modal */}
         {isModalOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-                <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden">
-                    <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                        <h3 className="font-bold text-slate-800">{editingUser ? 'Edit User' : 'Tambah User Baru'}</h3>
-                        <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+            <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/40 backdrop-blur-sm">
+                <div className="bg-white w-full sm:rounded-2xl rounded-t-2xl shadow-xl sm:max-w-lg max-h-[90vh] overflow-hidden sm:m-4">
+                    {/* Mobile handle bar */}
+                    <div className="sm:hidden flex justify-center pt-3 pb-1">
+                        <div className="w-10 h-1 bg-slate-300 rounded-full"></div>
+                    </div>
+                    
+                    <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                        <h3 className="font-bold text-slate-800 text-sm sm:text-base">{editingUser ? 'Edit User' : 'Tambah User Baru'}</h3>
+                        <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-1">
                             <X size={20} />
                         </button>
                     </div>
-                    <form onSubmit={handleUserSubmit} className="p-6 space-y-4">
+                    <form onSubmit={handleUserSubmit} className="p-4 sm:p-6 space-y-4 overflow-y-auto max-h-[calc(90vh-120px)]">
                         {!editingUser && (
                             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
                                 <div className="flex items-start gap-2">
-                                    <Shield className="text-blue-600 mt-0.5" size={16} />
+                                    <Shield className="text-blue-600 mt-0.5 flex-shrink-0" size={16} />
                                     <div>
                                         <p className="text-xs font-bold text-blue-800">Keamanan User Baru</p>
                                         <p className="text-[10px] text-blue-600 mt-1">
-                                            User baru akan dibuat dengan akun login yang dapat digunakan untuk mengakses sistem. 
-                                            Pastikan email dan password yang aman.
+                                            User baru akan dibuat dengan akun login yang dapat digunakan untuk mengakses sistem.
                                         </p>
                                     </div>
                                 </div>
@@ -908,7 +962,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm"
                             />
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Role Akses</label>
                                 <select 
@@ -931,17 +985,12 @@ const UserManagement: React.FC<UserManagementProps> = ({
                                         required={!editingUser}
                                         minLength={6}
                                         value={userFormData.password}
-                                        placeholder={editingUser ? '(Kosongkan jika tidak diubah)' : 'Minimal 6 karakter'}
+                                        placeholder={editingUser ? '(Kosongkan jika tidak diubah)' : 'Min 6 karakter'}
                                         onChange={e => setUserFormData({...userFormData, password: e.target.value})}
                                         className="w-full pl-8 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm"
                                     />
                                     <Key className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                                 </div>
-                                {!editingUser && (
-                                    <p className="text-[10px] text-slate-500 mt-1">
-                                        Password akan digunakan user untuk login pertama kali
-                                    </p>
-                                )}
                             </div>
                         </div>
                         <div>
@@ -958,106 +1007,57 @@ const UserManagement: React.FC<UserManagementProps> = ({
                             </select>
                         </div>
                         
-                        {/* Animation Settings */}
+                        {/* Animation Settings - Compact for mobile */}
                         <div>
-                            <label className="block text-xs font-bold text-slate-600 uppercase mb-2">Pengaturan Animasi</label>
-                            <div className="space-y-3">
+                            <label className="block text-xs font-bold text-slate-600 uppercase mb-2">Animasi</label>
+                            <div className="grid grid-cols-1 gap-2">
                                 {/* Sakura Animation */}
-                                <div className="flex items-center gap-3 p-3 bg-pink-50 border border-pink-200 rounded-lg">
-                                    <span className="text-pink-500 text-lg">🌸</span>
-                                    <div className="flex-1">
-                                        <p className="text-sm font-medium text-slate-700">Animasi Bunga Sakura</p>
-                                        <p className="text-xs text-slate-500">Tampilkan animasi bunga sakura saat hover di dashboard</p>
+                                <div className="flex items-center justify-between p-2.5 sm:p-3 bg-pink-50 border border-pink-200 rounded-lg">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-pink-500">🌸</span>
+                                        <span className="text-xs sm:text-sm font-medium text-slate-700">Sakura</span>
                                     </div>
-                                    <div className="flex items-center">
-                                        <input
-                                            type="checkbox"
-                                            id="sakuraAnimation"
-                                            checked={userFormData.sakuraAnimationEnabled || false}
-                                            onChange={e => setUserFormData({...userFormData, sakuraAnimationEnabled: e.target.checked})}
-                                            className="sr-only"
-                                        />
-                                        <label
-                                            htmlFor="sakuraAnimation"
-                                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
-                                                userFormData.sakuraAnimationEnabled ? 'bg-pink-500' : 'bg-slate-300'
-                                            }`}
-                                        >
-                                            <span
-                                                className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${
-                                                    userFormData.sakuraAnimationEnabled ? 'translate-x-6' : 'translate-x-1'
-                                                }`}
-                                            />
-                                        </label>
-                                    </div>
+                                    <input
+                                        type="checkbox"
+                                        checked={userFormData.sakuraAnimationEnabled || false}
+                                        onChange={e => setUserFormData({...userFormData, sakuraAnimationEnabled: e.target.checked})}
+                                        className="w-4 h-4 text-pink-500 border-slate-300 rounded focus:ring-pink-400"
+                                    />
                                 </div>
                                 
                                 {/* Snow Animation */}
-                                <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                                    <span className="text-blue-500 text-lg">❄️</span>
-                                    <div className="flex-1">
-                                        <p className="text-sm font-medium text-slate-700">Animasi Salju</p>
-                                        <p className="text-xs text-slate-500">Tampilkan animasi salju jatuh saat hover di dashboard</p>
+                                <div className="flex items-center justify-between p-2.5 sm:p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-blue-500">❄️</span>
+                                        <span className="text-xs sm:text-sm font-medium text-slate-700">Salju</span>
                                     </div>
-                                    <div className="flex items-center">
-                                        <input
-                                            type="checkbox"
-                                            id="snowAnimation"
-                                            checked={userFormData.snowAnimationEnabled || false}
-                                            onChange={e => setUserFormData({...userFormData, snowAnimationEnabled: e.target.checked})}
-                                            className="sr-only"
-                                        />
-                                        <label
-                                            htmlFor="snowAnimation"
-                                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
-                                                userFormData.snowAnimationEnabled ? 'bg-blue-500' : 'bg-slate-300'
-                                            }`}
-                                        >
-                                            <span
-                                                className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${
-                                                    userFormData.snowAnimationEnabled ? 'translate-x-6' : 'translate-x-1'
-                                                }`}
-                                            />
-                                        </label>
-                                    </div>
+                                    <input
+                                        type="checkbox"
+                                        checked={userFormData.snowAnimationEnabled || false}
+                                        onChange={e => setUserFormData({...userFormData, snowAnimationEnabled: e.target.checked})}
+                                        className="w-4 h-4 text-blue-500 border-slate-300 rounded focus:ring-blue-400"
+                                    />
                                 </div>
 
-                                {/* Money Animation Toggle */}
-                                <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-100">
-                                    <div>
-                                        <p className="text-sm font-medium text-slate-700 flex items-center gap-2">
-                                            💵 Animasi Uang
-                                        </p>
-                                        <p className="text-xs text-slate-500">Tampilkan animasi uang jatuh saat hover di dashboard</p>
+                                {/* Money Animation */}
+                                <div className="flex items-center justify-between p-2.5 sm:p-3 bg-green-50 border border-green-100 rounded-lg">
+                                    <div className="flex items-center gap-2">
+                                        <span>💵</span>
+                                        <span className="text-xs sm:text-sm font-medium text-slate-700">Uang</span>
                                     </div>
-                                    <div className="flex items-center">
-                                        <input
-                                            type="checkbox"
-                                            id="moneyAnimation"
-                                            checked={userFormData.moneyAnimationEnabled || false}
-                                            onChange={e => setUserFormData({...userFormData, moneyAnimationEnabled: e.target.checked})}
-                                            className="sr-only"
-                                        />
-                                        <label
-                                            htmlFor="moneyAnimation"
-                                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
-                                                userFormData.moneyAnimationEnabled ? 'bg-green-500' : 'bg-slate-300'
-                                            }`}
-                                        >
-                                            <span
-                                                className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${
-                                                    userFormData.moneyAnimationEnabled ? 'translate-x-6' : 'translate-x-1'
-                                                }`}
-                                            />
-                                        </label>
-                                    </div>
+                                    <input
+                                        type="checkbox"
+                                        checked={userFormData.moneyAnimationEnabled || false}
+                                        onChange={e => setUserFormData({...userFormData, moneyAnimationEnabled: e.target.checked})}
+                                        className="w-4 h-4 text-green-500 border-slate-300 rounded focus:ring-green-400"
+                                    />
                                 </div>
                             </div>
                         </div>
                         
-                        <div className="pt-4 flex justify-end gap-3">
-                             <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-slate-600 font-medium text-sm hover:bg-slate-100 rounded-lg">Batal</button>
-                             <button type="submit" className="px-4 py-2 bg-gov-600 text-white font-bold text-sm rounded-lg hover:bg-gov-700 flex items-center gap-2">
+                        <div className="pt-4 flex gap-3 pb-safe">
+                             <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 px-4 py-2.5 text-slate-600 font-medium text-sm hover:bg-slate-100 rounded-lg border border-slate-200">Batal</button>
+                             <button type="submit" className="flex-1 px-4 py-2.5 bg-gov-600 text-white font-bold text-sm rounded-lg hover:bg-gov-700 flex items-center justify-center gap-2">
                                 <Save size={16} /> Simpan
                              </button>
                         </div>

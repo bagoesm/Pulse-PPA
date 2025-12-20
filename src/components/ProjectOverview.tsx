@@ -467,14 +467,14 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
   // ---------------------------------------------------------------------------
   if (!selectedProjectId) {
     return (
-      <div className="p-8 h-full overflow-y-auto bg-slate-50">
-        <div className="flex justify-between items-center mb-6">
+      <div className="p-4 sm:p-8 h-full overflow-y-auto bg-slate-50">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
           <div>
-            <h2 className="text-2xl font-bold text-slate-800 mb-1">Daftar Project</h2>
-            <p className="text-slate-500 text-sm">Kelola dan pantau project tim</p>
+            <h2 className="text-xl sm:text-2xl font-bold text-slate-800 mb-1">Daftar Project</h2>
+            <p className="text-slate-500 text-xs sm:text-sm">Kelola dan pantau project tim</p>
           </div>
           
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
             {/* Refresh Button */}
             <button
               onClick={() => {
@@ -485,38 +485,39 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
                 onRefreshNeeded?.();
               }}
               disabled={projectsLoading}
-              className="flex items-center gap-2 px-3 py-2.5 border border-slate-300 text-slate-600 rounded-lg font-medium hover:bg-slate-50 transition-colors shadow-sm disabled:opacity-50"
+              className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 sm:py-2.5 border border-slate-300 text-slate-600 rounded-lg font-medium hover:bg-slate-50 transition-colors shadow-sm disabled:opacity-50 text-sm"
               title="Refresh Data"
             >
-              <RefreshCw size={16} className={projectsLoading ? 'animate-spin' : ''} />
-              Refresh
+              <RefreshCw size={14} className={projectsLoading ? 'animate-spin' : ''} />
+              <span className="hidden sm:inline">Refresh</span>
             </button>
             
             {canManageProjects && (
               <button
                 onClick={onCreateProject}
-                className="flex items-center gap-2 bg-gov-600 text-white px-4 py-2.5 rounded-lg font-medium hover:bg-gov-700 transition-colors shadow-sm"
+                className="flex items-center gap-1 sm:gap-2 bg-gov-600 text-white px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg font-medium hover:bg-gov-700 transition-colors shadow-sm text-sm flex-1 sm:flex-none justify-center"
               >
-                <Plus size={16} />
-                Buat Project Baru
+                <Plus size={14} />
+                <span className="hidden sm:inline">Buat Project Baru</span>
+                <span className="sm:hidden">Project</span>
               </button>
             )}
           </div>
         </div>
 
         {/* Search and Filter Section */}
-        <div className="bg-white rounded-xl border border-slate-200 p-4 mb-6 shadow-sm">
-          <div className="flex flex-col md:flex-row gap-4">
+        <div className="bg-white rounded-xl border border-slate-200 p-3 sm:p-4 mb-4 sm:mb-6 shadow-sm">
+          <div className="flex flex-col gap-3 sm:gap-4">
             {/* Search */}
             <div className="flex-1">
               <div className="relative">
-                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Cari project, manager, atau deskripsi..."
+                  placeholder="Cari project..."
                   value={projectSearch}
                   onChange={(e) => setProjectSearch(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm"
+                  className="w-full pl-9 pr-3 py-2 sm:py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm"
                 />
               </div>
             </div>
@@ -527,9 +528,9 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
               <select
                 value={projectStatusFilter}
                 onChange={(e) => setProjectStatusFilter(e.target.value as ProjectStatus | 'All')}
-                className="px-3 py-2.5 border border-slate-300 rounded-lg bg-white text-sm focus:ring-2 focus:ring-gov-400 outline-none"
+                className="px-2 sm:px-3 py-2 sm:py-2.5 border border-slate-300 rounded-lg bg-white text-xs sm:text-sm focus:ring-2 focus:ring-gov-400 outline-none"
               >
-                <option value="All">Semua Status</option>
+                <option value="All">Status</option>
                 <option value="In Progress">In Progress</option>
                 <option value="Pending">Pending</option>
                 <option value="Live">Live</option>
@@ -539,9 +540,9 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
               <select
                 value={managerFilter}
                 onChange={(e) => setManagerFilter(e.target.value)}
-                className="px-3 py-2.5 border border-slate-300 rounded-lg bg-white text-sm focus:ring-2 focus:ring-gov-400 outline-none"
+                className="px-2 sm:px-3 py-2 sm:py-2.5 border border-slate-300 rounded-lg bg-white text-xs sm:text-sm focus:ring-2 focus:ring-gov-400 outline-none"
               >
-                <option value="All">Semua Manager</option>
+                <option value="All">Manager</option>
                 {uniqueManagers.map(manager => (
                   <option key={manager} value={manager}>{manager}</option>
                 ))}
@@ -555,7 +556,7 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
                     setProjectStatusFilter('All');
                     setManagerFilter('All');
                   }}
-                  className="px-3 py-2.5 text-sm text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+                  className="px-2 sm:px-3 py-2 sm:py-2.5 text-xs sm:text-sm text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
                 >
                   Reset
                 </button>
@@ -566,16 +567,16 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
           {/* Results Count */}
           <div className="mt-3 pt-3 border-t border-slate-100">
             <div className="flex items-center justify-between">
-              <p className="text-sm text-slate-500">
-                Menampilkan <span className="font-semibold text-slate-700">{projects.length}</span> dari {projectsTotalCount} project
+              <p className="text-xs sm:text-sm text-slate-500">
+                <span className="font-semibold text-slate-700">{projects.length}</span>/{projectsTotalCount} project
                 {debouncedSearch && (
-                  <span> untuk pencarian "<span className="font-semibold text-slate-700">{debouncedSearch}</span>"</span>
+                  <span className="hidden sm:inline"> untuk "<span className="font-semibold text-slate-700">{debouncedSearch}</span>"</span>
                 )}
               </p>
               
               {/* Loading Indicators */}
               {(projectsLoading || projectSearch !== debouncedSearch) && (
-                <div className="flex items-center gap-2 text-xs text-slate-400">
+                <div className="flex items-center gap-2 text-[10px] sm:text-xs text-slate-400">
                   <div className="w-3 h-3 border border-slate-300 border-t-transparent rounded-full animate-spin"></div>
                   {projectsLoading ? 'Memuat...' : 'Mencari...'}
                 </div>
@@ -586,15 +587,15 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
 
         {/* Loading State */}
         {projectsLoading && (
-          <div className="flex items-center justify-center py-12">
-            <div className="flex items-center gap-3 text-slate-500">
-              <div className="w-6 h-6 border-2 border-slate-300 border-t-transparent rounded-full animate-spin"></div>
-              <span>Memuat project...</span>
+          <div className="flex items-center justify-center py-8 sm:py-12">
+            <div className="flex items-center gap-2 sm:gap-3 text-slate-500">
+              <div className="w-5 h-5 sm:w-6 sm:h-6 border-2 border-slate-300 border-t-transparent rounded-full animate-spin"></div>
+              <span className="text-sm">Memuat project...</span>
             </div>
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
           {!projectsLoading && projects.map(project => {
             const ProjectIcon = iconMap[project.icon || 'Briefcase'] || Briefcase;
             const colorClasses = getColorClasses(project.color);
@@ -604,19 +605,16 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
               total: 0, completed: 0, progress: 0, team: [], documents: 0 
             };
             const isLoadingStats = loadingStats[project.id] || false;
-            
-
-            
 
 
             return (
               <div
                 key={project.id}
-                className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-md hover:border-slate-300 transition-all group relative"
+                className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 sm:p-6 hover:shadow-md hover:border-slate-300 transition-all group relative"
               >
                 {/* Edit and Delete buttons for authorized users */}
                 {canManageProjects && (
-                  <div className="absolute top-4 right-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="absolute top-3 sm:top-4 right-3 sm:right-4 flex gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -645,25 +643,25 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
                   className="cursor-pointer"
                 >
                   {/* Header Section */}
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className={`p-3 rounded-lg ${colorClasses.bg} ${colorClasses.text} group-hover:scale-105 transition-transform shadow-sm`}>
-                        <ProjectIcon size={24} />
+                  <div className="flex items-start justify-between mb-3 sm:mb-4">
+                    <div className="flex items-center gap-2 sm:gap-3">
+                      <div className={`p-2 sm:p-3 rounded-lg ${colorClasses.bg} ${colorClasses.text} group-hover:scale-105 transition-transform shadow-sm`}>
+                        <ProjectIcon size={20} />
                       </div>
-                      <div>
-                        <h3 className="text-lg font-bold text-slate-800 group-hover:text-slate-900 transition-colors leading-tight">
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-sm sm:text-lg font-bold text-slate-800 group-hover:text-slate-900 transition-colors leading-tight truncate">
                           {project.name}
                         </h3>
-                        <div className="flex items-center gap-1 mt-1">
-                          <span className="text-xs text-slate-400 font-medium">Target Live:</span>
-                          <span className="text-xs font-semibold text-slate-600">
-                            {project.targetLiveDate || 'Belum ditentukan'}
+                        <div className="flex items-center gap-1 mt-0.5 sm:mt-1">
+                          <span className="text-[10px] sm:text-xs text-slate-400 font-medium">Target:</span>
+                          <span className="text-[10px] sm:text-xs font-semibold text-slate-600">
+                            {project.targetLiveDate || 'TBD'}
                           </span>
                         </div>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
+                    <div className="text-right flex-shrink-0 ml-2">
+                      <span className={`px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-lg text-[10px] sm:text-xs font-bold ${
                         project.status === 'Live' 
                           ? 'bg-green-100 text-green-700'
                           : project.status === 'In Progress'
@@ -676,24 +674,23 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
                   </div>
 
                   {/* Description */}
-                  <p className="text-sm text-slate-500 mb-4 line-clamp-2 leading-relaxed">
+                  <p className="text-xs sm:text-sm text-slate-500 mb-3 sm:mb-4 line-clamp-2 leading-relaxed">
                     {project.description || 'No description available'}
                   </p>
 
                   {/* Progress Section */}
-                  <div className="mb-4">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-xs font-medium text-slate-600">Progress</span>
+                  <div className="mb-3 sm:mb-4">
+                    <div className="flex justify-between items-center mb-1.5 sm:mb-2">
+                      <span className="text-[10px] sm:text-xs font-medium text-slate-600">Progress</span>
                       {isLoadingStats ? (
                         <div className="flex items-center gap-1">
                           <div className="w-3 h-3 border border-slate-300 border-t-transparent rounded-full animate-spin"></div>
-                          <span className="text-xs text-slate-400">Loading...</span>
                         </div>
                       ) : (
-                        <span className="text-sm font-bold text-slate-800">{stats.progress}%</span>
+                        <span className="text-xs sm:text-sm font-bold text-slate-800">{stats.progress}%</span>
                       )}
                     </div>
-                    <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                    <div className="h-1.5 sm:h-2 w-full bg-slate-100 rounded-full overflow-hidden">
                       {isLoadingStats ? (
                         <div className="h-full bg-gradient-to-r from-slate-200 via-slate-300 to-slate-200 animate-pulse rounded-full"></div>
                       ) : (
@@ -710,35 +707,35 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
                   </div>
 
                   {/* Stats Grid */}
-                  <div className="grid grid-cols-3 gap-3 mb-4">
-                    <div className="text-center p-2 bg-slate-50 rounded-lg border border-slate-100">
+                  <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-3 sm:mb-4">
+                    <div className="text-center p-1.5 sm:p-2 bg-slate-50 rounded-lg border border-slate-100">
                       {isLoadingStats ? (
-                        <div className="w-4 h-4 bg-slate-200 rounded animate-pulse mx-auto mb-1"></div>
+                        <div className="w-4 h-4 bg-slate-200 rounded animate-pulse mx-auto mb-0.5"></div>
                       ) : (
-                        <div className="text-sm font-bold text-slate-800">{stats.team.length}</div>
+                        <div className="text-xs sm:text-sm font-bold text-slate-800">{stats.team.length}</div>
                       )}
-                      <div className="text-xs text-slate-500">Team</div>
+                      <div className="text-[10px] sm:text-xs text-slate-500">Team</div>
                     </div>
-                    <div className="text-center p-2 bg-slate-50 rounded-lg border border-slate-100">
+                    <div className="text-center p-1.5 sm:p-2 bg-slate-50 rounded-lg border border-slate-100">
                       {isLoadingStats ? (
-                        <div className="w-4 h-4 bg-slate-200 rounded animate-pulse mx-auto mb-1"></div>
+                        <div className="w-4 h-4 bg-slate-200 rounded animate-pulse mx-auto mb-0.5"></div>
                       ) : (
-                        <div className="text-sm font-bold text-slate-800">{stats.total}</div>
+                        <div className="text-xs sm:text-sm font-bold text-slate-800">{stats.total}</div>
                       )}
-                      <div className="text-xs text-slate-500">Tasks</div>
+                      <div className="text-[10px] sm:text-xs text-slate-500">Tasks</div>
                     </div>
-                    <div className="text-center p-2 bg-slate-50 rounded-lg border border-slate-100">
+                    <div className="text-center p-1.5 sm:p-2 bg-slate-50 rounded-lg border border-slate-100">
                       {isLoadingStats ? (
-                        <div className="w-4 h-4 bg-slate-200 rounded animate-pulse mx-auto mb-1"></div>
+                        <div className="w-4 h-4 bg-slate-200 rounded animate-pulse mx-auto mb-0.5"></div>
                       ) : (
-                        <div className="text-sm font-bold text-slate-800">{stats.completed}</div>
+                        <div className="text-xs sm:text-sm font-bold text-slate-800">{stats.completed}</div>
                       )}
-                      <div className="text-xs text-slate-500">Done</div>
+                      <div className="text-[10px] sm:text-xs text-slate-500">Done</div>
                     </div>
                   </div>
 
                   {/* PIC Project Section */}
-                  <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+                  <div className="flex items-center justify-between pt-2 sm:pt-3 border-t border-slate-100">
                     <div className="flex items-center gap-2">
                       {(() => {
                         const managerUser = users.find(u => u.name === project.manager);
@@ -750,14 +747,14 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
                           />
                         );
                       })()}
-                      <div>
+                      <div className="hidden sm:block">
                         <div className="text-xs font-semibold text-slate-700">{project.manager}</div>
-                        <div className="text-xs text-slate-500">PIC Project</div>
+                        <div className="text-[10px] text-slate-500">PIC Project</div>
                       </div>
                     </div>
-                    <div className={`flex items-center gap-1 ${colorClasses.text} text-xs font-medium group-hover:translate-x-1 transition-transform`}>
-                      <span>View Details</span>
-                      <ChevronRight size={14} />
+                    <div className={`flex items-center gap-1 ${colorClasses.text} text-[10px] sm:text-xs font-medium group-hover:translate-x-1 transition-transform`}>
+                      <span>Detail</span>
+                      <ChevronRight size={12} />
                     </div>
                   </div>
                 </div>
@@ -768,11 +765,11 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
           {/* Empty State */}
           {!projectsLoading && projects.length === 0 && (
             <div className="col-span-full">
-              <div className="text-center py-12">
-                <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Briefcase size={24} className="text-slate-400" />
+              <div className="text-center py-8 sm:py-12">
+                <div className="w-12 h-12 sm:w-16 sm:h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                  <Briefcase size={20} className="text-slate-400" />
                 </div>
-                <h3 className="text-lg font-semibold text-slate-600 mb-2">
+                <h3 className="text-base sm:text-lg font-semibold text-slate-600 mb-2">
                   {projectSearch || projectStatusFilter !== 'All' || managerFilter !== 'All' 
                     ? 'Tidak ada project yang sesuai' 
                     : 'Belum ada project'
@@ -894,79 +891,81 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
   return (
     <div className="flex flex-col h-full bg-slate-50 overflow-hidden">
       {/* HEADER */}
-      <div className={`bg-white border-b border-slate-200 px-8 py-5 flex justify-between items-center ${projectColorClasses.hover}`}>
-        <div>
-          <button
-            onClick={() => setSelectedProjectId(null)}
-            className={`flex items-center gap-2 text-sm text-slate-500 hover:${projectColorClasses.text} mb-3 transition-colors font-medium`}
-          >
-            <ArrowLeft size={16} /> Kembali ke Daftar Project
-          </button>
+      <div className={`bg-white border-b border-slate-200 px-4 sm:px-8 py-4 sm:py-5 ${projectColorClasses.hover}`}>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <button
+              onClick={() => setSelectedProjectId(null)}
+              className={`flex items-center gap-1 sm:gap-2 text-xs sm:text-sm text-slate-500 hover:${projectColorClasses.text} mb-2 sm:mb-3 transition-colors font-medium`}
+            >
+              <ArrowLeft size={14} /> Kembali
+            </button>
 
-          <div className="flex items-center gap-4 mb-2">
-            <div className={`p-3 rounded-xl ring-2 ${projectColorClasses.bg} ${projectColorClasses.text} ${projectColorClasses.ring} shadow-sm`}>
-              <ProjectIcon size={28} />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-slate-800">{selectedProject.name}</h1>
-              <p className="text-sm text-slate-500">{selectedProject.description}</p>
+            <div className="flex items-center gap-3 sm:gap-4 mb-2">
+              <div className={`p-2 sm:p-3 rounded-xl ring-2 ${projectColorClasses.bg} ${projectColorClasses.text} ${projectColorClasses.ring} shadow-sm`}>
+                <ProjectIcon size={22} />
+              </div>
+              <div>
+                <h1 className="text-lg sm:text-2xl font-bold text-slate-800">{selectedProject.name}</h1>
+                <p className="text-xs sm:text-sm text-slate-500 line-clamp-1">{selectedProject.description}</p>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="flex items-center gap-6">
-          {/* Refresh Button */}
-          <button
-            onClick={() => {
-              loadProjectTasks();
-              setProjectStatsCache(prev => {
-                const newCache = { ...prev };
-                delete newCache[selectedProjectId || ''];
-                return newCache;
-              });
-              onRefreshNeeded?.();
-            }}
-            disabled={tasksLoading}
-            className="flex items-center gap-2 px-3 py-2 border border-slate-300 text-slate-600 rounded-lg font-medium hover:bg-slate-50 transition-colors shadow-sm disabled:opacity-50"
-            title="Refresh Data"
-          >
-            <RefreshCw size={16} className={tasksLoading ? 'animate-spin' : ''} />
-            Refresh
-          </button>
-          
-          <div className="text-right">
-            <p className="text-xs text-slate-400 font-semibold uppercase">Project Manager</p>
-            <p className="font-bold text-slate-700">{selectedProject.manager}</p>
-          </div>
-          <div className="text-right pl-6 border-l border-slate-100">
-            <p className="text-xs text-slate-400 font-semibold uppercase">Progress</p>
-            <p className={`font-bold ${projectColorClasses.text} text-lg`}>{selectedStats?.progress || 0}%</p>
+          <div className="flex items-center gap-3 sm:gap-6 w-full sm:w-auto">
+            {/* Refresh Button */}
+            <button
+              onClick={() => {
+                loadProjectTasks();
+                setProjectStatsCache(prev => {
+                  const newCache = { ...prev };
+                  delete newCache[selectedProjectId || ''];
+                  return newCache;
+                });
+                onRefreshNeeded?.();
+              }}
+              disabled={tasksLoading}
+              className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 border border-slate-300 text-slate-600 rounded-lg font-medium hover:bg-slate-50 transition-colors shadow-sm disabled:opacity-50 text-xs sm:text-sm"
+              title="Refresh Data"
+            >
+              <RefreshCw size={14} className={tasksLoading ? 'animate-spin' : ''} />
+              <span className="hidden sm:inline">Refresh</span>
+            </button>
+            
+            <div className="text-right hidden sm:block">
+              <p className="text-[10px] sm:text-xs text-slate-400 font-semibold uppercase">Manager</p>
+              <p className="font-bold text-slate-700 text-sm">{selectedProject.manager}</p>
+            </div>
+            <div className="text-right sm:pl-6 sm:border-l border-slate-100">
+              <p className="text-[10px] sm:text-xs text-slate-400 font-semibold uppercase">Progress</p>
+              <p className={`font-bold ${projectColorClasses.text} text-base sm:text-lg`}>{selectedStats?.progress || 0}%</p>
+            </div>
           </div>
         </div>
       </div>
 
       {/* CONTENT */}
-      <div className="flex-1 overflow-y-auto p-8">
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-8">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-8">
           {/* LEFT COLUMN */}
-          <div className="xl:col-span-2 space-y-8">
+          <div className="xl:col-span-2 space-y-4 sm:space-y-8">
             {/* TASK LIST */}
             <section>
-              <div className="flex flex-col md:flex-row justify-between mb-4 gap-4">
-                <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
-                  <List size={16} /> Daftar Tugas ({tasksTotalCount})
+              <div className="flex flex-col gap-3 sm:gap-4 mb-4">
+                <h3 className="text-xs sm:text-sm font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                  <List size={14} /> Daftar Tugas ({tasksTotalCount})
                 </h3>
 
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   {/* Search */}
-                  <div className="relative">
+                  <div className="relative flex-1">
                     <Search size={14} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input
                       type="text"
-                      placeholder="Cari task, PIC, kategori..."
+                      placeholder="Cari task..."
                       value={taskSearch}
                       onChange={(e) => setTaskSearch(e.target.value)}
-                      className="pl-7 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:ring-1 focus:ring-gov-400 outline-none w-48"
+                      className="w-full pl-7 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:ring-1 focus:ring-gov-400 outline-none"
                     />
                   </div>
 

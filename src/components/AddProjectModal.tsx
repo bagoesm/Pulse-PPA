@@ -136,16 +136,16 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ isOpen, onClose, onSa
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-gov-50 to-blue-50">
-          <div className="flex items-center gap-3">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/40 backdrop-blur-sm">
+      <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl w-full sm:max-w-2xl overflow-hidden max-h-[90vh] flex flex-col">
+        <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-gov-50 to-blue-50 flex-shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3">
             {selectedIconData && selectedColorData && (
-              <div className={`p-2 rounded-lg ${selectedColorData.bg} ${selectedColorData.text} ring-2 ${selectedColorData.ring}`}>
-                <selectedIconData.icon size={20} />
+              <div className={`p-1.5 sm:p-2 rounded-lg ${selectedColorData.bg} ${selectedColorData.text} ring-2 ${selectedColorData.ring}`}>
+                <selectedIconData.icon size={18} />
               </div>
             )}
-            <h2 className="text-lg font-bold text-slate-800">
+            <h2 className="text-base sm:text-lg font-bold text-slate-800">
               {editingProject ? 'Edit Project' : 'Buat Project Baru'}
             </h2>
           </div>
@@ -154,12 +154,12 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ isOpen, onClose, onSa
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 overflow-y-auto flex-1">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
             {/* Left Column - Basic Info */}
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">Nama Project</label>
+                <label className="block text-[10px] sm:text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5 sm:mb-2">Nama Project</label>
                 <input
                   type="text"
                   required
@@ -172,7 +172,7 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ isOpen, onClose, onSa
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">Project Manager (PIC)</label>
+                <label className="block text-[10px] sm:text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5 sm:mb-2">Project Manager (PIC)</label>
                 <select
                   value={formData.manager}
                   onChange={(e) => setFormData({...formData, manager: e.target.value})}
@@ -187,9 +187,9 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ isOpen, onClose, onSa
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">Deskripsi Singkat</label>
+                <label className="block text-[10px] sm:text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5 sm:mb-2">Deskripsi Singkat</label>
                 <textarea
-                  rows={3}
+                  rows={2}
                   value={formData.description}
                   onChange={(e) => setFormData({...formData, description: e.target.value})}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm resize-none"
@@ -197,36 +197,38 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ isOpen, onClose, onSa
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">Target Live Date</label>
-                <input
-                  type="date"
-                  value={formData.targetLiveDate}
-                  onChange={(e) => setFormData({...formData, targetLiveDate: e.target.value})}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm"
-                />
-              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] sm:text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5 sm:mb-2">Target Live</label>
+                  <input
+                    type="date"
+                    value={formData.targetLiveDate}
+                    onChange={(e) => setFormData({...formData, targetLiveDate: e.target.value})}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm"
+                  />
+                </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">Status Project</label>
-                <select
-                  value={formData.status}
-                  onChange={(e) => setFormData({...formData, status: e.target.value as ProjectStatus})}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm bg-white"
-                >
-                  <option value="In Progress">In Progress</option>
-                  <option value="Pending">Pending</option>
-                  <option value="Live">Live</option>
-                </select>
+                <div>
+                  <label className="block text-[10px] sm:text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5 sm:mb-2">Status</label>
+                  <select
+                    value={formData.status}
+                    onChange={(e) => setFormData({...formData, status: e.target.value as ProjectStatus})}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm bg-white"
+                  >
+                    <option value="In Progress">In Progress</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Live">Live</option>
+                  </select>
+                </div>
               </div>
             </div>
 
             {/* Right Column - Customization */}
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               {/* Icon Selection */}
               <div>
-                <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">Pilih Icon Project</label>
-                <div className="grid grid-cols-5 gap-2 max-h-48 overflow-y-auto border border-slate-200 rounded-lg p-3 bg-slate-50">
+                <label className="block text-[10px] sm:text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5 sm:mb-2">Pilih Icon Project</label>
+                <div className="grid grid-cols-5 gap-1.5 sm:gap-2 max-h-32 sm:max-h-48 overflow-y-auto border border-slate-200 rounded-lg p-2 sm:p-3 bg-slate-50">
                   {projectIcons.map((iconData) => {
                     const IconComponent = iconData.icon;
                     const isSelected = formData.icon === iconData.name;
@@ -235,27 +237,24 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ isOpen, onClose, onSa
                         key={iconData.name}
                         type="button"
                         onClick={() => setFormData({...formData, icon: iconData.name})}
-                        className={`p-3 rounded-lg border-2 transition-all hover:scale-105 ${
+                        className={`p-2 sm:p-3 rounded-lg border-2 transition-all ${
                           isSelected 
                             ? `${selectedColorData?.bg} ${selectedColorData?.text} border-current shadow-md` 
                             : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
                         }`}
                         title={iconData.label}
                       >
-                        <IconComponent size={18} className="mx-auto" />
+                        <IconComponent size={16} className="mx-auto" />
                       </button>
                     );
                   })}
                 </div>
-                <p className="text-xs text-slate-500 mt-1">
-                  Dipilih: <span className="font-medium">{selectedIconData?.label}</span>
-                </p>
               </div>
 
               {/* Color Selection */}
               <div>
-                <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">Pilih Warna Tema</label>
-                <div className="grid grid-cols-4 gap-2">
+                <label className="block text-[10px] sm:text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5 sm:mb-2">Pilih Warna Tema</label>
+                <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
                   {colorThemes.map((colorData) => {
                     const isSelected = formData.color === colorData.name;
                     return (
@@ -263,23 +262,23 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ isOpen, onClose, onSa
                         key={colorData.name}
                         type="button"
                         onClick={() => setFormData({...formData, color: colorData.name})}
-                        className={`p-3 rounded-lg border-2 transition-all hover:scale-105 ${
+                        className={`p-2 sm:p-3 rounded-lg border-2 transition-all ${
                           isSelected 
                             ? `${colorData.bg} ${colorData.text} border-current shadow-md ring-2 ${colorData.ring}` 
                             : `${colorData.bg} ${colorData.text} border-transparent hover:border-current`
                         }`}
                         title={colorData.label}
                       >
-                        <div className="w-6 h-6 rounded-full bg-current mx-auto opacity-60"></div>
-                        <span className="text-xs font-medium mt-1 block">{colorData.label}</span>
+                        <div className="w-4 h-4 sm:w-6 sm:h-6 rounded-full bg-current mx-auto opacity-60"></div>
+                        <span className="text-[10px] sm:text-xs font-medium mt-0.5 sm:mt-1 block">{colorData.label}</span>
                       </button>
                     );
                   })}
                 </div>
               </div>
 
-              {/* Preview */}
-              <div className="border border-slate-200 rounded-lg p-4 bg-white">
+              {/* Preview - Hidden on mobile to save space */}
+              <div className="hidden sm:block border border-slate-200 rounded-lg p-4 bg-white">
                 <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">Preview</p>
                 <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
                   {selectedIconData && selectedColorData && (
@@ -310,21 +309,21 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ isOpen, onClose, onSa
             </div>
           </div>
 
-          <div className="mt-6 flex justify-end gap-3 pt-4 border-t border-slate-100">
+          <div className="mt-4 sm:mt-6 flex justify-end gap-2 sm:gap-3 pt-4 border-t border-slate-100 safe-area-bottom">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100"
+              className="px-3 sm:px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100"
             >
               Batal
             </button>
             <button
               type="submit"
               disabled={!formData.name.trim() || !formData.manager}
-              className={`px-6 py-2.5 rounded-lg text-sm font-bold text-white bg-gov-600 hover:bg-gov-700 flex items-center gap-2 shadow-md hover:shadow-lg transition-all ${(!formData.name.trim() || !formData.manager) ? 'opacity-60 cursor-not-allowed' : ''}`}
+              className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg text-sm font-bold text-white bg-gov-600 hover:bg-gov-700 flex items-center gap-1 sm:gap-2 shadow-md hover:shadow-lg transition-all ${(!formData.name.trim() || !formData.manager) ? 'opacity-60 cursor-not-allowed' : ''}`}
             >
-              {selectedIconData && <selectedIconData.icon size={16} />}
-              {editingProject ? 'Update Project' : 'Buat Project'}
+              {selectedIconData && <selectedIconData.icon size={14} />}
+              {editingProject ? 'Update' : 'Buat Project'}
             </button>
           </div>
         </form>

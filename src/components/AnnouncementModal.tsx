@@ -130,20 +130,25 @@ const AnnouncementModal: React.FC<AnnouncementModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/50 backdrop-blur-sm">
+      <div className="bg-white w-full sm:rounded-2xl rounded-t-2xl shadow-2xl sm:max-w-4xl max-h-[90vh] sm:max-h-[90vh] overflow-hidden sm:m-4">
+        {/* Mobile handle bar */}
+        <div className="sm:hidden flex justify-center pt-3 pb-1">
+          <div className="w-10 h-1 bg-slate-300 rounded-full"></div>
+        </div>
+        
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-gov-50 to-blue-50">
+        <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-200 bg-gradient-to-r from-gov-50 to-blue-50">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-gov-100 text-gov-600 rounded-lg">
-                <Megaphone size={20} />
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="p-1.5 sm:p-2 bg-gov-100 text-gov-600 rounded-lg">
+                <Megaphone size={18} className="sm:w-5 sm:h-5" />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-slate-800">
-                  {editingAnnouncement ? 'Edit Pengumuman' : 'Buat Pengumuman Baru'}
+                <h2 className="text-base sm:text-xl font-bold text-slate-800">
+                  {editingAnnouncement ? 'Edit Pengumuman' : 'Buat Pengumuman'}
                 </h2>
-                <p className="text-sm text-slate-600">
+                <p className="text-[10px] sm:text-sm text-slate-600 hidden sm:block">
                   Pengumuman akan muncul di bagian atas dashboard untuk semua pengguna
                 </p>
               </div>
@@ -157,54 +162,54 @@ const AnnouncementModal: React.FC<AnnouncementModalProps> = ({
           </div>
         </div>
 
-        <div className="flex max-h-[calc(90vh-80px)]">
+        <div className="flex flex-col sm:flex-row max-h-[calc(90vh-80px)]">
           {/* Form Section */}
-          <div className="flex-1 p-6 overflow-y-auto">
-            <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="flex-1 p-4 sm:p-6 overflow-y-auto">
+            <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
               {/* Title */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2 flex items-center gap-2">
-                  <Type size={16} />
+                <label className="block text-xs sm:text-sm font-medium text-slate-700 mb-1.5 sm:mb-2 flex items-center gap-2">
+                  <Type size={14} className="sm:w-4 sm:h-4" />
                   Judul Pengumuman
                 </label>
                 <input
                   type="text"
                   value={formData.title}
                   onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                  className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-gov-400 focus:border-transparent outline-none"
+                  className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-gov-400 focus:border-transparent outline-none text-sm"
                   placeholder="Masukkan judul pengumuman..."
                   maxLength={100}
                 />
-                <p className="text-xs text-slate-500 mt-1">{formData.title.length}/100 karakter</p>
+                <p className="text-[10px] sm:text-xs text-slate-500 mt-1">{formData.title.length}/100 karakter</p>
               </div>
 
               {/* Description */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2 flex items-center gap-2">
-                  <MessageSquare size={16} />
+                <label className="block text-xs sm:text-sm font-medium text-slate-700 mb-1.5 sm:mb-2 flex items-center gap-2">
+                  <MessageSquare size={14} className="sm:w-4 sm:h-4" />
                   Deskripsi
                 </label>
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                  className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-gov-400 focus:border-transparent outline-none resize-none"
-                  rows={4}
+                  className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-gov-400 focus:border-transparent outline-none resize-none text-sm"
+                  rows={3}
                   placeholder="Masukkan deskripsi pengumuman..."
                   maxLength={500}
                 />
-                <p className="text-xs text-slate-500 mt-1">{formData.description.length}/500 karakter</p>
+                <p className="text-[10px] sm:text-xs text-slate-500 mt-1">{formData.description.length}/500 karakter</p>
               </div>
 
               {/* Type and Emoji */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3 sm:gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Tipe Pengumuman
+                  <label className="block text-xs sm:text-sm font-medium text-slate-700 mb-1.5 sm:mb-2">
+                    Tipe
                   </label>
                   <select
                     value={formData.type}
                     onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value as AnnouncementType }))}
-                    className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-gov-400 focus:border-transparent outline-none"
+                    className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-gov-400 focus:border-transparent outline-none text-sm"
                   >
                     <option value="info">Info</option>
                     <option value="success">Sukses</option>
@@ -214,49 +219,49 @@ const AnnouncementModal: React.FC<AnnouncementModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Emoji (Opsional)
+                  <label className="block text-xs sm:text-sm font-medium text-slate-700 mb-1.5 sm:mb-2">
+                    Emoji
                   </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={formData.emoji}
-                      onChange={(e) => setFormData(prev => ({ ...prev, emoji: e.target.value }))}
-                      className="flex-1 px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-gov-400 focus:border-transparent outline-none text-center"
-                      placeholder="😊"
-                      maxLength={2}
-                    />
-                  </div>
-                  <div className="flex flex-wrap gap-1 mt-2">
-                    {popularEmojis.slice(0, 8).map((emoji, index) => (
-                      <button
-                        key={index}
-                        type="button"
-                        onClick={() => setFormData(prev => ({ ...prev, emoji }))}
-                        className="p-2 hover:bg-slate-100 rounded text-lg transition-colors"
-                      >
-                        {emoji}
-                      </button>
-                    ))}
-                  </div>
+                  <input
+                    type="text"
+                    value={formData.emoji}
+                    onChange={(e) => setFormData(prev => ({ ...prev, emoji: e.target.value }))}
+                    className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-gov-400 focus:border-transparent outline-none text-center text-sm"
+                    placeholder="😊"
+                    maxLength={2}
+                  />
                 </div>
+              </div>
+              
+              {/* Emoji Picker */}
+              <div className="flex flex-wrap gap-1">
+                {popularEmojis.map((emoji, index) => (
+                  <button
+                    key={index}
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, emoji }))}
+                    className="p-1.5 sm:p-2 hover:bg-slate-100 rounded text-base sm:text-lg transition-colors"
+                  >
+                    {emoji}
+                  </button>
+                ))}
               </div>
 
               {/* Color Customization */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-3 flex items-center gap-2">
-                  <Palette size={16} />
-                  Kustomisasi Warna
+                <label className="block text-xs sm:text-sm font-medium text-slate-700 mb-2 sm:mb-3 flex items-center gap-2">
+                  <Palette size={14} className="sm:w-4 sm:h-4" />
+                  Warna
                 </label>
                 
                 {/* Predefined Color Schemes */}
-                <div className="grid grid-cols-3 gap-2 mb-4">
+                <div className="grid grid-cols-3 gap-1.5 sm:gap-2 mb-3 sm:mb-4">
                   {colorSchemes.map((scheme, index) => (
                     <button
                       key={index}
                       type="button"
                       onClick={() => applyColorScheme(scheme)}
-                      className="p-3 rounded-lg border-2 hover:border-gov-300 transition-colors text-xs font-medium"
+                      className="p-2 sm:p-3 rounded-lg border-2 hover:border-gov-300 transition-colors text-[10px] sm:text-xs font-medium"
                       style={{
                         backgroundColor: scheme.bg || '#f8fafc',
                         color: scheme.text || '#1e293b',
@@ -270,44 +275,44 @@ const AnnouncementModal: React.FC<AnnouncementModalProps> = ({
                 </div>
 
                 {/* Custom Colors */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3 sm:gap-4">
                   <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">
-                      Warna Latar Belakang
+                    <label className="block text-[10px] sm:text-xs font-medium text-slate-600 mb-1">
+                      Background
                     </label>
                     <div className="flex gap-2">
                       <input
                         type="color"
                         value={formData.backgroundColor || '#ffffff'}
                         onChange={(e) => setFormData(prev => ({ ...prev, backgroundColor: e.target.value }))}
-                        className="w-12 h-10 border border-slate-200 rounded cursor-pointer"
+                        className="w-10 sm:w-12 h-8 sm:h-10 border border-slate-200 rounded cursor-pointer"
                       />
                       <input
                         type="text"
                         value={formData.backgroundColor}
                         onChange={(e) => setFormData(prev => ({ ...prev, backgroundColor: e.target.value }))}
-                        className="flex-1 px-3 py-2 border border-slate-200 rounded text-sm"
+                        className="flex-1 px-2 sm:px-3 py-1.5 sm:py-2 border border-slate-200 rounded text-xs sm:text-sm"
                         placeholder="#ffffff"
                       />
                     </div>
                   </div>
                   
                   <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">
-                      Warna Teks
+                    <label className="block text-[10px] sm:text-xs font-medium text-slate-600 mb-1">
+                      Teks
                     </label>
                     <div className="flex gap-2">
                       <input
                         type="color"
                         value={formData.textColor || '#000000'}
                         onChange={(e) => setFormData(prev => ({ ...prev, textColor: e.target.value }))}
-                        className="w-12 h-10 border border-slate-200 rounded cursor-pointer"
+                        className="w-10 sm:w-12 h-8 sm:h-10 border border-slate-200 rounded cursor-pointer"
                       />
                       <input
                         type="text"
                         value={formData.textColor}
                         onChange={(e) => setFormData(prev => ({ ...prev, textColor: e.target.value }))}
-                        className="flex-1 px-3 py-2 border border-slate-200 rounded text-sm"
+                        className="flex-1 px-2 sm:px-3 py-1.5 sm:py-2 border border-slate-200 rounded text-xs sm:text-sm"
                         placeholder="#000000"
                       />
                     </div>
@@ -317,20 +322,17 @@ const AnnouncementModal: React.FC<AnnouncementModalProps> = ({
 
               {/* Expiry Date */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2 flex items-center gap-2">
-                  <Calendar size={16} />
-                  Tanggal Kedaluwarsa (Opsional)
+                <label className="block text-xs sm:text-sm font-medium text-slate-700 mb-1.5 sm:mb-2 flex items-center gap-2">
+                  <Calendar size={14} className="sm:w-4 sm:h-4" />
+                  Kedaluwarsa (Opsional)
                 </label>
                 <input
                   type="date"
                   value={formData.expiresAt}
                   onChange={(e) => setFormData(prev => ({ ...prev, expiresAt: e.target.value }))}
-                  className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-gov-400 focus:border-transparent outline-none"
+                  className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-gov-400 focus:border-transparent outline-none text-sm"
                   min={new Date().toISOString().split('T')[0]}
                 />
-                <p className="text-xs text-slate-500 mt-1">
-                  Kosongkan jika pengumuman tidak memiliki batas waktu
-                </p>
               </div>
 
               {/* Active Status */}
@@ -342,32 +344,58 @@ const AnnouncementModal: React.FC<AnnouncementModalProps> = ({
                   onChange={(e) => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
                   className="w-4 h-4 text-gov-600 border-slate-300 rounded focus:ring-gov-400"
                 />
-                <label htmlFor="isActive" className="text-sm font-medium text-slate-700">
-                  Aktifkan pengumuman sekarang
+                <label htmlFor="isActive" className="text-xs sm:text-sm font-medium text-slate-700">
+                  Aktifkan sekarang
                 </label>
               </div>
 
+              {/* Preview on Mobile */}
+              <div className="sm:hidden">
+                <h3 className="text-xs font-bold text-slate-700 mb-2 flex items-center gap-2">
+                  <Megaphone size={14} />
+                  Preview
+                </h3>
+                <div 
+                  className="rounded-xl p-3 border-2 relative overflow-hidden"
+                  style={previewStyle}
+                >
+                  <div className="flex items-start gap-2">
+                    {formData.emoji && (
+                      <span className="text-lg flex-shrink-0">{formData.emoji}</span>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-bold text-sm mb-1">
+                        {formData.title || 'Judul Pengumuman'}
+                      </h4>
+                      <p className="text-xs opacity-90 line-clamp-2">
+                        {formData.description || 'Deskripsi pengumuman...'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Submit Buttons */}
-              <div className="flex gap-3 pt-4">
+              <div className="flex gap-3 pt-2 sm:pt-4 pb-safe">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="flex-1 px-6 py-3 border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 font-medium transition-colors"
+                  className="flex-1 px-4 sm:px-6 py-2.5 sm:py-3 border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 font-medium transition-colors text-sm"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-6 py-3 bg-gov-600 text-white rounded-lg hover:bg-gov-700 font-medium transition-colors"
+                  className="flex-1 px-4 sm:px-6 py-2.5 sm:py-3 bg-gov-600 text-white rounded-lg hover:bg-gov-700 font-medium transition-colors text-sm"
                 >
-                  {editingAnnouncement ? 'Update Pengumuman' : 'Buat Pengumuman'}
+                  {editingAnnouncement ? 'Update' : 'Buat'}
                 </button>
               </div>
             </form>
           </div>
 
-          {/* Preview Section */}
-          <div className="w-80 bg-slate-50 p-6 border-l border-slate-200 overflow-y-auto">
+          {/* Preview Section - Desktop Only */}
+          <div className="hidden sm:block w-80 bg-slate-50 p-6 border-l border-slate-200 overflow-y-auto">
             <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
               <Megaphone size={16} />
               Preview

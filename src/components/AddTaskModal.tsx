@@ -403,12 +403,12 @@ const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
   const selectedProject = projects.find(p => p.id === formData.projectId);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/40 backdrop-blur-sm">
+      <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl w-full sm:max-w-2xl overflow-hidden flex flex-col max-h-[90vh] sm:max-h-[90vh]">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-          <div className="flex items-center gap-3">
-            <h2 className="text-lg font-bold text-slate-800">
+        <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <h2 className="text-base sm:text-lg font-bold text-slate-800">
               {initialData ? (isReadOnly ? 'Detail Task' : 'Edit Task') : 'Tambah Task Baru'}
             </h2>
             {isReadOnly && (
@@ -423,8 +423,8 @@ const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         </div>
 
         {/* Body */}
-        <form onSubmit={handleSubmit} className="p-6 overflow-y-auto custom-scrollbar">
-          <div className="space-y-4">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 overflow-y-auto custom-scrollbar">
+          <div className="space-y-3 sm:space-y-4">
             {/* Title */}
             <div>
               <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Judul Task</label>
@@ -440,7 +440,7 @@ const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               {/* Category */}
               <div>
                 <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Kategori</label>
@@ -578,7 +578,7 @@ const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
             </div>
 
             {/* Tanggal Mulai dan Deadline */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               {/* Tanggal Mulai */}
               <div>
                 <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Tanggal Mulai</label>
@@ -606,7 +606,7 @@ const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               {/* Priority */}
               <div>
                 <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Prioritas</label>

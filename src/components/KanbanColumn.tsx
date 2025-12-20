@@ -98,17 +98,17 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
     <div 
       onDragOver={onDragOver}
       onDrop={(e) => onDrop(e, status)}
-      className="flex-1 flex flex-col min-w-[280px] bg-slate-100/50 rounded-xl border border-slate-200/60 max-h-full"
+      className="flex-1 flex flex-col min-w-[220px] sm:min-w-[280px] bg-slate-100/50 rounded-xl border border-slate-200/60 max-h-full"
     >
       {/* Column Header */}
-      <div className="p-4 flex items-center justify-between sticky top-0 bg-slate-100/50 backdrop-blur-sm z-10 rounded-t-xl">
-        <div className="flex items-center gap-2">
-          <h3 className="font-bold text-slate-700 text-sm tracking-wide">{status}</h3>
-          <span className="bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full text-xs font-bold">
+      <div className="p-3 sm:p-4 flex items-center justify-between sticky top-0 bg-slate-100/50 backdrop-blur-sm z-10 rounded-t-xl">
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <h3 className="font-bold text-slate-700 text-xs sm:text-sm tracking-wide">{status}</h3>
+          <span className="bg-slate-200 text-slate-600 px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold">
             {tasks.length}
           </span>
           {visibleTasks.length < tasks.length && (
-            <span className="bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full text-xs font-medium">
+            <span className="bg-blue-100 text-blue-600 px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-medium hidden sm:inline">
               +{tasks.length - visibleTasks.length}
             </span>
           )}
@@ -118,7 +118,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
 
       {/* Tasks Container */}
       <div 
-        className="flex-1 overflow-y-auto px-3 pb-3 kanban-scroll" 
+        className="flex-1 overflow-y-auto px-2 sm:px-3 pb-2 sm:pb-3 kanban-scroll" 
         onScroll={handleScroll}
       >
         {visibleTasks.length > 0 ? (

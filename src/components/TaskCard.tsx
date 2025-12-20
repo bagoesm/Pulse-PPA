@@ -43,63 +43,63 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, projects, users = [], onDragS
       draggable={canEdit}
       onDragStart={(e) => canEdit && onDragStart(e, task.id)}
       onClick={() => onClick(task)}
-      className={`bg-white p-4 rounded-xl shadow-sm border border-slate-200 transition-all mb-3 group relative
+      className={`bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-slate-200 transition-all mb-2 sm:mb-3 group relative
         ${canEdit ? 'cursor-grab active:cursor-grabbing hover:shadow-md hover:border-gov-300' : 'cursor-default opacity-90'}
       `}
     >
       <div className="flex justify-between items-start mb-2">
-        <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded border ${getCategoryColor(task.category)}`}>
+        <span className={`text-[9px] sm:text-[10px] uppercase font-bold px-1.5 sm:px-2 py-0.5 rounded border ${getCategoryColor(task.category)}`}>
           {task.category}
         </span>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2">
           {onShare && (
             <ShareButton 
               onClick={() => onShare(task)}
               className="opacity-0 group-hover:opacity-100 transition-opacity"
             />
           )}
-          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${getPriorityColor(task.priority)}`}>
+          <span className={`text-[9px] sm:text-[10px] font-semibold px-1.5 sm:px-2 py-0.5 rounded border ${getPriorityColor(task.priority)}`}>
             {task.priority}
           </span>
         </div>
       </div>
 
-      <h3 className="text-sm font-semibold text-slate-800 mb-1 leading-snug group-hover:text-gov-700 transition-colors">
+      <h3 className="text-xs sm:text-sm font-semibold text-slate-800 mb-1 leading-snug group-hover:text-gov-700 transition-colors line-clamp-2">
         {task.title}
       </h3>
       
       {/* Project Indicator or Subcategory */}
       {project ? (
-          <div className="flex flex-col gap-0.5 mb-3">
-               <div className="flex items-center gap-1 text-xs text-gov-700 font-medium">
+          <div className="flex flex-col gap-0.5 mb-2 sm:mb-3">
+               <div className="flex items-center gap-1 text-[10px] sm:text-xs text-gov-700 font-medium">
                    <Layers size={10} />
-                   <span>{project.name}</span>
+                   <span className="truncate">{project.name}</span>
                </div>
-               <p className="text-[10px] text-slate-400 font-medium pl-3.5">
+               <p className="text-[9px] sm:text-[10px] text-slate-400 font-medium pl-3.5 truncate">
                    {task.subCategory}
                </p>
           </div>
       ) : (
-          <p className="text-xs text-slate-400 mb-3 font-medium">
+          <p className="text-[10px] sm:text-xs text-slate-400 mb-2 sm:mb-3 font-medium truncate">
             {task.subCategory}
           </p>
       )}
 
-      <div className="flex items-center justify-between pt-3 border-t border-slate-50 mt-2">
-        <div className="flex items-center gap-3 text-slate-500">
-          <div className="flex items-center gap-1.5">
-            <Calendar size={12} />
-            <span className="text-[10px] font-medium">
+      <div className="flex items-center justify-between pt-2 sm:pt-3 border-t border-slate-50 mt-2">
+        <div className="flex items-center gap-2 sm:gap-3 text-slate-500">
+          <div className="flex items-center gap-1">
+            <Calendar size={10} />
+            <span className="text-[9px] sm:text-[10px] font-medium">
               {task.startDate === task.deadline 
                 ? task.deadline 
-                : `${task.startDate} - ${task.deadline}`
+                : `${task.deadline}`
               }
             </span>
           </div>
           {hasAttachments && (
               <div className="flex items-center gap-1 text-slate-400" title={`${task.attachments.length} attachment(s)`}>
-                  <Paperclip size={12} />
-                  <span className="text-[10px] font-medium">{task.attachments.length}</span>
+                  <Paperclip size={10} />
+                  <span className="text-[9px] sm:text-[10px] font-medium">{task.attachments.length}</span>
               </div>
           )}
         </div>
@@ -109,7 +109,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, projects, users = [], onDragS
           users={users}
           maxVisible={2} 
           size="sm" 
-          showNames={true}
+          showNames={false}
           className="flex-shrink-0"
         />
       </div>

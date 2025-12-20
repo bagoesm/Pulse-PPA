@@ -104,13 +104,13 @@ const StatusModal: React.FC<StatusModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/40 backdrop-blur-sm">
+      <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl w-full sm:max-w-lg overflow-hidden max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-gov-50 to-blue-50">
+        <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-gov-50 to-blue-50">
           <div>
-            <h2 className="text-lg font-bold text-slate-800">Buat Status Baru</h2>
-            <p className="text-sm text-slate-500">Bagikan apa yang sedang kamu lakukan</p>
+            <h2 className="text-base sm:text-lg font-bold text-slate-800">Buat Status Baru</h2>
+            <p className="text-xs sm:text-sm text-slate-500">Bagikan apa yang sedang kamu lakukan</p>
           </div>
           <button 
             onClick={onClose}
@@ -120,11 +120,11 @@ const StatusModal: React.FC<StatusModalProps> = ({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 overflow-y-auto">
           {/* Status Type Selection */}
-          <div className="mb-6">
-            <label className="block text-sm font-bold text-slate-700 mb-3">Pilih Jenis Status</label>
-            <div className="grid grid-cols-3 gap-2">
+          <div className="mb-4 sm:mb-6">
+            <label className="block text-xs sm:text-sm font-bold text-slate-700 mb-2 sm:mb-3">Pilih Jenis Status</label>
+            <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
               {statusTypes.map(type => {
                 const Icon = type.icon;
                 return (
@@ -132,14 +132,14 @@ const StatusModal: React.FC<StatusModalProps> = ({
                     key={type.type}
                     type="button"
                     onClick={() => setSelectedType(type.type)}
-                    className={`p-3 rounded-lg border-2 transition-all text-center ${
+                    className={`p-2 sm:p-3 rounded-lg border-2 transition-all text-center ${
                       selectedType === type.type
                         ? `${type.color} border-current shadow-md`
                         : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
                     }`}
                   >
-                    <Icon size={20} className="mx-auto mb-1" />
-                    <span className="text-xs font-medium">{type.label}</span>
+                    <Icon size={18} className="mx-auto mb-0.5 sm:mb-1" />
+                    <span className="text-[10px] sm:text-xs font-medium">{type.label}</span>
                   </button>
                 );
               })}
@@ -148,15 +148,15 @@ const StatusModal: React.FC<StatusModalProps> = ({
 
           {/* Emoji Selection (for certain types) */}
           {['mood', 'activity', 'location', 'food'].includes(selectedType) && (
-            <div className="mb-4">
-              <label className="block text-sm font-bold text-slate-700 mb-2">Pilih Emoji (Opsional)</label>
-              <div className="flex flex-wrap gap-2">
+            <div className="mb-3 sm:mb-4">
+              <label className="block text-xs sm:text-sm font-bold text-slate-700 mb-2">Pilih Emoji (Opsional)</label>
+              <div className="flex flex-wrap gap-1.5 sm:gap-2">
                 {getEmojisForType().map(emoji => (
                   <button
                     key={emoji}
                     type="button"
                     onClick={() => setSelectedEmoji(selectedEmoji === emoji ? '' : emoji)}
-                    className={`w-10 h-10 rounded-lg border-2 text-lg transition-all ${
+                    className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg border-2 text-base sm:text-lg transition-all ${
                       selectedEmoji === emoji
                         ? 'border-gov-400 bg-gov-50 shadow-md'
                         : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
@@ -170,8 +170,8 @@ const StatusModal: React.FC<StatusModalProps> = ({
           )}
 
           {/* Content Input */}
-          <div className="mb-6">
-            <label className="block text-sm font-bold text-slate-700 mb-2">
+          <div className="mb-4 sm:mb-6">
+            <label className="block text-xs sm:text-sm font-bold text-slate-700 mb-2">
               Status {selectedTypeConfig?.label}
             </label>
             <div className="relative">
@@ -179,49 +179,49 @@ const StatusModal: React.FC<StatusModalProps> = ({
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 placeholder={selectedTypeConfig?.placeholder}
-                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none resize-none text-sm"
+                className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none resize-none text-sm"
                 rows={3}
                 maxLength={200}
               />
-              <div className="absolute bottom-2 right-2 text-xs text-slate-400">
+              <div className="absolute bottom-2 right-2 text-[10px] sm:text-xs text-slate-400">
                 {wordCount}/25 kata
               </div>
             </div>
             {wordCount > 25 && (
-              <p className="text-xs text-red-500 mt-1">Maksimal 25 kata</p>
+              <p className="text-[10px] sm:text-xs text-red-500 mt-1">Maksimal 25 kata</p>
             )}
           </div>
 
           {/* Preview */}
           {content.trim() && (
-            <div className="mb-6 p-4 bg-slate-50 rounded-lg border border-slate-200">
-              <p className="text-sm font-medium text-slate-600 mb-2">Preview:</p>
+            <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-slate-50 rounded-lg border border-slate-200">
+              <p className="text-xs sm:text-sm font-medium text-slate-600 mb-1 sm:mb-2">Preview:</p>
               <div className="flex items-center gap-2">
-                {selectedEmoji && <span className="text-lg">{selectedEmoji}</span>}
-                <span className="text-sm text-slate-800">{content}</span>
+                {selectedEmoji && <span className="text-base sm:text-lg">{selectedEmoji}</span>}
+                <span className="text-xs sm:text-sm text-slate-800">{content}</span>
               </div>
             </div>
           )}
 
           {/* Footer */}
-          <div className="flex justify-between items-center">
-            <div className="text-xs text-slate-500">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 safe-area-bottom">
+            <div className="text-[10px] sm:text-xs text-slate-500">
               Status akan otomatis hilang dalam 24 jam
             </div>
-            <div className="flex gap-3">
+            <div className="flex gap-2 sm:gap-3 w-full sm:w-auto">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-medium transition-colors"
+                className="flex-1 sm:flex-none px-3 sm:px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-medium transition-colors text-sm"
               >
                 Batal
               </button>
               <button
                 type="submit"
                 disabled={!content.trim() || wordCount > 25}
-                className="px-4 py-2 bg-gov-600 text-white rounded-lg font-bold hover:bg-gov-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
+                className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-gov-600 text-white rounded-lg font-bold hover:bg-gov-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-1 sm:gap-2 text-sm"
               >
-                <Send size={16} />
+                <Send size={14} />
                 Posting
               </button>
             </div>

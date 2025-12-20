@@ -535,16 +535,16 @@ const Dashboard: React.FC<DashboardProps> = ({
   }, [analyzedUsers]);
 
   return (
-    <div ref={scrollContainerRef} className="p-6 h-full overflow-y-auto bg-slate-50">
+    <div ref={scrollContainerRef} className="p-4 md:p-6 h-full overflow-y-auto bg-slate-50">
 
       {/* HEADER */}
-      <div className="mb-8 flex justify-between items-start">
+      <div className="mb-6 md:mb-8 flex flex-col sm:flex-row justify-between items-start gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800 mb-2">Dashboard Manajemen Tim</h1>
-          <p className="text-slate-600">Pantau performa dan beban kerja tim secara real-time</p>
+          <h1 className="text-xl md:text-2xl font-bold text-slate-800 mb-1 md:mb-2">Dashboard Manajemen Tim</h1>
+          <p className="text-sm text-slate-600">Pantau performa dan beban kerja tim secara real-time</p>
         </div>
         
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 md:gap-3 w-full sm:w-auto">
           {/* Notification Icon */}
           {onNotificationClick && onMarkAllAsRead && onDeleteNotification && onDismissAll && (
             <NotificationIcon
@@ -560,20 +560,21 @@ const Dashboard: React.FC<DashboardProps> = ({
           {currentUser?.role === 'Super Admin' && (
             <button
               onClick={() => setIsChristmasModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-red-600 to-green-600 text-white rounded-lg font-medium hover:from-red-700 hover:to-green-700 shadow-md hover:shadow-lg transition-all"
+              className="flex items-center gap-1 md:gap-2 px-3 md:px-4 py-2 md:py-2.5 bg-gradient-to-r from-red-600 to-green-600 text-white rounded-lg font-medium hover:from-red-700 hover:to-green-700 shadow-md hover:shadow-lg transition-all text-sm"
             >
-              <Gift size={18} />
-              Dekorasi Natal
+              <Gift size={16} />
+              <span className="hidden sm:inline">Dekorasi Natal</span>
             </button>
           )}
           
           {/* Create Status Button */}
           <button
             onClick={onCreateStatus}
-            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-gov-600 to-blue-600 text-white rounded-lg font-medium hover:from-gov-700 hover:to-blue-700 shadow-md hover:shadow-lg transition-all"
+            className="flex items-center gap-1 md:gap-2 px-3 md:px-4 py-2 md:py-2.5 bg-gradient-to-r from-gov-600 to-blue-600 text-white rounded-lg font-medium hover:from-gov-700 hover:to-blue-700 shadow-md hover:shadow-lg transition-all text-sm flex-1 sm:flex-none justify-center"
           >
-            <MessageCircle size={18} />
-            Buat Status
+            <MessageCircle size={16} />
+            <span className="hidden sm:inline">Buat Status</span>
+            <span className="sm:hidden">Status</span>
           </button>
         </div>
       </div>
@@ -599,138 +600,138 @@ const Dashboard: React.FC<DashboardProps> = ({
       )}
 
       {/* TOP STATS CARDS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6 md:mb-8">
         {/* Active Tasks */}
-        <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between mb-3">
-            <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
-              <Briefcase size={20} />
+        <div className="bg-white p-4 md:p-5 rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between mb-2 md:mb-3">
+            <div className="p-1.5 md:p-2 bg-blue-100 text-blue-600 rounded-lg">
+              <Briefcase size={18} />
             </div>
-            <span className="text-xs font-medium text-slate-500 bg-slate-50 px-2 py-1 rounded-full">
+            <span className="text-[10px] md:text-xs font-medium text-slate-500 bg-slate-50 px-1.5 md:px-2 py-0.5 md:py-1 rounded-full">
               {((activeTasksCount / totalTasks) * 100).toFixed(0)}%
             </span>
           </div>
-          <h3 className="text-2xl font-bold text-slate-800 mb-1">{activeTasksCount}</h3>
-          <p className="text-sm text-slate-500">Task Aktif</p>
+          <h3 className="text-xl md:text-2xl font-bold text-slate-800 mb-0.5 md:mb-1">{activeTasksCount}</h3>
+          <p className="text-xs md:text-sm text-slate-500">Task Aktif</p>
         </div>
 
         {/* Completion Rate */}
-        <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between mb-3">
-            <div className="p-2 bg-green-100 text-green-600 rounded-lg">
-              <Target size={20} />
+        <div className="bg-white p-4 md:p-5 rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between mb-2 md:mb-3">
+            <div className="p-1.5 md:p-2 bg-green-100 text-green-600 rounded-lg">
+              <Target size={18} />
             </div>
-            <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded-full">
+            <span className="text-[10px] md:text-xs font-medium text-green-600 bg-green-50 px-1.5 md:px-2 py-0.5 md:py-1 rounded-full">
               {dashboardStats.avgCompletionRate.toFixed(0)}%
             </span>
           </div>
-          <h3 className="text-2xl font-bold text-slate-800 mb-1">{completedTasks}</h3>
-          <p className="text-sm text-slate-500">Task Selesai</p>
+          <h3 className="text-xl md:text-2xl font-bold text-slate-800 mb-0.5 md:mb-1">{completedTasks}</h3>
+          <p className="text-xs md:text-sm text-slate-500">Task Selesai</p>
         </div>
 
         {/* Urgent Tasks */}
-        <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between mb-3">
-            <div className="p-2 bg-red-100 text-red-600 rounded-lg">
-              <AlertCircle size={20} />
+        <div className="bg-white p-4 md:p-5 rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between mb-2 md:mb-3">
+            <div className="p-1.5 md:p-2 bg-red-100 text-red-600 rounded-lg">
+              <AlertCircle size={18} />
             </div>
-            <span className="text-xs font-medium text-red-600 bg-red-50 px-2 py-1 rounded-full">
+            <span className="text-[10px] md:text-xs font-medium text-red-600 bg-red-50 px-1.5 md:px-2 py-0.5 md:py-1 rounded-full">
               Urgent
             </span>
           </div>
-          <h3 className="text-2xl font-bold text-slate-800 mb-1">{urgentCount}</h3>
-          <p className="text-sm text-slate-500">Butuh Perhatian</p>
+          <h3 className="text-xl md:text-2xl font-bold text-slate-800 mb-0.5 md:mb-1">{urgentCount}</h3>
+          <p className="text-xs md:text-sm text-slate-500">Butuh Perhatian</p>
         </div>
 
         {/* High Performers */}
         <button
           onClick={() => setIsLeaderboardOpen(true)}
-          className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-all hover:scale-105 text-left w-full group"
+          className="bg-white p-4 md:p-5 rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-all hover:scale-105 text-left w-full group"
         >
-          <div className="flex items-center justify-between mb-3">
-            <div className="p-2 bg-purple-100 text-purple-600 rounded-lg group-hover:bg-purple-200 transition-colors">
-              <Award size={20} />
+          <div className="flex items-center justify-between mb-2 md:mb-3">
+            <div className="p-1.5 md:p-2 bg-purple-100 text-purple-600 rounded-lg group-hover:bg-purple-200 transition-colors">
+              <Award size={18} />
             </div>
-            <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2 py-1 rounded-full group-hover:bg-purple-100 transition-colors">
+            <span className="text-[10px] md:text-xs font-medium text-purple-600 bg-purple-50 px-1.5 md:px-2 py-0.5 md:py-1 rounded-full group-hover:bg-purple-100 transition-colors hidden sm:inline">
               Klik untuk Leaderboard
             </span>
           </div>
-          <h3 className="text-2xl font-bold text-slate-800 mb-1">{dashboardStats.highPerformers}</h3>
-          <p className="text-sm text-slate-500">High Performers</p>
+          <h3 className="text-xl md:text-2xl font-bold text-slate-800 mb-0.5 md:mb-1">{dashboardStats.highPerformers}</h3>
+          <p className="text-xs md:text-sm text-slate-500">High Performers</p>
         </button>
       </div>
 
       {/* WORKLOAD DISTRIBUTION WITH INSIGHTS & MOTIVATION */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
         {/* Workload Distribution & Insights */}
-        <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-          <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
-            <BarChart3 size={20} className="text-gov-600" />
-            Distribusi Beban Kerja Tim & Insights
+        <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
+          <h3 className="text-base md:text-lg font-bold text-slate-800 mb-4 md:mb-6 flex items-center gap-2">
+            <BarChart3 size={18} className="text-gov-600" />
+            Distribusi Beban Kerja Tim
           </h3>
           
           {/* Workload Distribution Chart */}
-          <div className="mb-6">
-            <div className="grid grid-cols-4 gap-4">
-              <div className="text-center p-4 bg-emerald-50 rounded-lg border border-emerald-100">
-                <div className="w-8 h-8 bg-emerald-500 rounded-full mx-auto mb-2 flex items-center justify-center">
-                  <Coffee size={16} className="text-white" />
+          <div className="mb-4 md:mb-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
+              <div className="text-center p-3 md:p-4 bg-emerald-50 rounded-lg border border-emerald-100">
+                <div className="w-6 h-6 md:w-8 md:h-8 bg-emerald-500 rounded-full mx-auto mb-1 md:mb-2 flex items-center justify-center">
+                  <Coffee size={14} className="text-white" />
                 </div>
-                <span className="block text-2xl font-bold text-emerald-700">{dashboardStats.workloadDistribution.relaxed}</span>
-                <span className="text-xs text-emerald-600 font-medium">Relaxed</span>
+                <span className="block text-lg md:text-2xl font-bold text-emerald-700">{dashboardStats.workloadDistribution.relaxed}</span>
+                <span className="text-[10px] md:text-xs text-emerald-600 font-medium">Relaxed</span>
               </div>
               
-              <div className="text-center p-4 bg-gov-50 rounded-lg border border-gov-100">
-                <div className="w-8 h-8 bg-gov-500 rounded-full mx-auto mb-2 flex items-center justify-center">
-                  <Zap size={16} className="text-white" />
+              <div className="text-center p-3 md:p-4 bg-gov-50 rounded-lg border border-gov-100">
+                <div className="w-6 h-6 md:w-8 md:h-8 bg-gov-500 rounded-full mx-auto mb-1 md:mb-2 flex items-center justify-center">
+                  <Zap size={14} className="text-white" />
                 </div>
-                <span className="block text-2xl font-bold text-gov-700">{dashboardStats.workloadDistribution.balanced}</span>
-                <span className="text-xs text-gov-600 font-medium">Balanced</span>
+                <span className="block text-lg md:text-2xl font-bold text-gov-700">{dashboardStats.workloadDistribution.balanced}</span>
+                <span className="text-[10px] md:text-xs text-gov-600 font-medium">Balanced</span>
               </div>
               
-              <div className="text-center p-4 bg-orange-50 rounded-lg border border-orange-100">
-                <div className="w-8 h-8 bg-orange-500 rounded-full mx-auto mb-2 flex items-center justify-center">
-                  <AlertTriangle size={16} className="text-white" />
+              <div className="text-center p-3 md:p-4 bg-orange-50 rounded-lg border border-orange-100">
+                <div className="w-6 h-6 md:w-8 md:h-8 bg-orange-500 rounded-full mx-auto mb-1 md:mb-2 flex items-center justify-center">
+                  <AlertTriangle size={14} className="text-white" />
                 </div>
-                <span className="block text-2xl font-bold text-orange-700">{dashboardStats.workloadDistribution.busy}</span>
-                <span className="text-xs text-orange-600 font-medium">Busy</span>
+                <span className="block text-lg md:text-2xl font-bold text-orange-700">{dashboardStats.workloadDistribution.busy}</span>
+                <span className="text-[10px] md:text-xs text-orange-600 font-medium">Busy</span>
               </div>
               
-              <div className="text-center p-4 bg-red-50 rounded-lg border border-red-100">
-                <div className="w-8 h-8 bg-red-500 rounded-full mx-auto mb-2 flex items-center justify-center">
-                  <Flame size={16} className="text-white" />
+              <div className="text-center p-3 md:p-4 bg-red-50 rounded-lg border border-red-100">
+                <div className="w-6 h-6 md:w-8 md:h-8 bg-red-500 rounded-full mx-auto mb-1 md:mb-2 flex items-center justify-center">
+                  <Flame size={14} className="text-white" />
                 </div>
-                <span className="block text-2xl font-bold text-red-700">{dashboardStats.workloadDistribution.overload}</span>
-                <span className="text-xs text-red-600 font-medium">Overload</span>
+                <span className="block text-lg md:text-2xl font-bold text-red-700">{dashboardStats.workloadDistribution.overload}</span>
+                <span className="text-[10px] md:text-xs text-red-600 font-medium">Overload</span>
               </div>
             </div>
           </div>
 
           {/* Quick Insights */}
-          <div className="border-t border-slate-200 pt-6">
+          <div className="border-t border-slate-200 pt-4 md:pt-6">
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="flex items-center gap-3 p-3 bg-orange-50 rounded-lg border border-orange-100">
-                <Clock size={16} className="text-orange-600" />
-                <div>
-                  <p className="text-sm font-bold text-orange-800">{dashboardStats.totalUpcomingDeadlines}</p>
-                  <p className="text-xs text-orange-600">Deadline 3 hari ke depan</p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
+              <div className="flex items-center gap-2 md:gap-3 p-2 md:p-3 bg-orange-50 rounded-lg border border-orange-100">
+                <Clock size={14} className="text-orange-600 flex-shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-xs md:text-sm font-bold text-orange-800">{dashboardStats.totalUpcomingDeadlines}</p>
+                  <p className="text-[10px] md:text-xs text-orange-600 truncate">Deadline 3 hari</p>
                 </div>
               </div>
               
-              <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-100">
-                <TrendingUp size={16} className="text-green-600" />
-                <div>
-                  <p className="text-sm font-bold text-green-800">{dashboardStats.avgCompletionRate.toFixed(1)}%</p>
-                  <p className="text-xs text-green-600">Rata-rata completion rate</p>
+              <div className="flex items-center gap-2 md:gap-3 p-2 md:p-3 bg-green-50 rounded-lg border border-green-100">
+                <TrendingUp size={14} className="text-green-600 flex-shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-xs md:text-sm font-bold text-green-800">{dashboardStats.avgCompletionRate.toFixed(1)}%</p>
+                  <p className="text-[10px] md:text-xs text-green-600 truncate">Completion rate</p>
                 </div>
               </div>
               
-              <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg border border-blue-100">
-                <Users size={16} className="text-blue-600" />
-                <div>
-                  <p className="text-sm font-bold text-blue-800">{users.length}</p>
-                  <p className="text-xs text-blue-600">Total anggota tim</p>
+              <div className="flex items-center gap-2 md:gap-3 p-2 md:p-3 bg-blue-50 rounded-lg border border-blue-100">
+                <Users size={14} className="text-blue-600 flex-shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-xs md:text-sm font-bold text-blue-800">{users.length}</p>
+                  <p className="text-[10px] md:text-xs text-blue-600 truncate">Anggota tim</p>
                 </div>
               </div>
             </div>
@@ -745,18 +746,19 @@ const Dashboard: React.FC<DashboardProps> = ({
       <SiPalingSection tasks={tasks} users={users} />
 
       {/* FILTERS & SEARCH */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
-        <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6 mb-4 md:mb-6">
+        <div className="flex flex-col gap-4">
           <div>
-            <h3 className="text-lg font-bold text-slate-800 mb-1 flex items-center gap-2">
-              <Users size={20} className="text-gov-600" />
-              Analisis Tim ({visibleUsers.length} dari {filteredAndSortedUsers.length} ditampilkan, {users.length} total)
+            <h3 className="text-base md:text-lg font-bold text-slate-800 mb-1 flex items-center gap-2">
+              <Users size={18} className="text-gov-600" />
+              <span className="hidden sm:inline">Analisis Tim ({visibleUsers.length} dari {filteredAndSortedUsers.length} ditampilkan, {users.length} total)</span>
+              <span className="sm:hidden">Tim ({visibleUsers.length}/{users.length})</span>
             </h3>
-            <div className="flex items-center gap-4">
-              <p className="text-sm text-slate-500">Pantau beban kerja dan performa setiap anggota tim</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-xs md:text-sm text-slate-500 hidden sm:block">Pantau beban kerja dan performa setiap anggota tim</p>
               {dateFilter !== 'all' && (
-                <div className="flex items-center gap-2 px-3 py-1 bg-gov-50 text-gov-700 rounded-full text-xs font-medium">
-                  <Calendar size={12} />
+                <div className="flex items-center gap-1 px-2 py-0.5 bg-gov-50 text-gov-700 rounded-full text-[10px] md:text-xs font-medium">
+                  <Calendar size={10} />
                   <span>
                     {dateFilter === 'today' && 'Hari Ini'}
                     {dateFilter === 'week' && 'Minggu Ini'}
@@ -770,97 +772,97 @@ const Dashboard: React.FC<DashboardProps> = ({
             </div>
           </div>
           
-          <div className="flex flex-col gap-4 w-full lg:w-auto">
+          <div className="flex flex-col gap-3 w-full">
             {/* Row 1: Search dan Date Filter */}
-            <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex flex-col sm:flex-row gap-2 md:gap-3">
               {/* Search */}
-              <div className="relative">
-                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <div className="relative flex-1">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Cari nama atau jabatan..."
+                  placeholder="Cari nama..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm w-full sm:w-64"
+                  className="pl-9 pr-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm w-full"
                 />
               </div>
 
               {/* Date Filter */}
               <div className="relative">
-                <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <select
                   value={dateFilter}
                   onChange={(e) => setDateFilter(e.target.value as DateFilter)}
-                  className="pl-10 pr-8 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm bg-white appearance-none cursor-pointer"
+                  className="pl-9 pr-6 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm bg-white appearance-none cursor-pointer w-full sm:w-auto"
                 >
                   <option value="all">Semua Periode</option>
                   <option value="today">Hari Ini</option>
                   <option value="week">Minggu Ini</option>
                   <option value="month">Bulan Ini</option>
-                  <option value="custom">Periode Custom</option>
+                  <option value="custom">Custom</option>
                 </select>
-                <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
               </div>
             </div>
 
             {/* Custom Date Range (jika dipilih) */}
             {dateFilter === 'custom' && (
-              <div className="flex flex-col sm:flex-row gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
+              <div className="flex flex-col sm:flex-row gap-2 md:gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
                 <div className="flex-1">
-                  <label className="block text-xs font-medium text-slate-600 mb-1">Dari Tanggal</label>
+                  <label className="block text-[10px] md:text-xs font-medium text-slate-600 mb-1">Dari</label>
                   <input
                     type="date"
                     value={customStartDate}
                     onChange={(e) => setCustomStartDate(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm"
+                    className="w-full px-2 md:px-3 py-1.5 md:py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm"
                   />
                 </div>
                 <div className="flex-1">
-                  <label className="block text-xs font-medium text-slate-600 mb-1">Sampai Tanggal</label>
+                  <label className="block text-[10px] md:text-xs font-medium text-slate-600 mb-1">Sampai</label>
                   <input
                     type="date"
                     value={customEndDate}
                     onChange={(e) => setCustomEndDate(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm"
+                    className="w-full px-2 md:px-3 py-1.5 md:py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm"
                   />
                 </div>
               </div>
             )}
 
             {/* Row 2: Workload Filter dan Sort */}
-            <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex flex-col sm:flex-row gap-2 md:gap-3">
               {/* Workload Filter */}
-              <div className="relative">
-                <Filter size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <div className="relative flex-1 sm:flex-none">
+                <Filter size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <select
                   value={workloadFilter}
                   onChange={(e) => setWorkloadFilter(e.target.value as WorkloadFilter)}
-                  className="pl-10 pr-8 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm bg-white appearance-none cursor-pointer"
+                  className="pl-9 pr-6 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm bg-white appearance-none cursor-pointer w-full"
                 >
-                  <option value="all">Semua Beban Kerja</option>
+                  <option value="all">Semua Beban</option>
                   <option value="relaxed">Relaxed</option>
                   <option value="balanced">Balanced</option>
                   <option value="busy">Busy</option>
                   <option value="overload">Overload</option>
                 </select>
-                <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
               </div>
 
               {/* Sort */}
-              <div className="relative">
-                <BarChart3 size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <div className="relative flex-1 sm:flex-none">
+                <BarChart3 size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value as SortOption)}
-                  className="pl-10 pr-8 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm bg-white appearance-none cursor-pointer"
+                  className="pl-9 pr-6 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm bg-white appearance-none cursor-pointer w-full"
                 >
-                  <option value="workload">Urutkan: Beban Kerja</option>
-                  <option value="performance">Urutkan: Performa Terbaik</option>
-                  <option value="name">Urutkan: Nama</option>
-                  <option value="tasks">Urutkan: Jumlah Task</option>
-                  <option value="urgent">Urutkan: Task Urgent</option>
+                  <option value="workload">Beban Kerja</option>
+                  <option value="performance">Performa</option>
+                  <option value="name">Nama</option>
+                  <option value="tasks">Jumlah Task</option>
+                  <option value="urgent">Task Urgent</option>
                 </select>
-                <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
               </div>
             </div>
           </div>
@@ -868,7 +870,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       </div>
 
       {/* USER GRID */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6 mb-6">
         {visibleUsers.map(data => {
           const VisualIcon = data.visuals.icon;
           const percentage = Math.min((data.score / 30) * 100, 100);
@@ -1317,17 +1319,22 @@ const Dashboard: React.FC<DashboardProps> = ({
 
       {/* High Performer Leaderboard Modal */}
       {isLeaderboardOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 bg-gradient-to-r from-purple-500 to-yellow-500 text-white rounded-lg">
-                    <Award size={24} />
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 sm:p-4">
+          <div className="bg-white w-full sm:rounded-xl rounded-t-2xl shadow-2xl sm:max-w-4xl max-h-[90vh] sm:max-h-[90vh] overflow-y-auto">
+            {/* Mobile handle bar */}
+            <div className="sm:hidden flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1 bg-slate-300 rounded-full"></div>
+            </div>
+            
+            <div className="p-4 sm:p-6">
+              <div className="flex items-center justify-between mb-4 sm:mb-6">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="p-2 sm:p-3 bg-gradient-to-r from-purple-500 to-yellow-500 text-white rounded-lg">
+                    <Award size={20} className="sm:w-6 sm:h-6" />
                   </div>
                   <div>
-                    <h2 className="text-2xl font-bold text-slate-800">🏆 Performance Leaderboard</h2>
-                    <p className="text-sm text-slate-600">
+                    <h2 className="text-lg sm:text-2xl font-bold text-slate-800">🏆 Leaderboard</h2>
+                    <p className="text-xs sm:text-sm text-slate-600 hidden sm:block">
                       Ranking berdasarkan Performance Score (0-100)
                     </p>
                   </div>
@@ -1341,66 +1348,66 @@ const Dashboard: React.FC<DashboardProps> = ({
               </div>
 
               {/* Period Filter */}
-              <div className="mb-6 flex items-center justify-center gap-2">
-                <span className="text-sm font-medium text-slate-600">Periode:</span>
-                <div className="flex bg-slate-100 rounded-lg p-1">
+              <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row items-center justify-center gap-2">
+                <span className="text-xs sm:text-sm font-medium text-slate-600">Periode:</span>
+                <div className="flex bg-slate-100 rounded-lg p-1 w-full sm:w-auto">
                   <button
                     onClick={() => setLeaderboardPeriod('week')}
-                    className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                    className={`flex-1 sm:flex-none px-3 sm:px-4 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium transition-all ${
                       leaderboardPeriod === 'week'
                         ? 'bg-white text-gov-600 shadow-sm'
                         : 'text-slate-600 hover:text-slate-800'
                     }`}
                   >
-                    Minggu Ini
+                    Minggu
                   </button>
                   <button
                     onClick={() => setLeaderboardPeriod('month')}
-                    className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                    className={`flex-1 sm:flex-none px-3 sm:px-4 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium transition-all ${
                       leaderboardPeriod === 'month'
                         ? 'bg-white text-gov-600 shadow-sm'
                         : 'text-slate-600 hover:text-slate-800'
                     }`}
                   >
-                    Bulan Ini
+                    Bulan
                   </button>
                   <button
                     onClick={() => setLeaderboardPeriod('all')}
-                    className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                    className={`flex-1 sm:flex-none px-3 sm:px-4 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium transition-all ${
                       leaderboardPeriod === 'all'
                         ? 'bg-white text-gov-600 shadow-sm'
                         : 'text-slate-600 hover:text-slate-800'
                     }`}
                   >
-                    Sepanjang Masa
+                    Semua
                   </button>
                 </div>
               </div>
 
               {/* Period Stats */}
-              <div className="grid grid-cols-3 gap-4 mb-6">
-                <div className="bg-purple-50 p-4 rounded-lg border border-purple-200 text-center">
-                  <div className="text-2xl font-bold text-purple-600">
+              <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-6">
+                <div className="bg-purple-50 p-2 sm:p-4 rounded-lg border border-purple-200 text-center">
+                  <div className="text-lg sm:text-2xl font-bold text-purple-600">
                     {leaderboardData.filter(u => u.isHighPerformer).length}
                   </div>
-                  <div className="text-sm text-purple-700">High Performers</div>
+                  <div className="text-[10px] sm:text-sm text-purple-700">High Performers</div>
                 </div>
-                <div className="bg-green-50 p-4 rounded-lg border border-green-200 text-center">
-                  <div className="text-2xl font-bold text-green-600">
+                <div className="bg-green-50 p-2 sm:p-4 rounded-lg border border-green-200 text-center">
+                  <div className="text-lg sm:text-2xl font-bold text-green-600">
                     {Math.round(leaderboardData.reduce((sum, u) => sum + u.completionRate, 0) / leaderboardData.length)}%
                   </div>
-                  <div className="text-sm text-green-700">Avg Completion Rate</div>
+                  <div className="text-[10px] sm:text-sm text-green-700">Avg Rate</div>
                 </div>
-                <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 text-center">
-                  <div className="text-2xl font-bold text-blue-600">
+                <div className="bg-blue-50 p-2 sm:p-4 rounded-lg border border-blue-200 text-center">
+                  <div className="text-lg sm:text-2xl font-bold text-blue-600">
                     {leaderboardData.reduce((sum, u) => sum + u.completedCount, 0)}
                   </div>
-                  <div className="text-sm text-blue-700">Total Tasks Selesai</div>
+                  <div className="text-[10px] sm:text-sm text-blue-700">Selesai</div>
                 </div>
               </div>
 
               {/* Leaderboard */}
-              <div className="space-y-3 mb-6">
+              <div className="space-y-2 sm:space-y-3 mb-4 sm:mb-6">
                 {leaderboardData
                   .sort((a, b) => b.highPerformerScore - a.highPerformerScore)
                   .map((data, index) => {
@@ -1410,13 +1417,65 @@ const Dashboard: React.FC<DashboardProps> = ({
                     return (
                       <div
                         key={data.userName}
-                        className={`p-4 rounded-lg border transition-all hover:shadow-md ${
+                        className={`p-3 sm:p-4 rounded-lg border transition-all hover:shadow-md ${
                           data.isHighPerformer 
                             ? 'bg-gradient-to-r from-purple-50 to-yellow-50 border-purple-200' 
                             : 'bg-slate-50 border-slate-200'
                         } ${isTop3 ? 'ring-2 ring-yellow-300' : ''}`}
                       >
-                        <div className="flex items-center justify-between">
+                        {/* Mobile Layout */}
+                        <div className="sm:hidden">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-bold text-slate-600">#{index + 1}</span>
+                              {medal && <span className="text-base">{medal}</span>}
+                              <UserAvatar 
+                                name={data.userName}
+                                profilePhoto={data.user.profilePhoto}
+                                size="sm"
+                                className="flex-shrink-0"
+                              />
+                              <div>
+                                <h3 className="font-bold text-slate-800 text-sm">{data.userName}</h3>
+                                <p className="text-xs text-slate-500">{data.user.jabatan || 'Staff'}</p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className={`text-xl font-bold ${
+                                data.isHighPerformer ? 'text-purple-600' : 'text-slate-600'
+                              }`}>
+                                {data.highPerformerScore}
+                              </div>
+                              <div className="text-[10px] text-slate-500">/ 100</div>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-4 gap-1 text-center bg-white/50 rounded-md p-1.5">
+                            <div>
+                              <span className="block text-xs font-bold text-slate-800">{data.activeCount}</span>
+                              <span className="text-[10px] text-slate-500">Aktif</span>
+                            </div>
+                            <div>
+                              <span className="block text-xs font-bold text-green-600">{data.completedCount}</span>
+                              <span className="text-[10px] text-slate-500">Selesai</span>
+                            </div>
+                            <div>
+                              <span className="block text-xs font-bold text-gov-600">{data.completionRate.toFixed(0)}%</span>
+                              <span className="text-[10px] text-slate-500">Rate</span>
+                            </div>
+                            <div>
+                              <span className="block text-xs font-bold text-purple-600">{data.performanceScore}</span>
+                              <span className="text-[10px] text-slate-500">Poin</span>
+                            </div>
+                          </div>
+                          {data.isHighPerformer && (
+                            <div className="text-xs text-purple-600 font-medium mt-1.5 text-center">
+                              🏆 High Performer
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Desktop Layout */}
+                        <div className="hidden sm:flex items-center justify-between">
                           <div className="flex items-center gap-4">
                             <div className="flex items-center gap-2">
                               <span className="text-lg font-bold text-slate-600 w-8">#{index + 1}</span>
@@ -1478,71 +1537,70 @@ const Dashboard: React.FC<DashboardProps> = ({
                   })}
               </div>
 
-              {/* Info Perhitungan */}
-              <div className="border-t border-slate-200 pt-6">
-                <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                  📊 Cara Perhitungan Performance Score
-                </h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-200">
-                      <div className="w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center text-sm font-bold">40</div>
-                      <div>
-                        <h4 className="font-semibold text-green-800 text-sm">Completion Rate</h4>
-                        <p className="text-xs text-green-700">Persentase × 0.4</p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                      <div className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-bold">30</div>
-                      <div>
-                        <h4 className="font-semibold text-blue-800 text-sm">Task Points</h4>
-                        <p className="text-xs text-blue-700">Poin task selesai × 3</p>
-                      </div>
-                    </div>
-                  </div>
+              {/* Info Perhitungan - Hidden on mobile, collapsible */}
+              <div className="border-t border-slate-200 pt-4 sm:pt-6">
+                <details className="sm:open">
+                  <summary className="font-bold text-slate-800 mb-3 sm:mb-4 flex items-center gap-2 cursor-pointer sm:cursor-default list-none">
+                    📊 <span className="text-sm sm:text-base">Cara Perhitungan</span>
+                    <span className="sm:hidden text-xs text-slate-500 ml-auto">(tap untuk lihat)</span>
+                  </summary>
                   
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-3 p-3 bg-orange-50 rounded-lg border border-orange-200">
-                      <div className="w-8 h-8 bg-orange-500 text-white rounded-full flex items-center justify-center text-sm font-bold">20</div>
+                  <div className="grid grid-cols-2 gap-2 sm:gap-4 mb-3 sm:mb-4">
+                    <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-green-50 rounded-lg border border-green-200">
+                      <div className="w-6 h-6 sm:w-8 sm:h-8 bg-green-500 text-white rounded-full flex items-center justify-center text-xs sm:text-sm font-bold">40</div>
                       <div>
-                        <h4 className="font-semibold text-orange-800 text-sm">Aktivitas</h4>
-                        <p className="text-xs text-orange-700">Ada task selesai/aktif</p>
+                        <h4 className="font-semibold text-green-800 text-xs sm:text-sm">Completion</h4>
+                        <p className="text-[10px] sm:text-xs text-green-700">Rate × 0.4</p>
                       </div>
                     </div>
                     
-                    <div className="flex items-center gap-3 p-3 bg-purple-50 rounded-lg border border-purple-200">
-                      <div className="w-8 h-8 bg-purple-500 text-white rounded-full flex items-center justify-center text-sm font-bold">10</div>
+                    <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-blue-50 rounded-lg border border-blue-200">
+                      <div className="w-6 h-6 sm:w-8 sm:h-8 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs sm:text-sm font-bold">30</div>
                       <div>
-                        <h4 className="font-semibold text-purple-800 text-sm">Konsistensi</h4>
-                        <p className="text-xs text-purple-700">≥3 task + no deadline</p>
+                        <h4 className="font-semibold text-blue-800 text-xs sm:text-sm">Task Points</h4>
+                        <p className="text-[10px] sm:text-xs text-blue-700">Poin × 3</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-orange-50 rounded-lg border border-orange-200">
+                      <div className="w-6 h-6 sm:w-8 sm:h-8 bg-orange-500 text-white rounded-full flex items-center justify-center text-xs sm:text-sm font-bold">20</div>
+                      <div>
+                        <h4 className="font-semibold text-orange-800 text-xs sm:text-sm">Aktivitas</h4>
+                        <p className="text-[10px] sm:text-xs text-orange-700">Task aktif</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-purple-50 rounded-lg border border-purple-200">
+                      <div className="w-6 h-6 sm:w-8 sm:h-8 bg-purple-500 text-white rounded-full flex items-center justify-center text-xs sm:text-sm font-bold">10</div>
+                      <div>
+                        <h4 className="font-semibold text-purple-800 text-xs sm:text-sm">Konsistensi</h4>
+                        <p className="text-[10px] sm:text-xs text-purple-700">≥3 task</p>
                       </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="bg-gradient-to-r from-purple-50 to-yellow-50 p-4 rounded-lg border border-purple-200">
-                    <p className="text-sm text-purple-700 text-center">
-                      <strong>High Performer:</strong> Skor ≥ 60/100<br/>
-                      <strong>Task Points:</strong> Urgent=4, High=3, Medium=2, Low=1
-                    </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
+                    <div className="bg-gradient-to-r from-purple-50 to-yellow-50 p-2 sm:p-4 rounded-lg border border-purple-200">
+                      <p className="text-xs sm:text-sm text-purple-700 text-center">
+                        <strong>High Performer:</strong> Skor ≥ 60<br/>
+                        <span className="hidden sm:inline"><strong>Task Points:</strong> Urgent=4, High=3, Medium=2, Low=1</span>
+                      </p>
+                    </div>
+                    
+                    <div className="bg-blue-50 p-2 sm:p-4 rounded-lg border border-blue-200">
+                      <p className="text-xs sm:text-sm text-blue-700 text-center">
+                        <strong>🔄 Reset tanggal 1</strong><br/>
+                        <strong>📅 {new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}</strong>
+                      </p>
+                    </div>
                   </div>
-                  
-                  <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                    <p className="text-sm text-blue-700 text-center">
-                      <strong>🔄 Reset setiap tanggal 1</strong><br/>
-                      <strong>📅 {new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}</strong>
-                    </p>
-                  </div>
-                </div>
+                </details>
               </div>
 
-              <div className="mt-6 text-center">
+              <div className="mt-4 sm:mt-6 text-center pb-safe">
                 <button
                   onClick={() => setIsLeaderboardOpen(false)}
-                  className="px-6 py-2 bg-gradient-to-r from-purple-600 to-yellow-600 text-white rounded-lg font-medium hover:from-purple-700 hover:to-yellow-700 transition-all"
+                  className="w-full sm:w-auto px-6 py-2.5 sm:py-2 bg-gradient-to-r from-purple-600 to-yellow-600 text-white rounded-lg font-medium hover:from-purple-700 hover:to-yellow-700 transition-all"
                 >
                   Tutup Leaderboard
                 </button>

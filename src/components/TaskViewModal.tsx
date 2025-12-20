@@ -172,11 +172,11 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm">
-      <div className="bg-white rounded-lg shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/20 backdrop-blur-sm">
+      <div className="bg-white rounded-t-2xl sm:rounded-lg shadow-2xl w-full sm:max-w-3xl overflow-hidden flex flex-col max-h-[90vh]">
         
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+        <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
           <div className="flex items-center gap-2 text-gray-600">
             <button 
               onClick={onClose}
@@ -186,11 +186,11 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                 <path d="m15 18-6-6 6-6"/>
               </svg>
             </button>
-            <span className="text-sm">
+            <span className="text-xs sm:text-sm truncate max-w-[200px] sm:max-w-none">
               {project ? `${project.name} / ` : ''}{task.status}
             </span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
             {canEdit && onEdit && (
               <button
                 onClick={onEdit}

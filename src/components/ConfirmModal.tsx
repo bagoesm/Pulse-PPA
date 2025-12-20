@@ -43,13 +43,13 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in-0 zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/40 backdrop-blur-sm">
+      <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl w-full sm:max-w-md overflow-hidden animate-in fade-in-0 zoom-in-95 duration-200">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-100 flex items-center justify-between">
+          <div className="flex items-center gap-2 sm:gap-3">
             {getIcon()}
-            <h3 className="text-lg font-bold text-slate-800">{title}</h3>
+            <h3 className="text-base sm:text-lg font-bold text-slate-800">{title}</h3>
           </div>
           <button 
             onClick={onClose}
@@ -60,15 +60,15 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
         </div>
 
         {/* Body */}
-        <div className="px-6 py-4">
-          <p className="text-slate-600 leading-relaxed whitespace-pre-line">{message}</p>
+        <div className="px-4 sm:px-6 py-4">
+          <p className="text-sm sm:text-base text-slate-600 leading-relaxed whitespace-pre-line">{message}</p>
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 bg-slate-50 flex justify-end gap-3">
+        <div className="px-4 sm:px-6 py-4 bg-slate-50 flex justify-end gap-2 sm:gap-3 safe-area-bottom">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg font-medium transition-colors"
+            className="px-3 sm:px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg font-medium transition-colors text-sm sm:text-base"
           >
             {cancelText}
           </button>
@@ -77,7 +77,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
               onConfirm();
               onClose();
             }}
-            className={`px-4 py-2 text-white rounded-lg font-bold transition-all shadow-sm hover:shadow-md ${getButtonColor()}`}
+            className={`px-3 sm:px-4 py-2 text-white rounded-lg font-bold transition-all shadow-sm hover:shadow-md text-sm sm:text-base ${getButtonColor()}`}
           >
             {confirmText}
           </button>

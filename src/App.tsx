@@ -26,6 +26,7 @@ import UserAvatar from './components/UserAvatar';
 import ProfilePhotoModal from './components/ProfilePhotoModal';
 import DataInventory from './components/DataInventory';
 import TaskShareModal from './components/TaskShareModal';
+import MobileNav from './components/MobileNav';
 import { useTaskShare } from './hooks/useTaskShare';
 
 const App: React.FC = () => {
@@ -2452,6 +2453,18 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50 flex font-sans text-slate-900">
       
+      {/* Mobile Navigation */}
+      <MobileNav
+        activeTab={activeTab}
+        setActiveTab={(tab) => {
+          setActiveTab(tab);
+          if (tab !== 'Surat & Dokumen') setSuratSubTab('Tasks');
+        }}
+        currentUser={currentUser}
+        onLogout={handleLogout}
+        onOpenProfile={() => setIsProfilePhotoModalOpen(true)}
+      />
+
       {/* Sidebar */}
       <Sidebar 
         activeTab={activeTab} 
@@ -2466,21 +2479,21 @@ const App: React.FC = () => {
       />
 
       {/* Main Content */}
-      <main className="flex-1 ml-0 md:ml-64 flex flex-col h-screen overflow-hidden">
+      <main className="flex-1 ml-0 md:ml-64 flex flex-col h-screen overflow-hidden pt-14 pb-16 md:pt-0 md:pb-0">
         
         {/* Top Header / Filter Bar - HIDDEN for special pages */}
         {activeTab !== 'Dashboard' && activeTab !== 'Project' && activeTab !== 'Master Data' && activeTab !== 'Saran Masukan' && activeTab !== 'Pengumuman' && activeTab !== 'Inventori Data' && (
-        <header className="bg-white border-b border-slate-200 px-6 py-4 z-20 relative">
-          <div className="flex flex-col gap-4 mb-4">
+        <header className="bg-white border-b border-slate-200 px-3 sm:px-6 py-3 sm:py-4 z-20 relative">
+          <div className="flex flex-col gap-3 sm:gap-4 mb-3 sm:mb-4">
              {/* Title Section */}
              <div className="flex justify-between items-start">
                 <div>
-                    <h2 className="text-2xl font-bold text-slate-800">{activeTab}</h2>
-                    <p className="text-sm text-slate-500">Kelola dan pantau aktivitas tim anda.</p>
+                    <h2 className="text-lg sm:text-2xl font-bold text-slate-800">{activeTab}</h2>
+                    <p className="text-xs sm:text-sm text-slate-500 hidden sm:block">Kelola dan pantau aktivitas tim anda.</p>
                 </div>
                 
                 {/* Notification Icon & Profile Photo */}
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 sm:gap-3">
                   <NotificationIcon
                     notifications={notifications}
                     onMarkAllAsRead={markAllAsRead}
@@ -2501,40 +2514,40 @@ const App: React.FC = () => {
              </div>
              
              {/* Buttons Row - All buttons in horizontal alignment */}
-             <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
+             <div className="flex items-center justify-between gap-2 sm:gap-4">
+                <div className="flex items-center gap-2 sm:gap-3">
                     {/* View Switcher */}
                     {!(activeTab === 'Surat & Dokumen' && suratSubTab === 'Templates') && (
-                        <div className="flex bg-slate-100 p-1 rounded-lg">
+                        <div className="flex bg-slate-100 p-0.5 sm:p-1 rounded-lg">
                             <button 
                                 onClick={() => setViewMode('Board')}
-                                className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${viewMode === 'Board' ? 'bg-white text-gov-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${viewMode === 'Board' ? 'bg-white text-gov-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                             >
-                                <Layout size={16} /> Board
+                                <Layout size={14} /> <span className="hidden sm:inline">Board</span>
                             </button>
                             <button 
                                 onClick={() => setViewMode('Timeline')}
-                                className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${viewMode === 'Timeline' ? 'bg-white text-gov-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${viewMode === 'Timeline' ? 'bg-white text-gov-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                             >
-                                <CalendarRange size={16} /> Timeline
+                                <CalendarRange size={14} /> <span className="hidden sm:inline">Timeline</span>
                             </button>
                         </div>
                     )}
                     
                     {/* Surat & Dokumen Sub-Nav */}
                     {activeTab === 'Surat & Dokumen' && (
-                        <div className="flex bg-slate-100 p-1 rounded-lg">
+                        <div className="flex bg-slate-100 p-0.5 sm:p-1 rounded-lg">
                             <button 
                                onClick={() => setSuratSubTab('Tasks')}
-                               className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${suratSubTab === 'Tasks' ? 'bg-white text-gov-700 shadow-sm font-bold' : 'text-slate-500 hover:text-slate-700'}`}
+                               className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-1 sm:py-2 rounded-md text-xs sm:text-sm font-medium transition-all ${suratSubTab === 'Tasks' ? 'bg-white text-gov-700 shadow-sm font-bold' : 'text-slate-500 hover:text-slate-700'}`}
                             >
-                               <ListTodo size={16} /> Daftar Surat/Task
+                               <ListTodo size={14} /> <span className="hidden sm:inline">Daftar Surat/Task</span><span className="sm:hidden">Task</span>
                             </button>
                             <button 
                                onClick={() => setSuratSubTab('Templates')}
-                               className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${suratSubTab === 'Templates' ? 'bg-white text-gov-700 shadow-sm font-bold' : 'text-slate-500 hover:text-slate-700'}`}
+                               className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-1 sm:py-2 rounded-md text-xs sm:text-sm font-medium transition-all ${suratSubTab === 'Templates' ? 'bg-white text-gov-700 shadow-sm font-bold' : 'text-slate-500 hover:text-slate-700'}`}
                             >
-                               <FileText size={16} /> Template Dokumen
+                               <FileText size={14} /> <span className="hidden sm:inline">Template Dokumen</span><span className="sm:hidden">Template</span>
                             </button>
                         </div>
                     )}
@@ -2545,10 +2558,11 @@ const App: React.FC = () => {
                     <div className="flex gap-2">
                        <button 
                            onClick={openNewTaskModal}
-                           className="flex items-center gap-2 bg-gov-600 text-white px-4 py-2.5 rounded-lg font-semibold hover:bg-gov-700 hover:shadow-lg hover:shadow-gov-200 transition-all transform active:scale-95 text-sm"
+                           className="flex items-center gap-1 sm:gap-2 bg-gov-600 text-white px-2 sm:px-4 py-2 sm:py-2.5 rounded-lg font-semibold hover:bg-gov-700 hover:shadow-lg hover:shadow-gov-200 transition-all transform active:scale-95 text-xs sm:text-sm"
                        >
-                           <Plus size={16} />
-                           <span>Tambah Task</span>
+                           <Plus size={14} />
+                           <span className="hidden sm:inline">Tambah Task</span>
+                           <span className="sm:hidden">Task</span>
                        </button>
                     </div>
                 )}
@@ -2557,55 +2571,55 @@ const App: React.FC = () => {
 
           {/* Filter Bar */}
           {!(activeTab === 'Surat & Dokumen' && suratSubTab === 'Templates') && (
-              <div className="flex flex-col xl:flex-row gap-3">
-                    <div className="relative flex-1 max-w-md">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+              <div className="flex flex-col gap-2 sm:gap-3">
+                    <div className="relative flex-1">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                         <input 
                         type="text" 
-                        placeholder="Cari task, PIC, kategori, deskripsi..." 
+                        placeholder="Cari task..." 
                         value={filters.search}
                         onChange={(e) => setFilters(prev => ({...prev, search: e.target.value}))}
-                        className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gov-300 focus:bg-white transition-all"
+                        className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gov-300 focus:bg-white transition-all"
                         />
                     </div>
                     
-                    <div className="flex gap-2 overflow-x-auto pb-2 xl:pb-0 no-scrollbar items-center">
+                    <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar items-center">
                         {/* CATEGORY FILTER - hanya tampil di halaman "Semua Task" */}
                         {activeTab === 'Semua Task' ? (
                           <select 
-                            className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-600 focus:border-gov-400 focus:ring-1 focus:ring-gov-400 outline-none cursor-pointer"
+                            className="px-2 sm:px-3 py-1.5 sm:py-2 bg-white border border-slate-200 rounded-lg text-xs sm:text-sm text-slate-600 focus:border-gov-400 focus:ring-1 focus:ring-gov-400 outline-none cursor-pointer min-w-[100px]"
                             value={filters.category}
                             onChange={(e) => setFilters(prev => ({...prev, category: e.target.value as Category | 'All'}))}
                           >
-                            <option value="All">Semua Kategori</option>
+                            <option value="All">Kategori</option>
                             {Object.values(Category).map(c => <option key={c} value={c}>{c}</option>)}
                           </select>
                         ) : null}
 
                         <select 
-                            className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-600 focus:border-gov-400 focus:ring-1 focus:ring-gov-400 outline-none cursor-pointer"
+                            className="px-2 sm:px-3 py-1.5 sm:py-2 bg-white border border-slate-200 rounded-lg text-xs sm:text-sm text-slate-600 focus:border-gov-400 focus:ring-1 focus:ring-gov-400 outline-none cursor-pointer min-w-[90px]"
                             value={filters.projectId}
                             onChange={(e) => setFilters(prev => ({...prev, projectId: e.target.value}))}
                         >
-                            <option value="All">Semua Project</option>
+                            <option value="All">Project</option>
                             {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                         </select>
 
                         <select 
-                            className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-600 focus:border-gov-400 focus:ring-1 focus:ring-gov-400 outline-none cursor-pointer"
+                            className="px-2 sm:px-3 py-1.5 sm:py-2 bg-white border border-slate-200 rounded-lg text-xs sm:text-sm text-slate-600 focus:border-gov-400 focus:ring-1 focus:ring-gov-400 outline-none cursor-pointer min-w-[80px]"
                             value={filters.pic}
                             onChange={(e) => setFilters(prev => ({...prev, pic: e.target.value}))}
                         >
-                            <option value="All">Semua PIC</option>
+                            <option value="All">PIC</option>
                             {allUniquePics.map(pic => <option key={pic} value={pic}>{pic}</option>)}
                         </select>
 
                         <select 
-                            className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-600 focus:border-gov-400 focus:ring-1 focus:ring-gov-400 outline-none cursor-pointer"
+                            className="px-2 sm:px-3 py-1.5 sm:py-2 bg-white border border-slate-200 rounded-lg text-xs sm:text-sm text-slate-600 focus:border-gov-400 focus:ring-1 focus:ring-gov-400 outline-none cursor-pointer min-w-[90px]"
                             value={filters.priority}
                             onChange={(e) => setFilters(prev => ({...prev, priority: e.target.value as Priority | 'All'}))}
                         >
-                            <option value="All">Semua Prioritas</option>
+                            <option value="All">Prioritas</option>
                             {Object.values(Priority).map(p => <option key={p} value={p}>{p}</option>)}
                         </select>
                     </div>
@@ -2752,9 +2766,9 @@ const App: React.FC = () => {
             onFixLegacyTemplates={fixLegacyTemplates}
           />
         ) : (
-            <div className="flex-1 overflow-x-auto overflow-y-hidden bg-slate-50 p-6">
+            <div className="flex-1 overflow-x-auto overflow-y-hidden bg-slate-50 p-3 sm:p-6">
                 {viewMode === 'Board' ? (
-                    <div className="flex h-full gap-6 min-w-[1200px]">
+                    <div className="flex h-full gap-3 sm:gap-6 min-w-[900px] sm:min-w-[1200px]">
                         {columns.map(status => {
                             const columnTasks = filteredTasks.filter(t => t.status === status);
                             return (

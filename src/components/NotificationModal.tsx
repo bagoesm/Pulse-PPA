@@ -51,23 +51,23 @@ const NotificationModal: React.FC<NotificationModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-      <div className={`bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in-0 zoom-in-95 duration-300 border-l-4 ${getBorderColor()}`}>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/40 backdrop-blur-sm">
+      <div className={`bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-lg overflow-hidden animate-in fade-in-0 zoom-in-95 duration-300 border-l-4 ${getBorderColor()}`}>
         {/* Header */}
-        <div className={`px-6 py-5 flex items-center justify-between ${
+        <div className={`px-4 sm:px-6 py-4 sm:py-5 flex items-center justify-between ${
           type === 'success' ? 'bg-green-50' :
           type === 'warning' ? 'bg-orange-50' :
           type === 'error' ? 'bg-red-50' : 'bg-blue-50'
         }`}>
-          <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-full ${
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className={`p-1.5 sm:p-2 rounded-full ${
               type === 'success' ? 'bg-green-100' :
               type === 'warning' ? 'bg-orange-100' :
               type === 'error' ? 'bg-red-100' : 'bg-blue-100'
             }`}>
               {getIcon()}
             </div>
-            <h3 className="text-xl font-bold text-slate-800">{title}</h3>
+            <h3 className="text-lg sm:text-xl font-bold text-slate-800">{title}</h3>
           </div>
           <button 
             onClick={onClose}
@@ -78,16 +78,16 @@ const NotificationModal: React.FC<NotificationModalProps> = ({
         </div>
 
         {/* Body */}
-        <div className="px-6 py-6">
-          <p className="text-slate-700 leading-relaxed whitespace-pre-line text-sm">{message}</p>
+        <div className="px-4 sm:px-6 py-4 sm:py-6">
+          <p className="text-slate-700 leading-relaxed whitespace-pre-line text-xs sm:text-sm">{message}</p>
         </div>
 
         {/* Action Button for non-auto-close modals */}
         {!autoClose && (
-          <div className="px-6 pb-6 flex justify-end">
+          <div className="px-4 sm:px-6 pb-4 sm:pb-6 flex justify-end safe-area-bottom">
             <button
               onClick={onClose}
-              className={`px-6 py-2.5 rounded-lg font-semibold text-white transition-all duration-200 hover:scale-105 ${
+              className={`px-5 sm:px-6 py-2 sm:py-2.5 rounded-lg font-semibold text-white transition-all duration-200 hover:scale-105 text-sm sm:text-base ${
                 type === 'success' ? 'bg-green-600 hover:bg-green-700' :
                 type === 'warning' ? 'bg-orange-600 hover:bg-orange-700' :
                 type === 'error' ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'
@@ -100,7 +100,7 @@ const NotificationModal: React.FC<NotificationModalProps> = ({
 
         {/* Auto-close progress bar */}
         {autoClose && (
-          <div className="h-1.5 bg-slate-100">
+          <div className="h-1 sm:h-1.5 bg-slate-100 safe-area-bottom">
             <div 
               className={`h-full transition-all ease-linear ${
                 type === 'success' ? 'bg-green-500' :
