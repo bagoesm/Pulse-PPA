@@ -16,10 +16,10 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   for (let i = 0; i < rawData.length; ++i) {
     outputArray[i] = rawData.charCodeAt(i);
   }
-  return outputArray as Uint8Array<ArrayBuffer>;
+  return outputArray;
 }
 
-// Register service worker (outside hook to avoid dependency issues)
+// Register service worker
 async function registerSW(): Promise<ServiceWorkerRegistration | null> {
   if (!('serviceWorker' in navigator)) return null;
   try {
@@ -36,58 +36,46 @@ export const usePushNotifications = ({ userId }: UsePushNotificationsProps) => {
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [showPrompt, setShowPrompt] = useState(false);
 
-  // Check if push notifications are supported
+  // Check if notifications are supported
   useEffect(() => {
-    const supported =
-      'Notification' in window &&
-      'serviceWorker' in navigator &&
-      'PushManager' in window;
+    const supported = 'Notification' in window && 'serviceWorker' in navigator;
     setIsSupported(supported);
 
     if (supported) {
       setPermission(Notification.permission);
+      // Register SW on load
+      registerSW();
     }
   }, []);
 
-  // Check if already subscribed
+  // Check subscription status and show prompt
   useEffect(() => {
-    const checkSubscription = async () => {
-      if (!isSupported || !userId) return;
+    if (!isSupported || !userId) return;
 
-      try {
-        // Register service worker first
-        await registerSW();
+    const checkAndShowPrompt = async () => {
+      // Check if user already granted permission
+      if (Notification.permission === 'granted') {
+        setIsSubscribed(true);
+        setShowPrompt(false);
+        return;
+      }
 
-        const registration = await navigator.serviceWorker.ready;
-        const subscription = await registration.pushManager.getSubscription();
-        setIsSubscribed(!!subscription);
-
-        // Show prompt if not subscribed and permission not denied
-        if (!subscription && Notification.permission !== 'denied') {
-          const dismissed = localStorage.getItem(`push_prompt_dismissed_${userId}`);
-          if (!dismissed) {
-            setTimeout(() => setShowPrompt(true), 2000);
-          }
-        }
-      } catch (error) {
-        console.error('Error checking subscription:', error);
-        // Still show prompt if there's an error
-        if (Notification.permission !== 'denied') {
-          const dismissed = localStorage.getItem(`push_prompt_dismissed_${userId}`);
-          if (!dismissed) {
-            setTimeout(() => setShowPrompt(true), 2000);
-          }
+      // Show prompt if not denied and not dismissed before
+      if (Notification.permission !== 'denied') {
+        const dismissed = localStorage.getItem(`push_prompt_dismissed_${userId}`);
+        if (!dismissed) {
+          setTimeout(() => setShowPrompt(true), 2000);
         }
       }
     };
 
-    checkSubscription();
+    checkAndShowPrompt();
   }, [isSupported, userId]);
 
-  // Subscribe to push notifications
+  // Subscribe - just request notification permission
   const subscribe = useCallback(async () => {
-    if (!isSupported || !userId || !VAPID_PUBLIC_KEY) {
-      console.warn('Push notifications not supported or VAPID key missing');
+    if (!isSupported || !userId) {
+      console.warn('Notifications not supported');
       return false;
     }
 
@@ -100,41 +88,56 @@ export const usePushNotifications = ({ userId }: UsePushNotificationsProps) => {
         return false;
       }
 
+      // Register service worker
       const registration = await registerSW();
-      if (!registration) return false;
+      if (!registration) {
+        console.warn('Service worker not registered');
+      }
 
-      await navigator.serviceWorker.ready;
+      // Try to subscribe to push if VAPID key exists
+      if (VAPID_PUBLIC_KEY && registration && 'PushManager' in window) {
+        try {
+          const subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as any,
+          });
 
-      const subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as BufferSource,
-      });
+          const subscriptionJson = subscription.toJSON();
 
-      const subscriptionJson = subscription.toJSON();
-
-      const { error } = await supabase.from('push_subscriptions').upsert(
-        {
-          user_id: userId,
-          endpoint: subscriptionJson.endpoint,
-          p256dh: subscriptionJson.keys?.p256dh,
-          auth: subscriptionJson.keys?.auth,
-          updated_at: new Date().toISOString(),
-        },
-        {
-          onConflict: 'user_id,endpoint',
+          await supabase.from('push_subscriptions').upsert(
+            {
+              user_id: userId,
+              endpoint: subscriptionJson.endpoint,
+              p256dh: subscriptionJson.keys?.p256dh,
+              auth: subscriptionJson.keys?.auth,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: 'user_id,endpoint' }
+          );
+          
+          console.log('Push subscription saved');
+        } catch (pushError) {
+          // Push subscription failed, but notification permission is granted
+          // User can still receive in-app notifications
+          console.warn('Push subscription failed, using in-app notifications only:', pushError);
         }
-      );
-
-      if (error) {
-        console.error('Error saving subscription:', error);
-        return false;
       }
 
       setIsSubscribed(true);
       setShowPrompt(false);
+      
+      // Show a test notification
+      if (registration) {
+        registration.showNotification('Notifikasi Aktif! 🎉', {
+          body: 'Anda akan menerima notifikasi untuk task baru, deadline, dan komentar.',
+          icon: '/Logo.svg',
+        });
+      }
+      
       return true;
     } catch (error) {
-      console.error('Error subscribing to push:', error);
+      console.error('Error subscribing:', error);
       return false;
     }
   }, [isSupported, userId]);
@@ -144,16 +147,18 @@ export const usePushNotifications = ({ userId }: UsePushNotificationsProps) => {
     if (!userId) return false;
 
     try {
-      const registration = await navigator.serviceWorker.ready;
-      const subscription = await registration.pushManager.getSubscription();
+      if ('PushManager' in window) {
+        const registration = await navigator.serviceWorker.ready;
+        const subscription = await registration.pushManager.getSubscription();
 
-      if (subscription) {
-        await subscription.unsubscribe();
-        await supabase
-          .from('push_subscriptions')
-          .delete()
-          .eq('user_id', userId)
-          .eq('endpoint', subscription.endpoint);
+        if (subscription) {
+          await subscription.unsubscribe();
+          await supabase
+            .from('push_subscriptions')
+            .delete()
+            .eq('user_id', userId)
+            .eq('endpoint', subscription.endpoint);
+        }
       }
 
       setIsSubscribed(false);
@@ -185,7 +190,11 @@ export const usePushNotifications = ({ userId }: UsePushNotificationsProps) => {
           ...options,
         });
       } catch (error) {
-        console.error('Error showing notification:', error);
+        // Fallback to basic Notification API
+        new Notification(title, {
+          icon: '/Logo.svg',
+          ...options,
+        });
       }
     },
     [permission]
