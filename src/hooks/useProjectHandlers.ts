@@ -26,15 +26,23 @@ export const useProjectHandlers = ({
     showNotification
 }: UseProjectHandlersProps) => {
 
-    // Permission checks
-    const checkProjectEditPermission = useCallback(() => {
+    // Permission checks - now accepts project to check manager
+    const checkProjectEditPermission = useCallback((project?: ProjectDefinition) => {
         if (!currentUser) return false;
-        return currentUser.role === 'Super Admin' || currentUser.role === 'Atasan';
+        if (currentUser.role === 'Super Admin') return true;
+        if (currentUser.role === 'Atasan') return true;
+        // Allow project manager to edit
+        if (project && project.manager === currentUser.name) return true;
+        return false;
     }, [currentUser]);
 
-    const checkProjectDeletePermission = useCallback(() => {
+    const checkProjectDeletePermission = useCallback((project?: ProjectDefinition) => {
         if (!currentUser) return false;
-        return currentUser.role === 'Super Admin' || currentUser.role === 'Atasan';
+        if (currentUser.role === 'Super Admin') return true;
+        if (currentUser.role === 'Atasan') return true;
+        // Allow project manager to delete
+        if (project && project.manager === currentUser.name) return true;
+        return false;
     }, [currentUser]);
 
     // Save project (create or update)

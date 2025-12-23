@@ -754,7 +754,7 @@ const AppContent: React.FC = () => {
               setEditingProject(null);
               setIsProjectModalOpen(true);
             }}
-            canManageProjects={currentUser?.role === 'Super Admin' || currentUser?.role === 'Atasan' || currentUser?.role === 'Staff'}
+            canManageProjects={currentUser?.role === 'Super Admin' || currentUser?.role === 'Atasan'}
             currentUserName={currentUser?.name}
             refreshTrigger={projectRefreshTrigger}
             fetchProjects={fetchProjects}
