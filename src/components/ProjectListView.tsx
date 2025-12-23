@@ -10,6 +10,7 @@ import {
     Code, Database, Globe, Smartphone, Monitor, Server, Cloud, Shield,
     Zap, Target, Rocket, Star, Heart, Lightbulb, Settings, Users, FileText, BarChart3, Layers
 } from 'lucide-react';
+import SearchableSelect from './SearchableSelect';
 
 interface ProjectStats {
     total: number;
@@ -143,16 +144,14 @@ const ProjectListView: React.FC<ProjectListViewProps> = ({
                             <option value="Live">Live</option>
                         </select>
 
-                        <select
-                            value={managerFilter}
-                            onChange={(e) => setManagerFilter(e.target.value)}
-                            className="px-2 sm:px-3 py-2 sm:py-2.5 border border-slate-300 rounded-lg bg-white text-xs sm:text-sm focus:ring-2 focus:ring-gov-400 outline-none"
-                        >
-                            <option value="All">Manager</option>
-                            {(uniqueManagers || []).map(manager => (
-                                <option key={manager} value={manager}>{manager}</option>
-                            ))}
-                        </select>
+                        <SearchableSelect
+                            options={(uniqueManagers || []).map(manager => ({ value: manager, label: manager }))}
+                            value={managerFilter === 'All' ? '' : managerFilter}
+                            onChange={(val) => setManagerFilter(val || 'All')}
+                            placeholder="Filter Manager..."
+                            emptyOption="Semua Manager"
+                            className="w-[180px]"
+                        />
 
                         {(projectSearch || projectStatusFilter !== 'All' || managerFilter !== 'All') && (
                             <button

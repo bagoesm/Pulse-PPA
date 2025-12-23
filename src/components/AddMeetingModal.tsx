@@ -13,6 +13,7 @@ import NotificationModal from './NotificationModal';
 import ConfirmModal from './ConfirmModal';
 import MultiSelectChip from './MultiSelectChip';
 import RichTextEditor from './RichTextEditor';
+import SearchableSelect from './SearchableSelect';
 
 interface AddMeetingModalProps {
   isOpen: boolean;
@@ -677,15 +678,19 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
             {/* Project */}
             <div>
               <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Project Terkait (Opsional)</label>
-              <select
-                disabled={isReadOnly}
-                value={formData.projectId || ''}
-                onChange={(e) => handleChange('projectId', e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm bg-white disabled:bg-slate-50"
-              >
-                <option value="">-- Tidak terkait project --</option>
-                {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
+              {isReadOnly ? (
+                <div className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-slate-50 text-slate-500 text-sm">
+                  {projects.find(p => p.id === formData.projectId)?.name || '-- Tidak terkait project --'}
+                </div>
+              ) : (
+                <SearchableSelect
+                  options={projects.map(p => ({ value: p.id, label: p.name }))}
+                  value={formData.projectId || ''}
+                  onChange={(val) => handleChange('projectId', val)}
+                  placeholder="Cari project..."
+                  emptyOption="-- Tidak terkait project --"
+                />
+              )}
             </div>
 
             {/* Description */}

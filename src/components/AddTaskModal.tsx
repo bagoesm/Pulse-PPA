@@ -10,6 +10,7 @@ import NotificationModal from './NotificationModal';
 import ConfirmModal from './ConfirmModal';
 import MultiSelectChip from './MultiSelectChip';
 import RichTextEditor from './RichTextEditor';
+import SearchableSelect from './SearchableSelect';
 import { formatFileSize } from '../utils/formatters';
 
 interface AddTaskModalProps {
@@ -389,23 +390,23 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
               {/* Category */}
               <div>
                 <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Kategori</label>
-                <select
-                  required
-                  disabled={isReadOnly}
-                  value={formData.category || (masterCategories.length > 0 ? masterCategories[0].name : Category.PengembanganAplikasi)}
-                  onChange={(e) => handleChange('category', e.target.value as Category)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm text-slate-700 bg-white disabled:bg-slate-50 disabled:text-slate-500"
-                >
-                  {masterCategories.length > 0 ? (
-                    masterCategories.map(cat => (
-                      <option key={cat.id} value={cat.name}>{cat.name}</option>
-                    ))
-                  ) : (
-                    Object.values(Category).map(cat => (
-                      <option key={cat} value={cat}>{cat}</option>
-                    ))
-                  )}
-                </select>
+                {isReadOnly ? (
+                  <div className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-slate-50 text-slate-500 text-sm">
+                    {formData.category || '-'}
+                  </div>
+                ) : (
+                  <SearchableSelect
+                    options={(
+                      masterCategories.length > 0
+                        ? masterCategories.map(cat => ({ value: cat.name, label: cat.name }))
+                        : Object.values(Category).map(cat => ({ value: cat, label: cat }))
+                    )}
+                    value={formData.category || (masterCategories.length > 0 ? masterCategories[0].name : Category.PengembanganAplikasi)}
+                    onChange={(val) => handleChange('category', val as Category)}
+                    placeholder="Cari kategori..."
+                    emptyOption="-- Pilih Kategori --"
+                  />
+                )}
               </div>
 
               {/* Sub Category */}
@@ -414,46 +415,46 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
                   Sub-Kategori
                 </label>
 
-                <select
-                  disabled={isReadOnly}
-                  value={formData.subCategory || ''}
-                  onChange={(e) => handleChange('subCategory', e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm text-slate-700 bg-white disabled:bg-slate-50 disabled:text-slate-500"
-                >
-                  <option value="">-- Pilih Sub Kategori --</option>
-                  {(() => {
-                    // Get current category ID
-                    const currentCategory = masterCategories.find(cat => cat.name === formData.category);
-                    if (currentCategory) {
-                      // Filter subcategories by current category through relations
-                      const relatedSubIds = categorySubcategoryRelations
-                        .filter(rel => rel.category_id === currentCategory.id)
-                        .map(rel => rel.subcategory_id);
-                      const filteredSubCategories = masterSubCategories.filter(sub => relatedSubIds.includes(sub.id));
-                      return filteredSubCategories.map(sub => (
-                        <option key={sub.id} value={sub.name}>{sub.name}</option>
-                      ));
-                    }
+                {isReadOnly ? (
+                  <div className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-slate-50 text-slate-500 text-sm">
+                    {formData.subCategory || '-'}
+                  </div>
+                ) : (
+                  <SearchableSelect
+                    options={(() => {
+                      // Get current category ID
+                      const currentCategory = masterCategories.find(cat => cat.name === formData.category);
+                      if (currentCategory) {
+                        // Filter subcategories by current category through relations
+                        const relatedSubIds = categorySubcategoryRelations
+                          .filter(rel => rel.category_id === currentCategory.id)
+                          .map(rel => rel.subcategory_id);
+                        const filteredSubCategories = masterSubCategories.filter(sub => relatedSubIds.includes(sub.id));
+                        return filteredSubCategories.map(sub => ({ value: sub.name, label: sub.name }));
+                      }
 
-                    // Fallback to legacy system
-                    if (formData.category === Category.PengembanganAplikasi) {
-                      return (
-                        <>
-                          <option value="UI/UX Design">UI/UX Design</option>
-                          <option value="Fitur Baru">Fitur Baru</option>
-                          <option value="Backend">Backend</option>
-                          <option value="Frontend">Frontend</option>
-                          <option value="QA & Pengujian">QA & Pengujian</option>
-                          <option value="Dokumentasi">Dokumentasi</option>
-                        </>
-                      );
-                    } else {
-                      return subCategories && subCategories.length > 0 ? (
-                        subCategories.map(sc => <option key={sc} value={sc}>{sc}</option>)
-                      ) : null;
-                    }
-                  })()}
-                </select>
+                      // Fallback to legacy system
+                      if (formData.category === Category.PengembanganAplikasi) {
+                        return [
+                          { value: 'UI/UX Design', label: 'UI/UX Design' },
+                          { value: 'Fitur Baru', label: 'Fitur Baru' },
+                          { value: 'Backend', label: 'Backend' },
+                          { value: 'Frontend', label: 'Frontend' },
+                          { value: 'QA & Pengujian', label: 'QA & Pengujian' },
+                          { value: 'Dokumentasi', label: 'Dokumentasi' },
+                        ];
+                      } else {
+                        return subCategories && subCategories.length > 0
+                          ? subCategories.map(sc => ({ value: sc, label: sc }))
+                          : [];
+                      }
+                    })()}
+                    value={formData.subCategory || ''}
+                    onChange={(val) => handleChange('subCategory', val)}
+                    placeholder="Cari sub-kategori..."
+                    emptyOption="-- Pilih Sub Kategori --"
+                  />
+                )}
               </div>
             </div>
 
@@ -462,15 +463,19 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
               <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
                 Pilih Project (Opsional)
               </label>
-              <select
-                disabled={isReadOnly}
-                value={formData.projectId || ''}
-                onChange={(e) => handleChange('projectId', e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm text-slate-700 bg-white disabled:bg-slate-50 disabled:text-slate-500"
-              >
-                <option value="">-- Tidak terkait project --</option>
-                {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
+              {isReadOnly ? (
+                <div className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-slate-50 text-slate-500 text-sm">
+                  {projects.find(p => p.id === formData.projectId)?.name || '-- Tidak terkait project --'}
+                </div>
+              ) : (
+                <SearchableSelect
+                  options={projects.map(p => ({ value: p.id, label: p.name }))}
+                  value={formData.projectId || ''}
+                  onChange={(val) => handleChange('projectId', val)}
+                  placeholder="Cari project..."
+                  emptyOption="-- Tidak terkait project --"
+                />
+              )}
 
               {selectedProject && (
                 <div className="mt-2 text-xs text-slate-500 bg-white p-2 rounded border border-slate-200 flex gap-2">

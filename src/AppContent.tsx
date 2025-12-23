@@ -10,6 +10,7 @@ import LoginPage from './components/LoginPage';
 import NotificationIcon from './components/NotificationIcon';
 import { useNotifications } from './hooks/useNotifications';
 import UserAvatar from './components/UserAvatar';
+import SearchableSelect from './components/SearchableSelect';
 import MobileNav from './components/MobileNav';
 import ModalsContainer from './components/ModalsContainer';
 import { useTaskShare } from './hooks/useTaskShare';
@@ -642,43 +643,44 @@ const AppContent: React.FC = () => {
 
                 <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar items-center">
                   {/* CATEGORY FILTER - hanya tampil di halaman "Semua Task" */}
+                  {/* CATEGORY FILTER - hanya tampil di halaman "Semua Task" */}
                   {activeTab === 'Semua Task' ? (
-                    <select
-                      className="px-2 sm:px-3 py-1.5 sm:py-2 bg-white border border-slate-200 rounded-lg text-xs sm:text-sm text-slate-600 focus:border-gov-400 focus:ring-1 focus:ring-gov-400 outline-none cursor-pointer min-w-[100px]"
-                      value={filters.category}
-                      onChange={(e) => setFilters(prev => ({ ...prev, category: e.target.value as Category | 'All' }))}
-                    >
-                      <option value="All">Kategori</option>
-                      {Object.values(Category).map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
+                    <SearchableSelect
+                      options={Object.values(Category).map(c => ({ value: c, label: c }))}
+                      value={filters.category === 'All' ? '' : filters.category}
+                      onChange={(val) => setFilters(prev => ({ ...prev, category: (val || 'All') as Category | 'All' }))}
+                      placeholder="Kategori"
+                      emptyOption="Semua Kategori"
+                      className="min-w-[100px]"
+                    />
                   ) : null}
 
-                  <select
-                    className="px-2 sm:px-3 py-1.5 sm:py-2 bg-white border border-slate-200 rounded-lg text-xs sm:text-sm text-slate-600 focus:border-gov-400 focus:ring-1 focus:ring-gov-400 outline-none cursor-pointer min-w-[90px]"
-                    value={filters.projectId}
-                    onChange={(e) => setFilters(prev => ({ ...prev, projectId: e.target.value }))}
-                  >
-                    <option value="All">Project</option>
-                    {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </select>
+                  <SearchableSelect
+                    options={projects.map(p => ({ value: p.id, label: p.name }))}
+                    value={filters.projectId === 'All' ? '' : filters.projectId}
+                    onChange={(val) => setFilters(prev => ({ ...prev, projectId: val || 'All' }))}
+                    placeholder="Project"
+                    emptyOption="Semua Project"
+                    className="min-w-[120px]"
+                  />
 
-                  <select
-                    className="px-2 sm:px-3 py-1.5 sm:py-2 bg-white border border-slate-200 rounded-lg text-xs sm:text-sm text-slate-600 focus:border-gov-400 focus:ring-1 focus:ring-gov-400 outline-none cursor-pointer min-w-[80px]"
-                    value={filters.pic}
-                    onChange={(e) => setFilters(prev => ({ ...prev, pic: e.target.value }))}
-                  >
-                    <option value="All">PIC</option>
-                    {allUniquePics.map(pic => <option key={pic} value={pic}>{pic}</option>)}
-                  </select>
+                  <SearchableSelect
+                    options={allUniquePics.map(pic => ({ value: pic, label: pic }))}
+                    value={filters.pic === 'All' ? '' : filters.pic}
+                    onChange={(val) => setFilters(prev => ({ ...prev, pic: val || 'All' }))}
+                    placeholder="PIC"
+                    emptyOption="Semua PIC"
+                    className="min-w-[100px]"
+                  />
 
-                  <select
-                    className="px-2 sm:px-3 py-1.5 sm:py-2 bg-white border border-slate-200 rounded-lg text-xs sm:text-sm text-slate-600 focus:border-gov-400 focus:ring-1 focus:ring-gov-400 outline-none cursor-pointer min-w-[90px]"
-                    value={filters.priority}
-                    onChange={(e) => setFilters(prev => ({ ...prev, priority: e.target.value as Priority | 'All' }))}
-                  >
-                    <option value="All">Prioritas</option>
-                    {Object.values(Priority).map(p => <option key={p} value={p}>{p}</option>)}
-                  </select>
+                  <SearchableSelect
+                    options={Object.values(Priority).map(p => ({ value: p, label: p }))}
+                    value={filters.priority === 'All' ? '' : filters.priority}
+                    onChange={(val) => setFilters(prev => ({ ...prev, priority: (val || 'All') as Priority | 'All' }))}
+                    placeholder="Prioritas"
+                    emptyOption="Semua Prioritas"
+                    className="min-w-[100px]"
+                  />
                 </div>
               </div>
             )}
@@ -862,6 +864,8 @@ const AppContent: React.FC = () => {
                 tasks={filteredTasks}
                 projects={projects}
                 users={taskAssignableUsers}
+                categories={masterCategories}
+                subCategories={masterSubCategories}
                 onTaskClick={handleTaskClick}
               />
             )}

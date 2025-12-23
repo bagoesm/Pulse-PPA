@@ -1,17 +1,23 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { Task, User, ProjectDefinition, Priority, Status } from '../../types';
-import { Calendar, User as UserIcon, Clock } from 'lucide-react';
+import { Task, User, ProjectDefinition, Priority, Status, Category } from '../../types';
+import { Calendar, User as UserIcon, Clock, X } from 'lucide-react';
+import SearchableSelect from './SearchableSelect';
 
 interface TimelineViewProps {
   tasks: Task[];
   projects: ProjectDefinition[];
   users: User[];
+  categories?: any[];
+  subCategories?: any[];
   onTaskClick: (task: Task) => void;
 }
 
-const TimelineView: React.FC<TimelineViewProps> = ({ tasks, projects, users, onTaskClick }) => {
+const TimelineView: React.FC<TimelineViewProps> = ({ tasks, projects, users, categories = [], subCategories = [], onTaskClick }) => {
   const [sortBy, setSortBy] = useState<'startDate' | 'priority' | 'status' | 'project'>('startDate');
   const [filterStatus, setFilterStatus] = useState<Status | 'All'>('All');
+
+  // New Filters
+
 
   // Generate date range based on tasks
   const dates = useMemo(() => {
@@ -69,8 +75,12 @@ const TimelineView: React.FC<TimelineViewProps> = ({ tasks, projects, users, onT
   // Filter and sort tasks (Priority filter removed - already filtered from parent)
   const filteredAndSortedTasks = useMemo(() => {
     let filtered = tasks.filter(task => {
-      const statusMatch = filterStatus === 'All' || task.status === filterStatus;
-      return statusMatch;
+      // Status Filter
+      if (filterStatus !== 'All' && task.status !== filterStatus) return false;
+
+
+
+      return true;
     });
 
     // Sort tasks
@@ -151,48 +161,71 @@ const TimelineView: React.FC<TimelineViewProps> = ({ tasks, projects, users, onT
     return { left, width };
   }, [dates]);
 
+  const resetFilters = () => {
+    setFilterStatus('All');
+    setSortBy('startDate');
+  };
+
+  const hasActiveFilters = filterStatus !== 'All';
+
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col h-full overflow-hidden">
       {/* Filters and Controls - Mobile Optimized */}
       <div className="p-3 sm:p-4 border-b border-slate-200 bg-slate-50">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-          {/* Sort and Filter Controls */}
-          <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-            {/* Sort By */}
-            <div className="flex items-center gap-1.5 sm:gap-2">
-              <label className="text-xs sm:text-sm font-medium text-slate-700 whitespace-nowrap">Urutkan:</label>
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as any)}
-                className="px-2 sm:px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-gov-300 min-w-[90px] sm:min-w-[110px]"
-              >
-                <option value="startDate">Tanggal</option>
-                <option value="priority">Prioritas</option>
-                <option value="status">Status</option>
-                <option value="project">Project</option>
-              </select>
+        <div className="flex flex-col gap-3 sm:gap-4">
+
+          {/* Main Controls Row */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              {/* Sort By */}
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <label className="text-xs sm:text-sm font-medium text-slate-700 whitespace-nowrap">Urutkan:</label>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as any)}
+                  className="px-2 sm:px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-gov-300 min-w-[90px] sm:min-w-[110px]"
+                >
+                  <option value="startDate">Tanggal</option>
+                  <option value="priority">Prioritas</option>
+                  <option value="status">Status</option>
+                  <option value="project">Project</option>
+                </select>
+              </div>
+
+              {/* Status Filter */}
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <label className="text-xs sm:text-sm font-medium text-slate-700 whitespace-nowrap">Status:</label>
+                <select
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value as any)}
+                  className="px-2 sm:px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-gov-300 min-w-[80px] sm:min-w-[100px]"
+                >
+                  <option value="All">Semua</option>
+                  {Object.values(Status).map(status => (
+                    <option key={status} value={status}>{status}</option>
+                  ))}
+                </select>
+              </div>
+
+              {hasActiveFilters && (
+                <button
+                  onClick={resetFilters}
+                  className="px-2 py-1.5 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-200 rounded-lg flex items-center gap-1 transition-colors ml-auto sm:ml-0"
+                >
+                  <X size={14} />
+                  Reset
+                </button>
+              )}
             </div>
 
-            {/* Status Filter */}
-            <div className="flex items-center gap-1.5 sm:gap-2">
-              <label className="text-xs sm:text-sm font-medium text-slate-700 whitespace-nowrap">Status:</label>
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value as any)}
-                className="px-2 sm:px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-gov-300 min-w-[80px] sm:min-w-[100px]"
-              >
-                <option value="All">Semua</option>
-                {Object.values(Status).map(status => (
-                  <option key={status} value={status}>{status}</option>
-                ))}
-              </select>
+            <div className="text-xs sm:text-sm text-slate-500 font-medium whitespace-nowrap">
+              {filteredAndSortedTasks.length} task{filteredAndSortedTasks.length !== 1 ? 's' : ''}
+              {filteredAndSortedTasks.length !== tasks.length && ` (dari ${tasks.length})`}
             </div>
           </div>
 
-          {/* Task Count */}
-          <div className="sm:ml-auto text-xs sm:text-sm text-slate-500 font-medium">
-            {filteredAndSortedTasks.length} task{filteredAndSortedTasks.length !== 1 ? 's' : ''}
-          </div>
+          {/* Advanced Filters Row */}
+
         </div>
       </div>
 
