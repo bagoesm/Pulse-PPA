@@ -305,7 +305,10 @@ const AppContent: React.FC = () => {
     showNotification,
     createAssignmentNotification,
     createCommentNotification,
-    createMentionNotification
+    createMentionNotification,
+    meetings,
+    setViewingMeeting,
+    setIsMeetingViewModalOpen
   });
 
   // Project handlers

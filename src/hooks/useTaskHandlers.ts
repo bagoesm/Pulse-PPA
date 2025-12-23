@@ -2,7 +2,7 @@
 // Comprehensive task handlers - CRUD, drag/drop, comments, activities
 import { useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { Task, Status, Comment, TaskActivity, User } from '../../types';
+import { Task, Status, Comment, TaskActivity, User, Category, Meeting } from '../../types';
 
 interface UseTaskHandlersProps {
     currentUser: User | null;
@@ -26,6 +26,10 @@ interface UseTaskHandlersProps {
     createAssignmentNotification: (taskId: string, title: string, assignerName: string, newPics: string[], oldPics: string[], isNew: boolean) => Promise<void>;
     createCommentNotification: (taskId: string, title: string, commenterName: string, picsToNotify: string[]) => Promise<void>;
     createMentionNotification: (taskId: string, title: string, commenterName: string, mentionedNames: string[]) => Promise<void>;
+    // Meeting redirection props
+    meetings: any[]; // Using any[] temporarily to avoid circular dependency issues if types are tricky, but preferably Meeting[]
+    setViewingMeeting: React.Dispatch<React.SetStateAction<any | null>>;
+    setIsMeetingViewModalOpen: (open: boolean) => void;
 }
 
 export const useTaskHandlers = ({
@@ -49,7 +53,10 @@ export const useTaskHandlers = ({
     showNotification,
     createAssignmentNotification,
     createCommentNotification,
-    createMentionNotification
+    createMentionNotification,
+    meetings,
+    setViewingMeeting,
+    setIsMeetingViewModalOpen
 }: UseTaskHandlersProps) => {
 
     // Permission checks
@@ -409,9 +416,29 @@ export const useTaskHandlers = ({
 
     // Task click handlers (for view modal)
     const handleTaskClick = useCallback((task: Task) => {
-        setViewingTask(task);
-        setIsTaskViewModalOpen(true);
-    }, [setViewingTask, setIsTaskViewModalOpen]);
+        // Redirect to Meeting View if category is Audiensi/Rapat
+        if (task.category === Category.AudiensiRapat) {
+            // Find meeting by ID if linked, OR if one exists with same title? 
+            // Better to rely on meetingId link.
+            // If task.meetingId is present, we look it up.
+            if (task.meetingId) {
+                const meeting = meetings.find(m => m.id === task.meetingId);
+                if (meeting) {
+                    setViewingMeeting(meeting);
+                    setIsMeetingViewModalOpen(true);
+                    return;
+                }
+            }
+
+            // If we are here, we have a Rapat Task but no linked Meeting object found. 
+            // Fallback to normal task view to avoid broken UI.
+            setViewingTask(task);
+            setIsTaskViewModalOpen(true);
+        } else {
+            setViewingTask(task);
+            setIsTaskViewModalOpen(true);
+        }
+    }, [setViewingTask, setIsTaskViewModalOpen, meetings, setViewingMeeting, setIsMeetingViewModalOpen]);
 
     const handleEditClick = useCallback((task: Task) => {
         if (checkEditPermission(task)) {
