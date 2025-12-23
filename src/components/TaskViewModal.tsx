@@ -5,7 +5,7 @@ import { Task, User as UserType, ProjectDefinition, Attachment, Priority, Status
 import { supabase } from '../lib/supabaseClient';
 import PICDisplay from './PICDisplay';
 import UserAvatar from './UserAvatar';
-import MentionInput, { renderMentionText } from './MentionInput';
+import MentionInput, { renderMentionText, renderRichText } from './MentionInput';
 import { formatFileSize, ensureHttps } from '../utils/formatters';
 
 interface TaskViewModalProps {
@@ -251,8 +251,8 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                     <button
                       onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
                       className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all ${isStatusDropdownOpen
-                          ? 'border-blue-300 bg-blue-50 ring-2 ring-blue-100'
-                          : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                        ? 'border-blue-300 bg-blue-50 ring-2 ring-blue-100'
+                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                         }`}
                     >
                       <span className={`w-2 h-2 rounded-full ${getStatusConfig(task.status).color}`}></span>
@@ -440,9 +440,9 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                   </div>
                   <div className="flex-1">
                     <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                      <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
-                        {task.description}
-                      </p>
+                      <div className="text-sm text-gray-700 leading-relaxed">
+                        {renderRichText(task.description, users)}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -556,8 +556,8 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                   <button
                     onClick={() => setActiveTab('comments')}
                     className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'comments'
-                        ? 'bg-white text-gray-900 shadow-sm'
-                        : 'text-gray-500 hover:text-gray-700'
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
                       }`}
                   >
                     <MessageSquare size={14} />
@@ -566,8 +566,8 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                   <button
                     onClick={() => setActiveTab('activity')}
                     className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'activity'
-                        ? 'bg-white text-gray-900 shadow-sm'
-                        : 'text-gray-500 hover:text-gray-700'
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
                       }`}
                   >
                     <Activity size={14} />

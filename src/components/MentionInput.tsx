@@ -272,4 +272,119 @@ export const renderMentionText = (text: string, users: User[]): React.ReactNode 
   return result.length > 0 ? result : text;
 };
 
+// Helper function to render rich text with bold, italic, highlight, and mentions
+export const renderRichText = (text: string, users: User[]): React.ReactNode => {
+  if (!text) return null;
+
+  // First, process markdown formatting
+  // We'll split by formatting patterns and create styled spans
+
+  let keyIndex = 0;
+  const result: React.ReactNode[] = [];
+
+  // Split text into lines first to preserve line breaks
+  const lines = text.split('\n');
+
+  lines.forEach((line, lineIndex) => {
+    if (lineIndex > 0) {
+      result.push(<br key={`br-${keyIndex++}`} />);
+    }
+
+    // Process formatting patterns in order
+    // Pattern: **bold**, *italic*, ==highlight==, @mention
+
+    // Regex patterns for each format
+    const patterns = [
+      { regex: /\*\*([^*]+)\*\*/g, style: 'font-bold', type: 'bold' },
+      { regex: /(?<!\*)\*([^*]+)\*(?!\*)/g, style: 'italic', type: 'italic' },
+      { regex: /==([^=]+)==/g, style: 'bg-yellow-200 px-0.5 rounded', type: 'highlight' },
+    ];
+
+    let processedLine = line;
+    let segments: { text: string; style?: string; type: string; start: number; end: number }[] = [];
+
+    // Find all matches for all patterns
+    for (const pattern of patterns) {
+      let match;
+      const regex = new RegExp(pattern.regex);
+      while ((match = regex.exec(line)) !== null) {
+        segments.push({
+          text: match[1],
+          style: pattern.style,
+          type: pattern.type,
+          start: match.index,
+          end: match.index + match[0].length
+        });
+      }
+    }
+
+    // Also find @mentions
+    const sortedUsers = [...users].sort((a, b) => b.name.length - a.name.length);
+    for (const user of sortedUsers) {
+      const escapedName = user.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const mentionRegex = new RegExp(`@${escapedName}`, 'gi');
+      let match;
+      while ((match = mentionRegex.exec(line)) !== null) {
+        segments.push({
+          text: user.name,
+          style: 'mention',
+          type: 'mention',
+          start: match.index,
+          end: match.index + match[0].length
+        });
+      }
+    }
+
+    // Sort segments by start position
+    segments.sort((a, b) => a.start - b.start);
+
+    // Remove overlapping segments (keep first found)
+    const filteredSegments: typeof segments = [];
+    for (const seg of segments) {
+      const overlaps = filteredSegments.some(
+        existing => seg.start < existing.end && seg.end > existing.start
+      );
+      if (!overlaps) {
+        filteredSegments.push(seg);
+      }
+    }
+
+    // Build result from segments
+    let lastEnd = 0;
+    for (const seg of filteredSegments) {
+      // Add plain text before this segment
+      if (seg.start > lastEnd) {
+        result.push(line.slice(lastEnd, seg.start));
+      }
+
+      // Add formatted segment
+      if (seg.type === 'mention') {
+        result.push(
+          <span
+            key={`mention-${keyIndex++}`}
+            className="text-blue-600 font-medium bg-blue-50 px-1 rounded"
+          >
+            @{seg.text}
+          </span>
+        );
+      } else {
+        result.push(
+          <span key={`format-${keyIndex++}`} className={seg.style}>
+            {seg.text}
+          </span>
+        );
+      }
+
+      lastEnd = seg.end;
+    }
+
+    // Add remaining text after last segment
+    if (lastEnd < line.length) {
+      result.push(line.slice(lastEnd));
+    }
+  });
+
+  return result.length > 0 ? <>{result}</> : text;
+};
+
 export default MentionInput;

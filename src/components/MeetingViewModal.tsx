@@ -6,7 +6,7 @@ import {
 import { Meeting, MeetingType, User, ProjectDefinition, Attachment, Comment } from '../../types';
 
 import UserAvatar from './UserAvatar';
-import MentionInput, { renderMentionText } from './MentionInput';
+import MentionInput, { renderMentionText, renderRichText } from './MentionInput';
 
 interface MeetingViewModalProps {
   isOpen: boolean;
@@ -350,7 +350,9 @@ const MeetingViewModal: React.FC<MeetingViewModalProps> = ({
               {meeting.description && (
                 <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
                   <p className="text-xs text-slate-500 uppercase font-semibold mb-2">Deskripsi / Agenda</p>
-                  <p className="text-sm text-slate-700 whitespace-pre-wrap">{meeting.description}</p>
+                  <div className="text-sm text-slate-700">
+                    {renderRichText(meeting.description, allUsers)}
+                  </div>
                 </div>
               )}
 
@@ -422,7 +424,9 @@ const MeetingViewModal: React.FC<MeetingViewModalProps> = ({
               {meeting.notes && (
                 <div className="bg-yellow-50 rounded-xl p-4 border border-yellow-100">
                   <p className="text-xs text-yellow-700 uppercase font-semibold mb-2">Catatan</p>
-                  <p className="text-sm text-yellow-800 whitespace-pre-wrap">{meeting.notes}</p>
+                  <div className="text-sm text-yellow-800">
+                    {renderRichText(meeting.notes, allUsers)}
+                  </div>
                 </div>
               )}
             </div>

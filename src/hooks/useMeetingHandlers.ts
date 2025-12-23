@@ -3,6 +3,7 @@
 import { useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { Meeting, MeetingInviter, User } from '../../types';
+import { parseMentions } from '../components/MentionInput';
 
 interface UseMeetingHandlersProps {
     currentUser: User | null;
@@ -19,6 +20,8 @@ interface UseMeetingHandlersProps {
     setIsMeetingFromTask: (fromTask: boolean) => void;
     setIsModalOpen: (open: boolean) => void;
     showNotification: (title: string, message: string, type?: 'success' | 'error' | 'warning' | 'info') => void;
+    allUsers: User[];
+    createMentionNotification: (entityId: string, entityTitle: string, mentionerName: string, mentionedNames: string[], isMeeting?: boolean) => Promise<void>;
 }
 
 export const useMeetingHandlers = ({
@@ -35,7 +38,9 @@ export const useMeetingHandlers = ({
     setIsMeetingViewModalOpen,
     setIsMeetingFromTask,
     setIsModalOpen,
-    showNotification
+    showNotification,
+    allUsers,
+    createMentionNotification
 }: UseMeetingHandlersProps) => {
 
     // Permission checks
@@ -170,6 +175,20 @@ export const useMeetingHandlers = ({
                 if (data) {
                     setMeetings(prev => prev.map(m => m.id === editingMeeting.id ? mapMeeting(data) : m));
                     showNotification('Jadwal Diupdate!', `"${meetingData.title}" berhasil diperbarui.`, 'success');
+
+                    // Check for new mentions in description/notes
+                    const oldDescMentions = editingMeeting.description ? parseMentions(editingMeeting.description, allUsers) : [];
+                    const newDescMentions = meetingData.description ? parseMentions(meetingData.description, allUsers) : [];
+                    const oldNotesMentions = editingMeeting.notes ? parseMentions(editingMeeting.notes, allUsers) : [];
+                    const newNotesMentions = meetingData.notes ? parseMentions(meetingData.notes, allUsers) : [];
+
+                    const oldMentions = [...new Set([...oldDescMentions, ...oldNotesMentions])];
+                    const newMentions = [...new Set([...newDescMentions, ...newNotesMentions])];
+                    const addedMentions = newMentions.filter(name => !oldMentions.includes(name));
+
+                    if (addedMentions.length > 0) {
+                        await createMentionNotification(editingMeeting.id, meetingData.title, currentUser?.name || 'Unknown', addedMentions, true);
+                    }
                 }
             } else {
                 const { data, error } = await supabase
@@ -191,6 +210,15 @@ export const useMeetingHandlers = ({
                         setMeetingInviters(prev => [...prev, meetingData.inviter]);
                     }
 
+                    // Send mention notifications for mentions in description/notes
+                    const descMentions = meetingData.description ? parseMentions(meetingData.description, allUsers) : [];
+                    const notesMentions = meetingData.notes ? parseMentions(meetingData.notes, allUsers) : [];
+                    const allMentions = [...new Set([...descMentions, ...notesMentions])];
+
+                    if (allMentions.length > 0) {
+                        await createMentionNotification(data.id, meetingData.title, currentUser?.name || 'Unknown', allMentions, true);
+                    }
+
                     showNotification('Jadwal Ditambahkan!', `"${meetingData.title}" berhasil ditambahkan.`, 'success');
                 }
             }
@@ -200,7 +228,7 @@ export const useMeetingHandlers = ({
         } catch (error: any) {
             showNotification('Kesalahan', `Terjadi kesalahan: ${error.message}`, 'error');
         }
-    }, [editingMeeting, mapMeeting, setMeetings, setMeetingInviters, setIsMeetingModalOpen, setEditingMeeting, showNotification]);
+    }, [editingMeeting, mapMeeting, setMeetings, setMeetingInviters, setIsMeetingModalOpen, setEditingMeeting, showNotification, allUsers, createMentionNotification, currentUser]);
 
     // Delete meeting
     const handleDeleteMeeting = useCallback(async (meetingId: string) => {

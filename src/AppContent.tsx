@@ -358,7 +358,9 @@ const AppContent: React.FC = () => {
     setIsMeetingViewModalOpen,
     setIsMeetingFromTask,
     setIsModalOpen,
-    showNotification
+    showNotification,
+    allUsers,
+    createMentionNotification
   });
 
   // Master data handlers  

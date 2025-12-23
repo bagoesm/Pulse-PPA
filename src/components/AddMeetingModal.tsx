@@ -12,6 +12,7 @@ import { useAttachmentHandlers } from '../hooks/useAttachmentHandlers';
 import NotificationModal from './NotificationModal';
 import ConfirmModal from './ConfirmModal';
 import MultiSelectChip from './MultiSelectChip';
+import RichTextEditor from './RichTextEditor';
 
 interface AddMeetingModalProps {
   isOpen: boolean;
@@ -690,14 +691,20 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
             {/* Description */}
             <div>
               <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Deskripsi / Agenda</label>
-              <textarea
-                rows={5}
-                disabled={isReadOnly}
-                value={formData.description || ''}
-                onChange={(e) => handleChange('description', e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm resize-y min-h-[100px] disabled:bg-slate-50"
-                placeholder="Agenda rapat, poin pembahasan, dll..."
-              />
+              {isReadOnly ? (
+                <div className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-slate-50 text-slate-500 text-sm min-h-[100px] whitespace-pre-wrap">
+                  {formData.description || 'Tidak ada deskripsi'}
+                </div>
+              ) : (
+                <RichTextEditor
+                  value={formData.description || ''}
+                  onChange={(val) => handleChange('description', val)}
+                  placeholder="Agenda rapat, poin pembahasan, dll... (gunakan @nama untuk mention)"
+                  disabled={isReadOnly}
+                  rows={5}
+                  users={users}
+                />
+              )}
             </div>
 
             {/* Document Uploads */}
@@ -831,14 +838,20 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
             {/* Notes */}
             <div>
               <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Catatan Tambahan</label>
-              <textarea
-                rows={4}
-                disabled={isReadOnly}
-                value={formData.notes || ''}
-                onChange={(e) => handleChange('notes', e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm resize-y min-h-[80px] disabled:bg-slate-50"
-                placeholder="Catatan internal..."
-              />
+              {isReadOnly ? (
+                <div className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-slate-50 text-slate-500 text-sm min-h-[80px] whitespace-pre-wrap">
+                  {formData.notes || 'Tidak ada catatan'}
+                </div>
+              ) : (
+                <RichTextEditor
+                  value={formData.notes || ''}
+                  onChange={(val) => handleChange('notes', val)}
+                  placeholder="Catatan internal... (gunakan @nama untuk mention)"
+                  disabled={isReadOnly}
+                  rows={4}
+                  users={users}
+                />
+              )}
             </div>
 
             {/* Status (for editing) */}

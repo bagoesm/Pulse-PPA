@@ -9,6 +9,7 @@ import { useAttachmentHandlers } from '../hooks/useAttachmentHandlers';
 import NotificationModal from './NotificationModal';
 import ConfirmModal from './ConfirmModal';
 import MultiSelectChip from './MultiSelectChip';
+import RichTextEditor from './RichTextEditor';
 import { formatFileSize } from '../utils/formatters';
 
 interface AddTaskModalProps {
@@ -581,14 +582,20 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
             {/* Description */}
             <div>
               <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Deskripsi</label>
-              <textarea
-                rows={3}
-                disabled={isReadOnly}
-                value={formData.description || ''}
-                onChange={(e) => handleChange('description', e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm text-slate-800 placeholder-slate-400 resize-none disabled:bg-slate-50 disabled:text-slate-500"
-                placeholder="Tambahkan detail pekerjaan..."
-              />
+              {isReadOnly ? (
+                <div className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-slate-50 text-slate-500 text-sm min-h-[80px] whitespace-pre-wrap">
+                  {formData.description || 'Tidak ada deskripsi'}
+                </div>
+              ) : (
+                <RichTextEditor
+                  value={formData.description || ''}
+                  onChange={(val) => handleChange('description', val)}
+                  placeholder="Tambahkan detail pekerjaan... (gunakan @nama untuk mention)"
+                  disabled={isReadOnly}
+                  rows={4}
+                  users={users}
+                />
+              )}
             </div>
 
             {/* Links */}

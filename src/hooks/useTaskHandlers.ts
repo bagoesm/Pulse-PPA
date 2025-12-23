@@ -3,6 +3,7 @@
 import { useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { Task, Status, Comment, TaskActivity, User, Category, Meeting } from '../../types';
+import { parseMentions } from '../components/MentionInput';
 
 interface UseTaskHandlersProps {
     currentUser: User | null;
@@ -231,6 +232,16 @@ export const useTaskHandlers = ({
                     await logTaskActivity(editingTask.id, 'category_change', editingTask.category, newTaskData.category);
                 }
 
+                // Send mention notifications for new mentions in description
+                if (newTaskData.description) {
+                    const oldMentions = editingTask.description ? parseMentions(editingTask.description, allUsers) : [];
+                    const newMentions = parseMentions(newTaskData.description, allUsers);
+                    const addedMentions = newMentions.filter(name => !oldMentions.includes(name));
+                    if (addedMentions.length > 0) {
+                        await createMentionNotification(editingTask.id, newTaskData.title, currentUser?.name || 'Unknown', addedMentions);
+                    }
+                }
+
                 setTasks(prev => prev.map(t => t.id === editingTask.id ? { ...t, ...newTaskData, id: editingTask.id, createdBy: t.createdBy } : t));
                 setProjectRefreshTrigger(prev => prev + 1);
             } else {
@@ -269,9 +280,17 @@ export const useTaskHandlers = ({
         const taskPics = Array.isArray(newTaskData.pic) ? newTaskData.pic : [newTaskData.pic];
         await createAssignmentNotification(data.id, newTaskData.title, currentUser?.name || 'Unknown', taskPics, [], true);
 
+        // Send mention notifications for mentions in description
+        if (newTaskData.description) {
+            const mentionedNames = parseMentions(newTaskData.description, allUsers);
+            if (mentionedNames.length > 0) {
+                await createMentionNotification(data.id, newTaskData.title, currentUser?.name || 'Unknown', mentionedNames);
+            }
+        }
+
         setProjectRefreshTrigger(prev => prev + 1);
         setIsModalOpen(false);
-    }, [editingTask, allUsers, currentUser, setTasks, setEditingTask, setIsModalOpen, setProjectRefreshTrigger, showNotification, logTaskActivity, createAssignmentNotification]);
+    }, [editingTask, allUsers, currentUser, setTasks, setEditingTask, setIsModalOpen, setProjectRefreshTrigger, showNotification, logTaskActivity, createAssignmentNotification, createMentionNotification]);
 
     // Delete task
     const handleDeleteTask = useCallback(async (id: string) => {
