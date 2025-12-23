@@ -59,6 +59,7 @@ export const useFeedbackHandlers = ({
         const feedback = feedbacks.find(f => f.id === feedbackId);
         if (!feedback) return;
 
+        // Optimistic update
         const upvotes = feedback.upvotes || [];
         const downvotes = feedback.downvotes || [];
         let newUpvotes = [...upvotes];
@@ -80,11 +81,23 @@ export const useFeedbackHandlers = ({
             }
         }
 
-        const { error } = await supabase.from('feedbacks').update({ upvotes: newUpvotes, downvotes: newDownvotes }).eq('id', feedbackId);
+        // Apply optimistic update immediately
+        setFeedbacks(prev => prev.map(f =>
+            f.id === feedbackId ? { ...f, upvotes: newUpvotes, downvotes: newDownvotes } : f
+        ));
 
-        if (!error) {
+        // Call RPC
+        const { error } = await supabase.rpc('vote_feedback', {
+            p_feedback_id: feedbackId,
+            p_vote_type: type,
+            p_user_id: currentUser.id
+        });
+
+        if (error) {
+            console.error('Error voting feedback:', error);
+            // Revert changes if error
             setFeedbacks(prev => prev.map(f =>
-                f.id === feedbackId ? { ...f, upvotes: newUpvotes, downvotes: newDownvotes } : f
+                f.id === feedbackId ? { ...f, upvotes, downvotes } : f
             ));
         }
     }, [currentUser, feedbacks, setFeedbacks]);
