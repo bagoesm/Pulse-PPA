@@ -127,7 +127,16 @@ const MeetingViewModal: React.FC<MeetingViewModalProps> = ({
   const project = projects.find(p => p.id === meeting.projectId);
 
   const meetingDate = parseDateLocal(meeting.date);
-  const formattedDate = `${DAYS[meetingDate.getDay()]}, ${meetingDate.getDate()} ${MONTHS[meetingDate.getMonth()]} ${meetingDate.getFullYear()}`;
+  const meetingEndDate = meeting.endDate ? parseDateLocal(meeting.endDate) : null;
+
+  let formattedDate = `${DAYS[meetingDate.getDay()]}, ${meetingDate.getDate()} ${MONTHS[meetingDate.getMonth()]} ${meetingDate.getFullYear()}`;
+  if (meetingEndDate && meeting.endDate !== meeting.date) {
+    formattedDate = `${meetingDate.getDate()} ${MONTHS[meetingDate.getMonth()]} - ${meetingEndDate.getDate()} ${MONTHS[meetingEndDate.getMonth()]} ${meetingEndDate.getFullYear()}`;
+    // If years are different
+    if (meetingDate.getFullYear() !== meetingEndDate.getFullYear()) {
+      formattedDate = `${meetingDate.getDate()} ${MONTHS[meetingDate.getMonth()]} ${meetingDate.getFullYear()} - ${meetingEndDate.getDate()} ${MONTHS[meetingEndDate.getMonth()]} ${meetingEndDate.getFullYear()}`;
+    }
+  }
 
   const renderAttachment = (label: string, attachment?: Attachment) => {
     if (!attachment) return null;
@@ -250,7 +259,7 @@ const MeetingViewModal: React.FC<MeetingViewModalProps> = ({
                   </div>
                   <div>
                     <p className="text-xs text-slate-500 uppercase font-semibold">Waktu</p>
-                    <p className="text-sm font-medium text-slate-800">{meeting.startTime} - {meeting.endTime}</p>
+                    <p className="text-sm font-medium text-slate-800">{meeting.startTime?.slice(0, 5)} - {meeting.endTime?.slice(0, 5)}</p>
                   </div>
                 </div>
               </div>

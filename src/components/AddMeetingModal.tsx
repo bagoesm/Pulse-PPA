@@ -291,6 +291,7 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
       type: formData.type as MeetingType,
       description: formData.description?.trim(),
       date: formData.date!,
+      endDate: formData.endDate,
       startTime: formData.startTime!,
       endTime: formData.endTime!,
       location: formData.location || '',
@@ -465,10 +466,34 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
             </div>
 
             {/* Date & Time */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className={`grid grid-cols-1 ${formData.endDate && formData.endDate !== formData.date ? 'sm:grid-cols-2' : 'sm:grid-cols-3'} gap-3`}>
+              <div className="sm:col-span-full">
+                <label className="flex items-center gap-2 cursor-pointer mb-2 w-fit">
+                  <input
+                    type="checkbox"
+                    checked={!!formData.endDate && formData.endDate !== formData.date}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        // Enable multi-day: set endDate to tomorrow by default if not set
+                        const nextDay = new Date(formData.date!);
+                        nextDay.setDate(nextDay.getDate() + 1);
+                        handleChange('endDate', nextDay.toISOString().split('T')[0]);
+                      } else {
+                        // Disable multi-day
+                        handleChange('endDate', undefined);
+                      }
+                    }}
+                    disabled={isReadOnly}
+                    className="rounded text-gov-600 focus:ring-gov-500"
+                  />
+                  <span className="text-sm font-medium text-slate-700">Kegiatan lebih dari 1 hari?</span>
+                </label>
+              </div>
+
               <div>
                 <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
-                  <Calendar size={12} className="inline mr-1" />Tanggal
+                  <Calendar size={12} className="inline mr-1" />
+                  {formData.endDate && formData.endDate !== formData.date ? 'Tanggal Mulai' : 'Tanggal'}
                 </label>
                 <input
                   type="date"
@@ -479,6 +504,24 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm disabled:bg-slate-50"
                 />
               </div>
+
+              {formData.endDate && formData.endDate !== formData.date && (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                    <Calendar size={12} className="inline mr-1" />Tanggal Selesai
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    disabled={isReadOnly}
+                    min={formData.date} // End date cannot be before start date
+                    value={formData.endDate || ''}
+                    onChange={(e) => handleChange('endDate', e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm disabled:bg-slate-50"
+                  />
+                </div>
+              )}
+
               <div>
                 <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
                   <Clock size={12} className="inline mr-1" />Mulai

@@ -97,7 +97,7 @@ const MeetingCalendar: React.FC<MeetingCalendarProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  
+
   // Lazy loading state for list view
   const [visiblePastCount, setVisiblePastCount] = useState(ITEMS_PER_PAGE);
   const [visibleFutureCount, setVisibleFutureCount] = useState(ITEMS_PER_PAGE);
@@ -128,22 +128,22 @@ const MeetingCalendar: React.FC<MeetingCalendarProps> = ({
   // Filter meetings
   const filteredMeetings = useMemo(() => {
     let filtered = meetings;
-    
+
     if (filterType !== 'all') {
       filtered = filtered.filter(m => m.type === filterType);
     }
-    
+
     if (filterStatus !== 'all') {
       filtered = filtered.filter(m => m.status === filterStatus);
     }
-    
+
     if (filterPic !== 'all') {
       filtered = filtered.filter(m => (m.pic || []).includes(filterPic));
     }
-    
+
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(m => 
+      filtered = filtered.filter(m =>
         m.title.toLowerCase().includes(query) ||
         m.inviter?.name?.toLowerCase().includes(query) ||
         m.location?.toLowerCase().includes(query) ||
@@ -152,7 +152,7 @@ const MeetingCalendar: React.FC<MeetingCalendarProps> = ({
         (m.invitees || []).some(i => i.toLowerCase().includes(query))
       );
     }
-    
+
     return filtered;
   }, [meetings, filterType, filterStatus, filterPic, searchQuery]);
 
@@ -176,7 +176,16 @@ const MeetingCalendar: React.FC<MeetingCalendarProps> = ({
     for (let i = 1; i <= totalDays; i++) {
       const date = new Date(year, month, i);
       const dateStr = formatDateToString(date);
-      const dayMeetings = filteredMeetings.filter(m => m.date === dateStr);
+      const dayMeetings = filteredMeetings.filter(m => {
+        if (m.endDate) {
+          /**
+           * Multi-day Check:
+           * The meeting is shown if current calendar date (dateStr) is between start (m.date) and end (m.endDate) inclusive.
+           */
+          return dateStr >= m.date && dateStr <= m.endDate;
+        }
+        return m.date === dateStr;
+      });
       days.push({ date, isCurrentMonth: true, meetings: dayMeetings });
     }
 
@@ -192,15 +201,20 @@ const MeetingCalendar: React.FC<MeetingCalendarProps> = ({
   // Split meetings into past and future for list view
   const { pastMeetings, futureMeetings, todayMeetings } = useMemo(() => {
     const today = formatDateToString(new Date());
-    const sorted = [...filteredMeetings].sort((a, b) => {
+    const sorted = filteredMeetings.sort((a, b) => {
       const dateCompare = a.date.localeCompare(b.date);
       if (dateCompare !== 0) return dateCompare;
       return a.startTime.localeCompare(b.startTime);
     });
-    
+
     return {
       pastMeetings: sorted.filter(m => m.date < today).reverse(), // Most recent past first
-      todayMeetings: sorted.filter(m => m.date === today),
+      todayMeetings: sorted.filter(m => {
+        if (m.endDate) {
+          return today >= m.date && today <= m.endDate;
+        }
+        return m.date === today;
+      }),
       futureMeetings: sorted.filter(m => m.date > today)
     };
   }, [filteredMeetings]);
@@ -244,12 +258,12 @@ const MeetingCalendar: React.FC<MeetingCalendarProps> = ({
   const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
     const target = e.target as HTMLDivElement;
     const { scrollTop, scrollHeight, clientHeight } = target;
-    
+
     // Load more past when scrolling to top
     if (scrollTop < 100 && hasMorePast && !loadingMore) {
       loadMorePast();
     }
-    
+
     // Load more future when scrolling to bottom
     if (scrollHeight - scrollTop - clientHeight < 100 && hasMoreFuture && !loadingMore) {
       loadMoreFuture();
@@ -260,7 +274,12 @@ const MeetingCalendar: React.FC<MeetingCalendarProps> = ({
   const displayMeetings = useMemo(() => {
     if (selectedDate) {
       const dateStr = formatDateToString(selectedDate);
-      return filteredMeetings.filter(m => m.date === dateStr);
+      return filteredMeetings.filter(m => {
+        if (m.endDate) {
+          return dateStr >= m.date && dateStr <= m.endDate;
+        }
+        return m.date === dateStr;
+      });
     }
     return [];
   }, [filteredMeetings, selectedDate]);

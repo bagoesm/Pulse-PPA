@@ -242,7 +242,8 @@ export interface Meeting {
   title: string;
   type: MeetingType;
   description?: string;
-  date: string; // ISO Date string
+  date: string; // ISO Date string (Start Date)
+  endDate?: string; // ISO Date string (End Date for multi-day meetings)
   startTime: string; // HH:mm format
   endTime: string; // HH:mm format
   location: string;
