@@ -56,7 +56,9 @@ export const useMeetingHandlers = ({
         if (!currentUser) return false;
         if (currentUser.role === 'Super Admin') return true;
         if (currentUser.role === 'Atasan') return true;
-        return meeting.createdBy === currentUser.name;
+        // Allow PIC to delete meeting
+        const meetingPics = Array.isArray(meeting.pic) ? meeting.pic : [meeting.pic];
+        return meeting.createdBy === currentUser.name || meetingPics.includes(currentUser.name);
     }, [currentUser]);
 
     // Helper to map database meeting to frontend format

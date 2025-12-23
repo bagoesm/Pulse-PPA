@@ -73,7 +73,9 @@ export const useTaskHandlers = ({
         if (!currentUser) return false;
         if (currentUser.role === 'Super Admin') return true;
         if (currentUser.role === 'Atasan') return true;
-        return task.createdBy === currentUser.name;
+        // Allow PIC to delete task
+        const taskPics = Array.isArray(task.pic) ? task.pic : [task.pic];
+        return task.createdBy === currentUser.name || taskPics.includes(currentUser.name);
     }, [currentUser]);
 
     // Log task activity
