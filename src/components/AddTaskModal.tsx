@@ -3,11 +3,13 @@ import React, { useEffect, useRef, useState } from 'react';
 import { X, Trash2, Lock, Info, Upload, FileText, Paperclip, Download, ExternalLink, Plus } from 'lucide-react';
 import { Task, Category, Priority, Status, User, ProjectDefinition, Attachment, TaskLink } from '../../types';
 import { supabase } from '../lib/supabaseClient';
-import { useNotificationModal, useConfirmModal } from '../hooks/useModal';
+import { useModals } from '../hooks/useModalHelpers';
+import { useFileUpload } from '../hooks/useFileUpload';
+import { useAttachmentHandlers } from '../hooks/useAttachmentHandlers';
 import NotificationModal from './NotificationModal';
 import ConfirmModal from './ConfirmModal';
 import MultiSelectChip from './MultiSelectChip';
-
+import { formatFileSize } from '../utils/formatters';
 
 interface AddTaskModalProps {
   isOpen: boolean;
@@ -19,21 +21,13 @@ interface AddTaskModalProps {
   canEdit: boolean;
   canDelete: boolean;
   projects: ProjectDefinition[];
-  users: User[];             // list users from DB
-  subCategories: string[];   // list sub categories from DB (legacy)
-  masterCategories: any[];   // dynamic categories from DB
-  masterSubCategories: any[]; // dynamic subcategories from DB
-  categorySubcategoryRelations: any[]; // relations between categories and subcategories
-  onSwitchToMeeting?: () => void; // Callback ketika user pilih kategori Jadwal Kegiatan
+  users: User[];
+  subCategories: string[];
+  masterCategories: any[];
+  masterSubCategories: any[];
+  categorySubcategoryRelations: any[];
+  onSwitchToMeeting?: () => void;
 }
-
-const formatFileSize = (bytes: number): string => {
-  if (!bytes || bytes === 0) return '0 B';
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
-};
 
 const AddTaskModal: React.FC<AddTaskModalProps> = ({
   isOpen,
@@ -53,10 +47,17 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
   onSwitchToMeeting
 }) => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  
+
   // Modal hooks
-  const { modal: notificationModal, showNotification, hideNotification } = useNotificationModal();
-  const { modal: confirmModal, showConfirm, hideConfirm } = useConfirmModal();
+  const {
+    notificationModal, showNotification, hideNotification,
+    confirmModal, showConfirm, hideConfirm,
+    showError
+  } = useModals();
+
+  // File handling hooks
+  const { uploadFile } = useFileUpload('attachment');
+  const { handleDownload, handleRemoveFromStorage } = useAttachmentHandlers('attachment', showError);
 
   // default manager/pic name from currentUser or first user in list
   const defaultPic = currentUser?.name ?? (users && users.length > 0 ? users[0].name : '');
@@ -100,7 +101,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
         .filter(rel => rel.category_id === currentCategory.id)
         .map(rel => rel.subcategory_id);
       const filteredSubCategories = masterSubCategories.filter(sub => relatedSubIds.includes(sub.id));
-      
+
       if (filteredSubCategories.length > 0 && !formData.subCategory) {
         setFormData(prev => ({ ...prev, subCategory: filteredSubCategories[0].name }));
       }
@@ -153,146 +154,77 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
 
   const handleChange = (key: keyof Task, value: any) => {
     if (isReadOnly) return;
-    
+
     // Jika user memilih kategori "Audiensi/Rapat" dan ini bukan edit mode, switch ke meeting modal
     // Cek berdasarkan nama string karena kategori bisa dari database
     if (key === 'category' && value === 'Audiensi/Rapat' && !initialData && onSwitchToMeeting) {
       onSwitchToMeeting();
       return;
     }
-    
+
     setFormData(prev => ({ ...prev, [key]: value }));
   };
 
   const triggerFileUpload = () => {
     if (fileInputRef.current) fileInputRef.current.click();
   };
-  
 
-  // di dalam AddTaskModal.tsx (ganti fungsi handleFileChange lama)
-const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-  if (!e.target.files || e.target.files.length === 0) return;
 
-  const files = Array.from(e.target.files);
-  const uploadedAttachments: Attachment[] = [];
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
 
-  for (const file of files) {
-    try {
-      const ext = file.name.split('.').pop();
-      const storagePath = `files/${Date.now()}_${Math.random().toString(36).substring(2)}.${ext}`;
+    const files = Array.from(e.target.files);
+    const uploadedAttachments: Attachment[] = [];
 
-      // Upload ke Supabase Storage (bucket: attachment)
-      const { error: uploadError } = await supabase.storage
-        .from('attachment')
-        .upload(storagePath, file);
-
-      if (uploadError) {
-        // Silent error handling for production
-        continue;
+    for (const file of files) {
+      const attachment = await uploadFile(file, 'files');
+      if (attachment) {
+        uploadedAttachments.push(attachment);
       }
-
-      // Buat signed URL (opsional, untuk preview/download langsung)
-      const { data: signedData, error: signedError } = await supabase.storage
-        .from('attachment')
-        .createSignedUrl(storagePath, 60 * 60);
-
-      if (signedError) {
-        // Silent error handling for production
-      }
-
-      const att: Attachment = {
-        id: `f_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        path: storagePath,           // <= sangat penting
-        url: signedData?.signedUrl || null
-      };
-
-      uploadedAttachments.push(att);
-    } catch (err) {
-      // Silent error handling for production
     }
-  }
 
-  // gabungkan ke formData.attachments (pastikan bentuk array)
-  setFormData(prev => ({
-    ...prev,
-    attachments: [...(prev.attachments ?? []), ...uploadedAttachments]
-  }));
+    // gabungkan ke formData.attachments (pastikan bentuk array)
+    setFormData(prev => ({
+      ...prev,
+      attachments: [...(prev.attachments ?? []), ...uploadedAttachments]
+    }));
 
-  // reset input
-  if (fileInputRef.current) fileInputRef.current.value = '';
-};
+    // reset input
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
 
 
   const handleRemoveAttachment = async (id: string) => {
     if (isReadOnly) return;
-    
+
     // Find the attachment to get the file path
     const attachmentToRemove = (formData.attachments || []).find(a => a.id === id);
-    
+
     // Remove from UI immediately for better UX
     setFormData(prev => ({
       ...prev,
       attachments: (prev.attachments || []).filter(a => a.id !== id)
     }));
 
-    // Delete from Supabase Storage if path exists
-    if (attachmentToRemove?.path) {
-      try {
-        await supabase.storage
-          .from('attachment')
-          .remove([attachmentToRemove.path]);
-      } catch (err) {
-        // Silent error handling - file removal from UI already happened
-        console.error('Error removing attachment from storage:', err);
-      }
+    // Delete from Supabase Storage using hook via helper logic
+    if (attachmentToRemove) {
+      await handleRemoveFromStorage(attachmentToRemove);
     }
   };
 
-  const handleDownloadAttachment = async (attachment: Attachment) => {
-    try {
-      // Jika sudah ada URL yang valid, gunakan langsung
-      if (attachment.url) {
-        window.open(attachment.url, '_blank');
-        return;
-      }
+  // Use handleDownload directly from hook in render
 
-      // Jika tidak ada URL atau URL expired, buat signed URL baru
-      if (attachment.path) {
-        const { data, error } = await supabase.storage
-          .from('attachment')
-          .createSignedUrl(attachment.path, 60 * 60); // 1 jam
-
-        if (error) {
-          showNotification('Download Gagal', 'Gagal membuat URL download. File mungkin sudah tidak tersedia.', 'error');
-          return;
-        }
-
-        if (data?.signedUrl) {
-          window.open(data.signedUrl, '_blank');
-        } else {
-          showNotification('Download Gagal', 'Gagal mendapatkan URL download.', 'error');
-        }
-      } else {
-        showNotification('File Tidak Tersedia', 'File path tidak tersedia. File mungkin belum terupload dengan benar.', 'error');
-      }
-    } catch (err) {
-      showNotification('Terjadi Kesalahan', 'Terjadi kesalahan saat mencoba download file.', 'error');
-    }
-  };
 
   // Link management functions
   const handleAddLink = () => {
     if (isReadOnly) return;
-    
+
     const newLink: TaskLink = {
       id: `link_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       title: '',
       url: ''
     };
-    
+
     setFormData(prev => ({
       ...prev,
       links: [...(prev.links || []), newLink]
@@ -301,10 +233,10 @@ const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
 
   const handleUpdateLink = (id: string, field: 'title' | 'url', value: string) => {
     if (isReadOnly) return;
-    
+
     setFormData(prev => ({
       ...prev,
-      links: (prev.links || []).map(link => 
+      links: (prev.links || []).map(link =>
         link.id === id ? { ...link, [field]: value } : link
       )
     }));
@@ -312,16 +244,16 @@ const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
 
   const handleUrlBlur = (id: string, value: string) => {
     if (isReadOnly) return;
-    
+
     // Auto-add https:// if URL doesn't have protocol and is not empty
     let processedValue = value.trim();
     if (processedValue && !processedValue.match(/^https?:\/\//i)) {
       processedValue = `https://${processedValue}`;
-      
+
       // Update the form data with the processed URL
       setFormData(prev => ({
         ...prev,
-        links: (prev.links || []).map(link => 
+        links: (prev.links || []).map(link =>
           link.id === id ? { ...link, url: processedValue } : link
         )
       }));
@@ -339,7 +271,7 @@ const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
 
   const handleRemoveLink = (id: string) => {
     if (isReadOnly) return;
-    
+
     setFormData(prev => ({
       ...prev,
       links: (prev.links || []).filter(link => link.id !== id)
@@ -371,7 +303,7 @@ const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     // Validasi tanggal
     const startDate = new Date(formData.startDate);
     const endDate = new Date(formData.deadline);
-    
+
     if (startDate > endDate) {
       showNotification('Tanggal Tidak Valid', 'Tanggal mulai tidak boleh lebih besar dari tanggal deadline.', 'warning');
       return;
@@ -399,7 +331,7 @@ const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
   const handleDelete = () => {
     if (!initialData) return;
     if (!canDelete) return;
-    
+
     showConfirm(
       'Hapus Task',
       'Hapus task ini? Tindakan tidak dapat dibatalkan.',
@@ -499,7 +431,7 @@ const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
                         <option key={sub.id} value={sub.name}>{sub.name}</option>
                       ));
                     }
-                    
+
                     // Fallback to legacy system
                     if (formData.category === Category.PengembanganAplikasi) {
                       return (
@@ -547,7 +479,7 @@ const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
                   </div>
                 </div>
               )}
-              
+
               <p className="text-[10px] text-slate-400 mt-2 italic">
                 Task dapat dikaitkan dengan project atau berdiri sendiri sesuai kategori yang dipilih.
               </p>
@@ -693,25 +625,25 @@ const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
                             )}
                           </div>
                         </div>
-                        
+
                         <div className="flex items-center gap-1 shrink-0">
                           {/* Open Link Button - Always visible if URL exists */}
                           {link.url && (
-                            <button 
-                              type="button" 
-                              onClick={() => window.open(ensureHttps(link.url), '_blank')} 
+                            <button
+                              type="button"
+                              onClick={() => window.open(ensureHttps(link.url), '_blank')}
                               className="p-1.5 text-slate-400 hover:text-gov-600 hover:bg-gov-50 rounded-full transition-colors"
                               title={`Buka ${link.title || 'link'}`}
                             >
                               <ExternalLink size={14} />
                             </button>
                           )}
-                          
+
                           {/* Remove Button - Only when not readonly */}
                           {!isReadOnly && (
-                            <button 
-                              type="button" 
-                              onClick={() => handleRemoveLink(link.id)} 
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveLink(link.id)}
                               className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
                               title="Hapus link"
                             >
@@ -720,7 +652,7 @@ const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
                           )}
                         </div>
                       </div>
-                      
+
                       {/* URL Input/Display - Separate row for better responsiveness */}
                       <div className="px-3 pb-3">
                         {isReadOnly ? (
@@ -776,23 +708,23 @@ const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
                           <span className="text-[10px] text-slate-400">{formatFileSize(file.size)}</span>
                         </div>
                       </div>
-                      
+
                       <div className="flex items-center gap-1">
                         {/* Download Button - Always visible */}
-                        <button 
-                          type="button" 
-                          onClick={() => handleDownloadAttachment(file)} 
+                        <button
+                          type="button"
+                          onClick={() => handleDownload(file)}
                           className="p-1.5 text-slate-400 hover:text-gov-600 hover:bg-gov-50 rounded-full transition-colors"
                           title={`Download ${file.name}`}
                         >
                           <Download size={14} />
                         </button>
-                        
+
                         {/* Remove Button - Only when not readonly */}
                         {!isReadOnly && (
-                          <button 
-                            type="button" 
-                            onClick={() => handleRemoveAttachment(file.id)} 
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveAttachment(file.id)}
                             className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
                             title={`Hapus ${file.name}`}
                           >
@@ -853,6 +785,15 @@ const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         type={notificationModal.type}
         autoClose={notificationModal.type === 'success'}
         autoCloseDelay={3000}
+      />
+
+      {/* Modals */}
+      <NotificationModal
+        isOpen={notificationModal.isOpen}
+        title={notificationModal.title}
+        message={notificationModal.message}
+        type={notificationModal.type}
+        onClose={hideNotification}
       />
 
       <ConfirmModal

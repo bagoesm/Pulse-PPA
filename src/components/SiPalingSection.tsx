@@ -1,11 +1,11 @@
 import React, { useMemo, useState } from 'react';
 import { Task, User, Status, Priority } from '../../types';
 import UserAvatar from './UserAvatar';
-import { 
-  Flame, 
-  Trophy, 
-  Zap, 
-  Clock, 
+import {
+  Flame,
+  Trophy,
+  Zap,
+  Clock,
   Target,
   Layers,
   Coffee
@@ -37,11 +37,11 @@ const SI_PALING_CATEGORIES: SiPalingCategory[] = [
 
 const SiPalingSection: React.FC<SiPalingSectionProps> = ({ tasks, users }) => {
   const [period, setPeriod] = useState<'week' | 'month'>('week');
-  
+
   const getDateRange = (p: 'week' | 'month') => {
     const today = new Date();
     const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    
+
     if (p === 'week') {
       const startOfWeek = new Date(startOfToday);
       startOfWeek.setDate(startOfToday.getDate() - startOfToday.getDay());
@@ -60,8 +60,8 @@ const SiPalingSection: React.FC<SiPalingSectionProps> = ({ tasks, users }) => {
   const getFilteredTasks = (userTasks: Task[], p: 'week' | 'month') => {
     const dateRange = getDateRange(p);
     return userTasks.filter(task => {
-      const taskDate = task.status === Status.Done 
-        ? new Date(task.deadline) 
+      const taskDate = task.status === Status.Done
+        ? new Date(task.deadline)
         : new Date(task.startDate);
       return taskDate >= dateRange.start && taskDate <= dateRange.end;
     });
@@ -72,13 +72,13 @@ const SiPalingSection: React.FC<SiPalingSectionProps> = ({ tasks, users }) => {
     const winners: { category: SiPalingCategory; user: User; stat: string }[] = [];
 
     const userStats = users.map(user => {
-      const userTasks = tasks.filter(t => 
+      const userTasks = tasks.filter(t =>
         Array.isArray(t.pic) ? t.pic.includes(user.name) : t.pic === user.name
       );
       const filteredTasks = getFilteredTasks(userTasks, p);
       const activeTasks = filteredTasks.filter(t => t.status !== Status.Done);
       const completedTasks = filteredTasks.filter(t => t.status === Status.Done);
-      
+
       let workloadScore = 0;
       activeTasks.forEach(t => {
         if (t.priority === Priority.Urgent) workloadScore += 4;
@@ -87,7 +87,7 @@ const SiPalingSection: React.FC<SiPalingSectionProps> = ({ tasks, users }) => {
         else workloadScore += 1;
       });
 
-      const urgentCompleted = completedTasks.filter(t => 
+      const urgentCompleted = completedTasks.filter(t =>
         t.priority === Priority.Urgent || t.priority === Priority.High
       ).length;
 
@@ -151,17 +151,15 @@ const SiPalingSection: React.FC<SiPalingSectionProps> = ({ tasks, users }) => {
         <div className="inline-flex bg-slate-100 rounded-lg p-0.5 text-sm">
           <button
             onClick={() => setPeriod('week')}
-            className={`px-3 py-1 rounded-md transition-all ${
-              period === 'week' ? 'bg-white text-slate-800 shadow-sm font-medium' : 'text-slate-500'
-            }`}
+            className={`px-3 py-1 rounded-md transition-all ${period === 'week' ? 'bg-white text-slate-800 shadow-sm font-medium' : 'text-slate-500'
+              }`}
           >
             Minggu Ini
           </button>
           <button
             onClick={() => setPeriod('month')}
-            className={`px-3 py-1 rounded-md transition-all ${
-              period === 'month' ? 'bg-white text-slate-800 shadow-sm font-medium' : 'text-slate-500'
-            }`}
+            className={`px-3 py-1 rounded-md transition-all ${period === 'month' ? 'bg-white text-slate-800 shadow-sm font-medium' : 'text-slate-500'
+              }`}
           >
             Bulan Ini
           </button>
@@ -193,4 +191,4 @@ const SiPalingSection: React.FC<SiPalingSectionProps> = ({ tasks, users }) => {
   );
 };
 
-export default SiPalingSection;
+export default React.memo(SiPalingSection);

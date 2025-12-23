@@ -30,11 +30,11 @@ const getPriorityColor = (priority: Priority) => {
 };
 
 const getCategoryColor = (category: Category) => {
-    // Just a subtle differentiation, keeping main theme consistent
-    return 'bg-teal-50 text-teal-700 border-teal-100';
+  // Just a subtle differentiation, keeping main theme consistent
+  return 'bg-teal-50 text-teal-700 border-teal-100';
 };
 
-const TaskCard: React.FC<TaskCardProps> = ({ task, projects, users = [], onDragStart, onClick, onShare, canEdit }) => {
+const TaskCard: React.FC<TaskCardProps> = React.memo(({ task, projects, users = [], onDragStart, onClick, onShare, canEdit }) => {
   const project = task.projectId ? projects.find(p => p.id === task.projectId) : null;
   const hasAttachments = task.attachments && task.attachments.length > 0;
 
@@ -53,7 +53,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, projects, users = [], onDragS
         </span>
         <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
           {onShare && (
-            <ShareButton 
+            <ShareButton
               onClick={() => onShare(task)}
               className="opacity-0 group-hover:opacity-100 transition-opacity"
             />
@@ -67,22 +67,22 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, projects, users = [], onDragS
       <h3 className="text-xs sm:text-sm font-semibold text-slate-800 mb-1 leading-snug group-hover:text-gov-700 transition-colors line-clamp-2">
         {task.title}
       </h3>
-      
+
       {/* Project Indicator or Subcategory */}
       {project ? (
-          <div className="flex flex-col gap-0.5 mb-2 sm:mb-3">
-               <div className="flex items-center gap-1 text-[10px] sm:text-xs text-gov-700 font-medium">
-                   <Layers size={10} />
-                   <span className="truncate">{project.name}</span>
-               </div>
-               <p className="text-[9px] sm:text-[10px] text-slate-400 font-medium pl-3.5 truncate">
-                   {task.subCategory}
-               </p>
+        <div className="flex flex-col gap-0.5 mb-2 sm:mb-3">
+          <div className="flex items-center gap-1 text-[10px] sm:text-xs text-gov-700 font-medium">
+            <Layers size={10} />
+            <span className="truncate">{project.name}</span>
           </div>
-      ) : (
-          <p className="text-[10px] sm:text-xs text-slate-400 mb-2 sm:mb-3 font-medium truncate">
+          <p className="text-[9px] sm:text-[10px] text-slate-400 font-medium pl-3.5 truncate">
             {task.subCategory}
           </p>
+        </div>
+      ) : (
+        <p className="text-[10px] sm:text-xs text-slate-400 mb-2 sm:mb-3 font-medium truncate">
+          {task.subCategory}
+        </p>
       )}
 
       <div className="flex items-center justify-between pt-2 sm:pt-3 border-t border-slate-50 mt-2">
@@ -90,38 +90,38 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, projects, users = [], onDragS
           <div className="flex items-center gap-1">
             <Calendar size={10} />
             <span className="text-[9px] sm:text-[10px] font-medium">
-              {task.startDate === task.deadline 
-                ? task.deadline 
+              {task.startDate === task.deadline
+                ? task.deadline
                 : `${task.deadline}`
               }
             </span>
           </div>
           {hasAttachments && (
-              <div className="flex items-center gap-1 text-slate-400" title={`${task.attachments.length} attachment(s)`}>
-                  <Paperclip size={10} />
-                  <span className="text-[9px] sm:text-[10px] font-medium">{task.attachments.length}</span>
-              </div>
+            <div className="flex items-center gap-1 text-slate-400" title={`${task.attachments.length} attachment(s)`}>
+              <Paperclip size={10} />
+              <span className="text-[9px] sm:text-[10px] font-medium">{task.attachments.length}</span>
+            </div>
           )}
         </div>
-        
-        <PICDisplay 
-          pic={task.pic} 
+
+        <PICDisplay
+          pic={task.pic}
           users={users}
-          maxVisible={2} 
-          size="sm" 
+          maxVisible={2}
+          size="sm"
           showNames={false}
           className="flex-shrink-0"
         />
       </div>
-      
+
       {/* Ownership Indicator */}
       {!canEdit && (
-         <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-            {/* Optional: Lock icon or similar could go here */}
-         </div>
+        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          {/* Optional: Lock icon or similar could go here */}
+        </div>
       )}
     </div>
   );
-};
+});
 
 export default TaskCard;

@@ -1,79 +1,57 @@
+// src/components/Dashboard.tsx
+// Refactored - main Dashboard component using extracted hooks and components
+
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Task, Status, Priority, User, UserStatus, ChristmasDecorationSettings, Announcement } from '../../types';
-import StatusBubble from './StatusBubble';
-import SakuraAnimation from './SakuraAnimation';
-import SnowAnimation from './SnowAnimation';
-import MoneyAnimation from './MoneyAnimation';
-import ChristmasDecorations from './ChristmasDecorations';
-import ChristmasSettingsModal from './ChristmasSettingsModal';
-import NotificationIcon from './NotificationIcon';
-import AnnouncementBanner from './AnnouncementBanner';
-import UserAvatar from './UserAvatar';
+
+// Extracted hooks
+import { useDashboardFilters, WorkloadFilter } from '../hooks/useDashboardFilters';
+import { useWorkloadAnalysis } from '../hooks/useWorkloadAnalysis';
+import { useLeaderboard } from '../hooks/useLeaderboard';
+import { useTaskShare } from '../hooks/useTaskShare';
+
+// Extracted components
+import DashboardHeader from './DashboardHeader';
+import DashboardStatsCards from './DashboardStatsCards';
+import WorkloadDistribution from './WorkloadDistribution';
+import DashboardFilters from './DashboardFilters';
+import UserWorkloadCard from './UserWorkloadCard';
+import LeaderboardModal from './LeaderboardModal';
+
+// Other components
 import SiPalingSection from './SiPalingSection';
-import ShareButton from './ShareButton';
+import AnnouncementBanner from './AnnouncementBanner';
+import ChristmasSettingsModal from './ChristmasSettingsModal';
 import ShareModal from './ShareModal';
 import TaskShareModal from './TaskShareModal';
-import MotivationCard from './MotivationCard';
-import { useTaskShare } from '../hooks/useTaskShare';
-import { 
-  CheckCircle2, 
-  AlertCircle, 
-  TrendingUp, 
-  Zap, 
-  Coffee, 
-  Flame, 
-  AlertTriangle,
-  Briefcase,
-  Search,
-  Filter,
-  Users,
-  Clock,
-  Target,
-  Award,
-  Calendar,
-  BarChart3,
-  TrendingDown,
-  Eye,
-  ChevronDown,
-  RefreshCw,
-  Plus,
-  MessageCircle,
-  Gift
-} from 'lucide-react';
+
+import { CheckCircle2, RefreshCw, Users } from 'lucide-react';
 
 interface DashboardProps {
   tasks: Task[];
-  users: User[];   // <-- NOW FROM DATABASE
+  users: User[];
   userStatuses: UserStatus[];
   onCreateStatus: () => void;
   onDeleteStatus: (statusId: string) => void;
   currentUser: User | null;
-  onUserCardClick?: (userName: string) => void; // New prop for handling card clicks
+  onUserCardClick?: (userName: string) => void;
   christmasSettings?: ChristmasDecorationSettings;
   onUpdateChristmasSettings?: (settings: ChristmasDecorationSettings) => void;
-  // Notification props
   notifications?: any[];
   onMarkAllAsRead?: () => void;
   onNotificationClick?: (notification: any) => void;
   onDeleteNotification?: (notificationId: string) => void;
   onDismissAll?: () => void;
-  // Announcement props
   announcements?: Announcement[];
   onDismissAnnouncement?: (id: string) => void;
 }
 
-type WorkloadFilter = 'all' | 'relaxed' | 'balanced' | 'busy' | 'overload';
-type SortOption = 'workload' | 'name' | 'tasks' | 'urgent' | 'performance';
-type DateFilter = 'all' | 'today' | 'week' | 'month' | 'custom';
-
-const USERS_PER_PAGE = 12;
-
-const Dashboard: React.FC<DashboardProps> = ({ 
-  tasks, 
-  users, 
-  userStatuses, 
-  onCreateStatus, 
-  onDeleteStatus, 
+const Dashboard: React.FC<DashboardProps> = ({
+  tasks,
+  users,
+  userStatuses,
+  onCreateStatus,
+  onDeleteStatus,
   currentUser,
   onUserCardClick,
   christmasSettings = { santaHatEnabled: false, baubleEnabled: false, candyEnabled: false },
@@ -86,376 +64,95 @@ const Dashboard: React.FC<DashboardProps> = ({
   announcements = [],
   onDismissAnnouncement
 }) => {
-  // State untuk filtering dan searching
-  const [searchTerm, setSearchTerm] = useState('');
-  const [workloadFilter, setWorkloadFilter] = useState<WorkloadFilter>('all');
-  const [sortBy, setSortBy] = useState<SortOption>('workload');
-  const [displayedUsers, setDisplayedUsers] = useState(USERS_PER_PAGE);
+  // Local UI state
+  const [hoveredCard, setHoveredCard] = useState<string | null>(null);
+  const [isChristmasModalOpen, setIsChristmasModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  
-  // State untuk filter tanggal
-  const [dateFilter, setDateFilter] = useState<DateFilter>('all');
-  const [customStartDate, setCustomStartDate] = useState('');
-  const [customEndDate, setCustomEndDate] = useState('');
-  
-  // State untuk animasi sakura
-  const [hoveredCard, setHoveredCard] = useState<string | null>(null);
-  
-  // State untuk Christmas settings modal
-  const [isChristmasModalOpen, setIsChristmasModalOpen] = useState(false);
-  
-  // State untuk High Performer Leaderboard Modal
-  const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
-  const [leaderboardPeriod, setLeaderboardPeriod] = useState<'week' | 'month' | 'all'>('month');
-  
-  // Share functionality
+
+  // Use extracted hooks
+  const {
+    searchTerm, setSearchTerm,
+    workloadFilter, setWorkloadFilter,
+    sortBy, setSortBy,
+    dateFilter, setDateFilter,
+    customStartDate, setCustomStartDate,
+    customEndDate, setCustomEndDate,
+    displayedUsers, setDisplayedUsers,
+    getFilteredTasksByDate,
+    USERS_PER_PAGE
+  } = useDashboardFilters();
+
+  const { analyzedUsers, dashboardStats } = useWorkloadAnalysis({
+    users,
+    tasks,
+    getFilteredTasksByDate
+  });
+
+  const {
+    isLeaderboardOpen, setIsLeaderboardOpen,
+    leaderboardPeriod, setLeaderboardPeriod,
+    leaderboardData
+  } = useLeaderboard({ users, tasks });
+
   const { shareState, openWeeklyShare, closeShare } = useTaskShare();
 
-  // Reset displayed users saat filter berubah
-  useEffect(() => {
-    setDisplayedUsers(USERS_PER_PAGE);
-  }, [searchTerm, workloadFilter, sortBy, dateFilter, customStartDate, customEndDate]);
-
-  // Fungsi untuk mendapatkan range tanggal berdasarkan filter
-  const getDateRange = () => {
-    const today = new Date();
-    const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    
-    switch (dateFilter) {
-      case 'today':
-        return {
-          start: startOfToday,
-          end: new Date(startOfToday.getTime() + 24 * 60 * 60 * 1000 - 1)
-        };
-      case 'week':
-        const startOfWeek = new Date(startOfToday);
-        startOfWeek.setDate(startOfToday.getDate() - startOfToday.getDay());
-        const endOfWeek = new Date(startOfWeek);
-        endOfWeek.setDate(startOfWeek.getDate() + 6);
-        endOfWeek.setHours(23, 59, 59, 999);
-        return { start: startOfWeek, end: endOfWeek };
-      case 'month':
-        const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-        const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-        endOfMonth.setHours(23, 59, 59, 999);
-        return { start: startOfMonth, end: endOfMonth };
-      case 'custom':
-        if (customStartDate && customEndDate) {
-          const start = new Date(customStartDate);
-          const end = new Date(customEndDate);
-          end.setHours(23, 59, 59, 999);
-          return { start, end };
-        }
-        return null;
-      default:
-        return null;
-    }
-  };
-
-  // Filter tasks berdasarkan tanggal
-  const getFilteredTasksByDate = (userTasks: Task[]) => {
-    const dateRange = getDateRange();
-    if (!dateRange) return userTasks;
-
-    return userTasks.filter(task => {
-      // Untuk task yang selesai, gunakan tanggal selesai (estimasi berdasarkan status)
-      // Untuk task aktif, gunakan tanggal deadline atau start date
-      let taskDate: Date;
-      
-      if (task.status === Status.Done) {
-        // Estimasi: task selesai mendekati deadline
-        taskDate = new Date(task.deadline);
-      } else {
-        // Untuk task aktif, gunakan start date
-        taskDate = new Date(task.startDate);
-      }
-
-      return taskDate >= dateRange.start && taskDate <= dateRange.end;
-    });
-  };
-
+  // Task stats
   const totalTasks = tasks.length;
   const completedTasks = tasks.filter(t => t.status === Status.Done).length;
   const activeTasksCount = totalTasks - completedTasks;
   const urgentCount = tasks.filter(t => t.priority === Priority.Urgent && t.status !== Status.Done).length;
 
-  const getWorkloadAnalysis = (userTasks: Task[]) => {
-    // Filter tasks berdasarkan periode jika ada filter tanggal
-    const filteredTasks = getFilteredTasksByDate(userTasks);
-    const allUserTasks = userTasks; // Simpan semua task untuk beberapa kalkulasi
-    
-    const active = filteredTasks.filter(t => t.status !== Status.Done);
-    const completed = filteredTasks.filter(t => t.status === Status.Done);
-    
-    let score = 0;
-    let urgentCount = 0, highCount = 0, mediumCount = 0, lowCount = 0;
-
-    active.forEach(t => {
-      if (t.priority === Priority.Urgent) { score += 4; urgentCount++; }
-      else if (t.priority === Priority.High) { score += 3; highCount++; }
-      else if (t.priority === Priority.Medium) { score += 2; mediumCount++; }
-      else { score += 1; lowCount++; }
-    });
-
-    // Hitung deadline yang mendekat (dalam 3 hari) - selalu dari semua task aktif
-    const allActive = allUserTasks.filter(t => t.status !== Status.Done);
-    const upcomingDeadlines = allActive.filter(t => {
-      const deadline = new Date(t.deadline);
-      const today = new Date();
-      const diffTime = deadline.getTime() - today.getTime();
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      return diffDays <= 3 && diffDays >= 0;
-    }).length;
-
-    // Hitung completion rate berdasarkan periode
-    const completionRate = filteredTasks.length > 0 ? (completed.length / filteredTasks.length) * 100 : 0;
-    
-    // Hitung performance score berdasarkan completed tasks dalam periode
-    const performanceScore = completed.reduce((sum, task) => {
-      if (task.priority === Priority.Urgent) return sum + 4;
-      if (task.priority === Priority.High) return sum + 3;
-      if (task.priority === Priority.Medium) return sum + 2;
-      return sum + 1;
-    }, 0);
-
-    // Hitung rata-rata waktu penyelesaian (estimasi)
-    const avgCompletionTime = completed.length > 0 ? 
-      completed.reduce((sum, task) => {
-        const start = new Date(task.startDate);
-        const end = new Date(task.deadline);
-        const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-        return sum + Math.max(1, days);
-      }, 0) / completed.length : 0;
-
-    return { 
-      score, 
-      activeCount: active.length, 
-      completedCount: completed.length,
-      totalTasks: filteredTasks.length,
-      urgentCount, 
-      highCount, 
-      mediumCount, 
-      lowCount,
-      upcomingDeadlines,
-      completionRate,
-      performanceScore,
-      avgCompletionTime,
-      details: active,
-      // Tambahan untuk perbandingan periode
-      allTimeCompleted: allUserTasks.filter(t => t.status === Status.Done).length,
-      allTimeTotal: allUserTasks.length
-    };
-  };
-
-  const getWorkloadVisuals = (score: number) => {
-    if (score === 0) return { 
-      label: 'Idle', 
-      color: 'bg-slate-400', 
-      textColor: 'text-slate-700', 
-      bg: 'bg-slate-50', 
-      icon: Coffee, 
-      message: 'Tidak ada tugas aktif',
-      category: 'relaxed' as WorkloadFilter
-    };
-    if (score < 6) return { 
-      label: 'Relaxed', 
-      color: 'bg-emerald-500', 
-      textColor: 'text-emerald-700', 
-      bg: 'bg-emerald-50', 
-      icon: Coffee, 
-      message: 'Beban kerja ringan',
-      category: 'relaxed' as WorkloadFilter
-    };
-    if (score < 15) return { 
-      label: 'Balanced', 
-      color: 'bg-gov-500', 
-      textColor: 'text-gov-700', 
-      bg: 'bg-gov-50', 
-      icon: Zap, 
-      message: 'Beban kerja seimbang',
-      category: 'balanced' as WorkloadFilter
-    };
-    if (score < 25) return { 
-      label: 'Busy', 
-      color: 'bg-orange-500', 
-      textColor: 'text-orange-700', 
-      bg: 'bg-orange-50', 
-      icon: AlertTriangle, 
-      message: 'Cukup sibuk',
-      category: 'busy' as WorkloadFilter
-    };
-    return { 
-      label: 'Overload', 
-      color: 'bg-red-500', 
-      textColor: 'text-red-700', 
-      bg: 'bg-red-50', 
-      icon: Flame, 
-      message: 'Butuh bantuan segera',
-      category: 'overload' as WorkloadFilter
-    };
-  };
-
-  // Fungsi untuk menghitung skor high performer
-  const calculateHighPerformerScore = (userData: any) => {
-    let score = 0;
-    
-    // Poin dari completion rate (max 40 poin)
-    score += Math.min(userData.completionRate * 0.4, 40);
-    
-    // Poin dari performance score (max 30 poin)
-    score += Math.min(userData.performanceScore * 3, 30);
-    
-    // Poin dari aktivitas (max 20 poin)
-    if (userData.completedCount > 0) score += 10;
-    if (userData.activeCount > 0) score += 10;
-    
-    // Poin dari konsistensi (max 10 poin)
-    if (userData.completedCount >= 3) score += 5;
-    if (userData.upcomingDeadlines === 0) score += 5; // Tidak ada deadline mendesak
-    
-    return Math.round(score);
-  };
-
-  // Fungsi untuk mendapatkan range tanggal leaderboard
-  const getLeaderboardDateRange = (period: 'week' | 'month' | 'all') => {
-    const today = new Date();
-    const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    
-    switch (period) {
-      case 'week':
-        const startOfWeek = new Date(startOfToday);
-        startOfWeek.setDate(startOfToday.getDate() - startOfToday.getDay());
-        const endOfWeek = new Date(startOfWeek);
-        endOfWeek.setDate(startOfWeek.getDate() + 6);
-        endOfWeek.setHours(23, 59, 59, 999);
-        return { start: startOfWeek, end: endOfWeek };
-      case 'month':
-        const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-        const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-        endOfMonth.setHours(23, 59, 59, 999);
-        return { start: startOfMonth, end: endOfMonth };
-      default:
-        return null;
-    }
-  };
-
-  // Fungsi untuk filter tasks berdasarkan periode leaderboard
-  const getLeaderboardFilteredTasks = (userTasks: Task[], period: 'week' | 'month' | 'all') => {
-    const dateRange = getLeaderboardDateRange(period);
-    if (!dateRange) return userTasks;
-
-    return userTasks.filter(task => {
-      let taskDate: Date;
-      
-      if (task.status === Status.Done) {
-        // Untuk task selesai, gunakan tanggal deadline sebagai estimasi selesai
-        taskDate = new Date(task.deadline);
-      } else {
-        // Untuk task aktif, gunakan start date
-        taskDate = new Date(task.startDate);
-      }
-
-      return taskDate >= dateRange.start && taskDate <= dateRange.end;
-    });
-  };
-
-  // Analisis data users dengan workload
-  const analyzedUsers = useMemo(() => {
-    return users.map(u => {
-      const userTasks = tasks.filter(t => Array.isArray(t.pic) ? t.pic.includes(u.name) : t.pic === u.name);
-      const analysis = getWorkloadAnalysis(userTasks);
-      const visuals = getWorkloadVisuals(analysis.score);
-      const userData = { 
-        user: u, 
-        userName: u.name,
-        ...analysis,
-        visuals
-      };
-      
-      // Tambahkan skor high performer
-      const highPerformerScore = calculateHighPerformerScore(userData);
-      const isHighPerformer = highPerformerScore >= 60;
-      
-      return { 
-        ...userData,
-        highPerformerScore,
-        isHighPerformer
-      };
-    });
-  }, [users, tasks]);
-
   // Filter dan sort users
   const filteredAndSortedUsers = useMemo(() => {
     let filtered = analyzedUsers;
 
-    // Filter berdasarkan search
     if (searchTerm) {
-      filtered = filtered.filter(data => 
+      filtered = filtered.filter(data =>
         data.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         data.user.jabatan?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
-    // Filter berdasarkan workload
     if (workloadFilter !== 'all') {
       filtered = filtered.filter(data => data.visuals.category === workloadFilter);
     }
 
-    // Sort
     filtered.sort((a, b) => {
       switch (sortBy) {
-        case 'workload':
-          return b.score - a.score;
-        case 'name':
-          return a.userName.localeCompare(b.userName);
-        case 'tasks':
-          return b.activeCount - a.activeCount;
-        case 'urgent':
-          return b.urgentCount - a.urgentCount;
+        case 'workload': return b.score - a.score;
+        case 'name': return a.userName.localeCompare(b.userName);
+        case 'tasks': return b.activeCount - a.activeCount;
+        case 'urgent': return b.urgentCount - a.urgentCount;
         case 'performance':
-          // Sort berdasarkan performance score (completed tasks dalam periode)
-          if (b.performanceScore !== a.performanceScore) {
-            return b.performanceScore - a.performanceScore;
-          }
-          // Jika performance score sama, sort berdasarkan completion rate
+          if (b.performanceScore !== a.performanceScore) return b.performanceScore - a.performanceScore;
           return b.completionRate - a.completionRate;
-        default:
-          return b.score - a.score;
+        default: return b.score - a.score;
       }
     });
 
     return filtered;
   }, [analyzedUsers, searchTerm, workloadFilter, sortBy]);
 
-  // Infinity scroll data
+  // Infinity scroll
   const visibleUsers = filteredAndSortedUsers.slice(0, displayedUsers);
   const hasMoreUsers = displayedUsers < filteredAndSortedUsers.length;
 
-  // Load more function untuk infinity scroll
   const loadMore = useCallback(() => {
     if (hasMoreUsers && !isLoading) {
       setIsLoading(true);
-      // Simulate loading delay
       setTimeout(() => {
         setDisplayedUsers(prev => Math.min(prev + USERS_PER_PAGE, filteredAndSortedUsers.length));
         setIsLoading(false);
       }, 300);
     }
-  }, [hasMoreUsers, isLoading, filteredAndSortedUsers.length]);
+  }, [hasMoreUsers, isLoading, filteredAndSortedUsers.length, setDisplayedUsers, USERS_PER_PAGE]);
 
-  // Infinity scroll handler
   useEffect(() => {
     const handleScroll = () => {
       if (!scrollContainerRef.current || isLoading || !hasMoreUsers) return;
-
       const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
-      const scrollPercentage = (scrollTop + clientHeight) / scrollHeight;
-
-      // Load more when user scrolls to 80% of the content
-      if (scrollPercentage > 0.8) {
-        loadMore();
-      }
+      if ((scrollTop + clientHeight) / scrollHeight > 0.8) loadMore();
     };
 
     const scrollContainer = scrollContainerRef.current;
@@ -465,808 +162,101 @@ const Dashboard: React.FC<DashboardProps> = ({
     }
   }, [loadMore, isLoading, hasMoreUsers]);
 
-  // Data untuk leaderboard dengan periode terpisah
-  const leaderboardData = useMemo(() => {
-    return users.map(u => {
-      const userTasks = tasks.filter(t => Array.isArray(t.pic) ? t.pic.includes(u.name) : t.pic === u.name);
-      const filteredTasks = getLeaderboardFilteredTasks(userTasks, leaderboardPeriod);
-      const analysis = getWorkloadAnalysis(filteredTasks);
-      const visuals = getWorkloadVisuals(analysis.score);
-      
-      const userData = { 
-        user: u, 
-        userName: u.name,
-        ...analysis,
-        visuals
-      };
-      
-      // Tambahkan skor high performer untuk leaderboard
-      const highPerformerScore = calculateHighPerformerScore(userData);
-      const isHighPerformer = highPerformerScore >= 60;
-      
-      return { 
-        ...userData,
-        highPerformerScore,
-        isHighPerformer
-      };
-    });
-  }, [users, tasks, leaderboardPeriod]);
-
-  // Stats untuk dashboard
-  const dashboardStats = useMemo(() => {
-    const workloadDistribution = {
-      relaxed: analyzedUsers.filter(u => u.visuals.category === 'relaxed').length,
-      balanced: analyzedUsers.filter(u => u.visuals.category === 'balanced').length,
-      busy: analyzedUsers.filter(u => u.visuals.category === 'busy').length,
-      overload: analyzedUsers.filter(u => u.visuals.category === 'overload').length,
-    };
-
-    const avgCompletionRate = analyzedUsers.reduce((sum, u) => sum + u.completionRate, 0) / analyzedUsers.length;
-    const totalUpcomingDeadlines = analyzedUsers.reduce((sum, u) => sum + u.upcomingDeadlines, 0);
-    
-    // High Performer dengan sistem skor gabungan (0-100)
-    const highPerformers = analyzedUsers.filter(u => {
-      let score = 0;
-      
-      // Poin dari completion rate (max 40 poin)
-      score += Math.min(u.completionRate * 0.4, 40);
-      
-      // Poin dari performance score (max 30 poin)
-      score += Math.min(u.performanceScore * 3, 30);
-      
-      // Poin dari aktivitas (max 20 poin)
-      if (u.completedCount > 0) score += 10;
-      if (u.activeCount > 0) score += 10;
-      
-      // Poin dari konsistensi (max 10 poin)
-      if (u.completedCount >= 3) score += 5;
-      if (u.upcomingDeadlines === 0) score += 5; // Tidak ada deadline mendesak
-      
-      // High performer jika skor >= 60 dari 100
-      return score >= 60;
-    }).length;
-
-    return {
-      workloadDistribution,
-      avgCompletionRate,
-      totalUpcomingDeadlines,
-      highPerformers
-    };
-  }, [analyzedUsers]);
+  // Active announcements
+  const activeAnnouncements = announcements.filter(announcement => {
+    const now = new Date();
+    const isNotExpired = !announcement.expiresAt || new Date(announcement.expiresAt) > now;
+    return announcement.isActive && isNotExpired;
+  });
 
   return (
     <div ref={scrollContainerRef} className="p-4 md:p-6 h-full overflow-y-auto bg-slate-50">
+      {/* Header */}
+      <DashboardHeader
+        currentUser={currentUser}
+        onCreateStatus={onCreateStatus}
+        onOpenChristmasSettings={() => setIsChristmasModalOpen(true)}
+        notifications={notifications}
+        onMarkAllAsRead={onMarkAllAsRead}
+        onNotificationClick={onNotificationClick}
+        onDeleteNotification={onDeleteNotification}
+        onDismissAll={onDismissAll}
+      />
 
-      {/* HEADER */}
-      <div className="mb-6 md:mb-8 flex flex-col sm:flex-row justify-between items-start gap-4">
-        <div>
-          <h1 className="text-xl md:text-2xl font-bold text-slate-800 mb-1 md:mb-2">Dashboard Manajemen Tim</h1>
-          <p className="text-sm text-slate-600">Pantau performa dan beban kerja tim secara real-time</p>
-        </div>
-        
-        <div className="flex items-center gap-2 md:gap-3 w-full sm:w-auto">
-          {/* Notification Icon */}
-          {onNotificationClick && onMarkAllAsRead && onDeleteNotification && onDismissAll && (
-            <NotificationIcon
-              notifications={notifications}
-              onMarkAllAsRead={onMarkAllAsRead}
-              onNotificationClick={onNotificationClick}
-              onDeleteNotification={onDeleteNotification}
-              onDismissAll={onDismissAll}
-            />
-          )}
-          
-          {/* Christmas Settings Button (Admin Only) */}
-          {currentUser?.role === 'Super Admin' && (
-            <button
-              onClick={() => setIsChristmasModalOpen(true)}
-              className="flex items-center gap-1 md:gap-2 px-3 md:px-4 py-2 md:py-2.5 bg-gradient-to-r from-red-600 to-green-600 text-white rounded-lg font-medium hover:from-red-700 hover:to-green-700 shadow-md hover:shadow-lg transition-all text-sm"
-            >
-              <Gift size={16} />
-              <span className="hidden sm:inline">Dekorasi Natal</span>
-            </button>
-          )}
-          
-          {/* Create Status Button */}
-          <button
-            onClick={onCreateStatus}
-            className="flex items-center gap-1 md:gap-2 px-3 md:px-4 py-2 md:py-2.5 bg-gradient-to-r from-gov-600 to-blue-600 text-white rounded-lg font-medium hover:from-gov-700 hover:to-blue-700 shadow-md hover:shadow-lg transition-all text-sm flex-1 sm:flex-none justify-center"
-          >
-            <MessageCircle size={16} />
-            <span className="hidden sm:inline">Buat Status</span>
-            <span className="sm:hidden">Status</span>
-          </button>
-        </div>
-      </div>
-
-      {/* ANNOUNCEMENTS SECTION */}
-      {announcements.length > 0 && (
+      {/* Announcements */}
+      {activeAnnouncements.length > 0 && (
         <div className="space-y-4">
-          {announcements
-            .filter(announcement => {
-              const now = new Date();
-              const isNotExpired = !announcement.expiresAt || new Date(announcement.expiresAt) > now;
-              return announcement.isActive && isNotExpired;
-            })
-            .map(announcement => (
-              <AnnouncementBanner
-                key={announcement.id}
-                announcement={announcement}
-                onDismiss={onDismissAnnouncement ? () => onDismissAnnouncement(announcement.id) : undefined}
-                canDismiss={false} // Users can't dismiss announcements, only admins can deactivate
-              />
-            ))}
+          {activeAnnouncements.map(announcement => (
+            <AnnouncementBanner
+              key={announcement.id}
+              announcement={announcement}
+              onDismiss={onDismissAnnouncement ? () => onDismissAnnouncement(announcement.id) : undefined}
+              canDismiss={false}
+            />
+          ))}
         </div>
       )}
 
-      {/* TOP STATS CARDS */}
-      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6 md:mb-8">
-        {/* Active Tasks */}
-        <div className="bg-white p-4 md:p-5 rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between mb-2 md:mb-3">
-            <div className="p-1.5 md:p-2 bg-blue-100 text-blue-600 rounded-lg">
-              <Briefcase size={18} />
-            </div>
-            <span className="text-[10px] md:text-xs font-medium text-slate-500 bg-slate-50 px-1.5 md:px-2 py-0.5 md:py-1 rounded-full">
-              {((activeTasksCount / totalTasks) * 100).toFixed(0)}%
-            </span>
-          </div>
-          <h3 className="text-xl md:text-2xl font-bold text-slate-800 mb-0.5 md:mb-1">{activeTasksCount}</h3>
-          <p className="text-xs md:text-sm text-slate-500">Task Aktif</p>
-        </div>
+      {/* Stats Cards */}
+      <DashboardStatsCards
+        activeTasksCount={activeTasksCount}
+        completedTasks={completedTasks}
+        totalTasks={totalTasks}
+        urgentCount={urgentCount}
+        avgCompletionRate={dashboardStats.avgCompletionRate}
+        highPerformers={dashboardStats.highPerformers}
+        onOpenLeaderboard={() => setIsLeaderboardOpen(true)}
+      />
 
-        {/* Completion Rate */}
-        <div className="bg-white p-4 md:p-5 rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between mb-2 md:mb-3">
-            <div className="p-1.5 md:p-2 bg-green-100 text-green-600 rounded-lg">
-              <Target size={18} />
-            </div>
-            <span className="text-[10px] md:text-xs font-medium text-green-600 bg-green-50 px-1.5 md:px-2 py-0.5 md:py-1 rounded-full">
-              {dashboardStats.avgCompletionRate.toFixed(0)}%
-            </span>
-          </div>
-          <h3 className="text-xl md:text-2xl font-bold text-slate-800 mb-0.5 md:mb-1">{completedTasks}</h3>
-          <p className="text-xs md:text-sm text-slate-500">Task Selesai</p>
-        </div>
+      {/* Workload Distribution */}
+      <WorkloadDistribution
+        distribution={dashboardStats.workloadDistribution}
+        avgCompletionRate={dashboardStats.avgCompletionRate}
+        totalUpcomingDeadlines={dashboardStats.totalUpcomingDeadlines}
+        totalUsers={users.length}
+      />
 
-        {/* Urgent Tasks */}
-        <div className="bg-white p-4 md:p-5 rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between mb-2 md:mb-3">
-            <div className="p-1.5 md:p-2 bg-red-100 text-red-600 rounded-lg">
-              <AlertCircle size={18} />
-            </div>
-            <span className="text-[10px] md:text-xs font-medium text-red-600 bg-red-50 px-1.5 md:px-2 py-0.5 md:py-1 rounded-full">
-              Urgent
-            </span>
-          </div>
-          <h3 className="text-xl md:text-2xl font-bold text-slate-800 mb-0.5 md:mb-1">{urgentCount}</h3>
-          <p className="text-xs md:text-sm text-slate-500">Butuh Perhatian</p>
-        </div>
-
-        {/* High Performers */}
-        <button
-          onClick={() => setIsLeaderboardOpen(true)}
-          className="bg-white p-4 md:p-5 rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-all hover:scale-105 text-left w-full group"
-        >
-          <div className="flex items-center justify-between mb-2 md:mb-3">
-            <div className="p-1.5 md:p-2 bg-purple-100 text-purple-600 rounded-lg group-hover:bg-purple-200 transition-colors">
-              <Award size={18} />
-            </div>
-            <span className="text-[10px] md:text-xs font-medium text-purple-600 bg-purple-50 px-1.5 md:px-2 py-0.5 md:py-1 rounded-full group-hover:bg-purple-100 transition-colors hidden sm:inline">
-              Klik untuk Leaderboard
-            </span>
-          </div>
-          <h3 className="text-xl md:text-2xl font-bold text-slate-800 mb-0.5 md:mb-1">{dashboardStats.highPerformers}</h3>
-          <p className="text-xs md:text-sm text-slate-500">High Performers</p>
-        </button>
-      </div>
-
-      {/* WORKLOAD DISTRIBUTION WITH INSIGHTS & MOTIVATION */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
-        {/* Workload Distribution & Insights */}
-        <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
-          <h3 className="text-base md:text-lg font-bold text-slate-800 mb-4 md:mb-6 flex items-center gap-2">
-            <BarChart3 size={18} className="text-gov-600" />
-            Distribusi Beban Kerja Tim
-          </h3>
-          
-          {/* Workload Distribution Chart */}
-          <div className="mb-4 md:mb-6">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
-              <div className="text-center p-3 md:p-4 bg-emerald-50 rounded-lg border border-emerald-100">
-                <div className="w-6 h-6 md:w-8 md:h-8 bg-emerald-500 rounded-full mx-auto mb-1 md:mb-2 flex items-center justify-center">
-                  <Coffee size={14} className="text-white" />
-                </div>
-                <span className="block text-lg md:text-2xl font-bold text-emerald-700">{dashboardStats.workloadDistribution.relaxed}</span>
-                <span className="text-[10px] md:text-xs text-emerald-600 font-medium">Relaxed</span>
-              </div>
-              
-              <div className="text-center p-3 md:p-4 bg-gov-50 rounded-lg border border-gov-100">
-                <div className="w-6 h-6 md:w-8 md:h-8 bg-gov-500 rounded-full mx-auto mb-1 md:mb-2 flex items-center justify-center">
-                  <Zap size={14} className="text-white" />
-                </div>
-                <span className="block text-lg md:text-2xl font-bold text-gov-700">{dashboardStats.workloadDistribution.balanced}</span>
-                <span className="text-[10px] md:text-xs text-gov-600 font-medium">Balanced</span>
-              </div>
-              
-              <div className="text-center p-3 md:p-4 bg-orange-50 rounded-lg border border-orange-100">
-                <div className="w-6 h-6 md:w-8 md:h-8 bg-orange-500 rounded-full mx-auto mb-1 md:mb-2 flex items-center justify-center">
-                  <AlertTriangle size={14} className="text-white" />
-                </div>
-                <span className="block text-lg md:text-2xl font-bold text-orange-700">{dashboardStats.workloadDistribution.busy}</span>
-                <span className="text-[10px] md:text-xs text-orange-600 font-medium">Busy</span>
-              </div>
-              
-              <div className="text-center p-3 md:p-4 bg-red-50 rounded-lg border border-red-100">
-                <div className="w-6 h-6 md:w-8 md:h-8 bg-red-500 rounded-full mx-auto mb-1 md:mb-2 flex items-center justify-center">
-                  <Flame size={14} className="text-white" />
-                </div>
-                <span className="block text-lg md:text-2xl font-bold text-red-700">{dashboardStats.workloadDistribution.overload}</span>
-                <span className="text-[10px] md:text-xs text-red-600 font-medium">Overload</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Quick Insights */}
-          <div className="border-t border-slate-200 pt-4 md:pt-6">
-            
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
-              <div className="flex items-center gap-2 md:gap-3 p-2 md:p-3 bg-orange-50 rounded-lg border border-orange-100">
-                <Clock size={14} className="text-orange-600 flex-shrink-0" />
-                <div className="min-w-0">
-                  <p className="text-xs md:text-sm font-bold text-orange-800">{dashboardStats.totalUpcomingDeadlines}</p>
-                  <p className="text-[10px] md:text-xs text-orange-600 truncate">Deadline 3 hari</p>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-2 md:gap-3 p-2 md:p-3 bg-green-50 rounded-lg border border-green-100">
-                <TrendingUp size={14} className="text-green-600 flex-shrink-0" />
-                <div className="min-w-0">
-                  <p className="text-xs md:text-sm font-bold text-green-800">{dashboardStats.avgCompletionRate.toFixed(1)}%</p>
-                  <p className="text-[10px] md:text-xs text-green-600 truncate">Completion rate</p>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-2 md:gap-3 p-2 md:p-3 bg-blue-50 rounded-lg border border-blue-100">
-                <Users size={14} className="text-blue-600 flex-shrink-0" />
-                <div className="min-w-0">
-                  <p className="text-xs md:text-sm font-bold text-blue-800">{users.length}</p>
-                  <p className="text-[10px] md:text-xs text-blue-600 truncate">Anggota tim</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Motivation Card */}
-        <MotivationCard />
-      </div>
-
-      {/* SI PALING SECTION */}
+      {/* Si Paling Section */}
       <SiPalingSection tasks={tasks} users={users} />
 
-      {/* FILTERS & SEARCH */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6 mb-4 md:mb-6">
-        <div className="flex flex-col gap-4">
-          <div>
-            <h3 className="text-base md:text-lg font-bold text-slate-800 mb-1 flex items-center gap-2">
-              <Users size={18} className="text-gov-600" />
-              <span className="hidden sm:inline">Analisis Tim ({visibleUsers.length} dari {filteredAndSortedUsers.length} ditampilkan, {users.length} total)</span>
-              <span className="sm:hidden">Tim ({visibleUsers.length}/{users.length})</span>
-            </h3>
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="text-xs md:text-sm text-slate-500 hidden sm:block">Pantau beban kerja dan performa setiap anggota tim</p>
-              {dateFilter !== 'all' && (
-                <div className="flex items-center gap-1 px-2 py-0.5 bg-gov-50 text-gov-700 rounded-full text-[10px] md:text-xs font-medium">
-                  <Calendar size={10} />
-                  <span>
-                    {dateFilter === 'today' && 'Hari Ini'}
-                    {dateFilter === 'week' && 'Minggu Ini'}
-                    {dateFilter === 'month' && 'Bulan Ini'}
-                    {dateFilter === 'custom' && customStartDate && customEndDate && 
-                      `${new Date(customStartDate).toLocaleDateString('id-ID')} - ${new Date(customEndDate).toLocaleDateString('id-ID')}`
-                    }
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-          
-          <div className="flex flex-col gap-3 w-full">
-            {/* Row 1: Search dan Date Filter */}
-            <div className="flex flex-col sm:flex-row gap-2 md:gap-3">
-              {/* Search */}
-              <div className="relative flex-1">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Cari nama..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9 pr-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm w-full"
-                />
-              </div>
+      {/* Filters */}
+      <DashboardFilters
+        searchTerm={searchTerm}
+        setSearchTerm={setSearchTerm}
+        workloadFilter={workloadFilter}
+        setWorkloadFilter={setWorkloadFilter}
+        sortBy={sortBy}
+        setSortBy={setSortBy}
+        dateFilter={dateFilter}
+        setDateFilter={setDateFilter}
+        customStartDate={customStartDate}
+        setCustomStartDate={setCustomStartDate}
+        customEndDate={customEndDate}
+        setCustomEndDate={setCustomEndDate}
+        visibleCount={visibleUsers.length}
+        filteredCount={filteredAndSortedUsers.length}
+        totalCount={users.length}
+      />
 
-              {/* Date Filter */}
-              <div className="relative">
-                <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <select
-                  value={dateFilter}
-                  onChange={(e) => setDateFilter(e.target.value as DateFilter)}
-                  className="pl-9 pr-6 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm bg-white appearance-none cursor-pointer w-full sm:w-auto"
-                >
-                  <option value="all">Semua Periode</option>
-                  <option value="today">Hari Ini</option>
-                  <option value="week">Minggu Ini</option>
-                  <option value="month">Bulan Ini</option>
-                  <option value="custom">Custom</option>
-                </select>
-                <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-              </div>
-            </div>
-
-            {/* Custom Date Range (jika dipilih) */}
-            {dateFilter === 'custom' && (
-              <div className="flex flex-col sm:flex-row gap-2 md:gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
-                <div className="flex-1">
-                  <label className="block text-[10px] md:text-xs font-medium text-slate-600 mb-1">Dari</label>
-                  <input
-                    type="date"
-                    value={customStartDate}
-                    onChange={(e) => setCustomStartDate(e.target.value)}
-                    className="w-full px-2 md:px-3 py-1.5 md:py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm"
-                  />
-                </div>
-                <div className="flex-1">
-                  <label className="block text-[10px] md:text-xs font-medium text-slate-600 mb-1">Sampai</label>
-                  <input
-                    type="date"
-                    value={customEndDate}
-                    onChange={(e) => setCustomEndDate(e.target.value)}
-                    className="w-full px-2 md:px-3 py-1.5 md:py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm"
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Row 2: Workload Filter dan Sort */}
-            <div className="flex flex-col sm:flex-row gap-2 md:gap-3">
-              {/* Workload Filter */}
-              <div className="relative flex-1 sm:flex-none">
-                <Filter size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <select
-                  value={workloadFilter}
-                  onChange={(e) => setWorkloadFilter(e.target.value as WorkloadFilter)}
-                  className="pl-9 pr-6 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm bg-white appearance-none cursor-pointer w-full"
-                >
-                  <option value="all">Semua Beban</option>
-                  <option value="relaxed">Relaxed</option>
-                  <option value="balanced">Balanced</option>
-                  <option value="busy">Busy</option>
-                  <option value="overload">Overload</option>
-                </select>
-                <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-              </div>
-
-              {/* Sort */}
-              <div className="relative flex-1 sm:flex-none">
-                <BarChart3 size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as SortOption)}
-                  className="pl-9 pr-6 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm bg-white appearance-none cursor-pointer w-full"
-                >
-                  <option value="workload">Beban Kerja</option>
-                  <option value="performance">Performa</option>
-                  <option value="name">Nama</option>
-                  <option value="tasks">Jumlah Task</option>
-                  <option value="urgent">Task Urgent</option>
-                </select>
-                <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* USER GRID */}
+      {/* User Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6 mb-6">
-        {visibleUsers.map(data => {
-          const VisualIcon = data.visuals.icon;
-          const percentage = Math.min((data.score / 30) * 100, 100);
-          
-          // Get user's current status
-          const userStatus = userStatuses.find(s => s.userId === data.user.id);
-
-          const isHoveredWithSakura = hoveredCard === data.user.id && data.user.sakuraAnimationEnabled;
-          const isHoveredWithSnow = hoveredCard === data.user.id && data.user.snowAnimationEnabled;
-          const isHoveredWithMoney = hoveredCard === data.user.id && data.user.moneyAnimationEnabled;
-          const hasActiveAnimation = isHoveredWithSakura || isHoveredWithSnow || isHoveredWithMoney;
-
-          return (
-            <div 
-              key={data.userName} 
-              className={`rounded-2xl shadow-sm border overflow-hidden transition-all duration-300 group cursor-pointer transform hover:scale-[1.02] relative ${
-                isHoveredWithSakura 
-                  ? 'bg-gradient-to-br from-pink-50 to-rose-50 border-pink-200 shadow-pink-100/50 hover:shadow-lg' 
-                  : isHoveredWithSnow
-                  ? 'bg-gradient-to-br from-blue-50 to-cyan-50 border-blue-200 shadow-blue-100/50 hover:shadow-lg'
-                  : isHoveredWithMoney
-                  ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-200 shadow-green-100/50 hover:shadow-lg'
-                  : 'bg-white border-slate-200 hover:shadow-lg hover:border-gov-300'
-              }`}
-              onClick={() => onUserCardClick?.(data.userName)}
-              onMouseEnter={() => setHoveredCard(data.user.id)}
-              onMouseLeave={() => setHoveredCard(null)}
-              title={`Klik untuk melihat semua task ${data.userName} (${data.activeCount} aktif, ${data.completedCount} selesai)`}
-            >
-              {/* Christmas Decorations */}
-              <ChristmasDecorations 
-                santaHatEnabled={christmasSettings.santaHatEnabled}
-                baubleEnabled={christmasSettings.baubleEnabled}
-                candyEnabled={christmasSettings.candyEnabled}
-                position="card-top"
-              />
-              <ChristmasDecorations 
-                santaHatEnabled={christmasSettings.santaHatEnabled}
-                baubleEnabled={christmasSettings.baubleEnabled}
-                candyEnabled={christmasSettings.candyEnabled}
-                position="card-bottom"
-              />
-              {/* Sakura Animation */}
-              <SakuraAnimation 
-                isActive={hoveredCard === data.user.id && data.user.sakuraAnimationEnabled === true}
-                petalCount={6}
-              />
-              {/* Snow Animation */}
-              <SnowAnimation 
-                isActive={hoveredCard === data.user.id && data.user.snowAnimationEnabled === true}
-                flakeCount={40}
-              />
-              {/* Money Animation */}
-              <MoneyAnimation 
-                isActive={hoveredCard === data.user.id && data.user.moneyAnimationEnabled === true}
-                billCount={25}
-              />
-              {/* HEADER */}
-              <div className={`p-5 border-b transition-colors ${
-                isHoveredWithSakura ? 'border-pink-100' : 
-                isHoveredWithSnow ? 'border-blue-100' : 
-                isHoveredWithMoney ? 'border-green-100' :
-                'border-slate-100'
-              }`}>
-                <div className="flex justify-between items-start mb-3">
-                  <div className="flex items-center gap-3 relative">
-                    <div className="relative">
-                      {data.user.profilePhoto ? (
-                        <UserAvatar
-                          name={data.userName}
-                          profilePhoto={data.user.profilePhoto}
-                          size="lg"
-                          className={`border-2 border-white shadow-sm group-hover:scale-110 transition-all ${
-                            isHoveredWithSakura ? 'ring-2 ring-pink-400' : 
-                            isHoveredWithSnow ? 'ring-2 ring-blue-400' : 
-                            isHoveredWithMoney ? 'ring-2 ring-green-400' : ''
-                          }`}
-                        />
-                      ) : (
-                        <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold border-2 border-white shadow-sm ${
-                          isHoveredWithSakura ? 'bg-pink-400' : 
-                          isHoveredWithSnow ? 'bg-blue-400' : 
-                          isHoveredWithMoney ? 'bg-green-400' :
-                          data.visuals.color
-                        } text-white group-hover:scale-110 transition-all`}>
-                          {data.userName.charAt(0).toUpperCase()}
-                        </div>
-                      )}
-                      {/* Santa Hat Decoration */}
-                      <ChristmasDecorations 
-                        santaHatEnabled={christmasSettings.santaHatEnabled}
-                        baubleEnabled={christmasSettings.baubleEnabled}
-                        candyEnabled={christmasSettings.candyEnabled}
-                        position="avatar"
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className={`font-bold transition-colors ${
-                        isHoveredWithSakura ? 'text-pink-800' : 
-                        isHoveredWithSnow ? 'text-blue-800' : 
-                        isHoveredWithMoney ? 'text-green-800' :
-                        'text-slate-800 group-hover:text-gov-700'
-                      }`}>{data.userName}</h4>
-                      <p className={`text-xs transition-colors ${
-                        isHoveredWithSakura ? 'text-pink-600' : 
-                        isHoveredWithSnow ? 'text-blue-600' : 
-                        isHoveredWithMoney ? 'text-green-600' :
-                        'text-slate-500'
-                      }`}>{data.user.jabatan || 'Staff'}</p>
-                    </div>
-                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      {/* Share button only for current user */}
-                      {currentUser && data.userName === currentUser.name && (
-                        <ShareButton 
-                          onClick={() => openWeeklyShare()}
-                          className="p-1 bg-white/90 hover:bg-white"
-                        />
-                      )}
-                      <Eye size={16} className={
-                        isHoveredWithSakura ? 'text-pink-600' : 
-                        isHoveredWithSnow ? 'text-blue-600' : 
-                        isHoveredWithMoney ? 'text-green-600' :
-                        'text-gov-600'
-                      } />
-                    </div>
-                  </div>
-                  <span className={`px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 shadow-sm transition-colors ${
-                    isHoveredWithSakura 
-                      ? 'bg-pink-100 text-pink-700' 
-                      : isHoveredWithSnow
-                      ? 'bg-blue-100 text-blue-700'
-                      : isHoveredWithMoney
-                      ? 'bg-green-100 text-green-700'
-                      : `${data.visuals.bg} ${data.visuals.textColor}`
-                  }`}>
-                    <VisualIcon size={12} />
-                    {data.visuals.label}
-                  </span>
-                </div>
-
-                {/* User Status */}
-                {userStatus && (
-                  <div className="mb-3">
-                    <StatusBubble
-                      status={userStatus}
-                      onDelete={() => onDeleteStatus(userStatus.id)}
-                      canDelete={currentUser?.id === userStatus.userId}
-                      showTimeLeft={currentUser?.id === userStatus.userId}
-                    />
-                  </div>
-                )}
-
-                {/* Quick Stats */}
-                <div className="grid grid-cols-4 gap-2 text-center">
-                  <div>
-                    <span className={`block text-lg font-bold transition-colors ${
-                      isHoveredWithSakura ? 'text-pink-700' : 
-                      isHoveredWithSnow ? 'text-blue-700' : 
-                      isHoveredWithMoney ? 'text-green-700' :
-                      'text-slate-800'
-                    }`}>{data.activeCount}</span>
-                    <span className={`text-[9px] font-medium transition-colors ${
-                      isHoveredWithSakura ? 'text-pink-600' : 
-                      isHoveredWithSnow ? 'text-blue-600' : 
-                      isHoveredWithMoney ? 'text-green-600' :
-                      'text-slate-500'
-                    }`}>Aktif</span>
-                  </div>
-                  <div>
-                    <span className={`block text-lg font-bold transition-colors ${
-                      isHoveredWithSakura ? 'text-pink-700' : 
-                      isHoveredWithSnow ? 'text-blue-700' : 
-                      isHoveredWithMoney ? 'text-green-700' :
-                      'text-green-600'
-                    }`}>{data.completedCount}</span>
-                    <span className={`text-[9px] font-medium transition-colors ${
-                      isHoveredWithSakura ? 'text-pink-600' : 
-                      isHoveredWithSnow ? 'text-blue-600' : 
-                      isHoveredWithMoney ? 'text-green-600' :
-                      'text-green-600'
-                    }`}>Selesai</span>
-                  </div>
-                  <div>
-                    <span className={`block text-lg font-bold transition-colors ${
-                      isHoveredWithSakura ? 'text-pink-700' : 
-                      isHoveredWithSnow ? 'text-blue-700' : 
-                      isHoveredWithMoney ? 'text-green-700' :
-                      'text-gov-600'
-                    }`}>{data.completionRate.toFixed(0)}%</span>
-                    <span className={`text-[9px] font-medium transition-colors ${
-                      isHoveredWithSakura ? 'text-pink-600' : 
-                      isHoveredWithSnow ? 'text-blue-600' : 
-                      isHoveredWithMoney ? 'text-green-600' :
-                      'text-gov-600'
-                    }`}>Rate</span>
-                  </div>
-                  <div>
-                    <span className={`block text-lg font-bold transition-colors ${
-                      isHoveredWithSakura ? 'text-pink-700' : 
-                      isHoveredWithSnow ? 'text-blue-700' : 
-                      isHoveredWithMoney ? 'text-green-700' :
-                      'text-purple-600'
-                    }`}>{data.performanceScore}</span>
-                    <span className={`text-[9px] font-medium transition-colors ${
-                      isHoveredWithSakura ? 'text-pink-600' : 
-                      isHoveredWithSnow ? 'text-blue-600' : 
-                      isHoveredWithMoney ? 'text-green-600' :
-                      'text-purple-600'
-                    }`}>Poin</span>
-                  </div>
-                </div>
-
-
-              </div>
-
-              {/* BODY */}
-              <div className="p-5">
-                {/* Workload Meter */}
-                <div className="mb-4">
-                  <div className="flex justify-between text-xs mb-2">
-                    <span className={`font-semibold transition-colors ${
-                      isHoveredWithSakura ? 'text-pink-700' : 
-                      isHoveredWithSnow ? 'text-blue-700' : 
-                      isHoveredWithMoney ? 'text-green-700' :
-                      'text-slate-600'
-                    }`}>Beban Kerja: {data.score} poin</span>
-                    <span className={`transition-colors ${
-                      isHoveredWithSakura ? 'text-pink-500' : 
-                      isHoveredWithSnow ? 'text-blue-500' : 
-                      isHoveredWithMoney ? 'text-green-500' :
-                      'text-slate-400'
-                    }`}>{percentage.toFixed(0)}% kapasitas</span>
-                  </div>
-                  <div className={`h-2.5 w-full rounded-full overflow-hidden transition-colors ${
-                    isHoveredWithSakura ? 'bg-pink-100' : 
-                    isHoveredWithSnow ? 'bg-blue-100' : 
-                    isHoveredWithMoney ? 'bg-green-100' :
-                    'bg-slate-100'
-                  }`}>
-                    <div 
-                      className={`h-full rounded-full transition-all duration-1000 ${
-                        isHoveredWithSakura ? 'bg-pink-400' : 
-                        isHoveredWithSnow ? 'bg-blue-400' : 
-                        isHoveredWithMoney ? 'bg-green-400' :
-                        data.visuals.color
-                      }`} 
-                      style={{ width: `${percentage}%` }}
-                    />
-                  </div>
-                  <p className={`text-xs mt-2 italic transition-colors ${
-                    isHoveredWithSakura ? 'text-pink-600' : 
-                    isHoveredWithSnow ? 'text-blue-600' : 
-                    isHoveredWithMoney ? 'text-green-600' :
-                    'text-slate-500'
-                  }`}>"{data.visuals.message}"</p>
-                </div>
-
-                {/* Upcoming Deadlines Alert */}
-                {data.upcomingDeadlines > 0 && (
-                  <div className={`mb-4 p-2 rounded-lg flex items-center gap-2 transition-colors ${
-                    isHoveredWithSakura 
-                      ? 'bg-pink-50 border border-pink-200' 
-                      : isHoveredWithSnow
-                      ? 'bg-blue-50 border border-blue-200'
-                      : isHoveredWithMoney
-                      ? 'bg-green-50 border border-green-200'
-                      : 'bg-orange-50 border border-orange-200'
-                  }`}>
-                    <Clock size={14} className={
-                      isHoveredWithSakura ? 'text-pink-600' : 
-                      isHoveredWithSnow ? 'text-blue-600' : 
-                      isHoveredWithMoney ? 'text-green-600' :
-                      'text-orange-600'
-                    } />
-                    <span className={`text-xs font-medium transition-colors ${
-                      isHoveredWithSakura ? 'text-pink-700' : 
-                      isHoveredWithSnow ? 'text-blue-700' : 
-                      isHoveredWithMoney ? 'text-green-700' :
-                      'text-orange-700'
-                    }`}>
-                      {data.upcomingDeadlines} deadline dalam 3 hari
-                    </span>
-                  </div>
-                )}
-
-                {/* Priority Breakdown */}
-                <div className="grid grid-cols-4 gap-2">
-                  <div className={`text-center p-2 rounded-lg transition-colors ${
-                    isHoveredWithSakura 
-                      ? 'bg-pink-50 border border-pink-100 hover:bg-pink-100' 
-                      : isHoveredWithSnow
-                      ? 'bg-blue-50 border border-blue-100 hover:bg-blue-100'
-                      : isHoveredWithMoney
-                      ? 'bg-green-50 border border-green-100 hover:bg-green-100'
-                      : 'bg-red-50 border border-red-100 hover:bg-red-100'
-                  }`}>
-                    <span className={`block text-lg font-bold transition-colors ${
-                      isHoveredWithSakura ? 'text-pink-700' : 
-                      isHoveredWithSnow ? 'text-blue-700' : 
-                      isHoveredWithMoney ? 'text-green-700' :
-                      'text-red-600'
-                    }`}>{data.urgentCount}</span>
-                    <span className={`text-[9px] font-semibold uppercase transition-colors ${
-                      isHoveredWithSakura ? 'text-pink-600' : 
-                      isHoveredWithSnow ? 'text-blue-600' : 
-                      isHoveredWithMoney ? 'text-green-600' :
-                      'text-red-500'
-                    }`}>Urgent</span>
-                  </div>
-                  <div className={`text-center p-2 rounded-lg transition-colors ${
-                    isHoveredWithSakura 
-                      ? 'bg-pink-50 border border-pink-100 hover:bg-pink-100' 
-                      : isHoveredWithSnow
-                      ? 'bg-blue-50 border border-blue-100 hover:bg-blue-100'
-                      : isHoveredWithMoney
-                      ? 'bg-green-50 border border-green-100 hover:bg-green-100'
-                      : 'bg-orange-50 border border-orange-100 hover:bg-orange-100'
-                  }`}>
-                    <span className={`block text-lg font-bold transition-colors ${
-                      isHoveredWithSakura ? 'text-pink-700' : 
-                      isHoveredWithSnow ? 'text-blue-700' : 
-                      isHoveredWithMoney ? 'text-green-700' :
-                      'text-orange-600'
-                    }`}>{data.highCount}</span>
-                    <span className={`text-[9px] font-semibold uppercase transition-colors ${
-                      isHoveredWithSakura ? 'text-pink-600' : 
-                      isHoveredWithSnow ? 'text-blue-600' : 
-                      isHoveredWithMoney ? 'text-green-600' :
-                      'text-orange-500'
-                    }`}>High</span>
-                  </div>
-                  <div className={`text-center p-2 rounded-lg transition-colors ${
-                    isHoveredWithSakura 
-                      ? 'bg-pink-50 border border-pink-100 hover:bg-pink-100' 
-                      : isHoveredWithSnow
-                      ? 'bg-blue-50 border border-blue-100 hover:bg-blue-100'
-                      : isHoveredWithMoney
-                      ? 'bg-green-50 border border-green-100 hover:bg-green-100'
-                      : 'bg-blue-50 border border-blue-100 hover:bg-blue-100'
-                  }`}>
-                    <span className={`block text-lg font-bold transition-colors ${
-                      isHoveredWithSakura ? 'text-pink-700' : 
-                      isHoveredWithSnow ? 'text-blue-700' : 
-                      isHoveredWithMoney ? 'text-green-700' :
-                      'text-blue-600'
-                    }`}>{data.mediumCount}</span>
-                    <span className={`text-[9px] font-semibold uppercase transition-colors ${
-                      isHoveredWithSakura ? 'text-pink-600' : 
-                      isHoveredWithSnow ? 'text-blue-600' : 
-                      isHoveredWithMoney ? 'text-green-600' :
-                      'text-blue-500'
-                    }`}>Med</span>
-                  </div>
-                  <div className={`text-center p-2 rounded-lg transition-colors ${
-                    isHoveredWithSakura 
-                      ? 'bg-pink-50 border border-pink-100 hover:bg-pink-100' 
-                      : isHoveredWithSnow
-                      ? 'bg-blue-50 border border-blue-100 hover:bg-blue-100'
-                      : isHoveredWithMoney
-                      ? 'bg-green-50 border border-green-100 hover:bg-green-100'
-                      : 'bg-slate-50 border border-slate-100 hover:bg-slate-100'
-                  }`}>
-                    <span className={`block text-lg font-bold transition-colors ${
-                      isHoveredWithSakura ? 'text-pink-700' : 
-                      isHoveredWithSnow ? 'text-blue-700' : 
-                      isHoveredWithMoney ? 'text-green-700' :
-                      'text-slate-600'
-                    }`}>{data.lowCount}</span>
-                    <span className={`text-[9px] font-semibold uppercase transition-colors ${
-                      isHoveredWithSakura ? 'text-pink-600' : 
-                      isHoveredWithSnow ? 'text-blue-600' : 
-                      isHoveredWithMoney ? 'text-green-600' :
-                      'text-slate-500'
-                    }`}>Low</span>
-                  </div>
-                </div>
-
-                {/* Click hint */}
-                <div className="mt-4 text-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  <span className={`text-xs font-medium flex items-center justify-center gap-1 transition-colors ${
-                    isHoveredWithSakura ? 'text-pink-600' : 
-                    isHoveredWithSnow ? 'text-blue-600' : 
-                    isHoveredWithMoney ? 'text-green-600' :
-                    'text-gov-600'
-                  }`}>
-                    <Eye size={12} />
-                    Klik untuk lihat task
-                  </span>
-                </div>
-              </div>
-            </div>
-          );
-        })}
+        {visibleUsers.map(data => (
+          <UserWorkloadCard
+            key={data.userName}
+            data={data}
+            userStatus={userStatuses.find(s => s.userId === data.user.id)}
+            isHovered={hoveredCard === data.user.id}
+            christmasSettings={christmasSettings}
+            currentUser={currentUser}
+            onHover={setHoveredCard}
+            onClick={() => onUserCardClick?.(data.userName)}
+            onDeleteStatus={onDeleteStatus}
+            onShare={openWeeklyShare}
+          />
+        ))}
       </div>
 
-      {/* INFINITY SCROLL LOADING INDICATOR */}
+      {/* Loading Indicator */}
       {isLoading && (
         <div className="text-center py-8">
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-lg shadow-sm border border-slate-200">
@@ -1276,29 +266,24 @@ const Dashboard: React.FC<DashboardProps> = ({
         </div>
       )}
 
-      {/* END OF DATA INDICATOR */}
+      {/* End of Data */}
       {!hasMoreUsers && filteredAndSortedUsers.length > USERS_PER_PAGE && (
         <div className="text-center py-8">
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-lg border border-slate-200">
             <CheckCircle2 size={16} className="text-green-600" />
-            <span className="text-sm text-slate-600">
-              Menampilkan semua {filteredAndSortedUsers.length} anggota tim
-            </span>
+            <span className="text-sm text-slate-600">Menampilkan semua {filteredAndSortedUsers.length} anggota tim</span>
           </div>
         </div>
       )}
 
-      {/* EMPTY STATE */}
+      {/* Empty State */}
       {filteredAndSortedUsers.length === 0 && (
         <div className="text-center py-12">
           <Users size={48} className="mx-auto text-slate-300 mb-4" />
           <h3 className="text-lg font-bold text-slate-600 mb-2">Tidak ada anggota tim ditemukan</h3>
           <p className="text-slate-500 mb-4">Coba ubah filter atau kata kunci pencarian</p>
           <button
-            onClick={() => {
-              setSearchTerm('');
-              setWorkloadFilter('all');
-            }}
+            onClick={() => { setSearchTerm(''); setWorkloadFilter('all'); }}
             className="px-4 py-2 bg-gov-600 text-white rounded-lg font-medium hover:bg-gov-700 transition-colors"
           >
             Reset Filter
@@ -1306,7 +291,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         </div>
       )}
 
-      {/* Christmas Settings Modal */}
+      {/* Modals */}
       {isChristmasModalOpen && onUpdateChristmasSettings && (
         <ChristmasSettingsModal
           isOpen={isChristmasModalOpen}
@@ -1317,300 +302,14 @@ const Dashboard: React.FC<DashboardProps> = ({
         />
       )}
 
-      {/* High Performer Leaderboard Modal */}
-      {isLeaderboardOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 sm:p-4">
-          <div className="bg-white w-full sm:rounded-xl rounded-t-2xl shadow-2xl sm:max-w-4xl max-h-[90vh] sm:max-h-[90vh] overflow-y-auto">
-            {/* Mobile handle bar */}
-            <div className="sm:hidden flex justify-center pt-3 pb-1">
-              <div className="w-10 h-1 bg-slate-300 rounded-full"></div>
-            </div>
-            
-            <div className="p-4 sm:p-6">
-              <div className="flex items-center justify-between mb-4 sm:mb-6">
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <div className="p-2 sm:p-3 bg-gradient-to-r from-purple-500 to-yellow-500 text-white rounded-lg">
-                    <Award size={20} className="sm:w-6 sm:h-6" />
-                  </div>
-                  <div>
-                    <h2 className="text-lg sm:text-2xl font-bold text-slate-800">🏆 Leaderboard</h2>
-                    <p className="text-xs sm:text-sm text-slate-600 hidden sm:block">
-                      Ranking berdasarkan Performance Score (0-100)
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setIsLeaderboardOpen(false)}
-                  className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-                >
-                  ✕
-                </button>
-              </div>
+      <LeaderboardModal
+        isOpen={isLeaderboardOpen}
+        onClose={() => setIsLeaderboardOpen(false)}
+        leaderboardData={leaderboardData}
+        period={leaderboardPeriod}
+        setPeriod={setLeaderboardPeriod}
+      />
 
-              {/* Period Filter */}
-              <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row items-center justify-center gap-2">
-                <span className="text-xs sm:text-sm font-medium text-slate-600">Periode:</span>
-                <div className="flex bg-slate-100 rounded-lg p-1 w-full sm:w-auto">
-                  <button
-                    onClick={() => setLeaderboardPeriod('week')}
-                    className={`flex-1 sm:flex-none px-3 sm:px-4 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium transition-all ${
-                      leaderboardPeriod === 'week'
-                        ? 'bg-white text-gov-600 shadow-sm'
-                        : 'text-slate-600 hover:text-slate-800'
-                    }`}
-                  >
-                    Minggu
-                  </button>
-                  <button
-                    onClick={() => setLeaderboardPeriod('month')}
-                    className={`flex-1 sm:flex-none px-3 sm:px-4 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium transition-all ${
-                      leaderboardPeriod === 'month'
-                        ? 'bg-white text-gov-600 shadow-sm'
-                        : 'text-slate-600 hover:text-slate-800'
-                    }`}
-                  >
-                    Bulan
-                  </button>
-                  <button
-                    onClick={() => setLeaderboardPeriod('all')}
-                    className={`flex-1 sm:flex-none px-3 sm:px-4 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium transition-all ${
-                      leaderboardPeriod === 'all'
-                        ? 'bg-white text-gov-600 shadow-sm'
-                        : 'text-slate-600 hover:text-slate-800'
-                    }`}
-                  >
-                    Semua
-                  </button>
-                </div>
-              </div>
-
-              {/* Period Stats */}
-              <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-6">
-                <div className="bg-purple-50 p-2 sm:p-4 rounded-lg border border-purple-200 text-center">
-                  <div className="text-lg sm:text-2xl font-bold text-purple-600">
-                    {leaderboardData.filter(u => u.isHighPerformer).length}
-                  </div>
-                  <div className="text-[10px] sm:text-sm text-purple-700">High Performers</div>
-                </div>
-                <div className="bg-green-50 p-2 sm:p-4 rounded-lg border border-green-200 text-center">
-                  <div className="text-lg sm:text-2xl font-bold text-green-600">
-                    {Math.round(leaderboardData.reduce((sum, u) => sum + u.completionRate, 0) / leaderboardData.length)}%
-                  </div>
-                  <div className="text-[10px] sm:text-sm text-green-700">Avg Rate</div>
-                </div>
-                <div className="bg-blue-50 p-2 sm:p-4 rounded-lg border border-blue-200 text-center">
-                  <div className="text-lg sm:text-2xl font-bold text-blue-600">
-                    {leaderboardData.reduce((sum, u) => sum + u.completedCount, 0)}
-                  </div>
-                  <div className="text-[10px] sm:text-sm text-blue-700">Selesai</div>
-                </div>
-              </div>
-
-              {/* Leaderboard */}
-              <div className="space-y-2 sm:space-y-3 mb-4 sm:mb-6">
-                {leaderboardData
-                  .sort((a, b) => b.highPerformerScore - a.highPerformerScore)
-                  .map((data, index) => {
-                    const isTop3 = index < 3;
-                    const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '';
-                    
-                    return (
-                      <div
-                        key={data.userName}
-                        className={`p-3 sm:p-4 rounded-lg border transition-all hover:shadow-md ${
-                          data.isHighPerformer 
-                            ? 'bg-gradient-to-r from-purple-50 to-yellow-50 border-purple-200' 
-                            : 'bg-slate-50 border-slate-200'
-                        } ${isTop3 ? 'ring-2 ring-yellow-300' : ''}`}
-                      >
-                        {/* Mobile Layout */}
-                        <div className="sm:hidden">
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-bold text-slate-600">#{index + 1}</span>
-                              {medal && <span className="text-base">{medal}</span>}
-                              <UserAvatar 
-                                name={data.userName}
-                                profilePhoto={data.user.profilePhoto}
-                                size="sm"
-                                className="flex-shrink-0"
-                              />
-                              <div>
-                                <h3 className="font-bold text-slate-800 text-sm">{data.userName}</h3>
-                                <p className="text-xs text-slate-500">{data.user.jabatan || 'Staff'}</p>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <div className={`text-xl font-bold ${
-                                data.isHighPerformer ? 'text-purple-600' : 'text-slate-600'
-                              }`}>
-                                {data.highPerformerScore}
-                              </div>
-                              <div className="text-[10px] text-slate-500">/ 100</div>
-                            </div>
-                          </div>
-                          <div className="grid grid-cols-4 gap-1 text-center bg-white/50 rounded-md p-1.5">
-                            <div>
-                              <span className="block text-xs font-bold text-slate-800">{data.activeCount}</span>
-                              <span className="text-[10px] text-slate-500">Aktif</span>
-                            </div>
-                            <div>
-                              <span className="block text-xs font-bold text-green-600">{data.completedCount}</span>
-                              <span className="text-[10px] text-slate-500">Selesai</span>
-                            </div>
-                            <div>
-                              <span className="block text-xs font-bold text-gov-600">{data.completionRate.toFixed(0)}%</span>
-                              <span className="text-[10px] text-slate-500">Rate</span>
-                            </div>
-                            <div>
-                              <span className="block text-xs font-bold text-purple-600">{data.performanceScore}</span>
-                              <span className="text-[10px] text-slate-500">Poin</span>
-                            </div>
-                          </div>
-                          {data.isHighPerformer && (
-                            <div className="text-xs text-purple-600 font-medium mt-1.5 text-center">
-                              🏆 High Performer
-                            </div>
-                          )}
-                        </div>
-                        
-                        {/* Desktop Layout */}
-                        <div className="hidden sm:flex items-center justify-between">
-                          <div className="flex items-center gap-4">
-                            <div className="flex items-center gap-2">
-                              <span className="text-lg font-bold text-slate-600 w-8">#{index + 1}</span>
-                              {medal && <span className="text-xl">{medal}</span>}
-                            </div>
-                            
-                            <UserAvatar 
-                              name={data.userName}
-                              profilePhoto={data.user.profilePhoto}
-                              size="md"
-                              className="flex-shrink-0"
-                            />
-                            
-                            <div>
-                              <h3 className="font-bold text-slate-800">{data.userName}</h3>
-                              <p className="text-sm text-slate-600">{data.user.jabatan || 'Staff'}</p>
-                            </div>
-                          </div>
-                          
-                          <div className="flex items-center gap-6">
-                            {/* Stats */}
-                            <div className="grid grid-cols-4 gap-4 text-center">
-                              <div>
-                                <span className="block text-sm font-bold text-slate-800">{data.activeCount}</span>
-                                <span className="text-xs text-slate-500">Aktif</span>
-                              </div>
-                              <div>
-                                <span className="block text-sm font-bold text-green-600">{data.completedCount}</span>
-                                <span className="text-xs text-slate-500">Selesai</span>
-                              </div>
-                              <div>
-                                <span className="block text-sm font-bold text-gov-600">{data.completionRate.toFixed(0)}%</span>
-                                <span className="text-xs text-slate-500">Rate</span>
-                              </div>
-                              <div>
-                                <span className="block text-sm font-bold text-purple-600">{data.performanceScore}</span>
-                                <span className="text-xs text-slate-500">Task Poin</span>
-                              </div>
-                            </div>
-                            
-                            {/* Performance Score */}
-                            <div className="text-right">
-                              <div className={`text-2xl font-bold ${
-                                data.isHighPerformer ? 'text-purple-600' : 'text-slate-600'
-                              }`}>
-                                {data.highPerformerScore}
-                              </div>
-                              <div className="text-xs text-slate-500">/ 100</div>
-                              {data.isHighPerformer && (
-                                <div className="text-xs text-purple-600 font-medium mt-1">
-                                  🏆 High Performer
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-              </div>
-
-              {/* Info Perhitungan - Hidden on mobile, collapsible */}
-              <div className="border-t border-slate-200 pt-4 sm:pt-6">
-                <details className="sm:open">
-                  <summary className="font-bold text-slate-800 mb-3 sm:mb-4 flex items-center gap-2 cursor-pointer sm:cursor-default list-none">
-                    📊 <span className="text-sm sm:text-base">Cara Perhitungan</span>
-                    <span className="sm:hidden text-xs text-slate-500 ml-auto">(tap untuk lihat)</span>
-                  </summary>
-                  
-                  <div className="grid grid-cols-2 gap-2 sm:gap-4 mb-3 sm:mb-4">
-                    <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-green-50 rounded-lg border border-green-200">
-                      <div className="w-6 h-6 sm:w-8 sm:h-8 bg-green-500 text-white rounded-full flex items-center justify-center text-xs sm:text-sm font-bold">40</div>
-                      <div>
-                        <h4 className="font-semibold text-green-800 text-xs sm:text-sm">Completion</h4>
-                        <p className="text-[10px] sm:text-xs text-green-700">Rate × 0.4</p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-blue-50 rounded-lg border border-blue-200">
-                      <div className="w-6 h-6 sm:w-8 sm:h-8 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs sm:text-sm font-bold">30</div>
-                      <div>
-                        <h4 className="font-semibold text-blue-800 text-xs sm:text-sm">Task Points</h4>
-                        <p className="text-[10px] sm:text-xs text-blue-700">Poin × 3</p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-orange-50 rounded-lg border border-orange-200">
-                      <div className="w-6 h-6 sm:w-8 sm:h-8 bg-orange-500 text-white rounded-full flex items-center justify-center text-xs sm:text-sm font-bold">20</div>
-                      <div>
-                        <h4 className="font-semibold text-orange-800 text-xs sm:text-sm">Aktivitas</h4>
-                        <p className="text-[10px] sm:text-xs text-orange-700">Task aktif</p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-purple-50 rounded-lg border border-purple-200">
-                      <div className="w-6 h-6 sm:w-8 sm:h-8 bg-purple-500 text-white rounded-full flex items-center justify-center text-xs sm:text-sm font-bold">10</div>
-                      <div>
-                        <h4 className="font-semibold text-purple-800 text-xs sm:text-sm">Konsistensi</h4>
-                        <p className="text-[10px] sm:text-xs text-purple-700">≥3 task</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
-                    <div className="bg-gradient-to-r from-purple-50 to-yellow-50 p-2 sm:p-4 rounded-lg border border-purple-200">
-                      <p className="text-xs sm:text-sm text-purple-700 text-center">
-                        <strong>High Performer:</strong> Skor ≥ 60<br/>
-                        <span className="hidden sm:inline"><strong>Task Points:</strong> Urgent=4, High=3, Medium=2, Low=1</span>
-                      </p>
-                    </div>
-                    
-                    <div className="bg-blue-50 p-2 sm:p-4 rounded-lg border border-blue-200">
-                      <p className="text-xs sm:text-sm text-blue-700 text-center">
-                        <strong>🔄 Reset tanggal 1</strong><br/>
-                        <strong>📅 {new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}</strong>
-                      </p>
-                    </div>
-                  </div>
-                </details>
-              </div>
-
-              <div className="mt-4 sm:mt-6 text-center pb-safe">
-                <button
-                  onClick={() => setIsLeaderboardOpen(false)}
-                  className="w-full sm:w-auto px-6 py-2.5 sm:py-2 bg-gradient-to-r from-purple-600 to-yellow-600 text-white rounded-lg font-medium hover:from-purple-700 hover:to-yellow-700 transition-all"
-                >
-                  Tutup Leaderboard
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Share Modals */}
       <ShareModal
         isOpen={shareState.isWeeklyShareOpen}
         onClose={closeShare}
@@ -1618,7 +317,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         users={users}
         currentUser={currentUser}
       />
-      
+
       {shareState.selectedTask && (
         <TaskShareModal
           isOpen={shareState.isTaskShareOpen}
@@ -1627,15 +326,8 @@ const Dashboard: React.FC<DashboardProps> = ({
           users={users}
         />
       )}
-
     </div>
   );
 };
-
-const ActivityIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" className="text-gov-600" viewBox="0 0 24 24">
-    <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
-  </svg>
-);
 
 export default Dashboard;

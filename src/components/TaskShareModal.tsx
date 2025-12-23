@@ -25,7 +25,7 @@ const TaskShareModal: React.FC<TaskShareModalProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedBackground, setSelectedBackground] = useState<BackgroundOption | null>(null);
   const [customBackground, setCustomBackground] = useState<string | null>(null);
@@ -39,7 +39,7 @@ const TaskShareModal: React.FC<TaskShareModalProps> = ({
       type: 'unsplash'
     },
     {
-      id: 'gradient-2', 
+      id: 'gradient-2',
       name: 'Purple Gradient',
       url: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=711&fit=crop',
       type: 'unsplash'
@@ -117,7 +117,7 @@ const TaskShareModal: React.FC<TaskShareModalProps> = ({
     if (!canvasRef.current || !selectedBackground) return;
 
     setIsGenerating(true);
-    
+
     try {
       const canvas = canvasRef.current;
       const ctx = canvas.getContext('2d');
@@ -151,7 +151,7 @@ const TaskShareModal: React.FC<TaskShareModalProps> = ({
 
       // Load and draw logo
       try {
-        const logoImage = await loadSVGAsImage('./Logo.svg');
+        const logoImage = await loadSVGAsImage('/Logo.svg');
         const logoSize = 100; // Logo size (slightly smaller for task modal)
         const logoX = 80; // Left margin
         const logoY = 60; // Top margin
@@ -183,12 +183,12 @@ const TaskShareModal: React.FC<TaskShareModalProps> = ({
       const maxWidth = width - 160; // Account for left margin
       const words = task.title.split(' ');
       let line = '';
-      
+
       for (let n = 0; n < words.length; n++) {
         const testLine = line + words[n] + ' ';
         const metrics = ctx.measureText(testLine);
         const testWidth = metrics.width;
-        
+
         if (testWidth > maxWidth && n > 0) {
           ctx.fillText(line, leftMargin, currentY);
           line = words[n] + ' ';
@@ -255,12 +255,12 @@ const TaskShareModal: React.FC<TaskShareModalProps> = ({
       ctx.font = '24px system-ui, -apple-system, sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText('Dibuat Oleh Pulse, Manajemen Kerja Kemen PPPA', width / 2, height - 100);
-      
-      const currentDate = new Date().toLocaleDateString('id-ID', { 
-        weekday: 'long', 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
+
+      const currentDate = new Date().toLocaleDateString('id-ID', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
       });
       ctx.fillText(currentDate, width / 2, height - 60);
 
@@ -273,7 +273,7 @@ const TaskShareModal: React.FC<TaskShareModalProps> = ({
 
   const downloadImage = () => {
     if (!canvasRef.current) return;
-    
+
     const link = document.createElement('a');
     link.download = `task-${task.title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}-${new Date().toISOString().split('T')[0]}.jpg`;
     link.href = canvasRef.current.toDataURL('image/jpeg', 0.9);
@@ -350,7 +350,7 @@ const TaskShareModal: React.FC<TaskShareModalProps> = ({
               {/* Background Selection */}
               <div>
                 <h3 className="font-semibold text-slate-800 mb-3">Background</h3>
-                
+
                 {/* Upload Custom Background */}
                 <button
                   onClick={() => fileInputRef.current?.click()}
@@ -373,11 +373,10 @@ const TaskShareModal: React.FC<TaskShareModalProps> = ({
                     <button
                       key={bg.id}
                       onClick={() => setSelectedBackground(bg)}
-                      className={`relative w-20 h-36 flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all ${
-                        selectedBackground?.id === bg.id
+                      className={`relative w-20 h-36 flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all ${selectedBackground?.id === bg.id
                           ? 'border-gov-500 ring-2 ring-gov-200'
                           : 'border-slate-200 hover:border-slate-300'
-                      }`}
+                        }`}
                     >
                       <img
                         src={bg.url}

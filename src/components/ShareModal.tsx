@@ -27,7 +27,7 @@ const ShareModal: React.FC<ShareModalProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedBackground, setSelectedBackground] = useState<BackgroundOption | null>(null);
   const [customBackground, setCustomBackground] = useState<string | null>(null);
@@ -47,7 +47,7 @@ const ShareModal: React.FC<ShareModalProps> = ({
       type: 'unsplash'
     },
     {
-      id: 'gradient-2', 
+      id: 'gradient-2',
       name: 'Purple Gradient',
       url: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=711&fit=crop',
       type: 'unsplash'
@@ -72,7 +72,7 @@ const ShareModal: React.FC<ShareModalProps> = ({
 
     const { startOfWeek, endOfWeek } = getWeekRange();
 
-    const userTasks = tasks.filter(task => 
+    const userTasks = tasks.filter(task =>
       Array.isArray(task.pic) ? task.pic.includes(currentUser.name) : task.pic === currentUser.name
     );
 
@@ -118,7 +118,7 @@ const ShareModal: React.FC<ShareModalProps> = ({
     if (!canvasRef.current || !currentUser || !selectedBackground) return;
 
     setIsGenerating(true);
-    
+
     try {
       const canvas = canvasRef.current;
       const ctx = canvas.getContext('2d');
@@ -152,7 +152,7 @@ const ShareModal: React.FC<ShareModalProps> = ({
 
       // Load and draw logo
       try {
-        const logoImage = await loadSVGAsImage('./Logo.svg');
+        const logoImage = await loadSVGAsImage('/Logo.svg');
         const logoSize = 120; // Logo size
         const logoX = 80; // Left margin
         const logoY = 80; // Top margin
@@ -186,7 +186,7 @@ const ShareModal: React.FC<ShareModalProps> = ({
 
       // Date range
       const { startOfWeek, endOfWeek } = getWeekRange();
-      
+
       ctx.font = '36px system-ui, -apple-system, sans-serif';
       ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
       ctx.fillText(
@@ -198,7 +198,7 @@ const ShareModal: React.FC<ShareModalProps> = ({
 
       // Stats section - vertical layout (angka dulu, judul di bawah)
       ctx.fillStyle = 'white';
-      
+
       // Completed tasks
       ctx.font = 'bold 120px system-ui, -apple-system, sans-serif';
       ctx.fillText(weeklyStats.completed.toString(), leftMargin, currentY);
@@ -236,17 +236,17 @@ const ShareModal: React.FC<ShareModalProps> = ({
 
       // Font size for the vision message
       ctx.font = 'bold 32px system-ui, -apple-system, sans-serif';
-      
+
       // Handle text wrapping for the vision message
       const maxWidth = width - 160; // Account for margins
       const words = performanceMessage.split(' ');
       let line = '';
-      
+
       for (let n = 0; n < words.length; n++) {
         const testLine = line + words[n] + ' ';
         const metrics = ctx.measureText(testLine);
         const testWidth = metrics.width;
-        
+
         if (testWidth > maxWidth && n > 0) {
           ctx.fillText(line, leftMargin, currentY);
           line = words[n] + ' ';
@@ -262,12 +262,12 @@ const ShareModal: React.FC<ShareModalProps> = ({
       ctx.font = '24px system-ui, -apple-system, sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText('Dibuat Oleh Pulse, Manajemen Kerja Kemen PPPA', width / 2, height - 100);
-      
-      const currentDate = new Date().toLocaleDateString('id-ID', { 
-        weekday: 'long', 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
+
+      const currentDate = new Date().toLocaleDateString('id-ID', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
       });
       ctx.fillText(currentDate, width / 2, height - 60);
 
@@ -280,7 +280,7 @@ const ShareModal: React.FC<ShareModalProps> = ({
 
   const downloadImage = () => {
     if (!canvasRef.current) return;
-    
+
     const link = document.createElement('a');
     link.download = `weekly-progress-${currentUser?.name}-${new Date().toISOString().split('T')[0]}.jpg`;
     link.href = canvasRef.current.toDataURL('image/jpeg', 0.9);
@@ -343,7 +343,7 @@ const ShareModal: React.FC<ShareModalProps> = ({
               {/* Background Selection */}
               <div>
                 <h3 className="font-semibold text-slate-800 mb-3">Background</h3>
-                
+
                 {/* Upload Custom Background */}
                 <button
                   onClick={() => fileInputRef.current?.click()}
@@ -366,11 +366,10 @@ const ShareModal: React.FC<ShareModalProps> = ({
                     <button
                       key={bg.id}
                       onClick={() => setSelectedBackground(bg)}
-                      className={`relative w-20 h-36 flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all ${
-                        selectedBackground?.id === bg.id
+                      className={`relative w-20 h-36 flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all ${selectedBackground?.id === bg.id
                           ? 'border-gov-500 ring-2 ring-gov-200'
                           : 'border-slate-200 hover:border-slate-300'
-                      }`}
+                        }`}
                     >
                       <img
                         src={bg.url}

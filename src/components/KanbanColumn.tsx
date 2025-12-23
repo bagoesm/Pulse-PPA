@@ -12,14 +12,17 @@ interface KanbanColumnProps {
   onTaskClick: (task: Task) => void;
   onTaskShare?: (task: Task) => void;
   checkEditPermission: (task: Task) => boolean;
+  users?: any[]; // Using any[] to match User[] type but avoid circular deps if needed, though simpler to import User
 }
 
 const TASKS_PER_PAGE = 20;
 
-const KanbanColumn: React.FC<KanbanColumnProps> = ({
+// Sort tasks by priority and date
+const KanbanColumn: React.FC<KanbanColumnProps> = React.memo(({
   status,
   tasks,
   projects,
+  users = [],
   onDragOver,
   onDrop,
   onDragStart,
@@ -38,11 +41,11 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
       const priorityOrder = { 'Urgent': 0, 'High': 1, 'Medium': 2, 'Low': 3 };
       const aPriority = priorityOrder[a.priority as keyof typeof priorityOrder] ?? 4;
       const bPriority = priorityOrder[b.priority as keyof typeof priorityOrder] ?? 4;
-      
+
       if (aPriority !== bPriority) {
         return aPriority - bPriority;
       }
-      
+
       // Then by deadline (earliest first)
       return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
     });
@@ -58,12 +61,12 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
   // Load more tasks function
   const loadMoreTasks = useCallback(() => {
     if (isLoading) return;
-    
+
     const nextPage = currentPage + 1;
     const startIndex = nextPage * TASKS_PER_PAGE;
     const endIndex = startIndex + TASKS_PER_PAGE;
     const newTasks = sortedTasks.slice(startIndex, endIndex);
-    
+
     if (newTasks.length > 0) {
       setIsLoading(true);
       // Simulate loading delay
@@ -79,7 +82,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
   const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
     const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
     const isNearBottom = scrollTop + clientHeight >= scrollHeight - 50;
-    
+
     if (isNearBottom && !isLoading && visibleTasks.length < sortedTasks.length) {
       loadMoreTasks();
     }
@@ -95,7 +98,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
   };
 
   return (
-    <div 
+    <div
       onDragOver={onDragOver}
       onDrop={(e) => onDrop(e, status)}
       className="flex-1 flex flex-col min-w-[220px] sm:min-w-[280px] bg-slate-100/50 rounded-xl border border-slate-200/60 max-h-full"
@@ -117,24 +120,25 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
       </div>
 
       {/* Tasks Container */}
-      <div 
-        className="flex-1 overflow-y-auto px-2 sm:px-3 pb-2 sm:pb-3 kanban-scroll" 
+      <div
+        className="flex-1 overflow-y-auto px-2 sm:px-3 pb-2 sm:pb-3 kanban-scroll"
         onScroll={handleScroll}
       >
         {visibleTasks.length > 0 ? (
           <>
             {visibleTasks.map(task => (
-              <TaskCard 
-                key={task.id} 
-                task={task} 
+              <TaskCard
+                key={task.id}
+                task={task}
                 projects={projects}
-                onDragStart={onDragStart} 
+                users={users}
+                onDragStart={onDragStart}
                 onClick={onTaskClick}
                 onShare={onTaskShare}
                 canEdit={checkEditPermission(task)}
               />
             ))}
-            
+
             {/* Loading Indicator */}
             {isLoading && (
               <div className="flex items-center justify-center p-4">
@@ -144,7 +148,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                 </div>
               </div>
             )}
-            
+
             {/* Load More Button (if many tasks remaining) */}
             {!isLoading && visibleTasks.length < tasks.length && tasks.length - visibleTasks.length > 10 && (
               <button
@@ -154,7 +158,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                 Load {Math.min(TASKS_PER_PAGE, tasks.length - visibleTasks.length)} more tasks
               </button>
             )}
-            
+
             {/* End indicator */}
             {visibleTasks.length >= tasks.length && tasks.length > TASKS_PER_PAGE && (
               <div className="text-center p-2 text-xs text-slate-400">
@@ -170,6 +174,6 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
       </div>
     </div>
   );
-};
+});
 
 export default KanbanColumn;

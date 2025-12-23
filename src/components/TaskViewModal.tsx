@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabaseClient';
 import PICDisplay from './PICDisplay';
 import UserAvatar from './UserAvatar';
 import MentionInput, { renderMentionText } from './MentionInput';
+import { formatFileSize, ensureHttps } from '../utils/formatters';
 
 interface TaskViewModalProps {
   isOpen: boolean;
@@ -23,14 +24,6 @@ interface TaskViewModalProps {
   onStatusChange?: (taskId: string, newStatus: Status) => void;
 }
 
-const formatFileSize = (bytes: number): string => {
-  if (!bytes || bytes === 0) return '0 B';
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
-};
-
 const getPriorityConfig = (priority: Priority) => {
   switch (priority) {
     case Priority.Urgent:
@@ -44,15 +37,6 @@ const getPriorityConfig = (priority: Priority) => {
     default:
       return { color: 'bg-slate-400', text: 'text-slate-600', bg: 'bg-slate-50', icon: '📝' };
   }
-};
-
-const ensureHttps = (url: string) => {
-  if (!url) return url;
-  const trimmedUrl = url.trim();
-  if (trimmedUrl && !trimmedUrl.match(/^https?:\/\//i)) {
-    return `https://${trimmedUrl}`;
-  }
-  return trimmedUrl;
 };
 
 const getStatusConfig = (status: Status) => {
@@ -71,6 +55,7 @@ const getStatusConfig = (status: Status) => {
       return { color: 'bg-slate-400', text: 'text-slate-700', bg: 'bg-slate-50', icon: '⭕' };
   }
 };
+
 
 const TaskViewModal: React.FC<TaskViewModalProps> = ({
   isOpen,
@@ -152,7 +137,7 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
     const date = new Date(dateString);
     const now = new Date();
     const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
-    
+
     if (diffInHours < 1) {
       const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
       return diffInMinutes < 1 ? 'Baru saja' : `${diffInMinutes} menit yang lalu`;
@@ -212,16 +197,16 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/20 backdrop-blur-sm">
       <div className="bg-white rounded-t-2xl sm:rounded-lg shadow-2xl w-full sm:max-w-3xl overflow-hidden flex flex-col max-h-[90vh]">
-        
+
         {/* Header */}
         <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
           <div className="flex items-center gap-2 text-gray-600">
-            <button 
+            <button
               onClick={onClose}
               className="p-1 hover:bg-gray-200 rounded text-gray-400 hover:text-gray-600 transition-colors"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="m15 18-6-6 6-6"/>
+                <path d="m15 18-6-6 6-6" />
               </svg>
             </button>
             <span className="text-xs sm:text-sm truncate max-w-[200px] sm:max-w-none">
@@ -244,7 +229,7 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
         {/* Content */}
         <div className="flex-1 overflow-y-auto">
           <div className="p-6">
-            
+
             {/* Title */}
             <h1 className="text-2xl font-semibold text-gray-900 mb-8 leading-tight">
               {task.title}
@@ -252,7 +237,7 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
 
             {/* Properties List */}
             <div className="space-y-6">
-              
+
               {/* Status */}
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-3 w-28 text-gray-500">
@@ -265,29 +250,27 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                   <div className="relative" ref={statusDropdownRef}>
                     <button
                       onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
-                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all ${
-                        isStatusDropdownOpen 
-                          ? 'border-blue-300 bg-blue-50 ring-2 ring-blue-100' 
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all ${isStatusDropdownOpen
+                          ? 'border-blue-300 bg-blue-50 ring-2 ring-blue-100'
                           : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                      }`}
+                        }`}
                     >
                       <span className={`w-2 h-2 rounded-full ${getStatusConfig(task.status).color}`}></span>
                       <span className="text-sm font-medium text-gray-900">{task.status}</span>
-                      <ChevronDown 
-                        size={14} 
-                        className={`text-gray-400 transition-transform ${isStatusDropdownOpen ? 'rotate-180' : ''}`} 
+                      <ChevronDown
+                        size={14}
+                        className={`text-gray-400 transition-transform ${isStatusDropdownOpen ? 'rotate-180' : ''}`}
                       />
                     </button>
-                    
+
                     {isStatusDropdownOpen && (
                       <div className="absolute top-full left-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
                         {Object.values(Status).map((status) => (
                           <button
                             key={status}
                             onClick={() => handleStatusChange(status)}
-                            className={`w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-gray-50 transition-colors ${
-                              task.status === status ? 'bg-blue-50' : ''
-                            }`}
+                            className={`w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-gray-50 transition-colors ${task.status === status ? 'bg-blue-50' : ''
+                              }`}
                           >
                             <span className={`w-2.5 h-2.5 rounded-full ${getStatusConfig(status).color}`}></span>
                             <span className={`text-sm ${task.status === status ? 'font-medium text-blue-700' : 'text-gray-700'}`}>
@@ -342,7 +325,7 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                             );
                           })}
                           {task.pic.length > 3 && (
-                            <div 
+                            <div
                               className="w-8 h-8 rounded-full bg-gray-400 border-2 border-white flex items-center justify-center text-white text-xs font-medium cursor-help"
                               title={task.pic.slice(3).join(', ')}
                             >
@@ -357,7 +340,7 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                             </span>
                           ))}
                           {task.pic.length > 2 && (
-                            <span 
+                            <span
                               className="text-xs text-gray-500 cursor-help"
                               title={task.pic.slice(2).join(', ')}
                             >
@@ -405,10 +388,10 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-3 w-28 text-gray-500">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <rect width="7" height="7" x="3" y="3" rx="1"/>
-                    <rect width="7" height="7" x="14" y="3" rx="1"/>
-                    <rect width="7" height="7" x="14" y="14" rx="1"/>
-                    <rect width="7" height="7" x="3" y="14" rx="1"/>
+                    <rect width="7" height="7" x="3" y="3" rx="1" />
+                    <rect width="7" height="7" x="14" y="3" rx="1" />
+                    <rect width="7" height="7" x="14" y="14" rx="1" />
+                    <rect width="7" height="7" x="3" y="14" rx="1" />
                   </svg>
                   <span className="text-sm">Kategori</span>
                 </div>
@@ -422,10 +405,10 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-3 w-28 text-gray-500">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <rect width="7" height="7" x="3" y="3" rx="1"/>
-                      <rect width="7" height="7" x="14" y="3" rx="1"/>
-                      <rect width="7" height="7" x="14" y="14" rx="1"/>
-                      <rect width="7" height="7" x="3" y="14" rx="1"/>
+                      <rect width="7" height="7" x="3" y="3" rx="1" />
+                      <rect width="7" height="7" x="14" y="3" rx="1" />
+                      <rect width="7" height="7" x="14" y="14" rx="1" />
+                      <rect width="7" height="7" x="3" y="14" rx="1" />
                     </svg>
                     <span className="text-sm">Sub Kategori</span>
                   </div>
@@ -437,7 +420,7 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-3 w-28 text-gray-500">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
                   </svg>
                   <span className="text-sm">Tags</span>
                 </div>
@@ -488,8 +471,8 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                               </div>
                             </div>
                             {link.url && (
-                              <button 
-                                onClick={() => window.open(ensureHttps(link.url), '_blank')} 
+                              <button
+                                onClick={() => window.open(ensureHttps(link.url), '_blank')}
                                 className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-all shrink-0"
                                 title={`Buka ${link.title || 'link'}`}
                               >
@@ -538,8 +521,8 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                             <div className="text-sm font-medium text-gray-900 truncate">{file.name}</div>
                             <div className="text-xs text-gray-500">{formatFileSize(file.size)} • Download</div>
                           </div>
-                          <button 
-                            onClick={() => handleDownloadAttachment(file)} 
+                          <button
+                            onClick={() => handleDownloadAttachment(file)}
                             className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-blue-600 transition-all"
                             title={`Download ${file.name}`}
                           >
@@ -572,22 +555,20 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                 <div className="flex gap-1 mb-4 bg-gray-100 p-1 rounded-lg">
                   <button
                     onClick={() => setActiveTab('comments')}
-                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
-                      activeTab === 'comments'
+                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'comments'
                         ? 'bg-white text-gray-900 shadow-sm'
                         : 'text-gray-500 hover:text-gray-700'
-                    }`}
+                      }`}
                   >
                     <MessageSquare size={14} />
                     Komentar ({taskComments.length})
                   </button>
                   <button
                     onClick={() => setActiveTab('activity')}
-                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
-                      activeTab === 'activity'
+                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'activity'
                         ? 'bg-white text-gray-900 shadow-sm'
                         : 'text-gray-500 hover:text-gray-700'
-                    }`}
+                      }`}
                   >
                     <Activity size={14} />
                     Aktivitas ({taskActivities.length})
@@ -646,7 +627,7 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                           .map((comment) => {
                             const commentUser = users.find(u => u.name === comment.userName || u.id === comment.userId);
                             const canDeleteComment = currentUser && (
-                              comment.userId === currentUser.id || 
+                              comment.userId === currentUser.id ||
                               comment.userName === currentUser.name ||
                               currentUser.role === 'Super Admin' ||
                               currentUser.role === 'Atasan'
@@ -705,7 +686,7 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                     {taskActivities.length > 0 ? (
                       taskActivities.map((activity) => {
                         const activityUser = users.find(u => u.name === activity.userName || u.id === activity.userId);
-                        
+
                         const getActivityIcon = () => {
                           switch (activity.actionType) {
                             case 'created': return '🆕';

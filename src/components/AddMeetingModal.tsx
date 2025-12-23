@@ -6,7 +6,9 @@ import {
 } from 'lucide-react';
 import { Meeting, MeetingType, MeetingInviter, User, ProjectDefinition, Attachment, TaskLink } from '../../types';
 import { supabase } from '../lib/supabaseClient';
-import { useNotificationModal, useConfirmModal } from '../hooks/useModal';
+import { useModals } from '../hooks/useModalHelpers';
+import { useFileUpload } from '../hooks/useFileUpload';
+import { useAttachmentHandlers } from '../hooks/useAttachmentHandlers';
 import NotificationModal from './NotificationModal';
 import ConfirmModal from './ConfirmModal';
 import MultiSelectChip from './MultiSelectChip';
@@ -59,9 +61,15 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
 }) => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [uploadTarget, setUploadTarget] = useState<'suratUndangan' | 'suratTugas' | 'laporan' | 'attachments'>('attachments');
-  
-  const { modal: notificationModal, showNotification, hideNotification } = useNotificationModal();
-  const { modal: confirmModal, showConfirm, hideConfirm } = useConfirmModal();
+
+  const {
+    notificationModal, showNotification, hideNotification,
+    confirmModal, showConfirm, hideConfirm,
+    showError
+  } = useModals();
+
+  const { uploadFile } = useFileUpload('attachment');
+  const { handleRemoveFromStorage } = useAttachmentHandlers('attachment', showError);
 
   // Inviter search state
   const [inviterSearch, setInviterSearch] = useState('');
@@ -180,34 +188,14 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
     if (!e.target.files || e.target.files.length === 0) return;
     const file = e.target.files[0];
 
-    try {
-      const ext = file.name.split('.').pop();
-      const storagePath = `meetings/${Date.now()}_${Math.random().toString(36).substring(2)}.${ext}`;
+    const att = await uploadFile(file, 'meetings');
 
-      const { error: uploadError } = await supabase.storage.from('attachment').upload(storagePath, file);
-      if (uploadError) {
-        showNotification('Upload Gagal', 'Gagal mengupload file.', 'error');
-        return;
-      }
-
-      const { data: signedData } = await supabase.storage.from('attachment').createSignedUrl(storagePath, 60 * 60);
-
-      const att: Attachment = {
-        id: `f_${Date.now()}`,
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        path: storagePath,
-        url: signedData?.signedUrl || undefined,
-      };
-
+    if (att) {
       if (uploadTarget === 'attachments') {
         setFormData(prev => ({ ...prev, attachments: [...(prev.attachments ?? []), att] }));
       } else {
         setFormData(prev => ({ ...prev, [uploadTarget]: att }));
       }
-    } catch (err) {
-      showNotification('Error', 'Terjadi kesalahan saat upload.', 'error');
     }
 
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -215,30 +203,27 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
 
   const removeFile = async (target: 'suratUndangan' | 'suratTugas' | 'laporan' | string) => {
     if (isReadOnly) return;
-    
+
     if (['suratUndangan', 'suratTugas', 'laporan'].includes(target)) {
       const file = formData[target as keyof Meeting] as Attachment | undefined;
-      if (file?.path) {
-        const { error } = await supabase.storage.from('attachment').remove([file.path]);
-        if (error) {
-          console.error('Error removing file from storage:', error);
-          // Continue anyway - file might already be deleted
-        }
+
+      if (file) {
+        await handleRemoveFromStorage(file);
       }
-      
+
       // Update local state
       setFormData(prev => ({ ...prev, [target]: undefined }));
-      
+
       // If editing existing meeting, also update database immediately
       if (initialData?.id) {
-        const dbField = target === 'suratUndangan' ? 'surat_undangan' 
-                      : target === 'suratTugas' ? 'surat_tugas' 
-                      : 'laporan';
+        const dbField = target === 'suratUndangan' ? 'surat_undangan'
+          : target === 'suratTugas' ? 'surat_tugas'
+            : 'laporan';
         const { error: dbError } = await supabase
           .from('meetings')
           .update({ [dbField]: null, updated_at: new Date().toISOString() })
           .eq('id', initialData.id);
-        
+
         if (dbError) {
           console.error('Error updating database:', dbError);
           showNotification('Gagal Update Database', dbError.message, 'error');
@@ -247,29 +232,26 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
     } else {
       // Remove from attachments array
       const att = formData.attachments?.find(a => a.id === target);
-      if (att?.path) {
-        const { error } = await supabase.storage.from('attachment').remove([att.path]);
-        if (error) {
-          console.error('Error removing attachment from storage:', error);
-          // Continue anyway - file might already be deleted
-        }
+
+      if (att) {
+        await handleRemoveFromStorage(att);
       }
-      
+
       const newAttachments = (formData.attachments ?? []).filter(a => a.id !== target);
-      
+
       // Update local state
       setFormData(prev => ({
         ...prev,
         attachments: newAttachments,
       }));
-      
+
       // If editing existing meeting, also update database immediately
       if (initialData?.id) {
         const { error: dbError } = await supabase
           .from('meetings')
           .update({ attachments: newAttachments, updated_at: new Date().toISOString() })
           .eq('id', initialData.id);
-        
+
         if (dbError) {
           console.error('Error updating database:', dbError);
           showNotification('Gagal Update Database', dbError.message, 'error');
@@ -333,18 +315,18 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
   // Link management functions
   const addLink = () => {
     if (!newLinkTitle.trim() || !newLinkUrl.trim()) return;
-    
+
     let url = newLinkUrl.trim();
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
       url = 'https://' + url;
     }
-    
+
     const newLink: TaskLink = {
       id: `link_${Date.now()}`,
       title: newLinkTitle.trim(),
       url: url,
     };
-    
+
     setFormData(prev => ({
       ...prev,
       links: [...(prev.links || []), newLink],
@@ -442,7 +424,7 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
         {/* Body */}
         <form onSubmit={handleSubmit} className="p-4 sm:p-6 overflow-y-auto custom-scrollbar">
           <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
-          
+
           <div className="space-y-4">
             {/* Title */}
             <div>
@@ -468,11 +450,10 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
                     type="button"
                     disabled={isReadOnly}
                     onClick={() => handleChange('type', type.value)}
-                    className={`p-3 rounded-lg border-2 text-left transition-all ${
-                      formData.type === type.value
-                        ? 'border-gov-500 bg-gov-50'
-                        : 'border-slate-200 hover:border-slate-300'
-                    } disabled:opacity-50`}
+                    className={`p-3 rounded-lg border-2 text-left transition-all ${formData.type === type.value
+                      ? 'border-gov-500 bg-gov-50'
+                      : 'border-slate-200 hover:border-slate-300'
+                      } disabled:opacity-50`}
                   >
                     <div className="text-sm font-semibold text-slate-700">{type.label}</div>
                     <div className="text-[10px] text-slate-500 mt-0.5">{type.description}</div>
@@ -592,7 +573,7 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
                 />
                 <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
               </div>
-              
+
               {showInviterDropdown && !isReadOnly && (
                 <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-auto">
                   {filteredInviters.map(inv => (
@@ -609,7 +590,7 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
                       {formData.inviter?.id === inv.id && <Check size={16} className="text-gov-600" />}
                     </button>
                   ))}
-                  
+
                   {!isAddingNewInviter ? (
                     <button
                       type="button"
@@ -766,7 +747,7 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
               <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">
                 <Link2 size={12} className="inline mr-1" />Link Terkait
               </label>
-              
+
               {/* Existing Links */}
               {(formData.links || []).length > 0 && (
                 <div className="space-y-2 mb-3">
@@ -776,9 +757,9 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
                         <Link2 size={14} className="text-gov-500 shrink-0" />
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-medium text-slate-700 truncate">{link.title}</p>
-                          <a 
-                            href={link.url} 
-                            target="_blank" 
+                          <a
+                            href={link.url}
+                            target="_blank"
                             rel="noopener noreferrer"
                             className="text-xs text-gov-600 hover:underline truncate block"
                           >
@@ -796,9 +777,9 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
                           <ExternalLink size={14} />
                         </a>
                         {!isReadOnly && (
-                          <button 
-                            type="button" 
-                            onClick={() => removeLink(link.id)} 
+                          <button
+                            type="button"
+                            onClick={() => removeLink(link.id)}
                             className="p-1.5 hover:bg-red-50 rounded text-red-500"
                           >
                             <Trash2 size={14} />
@@ -809,7 +790,7 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
                   ))}
                 </div>
               )}
-              
+
               {/* Add New Link */}
               {!isReadOnly && (
                 <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-2">
@@ -902,8 +883,24 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
         </div>
       </div>
 
-      <NotificationModal {...notificationModal} onClose={hideNotification} />
-      <ConfirmModal {...confirmModal} onClose={hideConfirm} onConfirm={() => { confirmModal.onConfirm(); hideConfirm(); }} />
+      {/* Modals */}
+      <NotificationModal
+        isOpen={notificationModal.isOpen}
+        title={notificationModal.title}
+        message={notificationModal.message}
+        type={notificationModal.type}
+        onClose={hideNotification}
+      />
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        type={confirmModal.type}
+        onConfirm={confirmModal.onConfirm}
+        onClose={hideConfirm}
+        confirmText={confirmModal.confirmText}
+        cancelText={confirmModal.cancelText}
+      />
     </div>
   );
 };
