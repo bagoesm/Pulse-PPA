@@ -162,7 +162,7 @@ export interface Comment {
   updatedAt?: string; // ISO Date string
 }
 
-export type NotificationType = 'comment' | 'deadline' | 'assignment' | 'meeting_pic' | 'meeting_invitee';
+export type NotificationType = 'comment' | 'deadline' | 'assignment' | 'meeting_pic' | 'meeting_invitee' | 'meeting_mention' | 'meeting_comment';
 
 export interface Notification {
   id: string;
@@ -257,6 +257,7 @@ export interface Meeting {
   laporan?: Attachment; // Laporan hasil rapat
   attachments: Attachment[]; // Lampiran lainnya
   links: TaskLink[]; // Link terkait
+  comments?: Comment[]; // OPSIONAL - Comments for the meeting
   notes?: string; // Catatan tambahan
   status: 'scheduled' | 'ongoing' | 'completed' | 'cancelled';
   createdBy: string;

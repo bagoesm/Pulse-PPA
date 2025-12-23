@@ -230,6 +230,97 @@ export const useMeetingHandlers = ({
         }
     }, [viewingMeeting, handleDeleteMeeting]);
 
+    // Add comment
+    const handleAddComment = useCallback(async (meetingId: string, content: string, allUsers: User[], createMentionNotification: any, createCommentNotification: any) => {
+        if (!currentUser) return;
+
+        const { data, error } = await supabase.from('meeting_comments').insert([{
+            meeting_id: meetingId,
+            user_id: currentUser.id,
+            user_name: currentUser.name,
+            content: content
+        }]).select().single();
+
+        if (error) {
+            showNotification('Gagal Tambah Komentar', error.message, 'error');
+            return;
+        }
+
+        // Update local state if needed (or rely on refetch)
+        // For optimal experience we append to the local meeting comments
+        const newComment = {
+            id: data.id,
+            taskId: '', // Not used for meeting comments
+            userId: data.user_id,
+            userName: data.user_name,
+            content: data.content,
+            createdAt: data.created_at,
+            updatedAt: data.updated_at
+        };
+
+        setMeetings(prev => prev.map(m => {
+            if (m.id === meetingId) {
+                return { ...m, comments: [newComment, ...(m.comments || [])] };
+            }
+            return m;
+        }));
+
+        // Also update viewingMeeting so the modal reflects the change immediately
+        if (viewingMeeting && viewingMeeting.id === meetingId) {
+            setViewingMeeting(prev => prev ? {
+                ...prev,
+                comments: [newComment, ...(prev.comments || [])]
+            } : null);
+        }
+
+        // Handle notifications
+        const meeting = meetings.find(m => m.id === meetingId);
+        if (meeting) {
+            const mentionedNames: string[] = [];
+            for (const user of allUsers) {
+                const escapedName = user.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const mentionPattern = new RegExp(`@${escapedName}(?:\\s|$|[.,!?])`, 'i');
+                if (mentionPattern.test(content) && !mentionedNames.includes(user.name)) {
+                    mentionedNames.push(user.name);
+                }
+            }
+
+            if (mentionedNames.length > 0) {
+                await createMentionNotification(meetingId, meeting.title, currentUser.name, mentionedNames, true);
+            }
+
+            const picsToNotify = meeting.pic.filter(pic => !mentionedNames.includes(pic));
+            if (picsToNotify.length > 0) {
+                await createCommentNotification(meetingId, meeting.title, currentUser.name, picsToNotify, true);
+            }
+        }
+    }, [currentUser, meetings, setMeetings, setViewingMeeting, viewingMeeting, showNotification]);
+
+    // Delete comment
+    const handleDeleteComment = useCallback(async (meetingId: string, commentId: string) => {
+        const { error } = await supabase.from('meeting_comments').delete().eq('id', commentId);
+
+        if (error) {
+            showNotification('Gagal Hapus Komentar', error.message, 'error');
+            return;
+        }
+
+        setMeetings(prev => prev.map(m => {
+            if (m.id === meetingId) {
+                return { ...m, comments: (m.comments || []).filter(c => c.id !== commentId) };
+            }
+            return m;
+        }));
+
+        // Also update viewingMeeting so the modal reflects the change immediately
+        if (viewingMeeting && viewingMeeting.id === meetingId) {
+            setViewingMeeting(prev => prev ? {
+                ...prev,
+                comments: (prev.comments || []).filter(c => c.id !== commentId)
+            } : null);
+        }
+    }, [setMeetings, setViewingMeeting, viewingMeeting, showNotification]);
+
     return {
         checkMeetingEditPermission,
         checkMeetingDeletePermission,
@@ -240,7 +331,9 @@ export const useMeetingHandlers = ({
         handleEditMeetingFromView,
         handleSaveMeeting,
         handleDeleteMeeting,
-        handleDeleteMeetingFromView
+        handleDeleteMeetingFromView,
+        handleAddComment,
+        handleDeleteComment
     };
 };
 

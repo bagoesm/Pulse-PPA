@@ -65,7 +65,7 @@ export const useNotifications = ({ currentUser, tasks, onTaskNavigation, onMeeti
 
       // Dedupe by id just in case
       const mapped = (data || []).map(mapDbToNotification);
-      const uniqueNotifications = mapped.filter((n, index, self) => 
+      const uniqueNotifications = mapped.filter((n, index, self) =>
         index === self.findIndex(t => t.id === n.id)
       );
       setNotifications(uniqueNotifications);
@@ -99,12 +99,12 @@ export const useNotifications = ({ currentUser, tasks, onTaskNavigation, onMeeti
           .eq('type', type)
           .gte('created_at', today)
           .limit(1);
-        
+
         if (existing && existing.length > 0) {
           return null; // Skip duplicate deadline notification
         }
       }
-      
+
       // For meeting notifications, check if already exists for this meeting
       if ((type === 'meeting_pic' || type === 'meeting_invitee') && meetingId) {
         const { data: existing } = await supabase
@@ -114,7 +114,7 @@ export const useNotifications = ({ currentUser, tasks, onTaskNavigation, onMeeti
           .eq('meeting_id', meetingId)
           .eq('type', type)
           .limit(1);
-        
+
         if (existing && existing.length > 0) {
           return null; // Skip duplicate meeting notification
         }
@@ -131,7 +131,7 @@ export const useNotifications = ({ currentUser, tasks, onTaskNavigation, onMeeti
         p_meeting_id: meetingId || null,
         p_meeting_title: meetingTitle || null
       });
-      
+
       if (error) {
         console.error('Failed to create notification:', error);
         return null;
@@ -146,10 +146,11 @@ export const useNotifications = ({ currentUser, tasks, onTaskNavigation, onMeeti
 
   // Create comment notification
   const createCommentNotification = useCallback(async (
-    taskId: string,
-    taskTitle: string,
+    itemId: string, // task or meeting ID
+    itemTitle: string,
     commenterName: string,
-    taskPics: string[]
+    picsToNotify: string[],
+    isMeeting: boolean = false
   ) => {
     if (!currentUser) return;
 
@@ -157,21 +158,25 @@ export const useNotifications = ({ currentUser, tasks, onTaskNavigation, onMeeti
       const { data: users } = await supabase
         .from('profiles')
         .select('id, name')
-        .in('name', taskPics);
+        .in('name', picsToNotify);
 
       if (!users) return;
 
       // Notify all PICs except the commenter
       const targetUsers = users.filter(u => u.name !== commenterName);
-      
+
+      const notificationType: NotificationType = isMeeting ? 'meeting_comment' : 'comment';
+
       for (const user of targetUsers) {
         await createNotification(
           user.id,
-          'comment',
+          notificationType,
           'Komentar Baru',
-          `${commenterName} menambahkan komentar pada task "${taskTitle}"`,
-          taskId,
-          taskTitle
+          `${commenterName} menambahkan komentar pada ${isMeeting ? 'jadwal' : 'task'} "${itemTitle}"`,
+          !isMeeting ? itemId : '',
+          !isMeeting ? itemTitle : '',
+          isMeeting ? itemId : undefined,
+          isMeeting ? itemTitle : undefined
         );
       }
 
@@ -186,10 +191,11 @@ export const useNotifications = ({ currentUser, tasks, onTaskNavigation, onMeeti
 
   // Create mention notification (when user is mentioned in a comment)
   const createMentionNotification = useCallback(async (
-    taskId: string,
-    taskTitle: string,
+    entityId: string,
+    entityTitle: string,
     mentionerName: string,
-    mentionedNames: string[]
+    mentionedNames: string[],
+    isMeeting: boolean = false
   ) => {
     if (!currentUser || mentionedNames.length === 0) return;
 
@@ -203,15 +209,20 @@ export const useNotifications = ({ currentUser, tasks, onTaskNavigation, onMeeti
 
       // Notify all mentioned users except the mentioner
       const targetUsers = users.filter(u => u.name !== mentionerName);
-      
+
+      const notificationType: NotificationType = isMeeting ? 'meeting_mention' : 'comment';
+      const labelType = isMeeting ? 'jadwal kegiatan' : 'task';
+
       for (const user of targetUsers) {
         await createNotification(
           user.id,
-          'comment', // Using 'comment' type for mentions
+          notificationType,
           'Anda Di-mention',
-          `${mentionerName} menyebut Anda dalam komentar pada task "${taskTitle}"`,
-          taskId,
-          taskTitle
+          `${mentionerName} menyebut Anda dalam komentar pada ${labelType} "${entityTitle}"`,
+          isMeeting ? '' : entityId, // taskId
+          isMeeting ? '' : entityTitle, // taskTitle
+          isMeeting ? entityId : undefined, // meetingId
+          isMeeting ? entityTitle : undefined // meetingTitle
         );
       }
 
@@ -238,10 +249,10 @@ export const useNotifications = ({ currentUser, tasks, onTaskNavigation, onMeeti
     try {
       // Find PICs that are newly assigned (not in oldPics)
       const newlyAssignedPics = newPics.filter(pic => !oldPics.includes(pic));
-      
+
       // Don't notify the person who created/edited the task
       const picsToNotify = newlyAssignedPics.filter(pic => pic !== assignerName);
-      
+
       if (picsToNotify.length === 0) return;
 
       const { data: users } = await supabase
@@ -255,7 +266,7 @@ export const useNotifications = ({ currentUser, tasks, onTaskNavigation, onMeeti
         const message = isNewTask
           ? `${assignerName} menugaskan Anda sebagai PIC pada task baru "${taskTitle}"`
           : `${assignerName} menambahkan Anda sebagai PIC pada task "${taskTitle}"`;
-        
+
         await createNotification(
           user.id,
           'assignment',
@@ -287,13 +298,13 @@ export const useNotifications = ({ currentUser, tasks, onTaskNavigation, onMeeti
     // Find tasks with deadlines within next 24 hours where user is PIC
     const upcomingTasks = tasks.filter(task => {
       if (task.status === 'Done') return false;
-      
+
       const deadline = new Date(task.deadline);
       const isWithin24Hours = deadline <= tomorrow && deadline >= now;
-      
+
       const pics = Array.isArray(task.pic) ? task.pic : [task.pic];
       const isUserPic = pics.includes(currentUser.name);
-      
+
       return isWithin24Hours && isUserPic;
     });
 
@@ -322,7 +333,7 @@ export const useNotifications = ({ currentUser, tasks, onTaskNavigation, onMeeti
         .update({ is_read: true })
         .eq('id', notificationId);
 
-      setNotifications(prev => 
+      setNotifications(prev =>
         prev.map(n => n.id === notificationId ? { ...n, isRead: true } : n)
       );
     } catch (error) {
@@ -366,9 +377,14 @@ export const useNotifications = ({ currentUser, tasks, onTaskNavigation, onMeeti
     if (!notification.isRead) {
       await markAsRead(notification.id);
     }
-    
-    // Check if it's a meeting notification
-    if ((notification.type === 'meeting_pic' || notification.type === 'meeting_invitee') && notification.meetingId && onMeetingNavigation) {
+
+    // Check if it's a meeting notification (includes meeting mentions and comments)
+    const isMeetingNotification = notification.type === 'meeting_pic' ||
+      notification.type === 'meeting_invitee' ||
+      notification.type === 'meeting_mention' ||
+      notification.type === 'meeting_comment';
+
+    if (isMeetingNotification && notification.meetingId && onMeetingNavigation) {
       onMeetingNavigation(notification.meetingId);
     } else if (notification.taskId) {
       onTaskNavigation(notification.taskId);
@@ -474,15 +490,15 @@ export const useNotifications = ({ currentUser, tasks, onTaskNavigation, onMeeti
     allUsers: User[]
   ) => {
     if (!currentUser) return;
-    
+
     try {
       // Notify PICs (excluding creator)
       for (const picName of picNames) {
         if (picName === creatorName) continue; // Don't notify creator
-        
+
         const user = allUsers.find(u => u.name === picName);
         if (!user) continue;
-        
+
         await createNotification(
           user.id,
           'meeting_pic',
@@ -494,15 +510,15 @@ export const useNotifications = ({ currentUser, tasks, onTaskNavigation, onMeeti
           meetingTitle
         );
       }
-      
+
       // Notify invitees (excluding creator and PICs)
       for (const inviteeName of inviteeNames) {
         if (inviteeName === creatorName) continue;
         if (picNames.includes(inviteeName)) continue; // Already notified as PIC
-        
+
         const user = allUsers.find(u => u.name === inviteeName);
         if (!user) continue;
-        
+
         await createNotification(
           user.id,
           'meeting_invitee',
@@ -514,7 +530,7 @@ export const useNotifications = ({ currentUser, tasks, onTaskNavigation, onMeeti
           meetingTitle
         );
       }
-      
+
       // Refresh notifications
       fetchNotifications();
     } catch (error) {

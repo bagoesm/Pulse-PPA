@@ -65,7 +65,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
   const [formData, setFormData] = useState<Partial<Task>>({
     title: '',
     category: Category.PengembanganAplikasi, // Default ke kategori pertama
-    subCategory: subCategories && subCategories.length > 0 ? subCategories[0] : '',
+    subCategory: '',
     startDate: new Date().toISOString().split('T')[0],
     deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Default 7 hari dari sekarang
     pic: defaultPic ? [defaultPic] : [], // Array of PIC names
@@ -85,8 +85,8 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
   useEffect(() => {
     setFormData(prev => ({
       ...prev,
-      pic: (prev.pic && Array.isArray(prev.pic) && prev.pic.length > 0) ? prev.pic : (defaultPic ? [defaultPic] : []),
-      subCategory: prev.subCategory || (subCategories && subCategories[0]) || ''
+      pic: (prev.pic && Array.isArray(prev.pic) && prev.pic.length > 0) ? prev.pic : (defaultPic ? [defaultPic] : [])
+      // Don't auto-set subCategory - let user choose
     }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [users.length, subCategories.length, currentUser?.id]);
@@ -102,18 +102,20 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
         .map(rel => rel.subcategory_id);
       const filteredSubCategories = masterSubCategories.filter(sub => relatedSubIds.includes(sub.id));
 
-      if (filteredSubCategories.length > 0 && !formData.subCategory) {
-        setFormData(prev => ({ ...prev, subCategory: filteredSubCategories[0].name }));
+      // Don't auto-set subCategory when category changes - let user choose
+      // Only check if current subcategory is valid for this category (when editing)
+      if (formData.subCategory && filteredSubCategories.length > 0) {
+        const isValidSubCategory = filteredSubCategories.some(sub => sub.name === formData.subCategory);
+        if (!isValidSubCategory) {
+          setFormData(prev => ({ ...prev, subCategory: '' }));
+        }
       }
     } else {
-      // Fallback to legacy system
+      // Fallback to legacy system - just validate, don't auto-set
       if (formData.category === Category.PengembanganAplikasi) {
-        if (!formData.subCategory || !['UI/UX Design', 'Fitur Baru', 'Backend', 'Frontend', 'QA & Pengujian', 'Dokumentasi'].includes(formData.subCategory)) {
-          setFormData(prev => ({ ...prev, subCategory: 'UI/UX Design' }));
-        }
-      } else {
-        if (subCategories && subCategories.length > 0 && !formData.subCategory) {
-          setFormData(prev => ({ ...prev, subCategory: subCategories[0] }));
+        const validLegacySubs = ['UI/UX Design', 'Fitur Baru', 'Backend', 'Frontend', 'QA & Pengujian', 'Dokumentasi'];
+        if (formData.subCategory && !validLegacySubs.includes(formData.subCategory)) {
+          setFormData(prev => ({ ...prev, subCategory: '' }));
         }
       }
     }
@@ -134,7 +136,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
       setFormData({
         title: '',
         category: Category.PengembanganAplikasi, // Default ke kategori pertama
-        subCategory: subCategories && subCategories.length > 0 ? subCategories[0] : '',
+        subCategory: '',
         startDate: new Date().toISOString().split('T')[0],
         deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Default 7 hari dari sekarang
         pic: defaultPic ? [defaultPic] : [], // Array of PIC names

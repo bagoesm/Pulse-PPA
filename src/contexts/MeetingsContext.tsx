@@ -37,8 +37,34 @@ export const MeetingsProvider: React.FC<MeetingsProviderProps> = ({ children, se
     const fetchMeetings = useCallback(async () => {
         setIsMeetingsLoading(true);
         try {
-            const { data: meetingsData } = await supabase.from('meetings').select('*').order('date', { ascending: true });
+            // Fetch meetings and comments in parallel
+            const [meetingsResult, commentsResult] = await Promise.all([
+                supabase.from('meetings').select('*').order('date', { ascending: true }),
+                supabase.from('meeting_comments').select('*').order('created_at', { ascending: false })
+            ]);
+
+            const meetingsData = meetingsResult.data;
+            const commentsData = commentsResult.data || [];
+
             if (meetingsData) {
+                // Group comments by meeting_id
+                const commentsByMeetingId = new Map<string, any[]>();
+                commentsData.forEach((c: any) => {
+                    const meetingId = c.meeting_id;
+                    if (!commentsByMeetingId.has(meetingId)) {
+                        commentsByMeetingId.set(meetingId, []);
+                    }
+                    commentsByMeetingId.get(meetingId)!.push({
+                        id: c.id,
+                        taskId: '', // Not used for meeting comments
+                        userId: c.user_id,
+                        userName: c.user_name,
+                        content: c.content,
+                        createdAt: c.created_at,
+                        updatedAt: c.updated_at
+                    });
+                });
+
                 const mappedMeetings = meetingsData.map((m: any) => ({
                     id: m.id,
                     title: m.title,
@@ -69,7 +95,8 @@ export const MeetingsProvider: React.FC<MeetingsProviderProps> = ({ children, se
                     status: m.status,
                     createdBy: m.created_by,
                     createdAt: m.created_at,
-                    updatedAt: m.updated_at
+                    updatedAt: m.updated_at,
+                    comments: commentsByMeetingId.get(m.id) || []
                 }));
                 setMeetings(mappedMeetings);
 

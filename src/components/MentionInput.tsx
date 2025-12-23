@@ -11,6 +11,7 @@ interface MentionInputProps {
   disabled?: boolean;
   rows?: number;
   className?: string;
+  dropdownPosition?: 'top' | 'bottom';
 }
 
 const MentionInput: React.FC<MentionInputProps> = ({
@@ -21,7 +22,8 @@ const MentionInput: React.FC<MentionInputProps> = ({
   placeholder = 'Tulis komentar... Gunakan @ untuk mention',
   disabled = false,
   rows = 3,
-  className = ''
+  className = '',
+  dropdownPosition = 'bottom'
 }) => {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [suggestionIndex, setSuggestionIndex] = useState(0);
@@ -39,16 +41,16 @@ const MentionInput: React.FC<MentionInputProps> = ({
   const findMentionTrigger = useCallback((text: string, cursorPos: number) => {
     const textBeforeCursor = text.slice(0, cursorPos);
     const lastAtIndex = textBeforeCursor.lastIndexOf('@');
-    
+
     if (lastAtIndex === -1) return null;
-    
+
     const textAfterAt = textBeforeCursor.slice(lastAtIndex + 1);
     // Check if there's a space after @ (means mention is complete)
     if (textAfterAt.includes(' ') || textAfterAt.includes('\n')) return null;
-    
+
     // Check if @ is at start or after whitespace
     if (lastAtIndex > 0 && !/\s/.test(text[lastAtIndex - 1])) return null;
-    
+
     return {
       start: lastAtIndex,
       query: textAfterAt
@@ -59,10 +61,10 @@ const MentionInput: React.FC<MentionInputProps> = ({
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newValue = e.target.value;
     const newCursorPos = e.target.selectionStart || 0;
-    
+
     onChange(newValue);
     setCursorPosition(newCursorPos);
-    
+
     const mention = findMentionTrigger(newValue, newCursorPos);
     if (mention) {
       setMentionQuery(mention.query);
@@ -79,12 +81,12 @@ const MentionInput: React.FC<MentionInputProps> = ({
     if (showSuggestions && filteredUsers.length > 0) {
       if (e.key === 'ArrowDown') {
         e.preventDefault();
-        setSuggestionIndex(prev => 
+        setSuggestionIndex(prev =>
           prev < filteredUsers.length - 1 ? prev + 1 : 0
         );
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
-        setSuggestionIndex(prev => 
+        setSuggestionIndex(prev =>
           prev > 0 ? prev - 1 : filteredUsers.length - 1
         );
       } else if (e.key === 'Enter' && !e.shiftKey) {
@@ -103,15 +105,15 @@ const MentionInput: React.FC<MentionInputProps> = ({
   const selectUser = (user: User) => {
     const mention = findMentionTrigger(value, cursorPosition);
     if (!mention) return;
-    
+
     const beforeMention = value.slice(0, mention.start);
     const afterCursor = value.slice(cursorPosition);
     const newValue = `${beforeMention}@${user.name} ${afterCursor}`;
-    
+
     onChange(newValue);
     setShowSuggestions(false);
     setMentionQuery('');
-    
+
     // Focus back to textarea
     setTimeout(() => {
       if (textareaRef.current) {
@@ -126,7 +128,7 @@ const MentionInput: React.FC<MentionInputProps> = ({
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (
-        suggestionsRef.current && 
+        suggestionsRef.current &&
         !suggestionsRef.current.contains(e.target as Node) &&
         textareaRef.current &&
         !textareaRef.current.contains(e.target as Node)
@@ -151,21 +153,21 @@ const MentionInput: React.FC<MentionInputProps> = ({
         rows={rows}
         className={`w-full px-3 py-2 border border-gray-200 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm ${className}`}
       />
-      
+
       {/* Suggestions Dropdown */}
       {showSuggestions && filteredUsers.length > 0 && (
-        <div 
+        <div
           ref={suggestionsRef}
-          className="absolute left-0 right-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 z-50 max-h-48 overflow-y-auto"
+          className={`absolute left-0 right-0 bg-white rounded-lg shadow-lg border border-gray-200 z-[60] max-h-48 overflow-y-auto ${dropdownPosition === 'top' ? 'bottom-full mb-1' : 'mt-1'
+            }`}
         >
           {filteredUsers.map((user, index) => (
             <button
               key={user.id}
               type="button"
               onClick={() => selectUser(user)}
-              className={`w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-gray-50 transition-colors ${
-                index === suggestionIndex ? 'bg-blue-50' : ''
-              }`}
+              className={`w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-gray-50 transition-colors ${index === suggestionIndex ? 'bg-blue-50' : ''
+                }`}
             >
               <UserAvatar
                 name={user.name}
@@ -186,12 +188,13 @@ const MentionInput: React.FC<MentionInputProps> = ({
           ))}
         </div>
       )}
-      
+
       {/* No results */}
       {showSuggestions && mentionQuery && filteredUsers.length === 0 && (
-        <div 
+        <div
           ref={suggestionsRef}
-          className="absolute left-0 right-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 z-50 px-3 py-2"
+          className={`absolute left-0 right-0 bg-white rounded-lg shadow-lg border border-gray-200 z-[60] px-3 py-2 ${dropdownPosition === 'top' ? 'bottom-full mb-1' : 'mt-1'
+            }`}
         >
           <p className="text-sm text-gray-500">
             Tidak ada user "{mentionQuery}"
@@ -205,17 +208,17 @@ const MentionInput: React.FC<MentionInputProps> = ({
 // Helper function to parse mentions from text
 export const parseMentions = (text: string, users: User[]): string[] => {
   const mentions: string[] = [];
-  
+
   // Check each user if their name is mentioned with @
   for (const user of users) {
     const escapedName = user.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const mentionPattern = new RegExp(`@${escapedName}(?:\\s|$|[.,!?])`, 'i');
-    
+
     if (mentionPattern.test(text) && !mentions.includes(user.name)) {
       mentions.push(user.name);
     }
   }
-  
+
   return mentions;
 };
 
@@ -223,49 +226,49 @@ export const parseMentions = (text: string, users: User[]): string[] => {
 export const renderMentionText = (text: string, users: User[]): React.ReactNode => {
   // Sort users by name length (longest first) to match longer names first
   const sortedUsers = [...users].sort((a, b) => b.name.length - a.name.length);
-  
+
   let result: React.ReactNode[] = [];
   let remainingText = text;
   let keyIndex = 0;
-  
+
   while (remainingText.length > 0) {
     let foundMatch = false;
-    
+
     for (const user of sortedUsers) {
       const escapedName = user.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const mentionPattern = new RegExp(`@${escapedName}`, 'i');
       const match = remainingText.match(mentionPattern);
-      
+
       if (match && match.index !== undefined) {
         // Add text before mention
         if (match.index > 0) {
           result.push(remainingText.slice(0, match.index));
         }
-        
+
         // Add highlighted mention
         result.push(
-          <span 
-            key={keyIndex++} 
+          <span
+            key={keyIndex++}
             className="text-blue-600 font-medium bg-blue-50 px-1 rounded cursor-pointer hover:bg-blue-100"
             title={user.jabatan || user.name}
           >
             @{user.name}
           </span>
         );
-        
+
         remainingText = remainingText.slice(match.index + match[0].length);
         foundMatch = true;
         break;
       }
     }
-    
+
     if (!foundMatch) {
       // No more mentions found, add remaining text
       result.push(remainingText);
       break;
     }
   }
-  
+
   return result.length > 0 ? result : text;
 };
 

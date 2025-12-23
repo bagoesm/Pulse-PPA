@@ -1,10 +1,12 @@
-// src/components/MeetingViewModal.tsx
-import React from 'react';
+import React, { useState } from 'react';
 import {
   X, Calendar, Clock, MapPin, Video, Users, Building2, Briefcase, FileText,
-  Download, ExternalLink, Edit2, Trash2, GraduationCap, Link2
+  Download, ExternalLink, Edit2, Trash2, GraduationCap, Link2, Send, MessageCircle
 } from 'lucide-react';
-import { Meeting, MeetingType, User, ProjectDefinition, Attachment } from '../../types';
+import { Meeting, MeetingType, User, ProjectDefinition, Attachment, Comment } from '../../types';
+
+import UserAvatar from './UserAvatar';
+import MentionInput, { renderMentionText } from './MentionInput';
 
 interface MeetingViewModalProps {
   isOpen: boolean;
@@ -15,6 +17,10 @@ interface MeetingViewModalProps {
   canDelete: boolean;
   onEdit: () => void;
   onDelete: () => void;
+  onAddComment: (content: string) => Promise<void>;
+  onDeleteComment: (commentId: string) => Promise<void>;
+  currentUser: User | null;
+  allUsers: User[];
 }
 
 const MEETING_TYPE_CONFIG: Record<MeetingType, { label: string; color: string; bgColor: string; icon: React.ElementType }> = {
@@ -48,6 +54,55 @@ const parseDateLocal = (dateStr: string): Date => {
   return new Date(year, month - 1, day);
 };
 
+const CommentInput = ({ onAddComment, users }: { onAddComment: (content: string) => Promise<void>, users: User[] }) => {
+  const [content, setContent] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!content.trim() || isSubmitting) return;
+
+    setIsSubmitting(true);
+    try {
+      await onAddComment(content);
+      setContent('');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleMentionSubmit = () => {
+    handleSubmit();
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="relative mt-4">
+      <div className="relative">
+        <MentionInput
+          value={content}
+          onChange={setContent}
+          onSubmit={handleMentionSubmit}
+          users={users}
+          placeholder="Tulis komentar... Gunakan @ untuk mention"
+          disabled={isSubmitting}
+          className="pr-12 bg-slate-50 border-slate-200 focus:bg-white transition-all"
+          dropdownPosition="top"
+          rows={2}
+        />
+        <button
+          type="submit"
+          disabled={!content.trim() || isSubmitting}
+          className="absolute right-2 bottom-2 p-1.5 text-gov-600 hover:bg-gov-50 rounded-lg disabled:opacity-50 disabled:hover:bg-transparent transition-colors"
+        >
+          <Send size={16} />
+        </button>
+      </div>
+    </form>
+  );
+};
+
+type Tab = 'info' | 'activity' | 'comments';
+
 const MeetingViewModal: React.FC<MeetingViewModalProps> = ({
   isOpen,
   onClose,
@@ -57,7 +112,13 @@ const MeetingViewModal: React.FC<MeetingViewModalProps> = ({
   canDelete,
   onEdit,
   onDelete,
+  onAddComment,
+  onDeleteComment,
+  currentUser,
+  allUsers
 }) => {
+  const [activeTab, setActiveTab] = useState<Tab>('info');
+
   if (!isOpen || !meeting) return null;
 
   const typeConfig = MEETING_TYPE_CONFIG[meeting.type];
@@ -95,6 +156,11 @@ const MeetingViewModal: React.FC<MeetingViewModalProps> = ({
     );
   };
 
+  const getProfilePhoto = (userId: string, userName: string) => {
+    const user = allUsers.find(u => u.name === userName || u.id === userId); // Fallback name check if ID not reliable from old comments
+    return user?.profilePhoto;
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/40 backdrop-blur-sm">
       <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl w-full sm:max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
@@ -121,208 +187,332 @@ const MeetingViewModal: React.FC<MeetingViewModalProps> = ({
               <X size={20} />
             </button>
           </div>
+
+          {/* Tabs */}
+          <div className="flex items-center gap-4 mt-6">
+            <button
+              onClick={() => setActiveTab('info')}
+              className={`pb-2 text-sm font-medium transition-colors relative ${activeTab === 'info' ? 'text-gov-600' : 'text-slate-500 hover:text-slate-700'
+                }`}
+            >
+              Informasi
+              {activeTab === 'info' && (
+                <div className="absolute bottom-0 left-0 w-full h-0.5 bg-gov-600 rounded-full" />
+              )}
+            </button>
+            <button
+              onClick={() => setActiveTab('activity')}
+              className={`pb-2 text-sm font-medium transition-colors relative ${activeTab === 'activity' ? 'text-gov-600' : 'text-slate-500 hover:text-slate-700'
+                }`}
+            >
+              Aktivitas
+              {activeTab === 'activity' && (
+                <div className="absolute bottom-0 left-0 w-full h-0.5 bg-gov-600 rounded-full" />
+              )}
+            </button>
+            <button
+              onClick={() => setActiveTab('comments')}
+              className={`pb-2 text-sm font-medium transition-colors relative flex items-center gap-2 ${activeTab === 'comments' ? 'text-gov-600' : 'text-slate-500 hover:text-slate-700'
+                }`}
+            >
+              Komentar
+              <span className={`text-xs px-1.5 py-0.5 rounded-full ${activeTab === 'comments' ? 'bg-gov-100 text-gov-700' : 'bg-slate-100 text-slate-600'
+                }`}>
+                {meeting.comments?.length || 0}
+              </span>
+              {activeTab === 'comments' && (
+                <div className="absolute bottom-0 left-0 w-full h-0.5 bg-gov-600 rounded-full" />
+              )}
+            </button>
+          </div>
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
-          {/* Date & Time */}
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex items-center gap-3 flex-1">
-              <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
-                <Calendar size={20} className="text-blue-600" />
-              </div>
-              <div>
-                <p className="text-xs text-slate-500 uppercase font-semibold">Tanggal</p>
-                <p className="text-sm font-medium text-slate-800">{formattedDate}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 flex-1">
-              <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
-                <Clock size={20} className="text-purple-600" />
-              </div>
-              <div>
-                <p className="text-xs text-slate-500 uppercase font-semibold">Waktu</p>
-                <p className="text-sm font-medium text-slate-800">{meeting.startTime} - {meeting.endTime}</p>
-              </div>
-            </div>
-          </div>
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6">
 
-          {/* Location */}
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0">
-              {meeting.isOnline ? <Video size={20} className="text-emerald-600" /> : <MapPin size={20} className="text-emerald-600" />}
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs text-slate-500 uppercase font-semibold">Lokasi</p>
-              {meeting.isOnline ? (
-                <div>
-                  <p className="text-sm font-medium text-slate-800">Online Meeting</p>
-                  {meeting.onlineLink && (
-                    <a
-                      href={meeting.onlineLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-gov-600 hover:underline flex items-center gap-1 mt-1"
-                    >
-                      <ExternalLink size={14} />
-                      Buka Link Meeting
-                    </a>
+          {/* INFO TAB */}
+          {activeTab === 'info' && (
+            <div className="space-y-5">
+              {/* Date & Time */}
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="flex items-center gap-3 flex-1">
+                  <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                    <Calendar size={20} className="text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500 uppercase font-semibold">Tanggal</p>
+                    <p className="text-sm font-medium text-slate-800">{formattedDate}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 flex-1">
+                  <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
+                    <Clock size={20} className="text-purple-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500 uppercase font-semibold">Waktu</p>
+                    <p className="text-sm font-medium text-slate-800">{meeting.startTime} - {meeting.endTime}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Location */}
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0">
+                  {meeting.isOnline ? <Video size={20} className="text-emerald-600" /> : <MapPin size={20} className="text-emerald-600" />}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs text-slate-500 uppercase font-semibold">Lokasi</p>
+                  {meeting.isOnline ? (
+                    <div>
+                      <p className="text-sm font-medium text-slate-800">Online Meeting</p>
+                      {meeting.onlineLink && (
+                        <a
+                          href={meeting.onlineLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-gov-600 hover:underline flex items-center gap-1 mt-1"
+                        >
+                          <ExternalLink size={14} />
+                          Buka Link Meeting
+                        </a>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-sm font-medium text-slate-800">{meeting.location || '-'}</p>
                   )}
                 </div>
-              ) : (
-                <p className="text-sm font-medium text-slate-800">{meeting.location || '-'}</p>
-              )}
-            </div>
-          </div>
-
-          {/* Inviter */}
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
-              <Building2 size={20} className="text-amber-600" />
-            </div>
-            <div>
-              <p className="text-xs text-slate-500 uppercase font-semibold">Yang Mengundang</p>
-              <p className="text-sm font-medium text-slate-800">{meeting.inviter.name}</p>
-              {meeting.inviter.organization && (
-                <p className="text-xs text-slate-500">{meeting.inviter.organization}</p>
-              )}
-            </div>
-          </div>
-
-          {/* PIC */}
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center shrink-0">
-              <Users size={20} className="text-indigo-600" />
-            </div>
-            <div>
-              <p className="text-xs text-slate-500 uppercase font-semibold">PIC</p>
-              <div className="flex flex-wrap gap-1.5 mt-1">
-                {meeting.pic.map((name, i) => (
-                  <span key={i} className="text-xs font-medium px-2 py-1 bg-indigo-50 text-indigo-700 rounded-full">
-                    {name}
-                  </span>
-                ))}
               </div>
-            </div>
-          </div>
 
-          {/* Invitees */}
-          {meeting.invitees && meeting.invitees.length > 0 && (
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
-                <Users size={20} className="text-slate-600" />
-              </div>
-              <div>
-                <p className="text-xs text-slate-500 uppercase font-semibold">Daftar Undangan</p>
-                <div className="flex flex-wrap gap-1.5 mt-1">
-                  {meeting.invitees.map((name, i) => (
-                    <span key={i} className="text-xs font-medium px-2 py-1 bg-slate-100 text-slate-700 rounded-full">
-                      {name}
-                    </span>
-                  ))}
+              {/* Inviter */}
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
+                  <Building2 size={20} className="text-amber-600" />
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500 uppercase font-semibold">Yang Mengundang</p>
+                  <p className="text-sm font-medium text-slate-800">{meeting.inviter.name}</p>
+                  {meeting.inviter.organization && (
+                    <p className="text-xs text-slate-500">{meeting.inviter.organization}</p>
+                  )}
                 </div>
               </div>
-            </div>
-          )}
 
-          {/* Project */}
-          {project && (
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-lg bg-gov-100 flex items-center justify-center shrink-0">
-                <Briefcase size={20} className="text-gov-600" />
+              {/* PIC */}
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center shrink-0">
+                  <Users size={20} className="text-indigo-600" />
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500 uppercase font-semibold">PIC</p>
+                  <div className="flex flex-wrap gap-1.5 mt-1">
+                    {meeting.pic.map((name, i) => (
+                      <span key={i} className="text-xs font-medium px-2 py-1 bg-indigo-50 text-indigo-700 rounded-full">
+                        {name}
+                      </span>
+                    ))}
+                  </div>
+                </div>
               </div>
-              <div>
-                <p className="text-xs text-slate-500 uppercase font-semibold">Project Terkait</p>
-                <p className="text-sm font-medium text-slate-800">{project.name}</p>
-              </div>
-            </div>
-          )}
 
-          {/* Description */}
-          {meeting.description && (
-            <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
-              <p className="text-xs text-slate-500 uppercase font-semibold mb-2">Deskripsi / Agenda</p>
-              <p className="text-sm text-slate-700 whitespace-pre-wrap">{meeting.description}</p>
-            </div>
-          )}
-
-          {/* Documents */}
-          {(meeting.suratUndangan || meeting.suratTugas || meeting.laporan) && (
-            <div>
-              <p className="text-xs text-slate-500 uppercase font-semibold mb-3">Dokumen</p>
-              <div className="space-y-2">
-                {renderAttachment('Surat Undangan', meeting.suratUndangan)}
-                {renderAttachment('Surat Tugas', meeting.suratTugas)}
-                {renderAttachment('Laporan', meeting.laporan)}
-              </div>
-            </div>
-          )}
-
-          {/* Additional Attachments */}
-          {meeting.attachments && meeting.attachments.length > 0 && (
-            <div>
-              <p className="text-xs text-slate-500 uppercase font-semibold mb-3">Lampiran Lainnya</p>
-              <div className="space-y-2">
-                {meeting.attachments.map((att, i) => (
-                  <div key={att.id || i} className="flex items-center justify-between p-2 bg-slate-50 rounded-lg border border-slate-200">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <FileText size={16} className="text-slate-500 shrink-0" />
-                      <span className="text-sm text-slate-700 truncate">{att.name}</span>
-                      <span className="text-xs text-slate-400">({formatFileSize(att.size)})</span>
+              {/* Invitees */}
+              {meeting.invitees && meeting.invitees.length > 0 && (
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
+                    <Users size={20} className="text-slate-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500 uppercase font-semibold">Daftar Undangan</p>
+                    <div className="flex flex-wrap gap-1.5 mt-1">
+                      {meeting.invitees.map((name, i) => (
+                        <span key={i} className="text-xs font-medium px-2 py-1 bg-slate-100 text-slate-700 rounded-full">
+                          {name}
+                        </span>
+                      ))}
                     </div>
-                    {att.url && (
-                      <a href={att.url} target="_blank" rel="noopener noreferrer" className="p-1.5 hover:bg-slate-200 rounded text-slate-500">
-                        <Download size={14} />
+                  </div>
+                </div>
+              )}
+
+              {/* Project */}
+              {project && (
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-gov-100 flex items-center justify-center shrink-0">
+                    <Briefcase size={20} className="text-gov-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500 uppercase font-semibold">Project Terkait</p>
+                    <p className="text-sm font-medium text-slate-800">{project.name}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Description */}
+              {meeting.description && (
+                <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
+                  <p className="text-xs text-slate-500 uppercase font-semibold mb-2">Deskripsi / Agenda</p>
+                  <p className="text-sm text-slate-700 whitespace-pre-wrap">{meeting.description}</p>
+                </div>
+              )}
+
+              {/* Documents */}
+              {(meeting.suratUndangan || meeting.suratTugas || meeting.laporan) && (
+                <div>
+                  <p className="text-xs text-slate-500 uppercase font-semibold mb-3">Dokumen</p>
+                  <div className="space-y-2">
+                    {renderAttachment('Surat Undangan', meeting.suratUndangan)}
+                    {renderAttachment('Surat Tugas', meeting.suratTugas)}
+                    {renderAttachment('Laporan', meeting.laporan)}
+                  </div>
+                </div>
+              )}
+
+              {/* Additional Attachments */}
+              {meeting.attachments && meeting.attachments.length > 0 && (
+                <div>
+                  <p className="text-xs text-slate-500 uppercase font-semibold mb-3">Lampiran Lainnya</p>
+                  <div className="space-y-2">
+                    {meeting.attachments.map((att, i) => (
+                      <div key={att.id || i} className="flex items-center justify-between p-2 bg-slate-50 rounded-lg border border-slate-200">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <FileText size={16} className="text-slate-500 shrink-0" />
+                          <span className="text-sm text-slate-700 truncate">{att.name}</span>
+                          <span className="text-xs text-slate-400">({formatFileSize(att.size)})</span>
+                        </div>
+                        {att.url && (
+                          <a href={att.url} target="_blank" rel="noopener noreferrer" className="p-1.5 hover:bg-slate-200 rounded text-slate-500">
+                            <Download size={14} />
+                          </a>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Links */}
+              {meeting.links && meeting.links.length > 0 && (
+                <div>
+                  <p className="text-xs text-slate-500 uppercase font-semibold mb-3">Link Terkait</p>
+                  <div className="space-y-2">
+                    {meeting.links.map((link, i) => (
+                      <a
+                        key={link.id || i}
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200 hover:bg-slate-100 hover:border-gov-300 transition-colors group"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-8 h-8 rounded-lg bg-gov-100 flex items-center justify-center shrink-0">
+                            <Link2 size={16} className="text-gov-600" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-slate-700 group-hover:text-gov-700">{link.title}</p>
+                            <p className="text-xs text-slate-500 truncate">{link.url}</p>
+                          </div>
+                        </div>
+                        <ExternalLink size={16} className="text-slate-400 group-hover:text-gov-600 shrink-0" />
                       </a>
-                    )}
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Notes */}
+              {meeting.notes && (
+                <div className="bg-yellow-50 rounded-xl p-4 border border-yellow-100">
+                  <p className="text-xs text-yellow-700 uppercase font-semibold mb-2">Catatan</p>
+                  <p className="text-sm text-yellow-800 whitespace-pre-wrap">{meeting.notes}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ACTIVITY TAB */}
+          {activeTab === 'activity' && (
+            <div className="space-y-5">
+              <div className="flex flex-col gap-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center mt-1">
+                    <Edit2 size={14} className="text-slate-500" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-slate-800"><span className="font-semibold">{meeting.createdBy}</span> membuat jadwal ini.</p>
+                    <p className="text-xs text-slate-400 mt-1">
+                      {new Date(meeting.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </div>
+                </div>
+                {meeting.updatedAt && meeting.updatedAt !== meeting.createdAt && (
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center mt-1">
+                      <Edit2 size={14} className="text-slate-500" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-slate-800">Terakhir diperbarui.</p>
+                      <p className="text-xs text-slate-400 mt-1">
+                        {new Date(meeting.updatedAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* COMMENTS TAB */}
+          {activeTab === 'comments' && (
+            <div className="flex flex-col h-full">
+              {/* Scrollable comments area */}
+              <div className="flex-1 space-y-4 overflow-y-auto min-h-0 max-h-[calc(90vh-320px)]">
+                {(!meeting.comments || meeting.comments.length === 0) && (
+                  <div className="h-full flex flex-col items-center justify-center text-slate-400 py-12">
+                    <MessageCircle size={32} className="mb-2 opacity-50" />
+                    <p className="text-sm">Belum ada diskusi.</p>
+                  </div>
+                )}
+                {meeting.comments && meeting.comments.length > 0 && meeting.comments.map((comment) => (
+                  <div key={comment.id} className="flex gap-3 group">
+                    <div className="shrink-0">
+                      <UserAvatar
+                        name={comment.userName}
+                        profilePhoto={getProfilePhoto(comment.userId, comment.userName)}
+                        size="sm"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold text-slate-800">{comment.userName}</p>
+                        <span className="text-xs text-slate-400">
+                          {new Date(comment.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                      <div className="text-sm text-slate-600 mt-0.5 break-words bg-slate-50 p-2 rounded-br-xl rounded-bl-xl rounded-tr-xl">
+                        {renderMentionText(comment.content, allUsers)}
+                      </div>
+                      {currentUser && comment.userId === currentUser.id && (
+                        <div className="flex justify-end mt-1">
+                          <button
+                            onClick={() => onDeleteComment(comment.id)}
+                            className="text-xs text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1"
+                          >
+                            <Trash2 size={10} /> Hapus
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
+
+              {/* Sticky Comment Input */}
+              {currentUser && (
+                <div className="shrink-0 pt-4 border-t border-slate-100 bg-white">
+                  <CommentInput onAddComment={onAddComment} users={allUsers} />
+                </div>
+              )}
             </div>
           )}
-
-          {/* Links */}
-          {meeting.links && meeting.links.length > 0 && (
-            <div>
-              <p className="text-xs text-slate-500 uppercase font-semibold mb-3">Link Terkait</p>
-              <div className="space-y-2">
-                {meeting.links.map((link, i) => (
-                  <a
-                    key={link.id || i}
-                    href={link.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200 hover:bg-slate-100 hover:border-gov-300 transition-colors group"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-8 h-8 rounded-lg bg-gov-100 flex items-center justify-center shrink-0">
-                        <Link2 size={16} className="text-gov-600" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-slate-700 group-hover:text-gov-700">{link.title}</p>
-                        <p className="text-xs text-slate-500 truncate">{link.url}</p>
-                      </div>
-                    </div>
-                    <ExternalLink size={16} className="text-slate-400 group-hover:text-gov-600 shrink-0" />
-                  </a>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Notes */}
-          {meeting.notes && (
-            <div className="bg-yellow-50 rounded-xl p-4 border border-yellow-100">
-              <p className="text-xs text-yellow-700 uppercase font-semibold mb-2">Catatan</p>
-              <p className="text-sm text-yellow-800 whitespace-pre-wrap">{meeting.notes}</p>
-            </div>
-          )}
-
-          {/* Meta Info */}
-          <div className="pt-4 border-t border-slate-100 text-xs text-slate-400">
-            <p>Dibuat oleh: {meeting.createdBy}</p>
-            <p>Tanggal dibuat: {new Date(meeting.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
-          </div>
         </div>
 
         {/* Footer */}

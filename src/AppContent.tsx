@@ -209,8 +209,8 @@ const AppContent: React.FC = () => {
     const task = tasks.find(t => t.id === taskId);
     if (task) {
       setViewingTask(task);
-      setIsTaskViewModalOpen(true); // Open the task view modal
-      startTransition(() => setActiveTab('Semua Task'));
+      setIsTaskViewModalOpen(true);
+      // Don't change tab - just show the modal on current page
     }
   }, [tasks]);
 
@@ -219,7 +219,7 @@ const AppContent: React.FC = () => {
     if (meeting) {
       setViewingMeeting(meeting);
       setIsMeetingViewModalOpen(true);
-      startTransition(() => setActiveTab('Jadwal Kegiatan'));
+      // Don't change tab - just show the modal on current page
     }
   }, [meetings]);
 
@@ -341,7 +341,9 @@ const AppContent: React.FC = () => {
     handleEditMeetingFromView,
     handleSaveMeeting,
     handleDeleteMeeting,
-    handleDeleteMeetingFromView
+    handleDeleteMeetingFromView,
+    handleAddComment: handleAddMeetingComment,
+    handleDeleteComment: handleDeleteMeetingComment
   } = useMeetingHandlers({
     currentUser,
     meetings,
@@ -937,6 +939,8 @@ const AppContent: React.FC = () => {
         checkMeetingDeletePermission={checkMeetingDeletePermission}
         handleEditMeetingFromView={handleEditMeetingFromView}
         handleDeleteMeetingFromView={handleDeleteMeetingFromView}
+        handleAddMeetingComment={(mId, c) => handleAddMeetingComment(mId, c, allUsers, createMentionNotification, createCommentNotification)}
+        handleDeleteMeetingComment={handleDeleteMeetingComment}
         // Meeting Edit Modal
         isMeetingModalOpen={isMeetingModalOpen}
         setIsMeetingModalOpen={setIsMeetingModalOpen}

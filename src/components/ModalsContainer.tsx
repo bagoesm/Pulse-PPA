@@ -116,6 +116,8 @@ interface ModalsContainerProps {
     checkMeetingDeletePermission: (meeting: Meeting) => boolean;
     handleEditMeetingFromView: () => void;
     handleDeleteMeetingFromView: () => void;
+    handleAddMeetingComment: (meetingId: string, content: string) => Promise<void>;
+    handleDeleteMeetingComment: (meetingId: string, commentId: string) => Promise<void>;
 
     // Meeting Edit Modal
     isMeetingModalOpen: boolean;
@@ -160,6 +162,7 @@ const ModalsContainer: React.FC<ModalsContainerProps> = (props) => {
         // Meeting View Modal
         isMeetingViewModalOpen, setIsMeetingViewModalOpen, viewingMeeting, setViewingMeeting,
         checkMeetingEditPermission, checkMeetingDeletePermission, handleEditMeetingFromView, handleDeleteMeetingFromView,
+        handleAddMeetingComment, handleDeleteMeetingComment,
         // Meeting Edit Modal
         isMeetingModalOpen, setIsMeetingModalOpen, editingMeeting, setEditingMeeting,
         isMeetingFromTask, setIsMeetingFromTask, handleSaveMeeting, handleDeleteMeeting,
@@ -297,6 +300,10 @@ const ModalsContainer: React.FC<ModalsContainerProps> = (props) => {
                     canDelete={viewingMeeting ? checkMeetingDeletePermission(viewingMeeting) : false}
                     onEdit={handleEditMeetingFromView}
                     onDelete={handleDeleteMeetingFromView}
+                    onAddComment={(content) => handleAddMeetingComment(viewingMeeting!.id, content)}
+                    onDeleteComment={(commentId) => handleDeleteMeetingComment(viewingMeeting!.id, commentId)}
+                    currentUser={currentUser}
+                    allUsers={allUsers}
                 />
             </Suspense>
 
