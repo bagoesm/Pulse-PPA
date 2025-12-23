@@ -691,11 +691,11 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
             <div>
               <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Deskripsi / Agenda</label>
               <textarea
-                rows={3}
+                rows={5}
                 disabled={isReadOnly}
                 value={formData.description || ''}
                 onChange={(e) => handleChange('description', e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm resize-none disabled:bg-slate-50"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm resize-y min-h-[100px] disabled:bg-slate-50"
                 placeholder="Agenda rapat, poin pembahasan, dll..."
               />
             </div>
@@ -832,11 +832,11 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
             <div>
               <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Catatan Tambahan</label>
               <textarea
-                rows={2}
+                rows={4}
                 disabled={isReadOnly}
                 value={formData.notes || ''}
                 onChange={(e) => handleChange('notes', e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm resize-none disabled:bg-slate-50"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm resize-y min-h-[80px] disabled:bg-slate-50"
                 placeholder="Catatan internal..."
               />
             </div>
