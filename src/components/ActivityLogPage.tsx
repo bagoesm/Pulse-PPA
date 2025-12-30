@@ -1,9 +1,9 @@
 // src/components/ActivityLogPage.tsx
 // Halaman Activity Log untuk Admin - menampilkan semua aktivitas user
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
-    Activity, Calendar, User as UserIcon, Filter, ChevronLeft, ChevronRight,
+    Activity, Calendar, User as UserIcon, Filter, Loader2,
     Search, X, LogIn, LogOut, Plus, Edit, Trash2, Eye, RefreshCw, Download
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
@@ -56,8 +56,9 @@ const ITEMS_PER_PAGE = 20;
 const ActivityLogPage: React.FC<ActivityLogPageProps> = ({ currentUser, users, projects }) => {
     const [logs, setLogs] = useState<ActivityLog[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [totalCount, setTotalCount] = useState(0);
-    const [currentPage, setCurrentPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
 
     // Filters
     const [filterUser, setFilterUser] = useState<string>('');
@@ -69,9 +70,18 @@ const ActivityLogPage: React.FC<ActivityLogPageProps> = ({ currentUser, users, p
     const [searchQuery, setSearchQuery] = useState<string>('');
     const [showFilters, setShowFilters] = useState(false);
 
-    // Fetch logs
-    const fetchLogs = useCallback(async () => {
-        setIsLoading(true);
+    // Ref for infinite scroll
+    const loaderRef = useRef<HTMLDivElement>(null);
+
+    // Fetch logs - initial load or filter change
+    const fetchLogs = useCallback(async (reset: boolean = true) => {
+        if (reset) {
+            setIsLoading(true);
+            setLogs([]);
+        } else {
+            setIsLoadingMore(true);
+        }
+
         try {
             let query = supabase
                 .from('activity_logs')
@@ -101,8 +111,9 @@ const ActivityLogPage: React.FC<ActivityLogPageProps> = ({ currentUser, users, p
                 query = query.or(`entity_title.ilike.%${searchQuery}%,user_name.ilike.%${searchQuery}%`);
             }
 
-            // Pagination
-            const from = (currentPage - 1) * ITEMS_PER_PAGE;
+            // Pagination - get next batch
+            const currentLength = reset ? 0 : logs.length;
+            const from = currentLength;
             const to = from + ITEMS_PER_PAGE - 1;
             query = query.range(from, to);
 
@@ -110,28 +121,53 @@ const ActivityLogPage: React.FC<ActivityLogPageProps> = ({ currentUser, users, p
 
             if (error) {
                 console.error('Error fetching activity logs:', error);
-                setLogs([]);
+                if (reset) setLogs([]);
             } else {
-                setLogs(data || []);
+                const newLogs = data || [];
+                if (reset) {
+                    setLogs(newLogs);
+                } else {
+                    setLogs(prev => [...prev, ...newLogs]);
+                }
                 setTotalCount(count || 0);
+                setHasMore(newLogs.length === ITEMS_PER_PAGE && (currentLength + newLogs.length) < (count || 0));
             }
         } catch (err) {
             console.error('Error:', err);
         } finally {
             setIsLoading(false);
+            setIsLoadingMore(false);
         }
-    }, [filterUser, filterProject, filterAction, filterEntityType, filterDateFrom, filterDateTo, searchQuery, currentPage]);
+    }, [filterUser, filterProject, filterAction, filterEntityType, filterDateFrom, filterDateTo, searchQuery, logs.length]);
 
+    // Initial fetch
     useEffect(() => {
-        fetchLogs();
-    }, [fetchLogs]);
-
-    // Reset page when filters change
-    useEffect(() => {
-        setCurrentPage(1);
+        fetchLogs(true);
     }, [filterUser, filterProject, filterAction, filterEntityType, filterDateFrom, filterDateTo, searchQuery]);
 
-    const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
+    // Infinite scroll observer
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            (entries) => {
+                const first = entries[0];
+                if (first.isIntersecting && hasMore && !isLoading && !isLoadingMore) {
+                    fetchLogs(false);
+                }
+            },
+            { threshold: 0.1 }
+        );
+
+        const currentLoader = loaderRef.current;
+        if (currentLoader) {
+            observer.observe(currentLoader);
+        }
+
+        return () => {
+            if (currentLoader) {
+                observer.unobserve(currentLoader);
+            }
+        };
+    }, [hasMore, isLoading, isLoadingMore, fetchLogs]);
 
     const clearFilters = () => {
         setFilterUser('');
@@ -141,7 +177,6 @@ const ActivityLogPage: React.FC<ActivityLogPageProps> = ({ currentUser, users, p
         setFilterDateFrom('');
         setFilterDateTo('');
         setSearchQuery('');
-        setCurrentPage(1);
     };
 
     const hasActiveFilters = filterUser || filterProject || filterAction || filterEntityType || filterDateFrom || filterDateTo || searchQuery;
@@ -206,7 +241,7 @@ const ActivityLogPage: React.FC<ActivityLogPageProps> = ({ currentUser, users, p
                 </div>
                 <div className="flex items-center gap-2">
                     <button
-                        onClick={fetchLogs}
+                        onClick={() => fetchLogs(true)}
                         className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
                         title="Refresh"
                     >
@@ -222,8 +257,8 @@ const ActivityLogPage: React.FC<ActivityLogPageProps> = ({ currentUser, users, p
                     <button
                         onClick={() => setShowFilters(!showFilters)}
                         className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${hasActiveFilters
-                                ? 'bg-gov-100 text-gov-700'
-                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                            ? 'bg-gov-100 text-gov-700'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                             }`}
                     >
                         <Filter size={16} />
@@ -496,30 +531,18 @@ const ActivityLogPage: React.FC<ActivityLogPageProps> = ({ currentUser, users, p
                     </>
                 )}
 
-                {/* Pagination */}
-                {totalPages > 1 && (
-                    <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200 bg-slate-50">
-                        <div className="text-sm text-slate-500">
-                            Halaman {currentPage} dari {totalPages}
+                {/* Infinite Scroll Loader */}
+                <div ref={loaderRef} className="flex items-center justify-center py-4">
+                    {isLoadingMore && (
+                        <div className="flex items-center gap-2 text-slate-500">
+                            <Loader2 className="animate-spin" size={18} />
+                            <span className="text-sm">Memuat lebih banyak...</span>
                         </div>
-                        <div className="flex items-center gap-2">
-                            <button
-                                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                                disabled={currentPage === 1}
-                                className="p-2 rounded-lg hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                            >
-                                <ChevronLeft size={18} />
-                            </button>
-                            <button
-                                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                                disabled={currentPage === totalPages}
-                                className="p-2 rounded-lg hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                            >
-                                <ChevronRight size={18} />
-                            </button>
-                        </div>
-                    </div>
-                )}
+                    )}
+                    {!hasMore && logs.length > 0 && (
+                        <p className="text-sm text-slate-400">Semua aktivitas telah ditampilkan</p>
+                    )}
+                </div>
             </div>
         </div>
     );
