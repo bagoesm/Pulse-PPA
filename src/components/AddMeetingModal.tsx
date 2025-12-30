@@ -118,8 +118,35 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
     (inv.organization && inv.organization.toLowerCase().includes(inviterSearch.toLowerCase()))
   );
 
+  // Ref to track initialized state - prevents re-initialization on tab switch
+  const initializedForRef = useRef<string | null>(null);
+  const wasOpenRef = useRef(false);
+
   useEffect(() => {
-    if (!isOpen) return;
+    // Reset tracking when modal closes
+    if (!isOpen) {
+      wasOpenRef.current = false;
+      initializedForRef.current = null;
+      return;
+    }
+
+    // Determine the current "session key" - either the meeting ID or 'new'
+    const currentKey = initialData?.id ?? 'new';
+    
+    // Only initialize if this is a fresh open (was closed before) 
+    // OR if the data context has changed (different meeting or switched to new)
+    const isFirstOpen = !wasOpenRef.current;
+    const isDataChanged = initializedForRef.current !== currentKey;
+    
+    if (!isFirstOpen && !isDataChanged) {
+      // Modal was already open with same data, don't reset form
+      return;
+    }
+
+    // Mark as initialized for this session
+    wasOpenRef.current = true;
+    initializedForRef.current = currentKey;
+
     if (initialData) {
       setFormData({ ...initialData });
       setInviterSearch(initialData.inviter?.name || '');

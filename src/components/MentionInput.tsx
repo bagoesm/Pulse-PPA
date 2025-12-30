@@ -320,18 +320,28 @@ export const renderRichText = (text: string, users: User[]): React.ReactNode => 
 
     // Also find @mentions
     const sortedUsers = [...users].sort((a, b) => b.name.length - a.name.length);
+    const matchedPositions = new Set<number>(); // Track positions that have been matched
+
     for (const user of sortedUsers) {
       const escapedName = user.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      // Create fresh regex for each user to reset lastIndex
       const mentionRegex = new RegExp(`@${escapedName}`, 'gi');
       let match;
       while ((match = mentionRegex.exec(line)) !== null) {
-        segments.push({
-          text: user.name,
-          style: 'mention',
-          type: 'mention',
-          start: match.index,
-          end: match.index + match[0].length
-        });
+        // Check if this position has already been matched by a longer name
+        if (!matchedPositions.has(match.index)) {
+          segments.push({
+            text: user.name,
+            style: 'mention',
+            type: 'mention',
+            start: match.index,
+            end: match.index + match[0].length
+          });
+          // Mark all positions in this range as matched
+          for (let i = match.index; i < match.index + match[0].length; i++) {
+            matchedPositions.add(i);
+          }
+        }
       }
     }
 
