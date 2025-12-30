@@ -45,6 +45,31 @@ export const useProjectHandlers = ({
         return false;
     }, [currentUser]);
 
+    // Helper to log to activity_logs table (for admin view)
+    const logToActivityLogs = useCallback(async (
+        action: 'create' | 'update' | 'delete',
+        projectId: string,
+        projectName: string
+    ) => {
+        if (!currentUser) return;
+        try {
+            const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+            await supabase.from('activity_logs').insert({
+                user_id: currentUser.id,
+                user_name: currentUser.name,
+                action: action,
+                entity_type: 'project',
+                entity_id: projectId,
+                entity_title: projectName,
+                project_id: projectId,
+                project_name: projectName,
+                user_agent: userAgent,
+            });
+        } catch (err) {
+            console.error('Failed to log activity:', err);
+        }
+    }, [currentUser]);
+
     // Save project (create or update)
     const handleSaveProject = useCallback(async (projectData: ProjectDefinition) => {
         try {
@@ -80,6 +105,9 @@ export const useProjectHandlers = ({
                     setProjects(prev => prev.map(p => p.id === editingProject.id ? mappedProject : p));
                     showNotification('Project Diupdate!', `Project "${projectData.name}" berhasil diperbarui.`, 'success');
                     setProjectRefreshTrigger(prev => prev + 1);
+
+                    // Log to activity_logs for admin view
+                    await logToActivityLogs('update', editingProject.id, projectData.name);
                 } else {
                     showNotification('Gagal Update Project', error?.message || 'Terjadi kesalahan.', 'error');
                 }
@@ -112,6 +140,9 @@ export const useProjectHandlers = ({
                     setProjects(prev => [...prev, mappedProject]);
                     showNotification('Project Dibuat!', `Project "${projectData.name}" berhasil ditambahkan.`, 'success');
                     setProjectRefreshTrigger(prev => prev + 1);
+
+                    // Log to activity_logs for admin view
+                    await logToActivityLogs('create', data.id, projectData.name);
                 } else {
                     showNotification('Gagal Buat Project', error?.message || 'Terjadi kesalahan.', 'error');
                 }
@@ -124,11 +155,13 @@ export const useProjectHandlers = ({
         } catch (error: any) {
             showNotification('Kesalahan', `Terjadi kesalahan: ${error.message}`, 'error');
         }
-    }, [editingProject, setProjects, setEditingProject, setIsProjectModalOpen, setProjectRefreshTrigger, showNotification]);
+    }, [editingProject, setProjects, setEditingProject, setIsProjectModalOpen, setProjectRefreshTrigger, showNotification, logToActivityLogs]);
 
-    // Delete project
     const handleDeleteProject = useCallback(async (projectId: string) => {
         try {
+            // Get project data before deletion for logging
+            const projectToDelete = projects.find(p => p.id === projectId);
+
             const { error } = await supabase
                 .from('projects')
                 .delete()
@@ -142,10 +175,15 @@ export const useProjectHandlers = ({
             setProjects(prev => prev.filter(p => p.id !== projectId));
             showNotification('Project Dihapus', 'Project berhasil dihapus.', 'success');
             setProjectRefreshTrigger(prev => prev + 1);
+
+            // Log to activity_logs for admin view
+            if (projectToDelete) {
+                await logToActivityLogs('delete', projectId, projectToDelete.name);
+            }
         } catch (error: any) {
             showNotification('Kesalahan', `Terjadi kesalahan: ${error.message}`, 'error');
         }
-    }, [setProjects, setProjectRefreshTrigger, showNotification]);
+    }, [projects, setProjects, setProjectRefreshTrigger, showNotification, logToActivityLogs]);
 
     // Open project modal for editing
     const handleEditProject = useCallback((project: ProjectDefinition) => {

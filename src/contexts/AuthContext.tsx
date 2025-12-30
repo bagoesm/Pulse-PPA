@@ -85,6 +85,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, onShowNoti
         }
     }, [session, fetchUserProfile]);
 
+    // Helper to log activity
+    const logAuthActivity = useCallback(async (userId: string, userName: string, action: 'login' | 'logout') => {
+        try {
+            const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+            await supabase.from('activity_logs').insert({
+                user_id: userId,
+                user_name: userName,
+                action: action,
+                entity_type: 'auth',
+                entity_title: action === 'login' ? 'User Login' : 'User Logout',
+                user_agent: userAgent,
+            });
+        } catch (err) {
+            console.error('Failed to log auth activity:', err);
+        }
+    }, []);
+
     // Handle login
     const handleLogin = useCallback(async (email: string, password: string) => {
         try {
@@ -104,11 +121,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, onShowNoti
             if (sess) {
                 setSession(sess);
                 await fetchUserProfile(sess.user.id);
+
+                // Log login activity after profile is fetched
+                const { data: profile } = await supabase.from('profiles').select('name').eq('id', sess.user.id).single();
+                if (profile?.name) {
+                    await logAuthActivity(sess.user.id, profile.name, 'login');
+                }
             } else {
                 const { data: sessData } = await supabase.auth.getSession();
                 const s = sessData?.session ?? null;
                 setSession(s);
-                if (s) await fetchUserProfile(s.user.id);
+                if (s) {
+                    await fetchUserProfile(s.user.id);
+                    const { data: profile } = await supabase.from('profiles').select('name').eq('id', s.user.id).single();
+                    if (profile?.name) {
+                        await logAuthActivity(s.user.id, profile.name, 'login');
+                    }
+                }
             }
             setIsLoadingAuth(false);
         } catch (err: any) {
@@ -121,6 +150,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, onShowNoti
     // Handle logout
     const handleLogout = useCallback(async () => {
         try {
+            // Log logout activity before signing out
+            if (currentUser) {
+                await logAuthActivity(currentUser.id, currentUser.name, 'logout');
+            }
+
             await supabase.auth.signOut();
             setCurrentUser(null);
             setSession(null);
@@ -133,7 +167,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, onShowNoti
             localStorage.clear();
             sessionStorage.clear();
         }
-    }, []);
+    }, [currentUser, logAuthActivity]);
 
     // Initialize auth state
     useEffect(() => {

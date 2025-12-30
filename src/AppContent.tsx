@@ -48,6 +48,7 @@ const AnnouncementManager = lazy(() => import('./components/AnnouncementManager'
 const MeetingCalendar = lazy(() => import('./components/MeetingCalendar'));
 const AddMeetingModal = lazy(() => import('./components/AddMeetingModal'));
 const MeetingViewModal = lazy(() => import('./components/MeetingViewModal'));
+const ActivityLogPage = lazy(() => import('./components/ActivityLogPage'));
 
 // Loading fallback
 const PageLoader: React.FC = () => (
@@ -538,7 +539,7 @@ const AppContent: React.FC = () => {
         )}
 
         {/* Top Header / Filter Bar - HIDDEN for special pages */}
-        {activeTab !== 'Dashboard' && activeTab !== 'Project' && activeTab !== 'Master Data' && activeTab !== 'Saran Masukan' && activeTab !== 'Pengumuman' && activeTab !== 'Inventori Data' && activeTab !== 'Jadwal Kegiatan' && (
+        {activeTab !== 'Dashboard' && activeTab !== 'Project' && activeTab !== 'Master Data' && activeTab !== 'Saran Masukan' && activeTab !== 'Pengumuman' && activeTab !== 'Inventori Data' && activeTab !== 'Jadwal Kegiatan' && activeTab !== 'Activity Log' && (
           <header className="bg-white border-b border-slate-200 px-3 sm:px-6 py-3 sm:py-4 z-20 relative">
             <div className="flex flex-col gap-3 sm:gap-4 mb-3 sm:mb-4">
               {/* Title Section */}
@@ -805,6 +806,14 @@ const AppContent: React.FC = () => {
             onUpdateItem={handleUpdateDataInventory}
             onDeleteItem={handleDeleteDataInventory}
           />
+        ) : activeTab === 'Activity Log' ? (
+          <Suspense fallback={<PageLoader />}>
+            <ActivityLogPage
+              currentUser={currentUser}
+              users={allUsers}
+              projects={projects}
+            />
+          </Suspense>
         ) : activeTab === 'Master Data' ? (
           <UserManagement
             users={allUsers}

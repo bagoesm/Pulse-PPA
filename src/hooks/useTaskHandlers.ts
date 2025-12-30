@@ -120,6 +120,35 @@ export const useTaskHandlers = ({
         }
     }, [currentUser, setTaskActivities]);
 
+    // Helper to log to activity_logs table (for admin view)
+    const logToActivityLogs = useCallback(async (
+        action: 'create' | 'update' | 'delete',
+        taskId: string,
+        taskTitle: string,
+        projectId?: string,
+        projectName?: string,
+        metadata?: Record<string, any>
+    ) => {
+        if (!currentUser) return;
+        try {
+            const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+            await supabase.from('activity_logs').insert({
+                user_id: currentUser.id,
+                user_name: currentUser.name,
+                action: action,
+                entity_type: 'task',
+                entity_id: taskId,
+                entity_title: taskTitle,
+                project_id: projectId || null,
+                project_name: projectName || null,
+                metadata: metadata || {},
+                user_agent: userAgent,
+            });
+        } catch (err) {
+            console.error('Failed to log activity:', err);
+        }
+    }, [currentUser]);
+
     // Drag handlers
     const handleDragStart = useCallback((e: React.DragEvent, id: string) => {
         const task = tasks.find(t => t.id === id);
@@ -150,6 +179,12 @@ export const useTaskHandlers = ({
             if (!error && updatedData && updatedData.length > 0) {
                 if (oldStatus && oldStatus !== status) {
                     await logTaskActivity(draggedTaskId, 'status_change', oldStatus, status);
+                    // Log to activity_logs for admin view
+                    await logToActivityLogs('update', draggedTaskId, task?.title || '', task?.projectId, undefined, {
+                        change: 'status_change',
+                        from: oldStatus,
+                        to: status
+                    });
                 }
             } else {
                 setTasks(prev => prev.map(t => t.id === draggedTaskId ? { ...t, status: oldStatus || t.status } : t));
@@ -158,7 +193,7 @@ export const useTaskHandlers = ({
 
             setDraggedTaskId(null);
         }
-    }, [draggedTaskId, tasks, setTasks, setDraggedTaskId, logTaskActivity, showNotification]);
+    }, [draggedTaskId, tasks, setTasks, setDraggedTaskId, logTaskActivity, logToActivityLogs, showNotification]);
 
     // Save task (create or update)
     const handleSaveTask = useCallback(async (newTaskData: Omit<Task, 'id'>) => {
@@ -246,6 +281,9 @@ export const useTaskHandlers = ({
 
                 setTasks(prev => prev.map(t => t.id === editingTask.id ? { ...t, ...newTaskData, id: editingTask.id, createdBy: t.createdBy } : t));
                 setProjectRefreshTrigger(prev => prev + 1);
+
+                // Log to activity_logs for admin view
+                await logToActivityLogs('update', editingTask.id, newTaskData.title, newTaskData.projectId);
             } else {
                 showNotification('Gagal Update Task', 'Anda tidak memiliki izin untuk mengubah task ini.', 'error');
             }
@@ -279,6 +317,9 @@ export const useTaskHandlers = ({
         setTasks(prev => [...prev, mapped]);
         await logTaskActivity(data.id, 'created', undefined, newTaskData.title);
 
+        // Log to activity_logs for admin view
+        await logToActivityLogs('create', data.id, newTaskData.title, newTaskData.projectId);
+
         const taskPics = Array.isArray(newTaskData.pic) ? newTaskData.pic : [newTaskData.pic];
         await createAssignmentNotification(data.id, newTaskData.title, currentUser?.name || 'Unknown', taskPics, [], true);
 
@@ -292,7 +333,7 @@ export const useTaskHandlers = ({
 
         setProjectRefreshTrigger(prev => prev + 1);
         setIsModalOpen(false);
-    }, [editingTask, allUsers, currentUser, setTasks, setEditingTask, setIsModalOpen, setProjectRefreshTrigger, showNotification, logTaskActivity, createAssignmentNotification, createMentionNotification]);
+    }, [editingTask, allUsers, currentUser, setTasks, setEditingTask, setIsModalOpen, setProjectRefreshTrigger, showNotification, logTaskActivity, logToActivityLogs, createAssignmentNotification, createMentionNotification]);
 
     // Delete task
     const handleDeleteTask = useCallback(async (id: string) => {
@@ -320,10 +361,15 @@ export const useTaskHandlers = ({
             setProjectRefreshTrigger(prev => prev + 1);
             setIsModalOpen(false);
             setEditingTask(null);
+
+            // Log to activity_logs for admin view
+            if (taskToDelete) {
+                await logToActivityLogs('delete', id, taskToDelete.title, taskToDelete.projectId);
+            }
         } else {
             showNotification('Gagal Hapus Task', 'Anda tidak memiliki izin untuk menghapus task ini.', 'error');
         }
-    }, [tasks, setTasks, setEditingTask, setIsModalOpen, setProjectRefreshTrigger, showNotification]);
+    }, [tasks, setTasks, setEditingTask, setIsModalOpen, setProjectRefreshTrigger, showNotification, logToActivityLogs]);
 
     // Status change from view modal
     const handleStatusChangeFromView = useCallback(async (taskId: string, newStatus: Status) => {

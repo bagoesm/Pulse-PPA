@@ -96,6 +96,33 @@ export const useMeetingHandlers = ({
         updatedAt: data.updated_at
     }), []);
 
+    // Helper to log to activity_logs table (for admin view)
+    const logToActivityLogs = useCallback(async (
+        action: 'create' | 'update' | 'delete',
+        meetingId: string,
+        meetingTitle: string,
+        projectId?: string,
+        projectName?: string
+    ) => {
+        if (!currentUser) return;
+        try {
+            const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+            await supabase.from('activity_logs').insert({
+                user_id: currentUser.id,
+                user_name: currentUser.name,
+                action: action,
+                entity_type: 'meeting',
+                entity_id: meetingId,
+                entity_title: meetingTitle,
+                project_id: projectId || null,
+                project_name: projectName || null,
+                user_agent: userAgent,
+            });
+        } catch (err) {
+            console.error('Failed to log activity:', err);
+        }
+    }, [currentUser]);
+
     // Modal handlers
     const handleAddMeeting = useCallback((fromTask: boolean = false) => {
         setEditingMeeting(null);
@@ -205,6 +232,9 @@ export const useMeetingHandlers = ({
                 if (addedMentions.length > 0) {
                     await createMentionNotification(editingMeeting.id, meetingData.title, currentUser?.name || 'Unknown', addedMentions, true);
                 }
+
+                // Log to activity_logs for admin view
+                await logToActivityLogs('update', editingMeeting.id, meetingData.title, meetingData.projectId);
             } else {
                 const { data, error } = await supabase
                     .from('meetings')
@@ -235,6 +265,9 @@ export const useMeetingHandlers = ({
                     }
 
                     showNotification('Jadwal Ditambahkan!', `"${meetingData.title}" berhasil ditambahkan.`, 'success');
+
+                    // Log to activity_logs for admin view
+                    await logToActivityLogs('create', data.id, meetingData.title, meetingData.projectId);
                 }
             }
 
@@ -243,11 +276,13 @@ export const useMeetingHandlers = ({
         } catch (error: any) {
             showNotification('Kesalahan', `Terjadi kesalahan: ${error.message}`, 'error');
         }
-    }, [editingMeeting, mapMeeting, setMeetings, setMeetingInviters, setIsMeetingModalOpen, setEditingMeeting, showNotification, allUsers, createMentionNotification, currentUser]);
+    }, [editingMeeting, mapMeeting, setMeetings, setMeetingInviters, setIsMeetingModalOpen, setEditingMeeting, showNotification, allUsers, createMentionNotification, currentUser, logToActivityLogs]);
 
-    // Delete meeting
     const handleDeleteMeeting = useCallback(async (meetingId: string) => {
         try {
+            // Get meeting data before deletion for logging
+            const meetingToDelete = meetings.find(m => m.id === meetingId);
+
             const { error } = await supabase
                 .from('meetings')
                 .delete()
@@ -262,10 +297,15 @@ export const useMeetingHandlers = ({
             setIsMeetingViewModalOpen(false);
             setViewingMeeting(null);
             showNotification('Jadwal Dihapus', 'Jadwal berhasil dihapus.', 'success');
+
+            // Log to activity_logs for admin view
+            if (meetingToDelete) {
+                await logToActivityLogs('delete', meetingId, meetingToDelete.title, meetingToDelete.projectId);
+            }
         } catch (error: any) {
             showNotification('Kesalahan', `Terjadi kesalahan: ${error.message}`, 'error');
         }
-    }, [setMeetings, setIsMeetingViewModalOpen, setViewingMeeting, showNotification]);
+    }, [meetings, setMeetings, setIsMeetingViewModalOpen, setViewingMeeting, showNotification, logToActivityLogs]);
 
     const handleDeleteMeetingFromView = useCallback(() => {
         if (viewingMeeting) {
