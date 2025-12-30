@@ -394,7 +394,7 @@ const ActivityLogPage: React.FC<ActivityLogPageProps> = ({ currentUser, users, p
             )}
 
             {/* Logs Table */}
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col max-h-[calc(100vh-300px)]">
                 {isLoading ? (
                     <div className="flex items-center justify-center h-64">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gov-600"></div>
@@ -405,7 +405,7 @@ const ActivityLogPage: React.FC<ActivityLogPageProps> = ({ currentUser, users, p
                         <p>Tidak ada aktivitas ditemukan</p>
                     </div>
                 ) : (
-                    <>
+                    <div className="flex-1 overflow-y-auto">
                         {/* Desktop Table */}
                         <div className="hidden lg:block overflow-x-auto">
                             <table className="w-full">
@@ -528,7 +528,7 @@ const ActivityLogPage: React.FC<ActivityLogPageProps> = ({ currentUser, users, p
                                 );
                             })}
                         </div>
-                    </>
+                    </div>
                 )}
 
                 {/* Infinite Scroll Loader */}
