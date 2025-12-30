@@ -164,35 +164,46 @@ export const useMeetingHandlers = ({
             };
 
             if (editingMeeting) {
-                const { data, error } = await supabase
+                // First, update the meeting
+                const { error: updateError } = await supabase
                     .from('meetings')
                     .update(payload)
-                    .eq('id', editingMeeting.id)
-                    .select()
-                    .single();
+                    .eq('id', editingMeeting.id);
 
-                if (error) {
-                    showNotification('Gagal Update Jadwal', error.message, 'error');
+                if (updateError) {
+                    showNotification('Gagal Update Jadwal', updateError.message, 'error');
                     return;
                 }
 
-                if (data) {
-                    setMeetings(prev => prev.map(m => m.id === editingMeeting.id ? mapMeeting(data) : m));
-                    showNotification('Jadwal Diupdate!', `"${meetingData.title}" berhasil diperbarui.`, 'success');
+                // Then fetch the updated data separately (handles RLS better)
+                const { data, error: fetchError } = await supabase
+                    .from('meetings')
+                    .select('*')
+                    .eq('id', editingMeeting.id)
+                    .maybeSingle();
 
-                    // Check for new mentions in description/notes
-                    const oldDescMentions = editingMeeting.description ? parseMentions(editingMeeting.description, allUsers) : [];
-                    const newDescMentions = meetingData.description ? parseMentions(meetingData.description, allUsers) : [];
-                    const oldNotesMentions = editingMeeting.notes ? parseMentions(editingMeeting.notes, allUsers) : [];
-                    const newNotesMentions = meetingData.notes ? parseMentions(meetingData.notes, allUsers) : [];
+                // Use fetched data if available, or construct from input
+                const updatedMeeting = data ? mapMeeting(data) : {
+                    ...editingMeeting,
+                    ...meetingData,
+                    updatedAt: new Date().toISOString()
+                };
 
-                    const oldMentions = [...new Set([...oldDescMentions, ...oldNotesMentions])];
-                    const newMentions = [...new Set([...newDescMentions, ...newNotesMentions])];
-                    const addedMentions = newMentions.filter(name => !oldMentions.includes(name));
+                setMeetings(prev => prev.map(m => m.id === editingMeeting.id ? updatedMeeting : m));
+                showNotification('Jadwal Diupdate!', `"${meetingData.title}" berhasil diperbarui.`, 'success');
 
-                    if (addedMentions.length > 0) {
-                        await createMentionNotification(editingMeeting.id, meetingData.title, currentUser?.name || 'Unknown', addedMentions, true);
-                    }
+                // Check for new mentions in description/notes
+                const oldDescMentions = editingMeeting.description ? parseMentions(editingMeeting.description, allUsers) : [];
+                const newDescMentions = meetingData.description ? parseMentions(meetingData.description, allUsers) : [];
+                const oldNotesMentions = editingMeeting.notes ? parseMentions(editingMeeting.notes, allUsers) : [];
+                const newNotesMentions = meetingData.notes ? parseMentions(meetingData.notes, allUsers) : [];
+
+                const oldMentions = [...new Set([...oldDescMentions, ...oldNotesMentions])];
+                const newMentions = [...new Set([...newDescMentions, ...newNotesMentions])];
+                const addedMentions = newMentions.filter(name => !oldMentions.includes(name));
+
+                if (addedMentions.length > 0) {
+                    await createMentionNotification(editingMeeting.id, meetingData.title, currentUser?.name || 'Unknown', addedMentions, true);
                 }
             } else {
                 const { data, error } = await supabase
