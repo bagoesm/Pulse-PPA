@@ -51,7 +51,7 @@ const ENTITY_TYPE_LABELS: Record<string, string> = {
     master_data: 'Master Data',
 };
 
-const ITEMS_PER_PAGE = 20;
+const ITEMS_PER_PAGE = 10;
 
 const ActivityLogPage: React.FC<ActivityLogPageProps> = ({ currentUser, users, projects }) => {
     const [logs, setLogs] = useState<ActivityLog[]>([]);
