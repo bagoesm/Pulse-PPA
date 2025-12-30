@@ -224,7 +224,7 @@ export const parseMentions = (text: string, users: User[]): string[] => {
 
 // Helper function to render text with highlighted mentions
 export const renderMentionText = (text: string, users: User[]): React.ReactNode => {
-  // Sort users by name length (longest first) to match longer names first
+  // Sort users by name length (longest first) to handle overlapping names correctly
   const sortedUsers = [...users].sort((a, b) => b.name.length - a.name.length);
 
   let result: React.ReactNode[] = [];
@@ -232,7 +232,8 @@ export const renderMentionText = (text: string, users: User[]): React.ReactNode 
   let keyIndex = 0;
 
   while (remainingText.length > 0) {
-    let foundMatch = false;
+    // Find the EARLIEST mention position across all users
+    let earliestMatch: { user: User; index: number; matchLength: number } | null = null;
 
     for (const user of sortedUsers) {
       const escapedName = user.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -240,29 +241,44 @@ export const renderMentionText = (text: string, users: User[]): React.ReactNode 
       const match = remainingText.match(mentionPattern);
 
       if (match && match.index !== undefined) {
-        // Add text before mention
-        if (match.index > 0) {
-          result.push(remainingText.slice(0, match.index));
+        // Check if this match is earlier than the current earliest
+        if (earliestMatch === null || match.index < earliestMatch.index) {
+          earliestMatch = {
+            user: user,
+            index: match.index,
+            matchLength: match[0].length
+          };
         }
-
-        // Add highlighted mention
-        result.push(
-          <span
-            key={keyIndex++}
-            className="text-blue-600 font-medium bg-blue-50 px-1 rounded cursor-pointer hover:bg-blue-100"
-            title={user.jabatan || user.name}
-          >
-            @{user.name}
-          </span>
-        );
-
-        remainingText = remainingText.slice(match.index + match[0].length);
-        foundMatch = true;
-        break;
+        // If same position but longer match (shouldn't happen due to sorting, but safety)
+        else if (match.index === earliestMatch.index && match[0].length > earliestMatch.matchLength) {
+          earliestMatch = {
+            user: user,
+            index: match.index,
+            matchLength: match[0].length
+          };
+        }
       }
     }
 
-    if (!foundMatch) {
+    if (earliestMatch) {
+      // Add text before mention
+      if (earliestMatch.index > 0) {
+        result.push(remainingText.slice(0, earliestMatch.index));
+      }
+
+      // Add highlighted mention
+      result.push(
+        <span
+          key={keyIndex++}
+          className="text-blue-600 font-medium bg-blue-50 px-1 rounded cursor-pointer hover:bg-blue-100"
+          title={earliestMatch.user.jabatan || earliestMatch.user.name}
+        >
+          @{earliestMatch.user.name}
+        </span>
+      );
+
+      remainingText = remainingText.slice(earliestMatch.index + earliestMatch.matchLength);
+    } else {
       // No more mentions found, add remaining text
       result.push(remainingText);
       break;
