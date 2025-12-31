@@ -1,6 +1,6 @@
 // src/components/AddTaskModal.tsx
-import React, { useEffect, useRef, useState } from 'react';
-import { X, Trash2, Lock, Info, Upload, FileText, Paperclip, Download, ExternalLink, Plus } from 'lucide-react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { X, Trash2, Lock, Info, Upload, FileText, Paperclip, Download, ExternalLink, Plus, Loader2 } from 'lucide-react';
 import { Task, Category, Priority, Status, User, ProjectDefinition, Attachment, TaskLink } from '../../types';
 import { supabase } from '../lib/supabaseClient';
 import { useModals } from '../hooks/useModalHelpers';
@@ -80,6 +80,15 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
     createdBy: currentUser?.name ?? ''
   });
 
+  // Track newly uploaded attachments for cleanup on cancel
+  const [newlyUploadedAttachments, setNewlyUploadedAttachments] = useState<Attachment[]>([]);
+  // Loading state for save button
+  const [isSaving, setIsSaving] = useState(false);
+  // Loading state for file upload
+  const [isUploading, setIsUploading] = useState(false);
+  // Loading state for cleanup on close
+  const [isCleaningUp, setIsCleaningUp] = useState(false);
+
   // Readonly when editing but user cannot edit
   const isReadOnly = !!initialData && !canEdit;
 
@@ -151,8 +160,32 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
         createdBy: currentUser?.name ?? ''
       });
     }
+    // Reset tracking state when modal opens
+    setNewlyUploadedAttachments([]);
+    setIsUploading(false);
+    setIsCleaningUp(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, initialData]);
+
+  // Cleanup newly uploaded attachments on cancel/close (must be before early return for hooks order)
+  const handleCleanupAndClose = useCallback(async () => {
+    // Get attachments that were uploaded during this session but not in original data
+    const originalIds = new Set((initialData?.attachments || []).map(a => a.id));
+    const attachmentsToClean = newlyUploadedAttachments.filter(a => !originalIds.has(a.id));
+
+    if (attachmentsToClean.length > 0) {
+      setIsCleaningUp(true);
+      // Remove from storage
+      for (const att of attachmentsToClean) {
+        await handleRemoveFromStorage(att);
+      }
+      setIsCleaningUp(false);
+    }
+
+    // Clear tracking and close
+    setNewlyUploadedAttachments([]);
+    onClose();
+  }, [initialData, newlyUploadedAttachments, handleRemoveFromStorage, onClose]);
 
   if (!isOpen) return null;
 
@@ -177,6 +210,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
 
+    setIsUploading(true);
     const files = Array.from(e.target.files);
     const uploadedAttachments: Attachment[] = [];
 
@@ -193,8 +227,12 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
       attachments: [...(prev.attachments ?? []), ...uploadedAttachments]
     }));
 
+    // Track newly uploaded for cleanup on cancel
+    setNewlyUploadedAttachments(prev => [...prev, ...uploadedAttachments]);
+
     // reset input
     if (fileInputRef.current) fileInputRef.current.value = '';
+    setIsUploading(false);
   };
 
 
@@ -213,6 +251,8 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
     // Delete from Supabase Storage using hook via helper logic
     if (attachmentToRemove) {
       await handleRemoveFromStorage(attachmentToRemove);
+      // Also remove from newly uploaded tracking
+      setNewlyUploadedAttachments(prev => prev.filter(a => a.id !== id));
     }
   };
 
@@ -282,9 +322,9 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isReadOnly) return;
+    if (isReadOnly || isSaving) return;
 
     // basic validation
     if (!formData.title || !formData.category || !formData.priority || !formData.status || !formData.startDate || !formData.deadline) {
@@ -329,7 +369,14 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
       links: formData.links || []
     };
 
-    onSave(payload);
+    setIsSaving(true);
+    try {
+      await onSave(payload);
+      // Clear tracking on successful save
+      setNewlyUploadedAttachments([]);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleDelete = () => {
@@ -750,8 +797,17 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
                   ))
                 ) : (
                   <div className="p-4 border border-dashed border-slate-200 rounded-lg flex flex-col items-center justify-center text-slate-400 gap-1 bg-slate-50/50">
-                    <Paperclip size={18} />
-                    <span className="text-xs">Belum ada dokumen</span>
+                    {isUploading ? (
+                      <>
+                        <Loader2 size={18} className="animate-spin text-gov-500" />
+                        <span className="text-xs">Mengupload...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Paperclip size={18} />
+                        <span className="text-xs">Belum ada dokumen</span>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
@@ -776,12 +832,14 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
             </div>
 
             <div className="flex gap-3">
-              <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors">
+              <button type="button" onClick={handleCleanupAndClose} disabled={isSaving || isCleaningUp || isUploading} className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors disabled:opacity-50 flex items-center gap-2">
+                {isCleaningUp && <Loader2 size={14} className="animate-spin" />}
                 {isReadOnly ? 'Tutup' : 'Batal'}
               </button>
 
               {!isReadOnly && (
-                <button type="submit" className="px-4 py-2 rounded-lg text-sm font-bold text-white bg-gov-600 hover:bg-gov-700 shadow-md hover:shadow-lg transition-all">
+                <button type="submit" disabled={isSaving || isUploading} className="px-4 py-2 rounded-lg text-sm font-bold text-white bg-gov-600 hover:bg-gov-700 shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                  {isSaving && <Loader2 size={16} className="animate-spin" />}
                   {initialData ? 'Simpan Perubahan' : 'Buat Task'}
                 </button>
               )}

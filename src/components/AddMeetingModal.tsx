@@ -1,8 +1,8 @@
 // src/components/AddMeetingModal.tsx
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   X, Trash2, Lock, Upload, FileText, Download, Plus, MapPin, Video, Clock, Calendar,
-  Building2, Users, Search, Check, Link2, ExternalLink
+  Building2, Users, Search, Check, Link2, ExternalLink, Loader2
 } from 'lucide-react';
 import { Meeting, MeetingType, MeetingInviter, User, ProjectDefinition, Attachment, TaskLink } from '../../types';
 import { supabase } from '../lib/supabaseClient';
@@ -110,6 +110,15 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
   const [newLinkTitle, setNewLinkTitle] = useState('');
   const [newLinkUrl, setNewLinkUrl] = useState('');
 
+  // Track newly uploaded attachments for cleanup on cancel
+  const [newlyUploadedAttachments, setNewlyUploadedAttachments] = useState<Attachment[]>([]);
+  // Loading state for save button
+  const [isSaving, setIsSaving] = useState(false);
+  // Loading state for file upload
+  const [isUploading, setIsUploading] = useState(false);
+  // Loading state for cleanup on close
+  const [isCleaningUp, setIsCleaningUp] = useState(false);
+
   const isReadOnly = !!initialData && !canEdit;
 
   // Filter inviters based on search
@@ -132,12 +141,12 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
 
     // Determine the current "session key" - either the meeting ID or 'new'
     const currentKey = initialData?.id ?? 'new';
-    
+
     // Only initialize if this is a fresh open (was closed before) 
     // OR if the data context has changed (different meeting or switched to new)
     const isFirstOpen = !wasOpenRef.current;
     const isDataChanged = initializedForRef.current !== currentKey;
-    
+
     if (!isFirstOpen && !isDataChanged) {
       // Modal was already open with same data, don't reset form
       return;
@@ -178,7 +187,37 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
       setNewLinkTitle('');
       setNewLinkUrl('');
     }
+    // Reset tracking state when modal opens
+    setNewlyUploadedAttachments([]);
+    setIsUploading(false);
+    setIsCleaningUp(false);
   }, [isOpen, initialData, defaultPic, currentUser]);
+
+  // Cleanup newly uploaded attachments on cancel/close (must be before early return for hooks order)
+  const handleCleanupAndClose = useCallback(async () => {
+    // Get attachments that were uploaded during this session but not in original data
+    const originalIds = new Set([
+      initialData?.suratUndangan?.id,
+      initialData?.suratTugas?.id,
+      initialData?.laporan?.id,
+      ...(initialData?.attachments || []).map(a => a.id)
+    ].filter(Boolean));
+
+    const attachmentsToClean = newlyUploadedAttachments.filter(a => !originalIds.has(a.id));
+
+    if (attachmentsToClean.length > 0) {
+      setIsCleaningUp(true);
+      // Remove from storage
+      for (const att of attachmentsToClean) {
+        await handleRemoveFromStorage(att);
+      }
+      setIsCleaningUp(false);
+    }
+
+    // Clear tracking and close
+    setNewlyUploadedAttachments([]);
+    onClose();
+  }, [initialData, newlyUploadedAttachments, handleRemoveFromStorage, onClose]);
 
   if (!isOpen) return null;
 
@@ -217,6 +256,7 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
     if (!e.target.files || e.target.files.length === 0) return;
     const file = e.target.files[0];
 
+    setIsUploading(true);
     const att = await uploadFile(file, 'meetings');
 
     if (att) {
@@ -225,9 +265,12 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
       } else {
         setFormData(prev => ({ ...prev, [uploadTarget]: att }));
       }
+      // Track newly uploaded for cleanup on cancel
+      setNewlyUploadedAttachments(prev => [...prev, att]);
     }
 
     if (fileInputRef.current) fileInputRef.current.value = '';
+    setIsUploading(false);
   };
 
   const removeFile = async (target: 'suratUndangan' | 'suratTugas' | 'laporan' | string) => {
@@ -289,9 +332,9 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isReadOnly) return;
+    if (isReadOnly || isSaving) return;
 
     if (!formData.title || !formData.date || !formData.startTime || !formData.endTime) {
       showNotification('Data Tidak Lengkap', 'Mohon isi judul, tanggal, dan waktu.', 'warning');
@@ -339,7 +382,14 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
       updatedAt: new Date().toISOString(),
     };
 
-    onSave(payload);
+    setIsSaving(true);
+    try {
+      await onSave(payload);
+      // Clear tracking on successful save
+      setNewlyUploadedAttachments([]);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Link management functions
@@ -430,7 +480,7 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
               </span>
             )}
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full text-slate-500 transition-colors">
+          <button onClick={handleCleanupAndClose} disabled={isSaving} className="p-2 hover:bg-slate-200 rounded-full text-slate-500 transition-colors disabled:opacity-50">
             <X size={20} />
           </button>
         </div>
@@ -959,11 +1009,13 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
             <div />
           )}
           <div className="flex gap-2">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg text-sm font-medium transition-colors">
+            <button type="button" onClick={handleCleanupAndClose} disabled={isSaving || isCleaningUp || isUploading} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center gap-2">
+              {isCleaningUp && <Loader2 size={14} className="animate-spin" />}
               {isReadOnly ? 'Tutup' : 'Batal'}
             </button>
             {!isReadOnly && (
-              <button onClick={handleSubmit} className="px-6 py-2 bg-gov-600 text-white rounded-lg text-sm font-bold hover:bg-gov-700 transition-colors">
+              <button onClick={handleSubmit} disabled={isSaving || isUploading} className="px-6 py-2 bg-gov-600 text-white rounded-lg text-sm font-bold hover:bg-gov-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                {isSaving && <Loader2 size={16} className="animate-spin" />}
                 {initialData ? 'Simpan Perubahan' : 'Tambah Jadwal'}
               </button>
             )}

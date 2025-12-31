@@ -24,9 +24,12 @@ export const useFileUpload = (bucketName: string = 'attachment'): UseFileUploadR
 
         try {
             const ext = file.name.split('.').pop();
-            // Clean filename to avoid issues with special characters
-            const cleanFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-            const storagePath = `${pathPrefix}/${Date.now()}_${Math.random().toString(36).substring(2)}.${ext}`;
+            // Clean filename to avoid issues with special characters, preserve original name
+            const baseName = file.name.replace(/\.[^/.]+$/, ''); // Remove extension
+            const cleanBaseName = baseName.replace(/[^a-zA-Z0-9.-]/g, '_');
+            // Add timestamp for uniqueness
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const storagePath = `${pathPrefix}/${cleanBaseName}_${timestamp}.${ext}`;
 
             // Upload to Supabase Storage
             const { error: uploadError } = await supabase.storage
