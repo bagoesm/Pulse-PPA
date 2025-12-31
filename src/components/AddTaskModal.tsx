@@ -11,6 +11,7 @@ import ConfirmModal from './ConfirmModal';
 import MultiSelectChip from './MultiSelectChip';
 import RichTextEditor from './RichTextEditor';
 import SearchableSelect from './SearchableSelect';
+import TaskDependencySelector from './TaskDependencySelector';
 import { formatFileSize } from '../utils/formatters';
 
 interface AddTaskModalProps {
@@ -29,6 +30,7 @@ interface AddTaskModalProps {
   masterSubCategories: any[];
   categorySubcategoryRelations: any[];
   onSwitchToMeeting?: () => void;
+  allTasks?: Task[]; // All tasks for dependency selection
 }
 
 const AddTaskModal: React.FC<AddTaskModalProps> = ({
@@ -46,7 +48,8 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
   masterCategories,
   masterSubCategories,
   categorySubcategoryRelations,
-  onSwitchToMeeting
+  onSwitchToMeeting,
+  allTasks = []
 }) => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -77,6 +80,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
     projectId: '', // Opsional - boleh kosong
     attachments: [],
     links: [],
+    blockedBy: [],
     createdBy: currentUser?.name ?? ''
   });
 
@@ -141,6 +145,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
         ...initialData,
         attachments: initialData.attachments || [],
         links: initialData.links || [],
+        blockedBy: initialData.blockedBy || [],
         pic: Array.isArray(initialData.pic) ? initialData.pic : (initialData.pic ? [initialData.pic as any] : [])
       });
     } else {
@@ -366,7 +371,8 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
       createdBy: initialData?.createdBy || currentUser?.name || 'System',
       projectId: formData.projectId || undefined, // Opsional - bisa kosong
       attachments: formData.attachments || [],
-      links: formData.links || []
+      links: formData.links || [],
+      blockedBy: formData.blockedBy || []
     };
 
     setIsSaving(true);
@@ -648,6 +654,24 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
                   users={users}
                 />
               )}
+            </div>
+
+            {/* Task Dependencies */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                Task yang Harus Selesai Dulu
+              </label>
+              <p className="text-xs text-slate-500 mb-2">
+                Pilih task yang harus selesai sebelum task ini bisa dimulai
+              </p>
+              <TaskDependencySelector
+                tasks={allTasks}
+                selectedTaskIds={formData.blockedBy || []}
+                onChange={(ids) => handleChange('blockedBy', ids)}
+                excludeTaskId={initialData?.id}
+                disabled={isReadOnly}
+                placeholder="Cari task..."
+              />
             </div>
 
             {/* Links */}

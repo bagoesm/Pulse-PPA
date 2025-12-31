@@ -168,6 +168,24 @@ export const useTaskHandlers = ({
             const task = tasks.find(t => t.id === draggedTaskId);
             const oldStatus = task?.status;
 
+            // Check if task is blocked by unfinished tasks
+            if (task && status !== Status.ToDo) {
+                const blockingTaskIds = task.blockedBy || [];
+                if (blockingTaskIds.length > 0) {
+                    const blockingTasks = blockingTaskIds.map(id => tasks.find(t => t.id === id)).filter(Boolean);
+                    const unfinishedBlockers = blockingTasks.filter(t => t && t.status !== Status.Done);
+
+                    if (unfinishedBlockers.length > 0) {
+                        const blockerNames = unfinishedBlockers.map(t => t?.title || 'Unknown').join(', ');
+                        showNotification(
+                            'Task Masih Diblokir',
+                            `Task ini masih menunggu ${unfinishedBlockers.length} task selesai: ${blockerNames}. Status tetap diubah, tapi perhatikan dependensi.`,
+                            'warning'
+                        );
+                    }
+                }
+            }
+
             setTasks(prev => prev.map(t => t.id === draggedTaskId ? { ...t, status } : t));
 
             const { data: updatedData, error } = await supabase
@@ -218,6 +236,7 @@ export const useTaskHandlers = ({
             project_id: newTaskData.projectId || null,
             attachments: newTaskData.attachments,
             links: newTaskData.links,
+            blocked_by: newTaskData.blockedBy || [],
             created_by_id: userId
         };
 
@@ -375,6 +394,22 @@ export const useTaskHandlers = ({
     const handleStatusChangeFromView = useCallback(async (taskId: string, newStatus: Status) => {
         const task = tasks.find(t => t.id === taskId);
         if (!task) return;
+
+        // Check if task is blocked by unfinished tasks
+        const blockingTaskIds = task.blockedBy || [];
+        if (blockingTaskIds.length > 0 && newStatus !== Status.ToDo) {
+            const blockingTasks = blockingTaskIds.map(id => tasks.find(t => t.id === id)).filter(Boolean);
+            const unfinishedBlockers = blockingTasks.filter(t => t && t.status !== Status.Done);
+
+            if (unfinishedBlockers.length > 0) {
+                const blockerNames = unfinishedBlockers.map(t => t?.title || 'Unknown').join(', ');
+                showNotification(
+                    'Task Masih Diblokir',
+                    `Task ini masih menunggu ${unfinishedBlockers.length} task selesai: ${blockerNames}. Status tetap diubah, tapi perhatikan dependensi.`,
+                    'warning'
+                );
+            }
+        }
 
         const oldStatus = task.status;
         setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t));

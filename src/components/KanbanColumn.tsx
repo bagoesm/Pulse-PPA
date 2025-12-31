@@ -6,13 +6,14 @@ interface KanbanColumnProps {
   status: Status;
   tasks: Task[];
   projects: ProjectDefinition[];
+  allTasks?: Task[]; // All tasks for dependency resolution
   onDragOver: (e: React.DragEvent) => void;
   onDrop: (e: React.DragEvent, status: Status) => void;
   onDragStart: (e: React.DragEvent, id: string) => void;
   onTaskClick: (task: Task) => void;
   onTaskShare?: (task: Task) => void;
   checkEditPermission: (task: Task) => boolean;
-  users?: any[]; // Using any[] to match User[] type but avoid circular deps if needed, though simpler to import User
+  users?: any[];
 }
 
 const TASKS_PER_PAGE = 20;
@@ -22,6 +23,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = React.memo(({
   status,
   tasks,
   projects,
+  allTasks = [],
   users = [],
   onDragOver,
   onDrop,
@@ -132,6 +134,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = React.memo(({
                 task={task}
                 projects={projects}
                 users={users}
+                allTasks={allTasks}
                 onDragStart={onDragStart}
                 onClick={onTaskClick}
                 onShare={onTaskShare}

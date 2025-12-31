@@ -1,6 +1,6 @@
 import React from 'react';
-import { Task, Priority, Category, ProjectDefinition, User } from '../../types';
-import { Calendar, Layers, Paperclip } from 'lucide-react';
+import { Task, Priority, Category, ProjectDefinition, User, Status } from '../../types';
+import { Calendar, Layers, Paperclip, Link2 } from 'lucide-react';
 import PICDisplay from './PICDisplay';
 import ShareButton from './ShareButton';
 
@@ -8,6 +8,7 @@ interface TaskCardProps {
   task: Task;
   projects: ProjectDefinition[];
   users?: User[];
+  allTasks?: Task[]; // For checking blocking task status
   onDragStart: (e: React.DragEvent, id: string) => void;
   onClick: (task: Task) => void;
   onShare?: (task: Task) => void;
@@ -34,9 +35,18 @@ const getCategoryColor = (category: Category) => {
   return 'bg-teal-50 text-teal-700 border-teal-100';
 };
 
-const TaskCard: React.FC<TaskCardProps> = React.memo(({ task, projects, users = [], onDragStart, onClick, onShare, canEdit }) => {
+const TaskCard: React.FC<TaskCardProps> = React.memo(({ task, projects, users = [], allTasks = [], onDragStart, onClick, onShare, canEdit }) => {
   const project = task.projectId ? projects.find(p => p.id === task.projectId) : null;
   const hasAttachments = task.attachments && task.attachments.length > 0;
+
+  // Check if task is blocked by unfinished tasks
+  const blockingTasks = (task.blockedBy || []).map(id => allTasks.find(t => t.id === id)).filter(Boolean) as Task[];
+  const unfinishedBlockers = blockingTasks.filter(t => t.status !== Status.Done);
+  const isBlocked = unfinishedBlockers.length > 0;
+
+  // Check how many tasks THIS task is blocking
+  const blockedTasks = allTasks.filter(t => t.blockedBy && t.blockedBy.includes(task.id));
+  const blocksOthers = blockedTasks.length > 0;
 
   return (
     <div
@@ -100,6 +110,24 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({ task, projects, users = 
             <div className="flex items-center gap-1 text-slate-400" title={`${task.attachments.length} attachment(s)`}>
               <Paperclip size={10} />
               <span className="text-[9px] sm:text-[10px] font-medium">{task.attachments.length}</span>
+            </div>
+          )}
+          {isBlocked && (
+            <div
+              className="flex items-center gap-1 text-amber-500"
+              title={`Diblokir oleh ${unfinishedBlockers.length} task: ${unfinishedBlockers.map(t => t.title).join(', ')}`}
+            >
+              <Link2 size={10} />
+              <span className="text-[9px] sm:text-[10px] font-medium">{unfinishedBlockers.length}</span>
+            </div>
+          )}
+          {blocksOthers && (
+            <div
+              className="flex items-center gap-1 text-orange-500"
+              title={`Memblokir ${blockedTasks.length} task: ${blockedTasks.map(t => t.title).join(', ')}`}
+            >
+              <Link2 size={10} className="rotate-90" />
+              <span className="text-[9px] sm:text-[10px] font-medium">{blockedTasks.length}</span>
             </div>
           )}
         </div>

@@ -1,6 +1,6 @@
 // src/components/TaskViewModal.tsx
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Edit, Calendar, Layers, Paperclip, Download, User, Clock, Flag, FileText, Info, MessageSquare, Eye, Share2, MoreHorizontal, ArrowRight, Send, ExternalLink, Trash2, Activity, ChevronDown } from 'lucide-react';
+import { X, Edit, Calendar, Layers, Paperclip, Download, User, Clock, Flag, FileText, Info, MessageSquare, Eye, Share2, MoreHorizontal, ArrowRight, Send, ExternalLink, Trash2, Activity, ChevronDown, Link2, CheckCircle2, Circle } from 'lucide-react';
 import { Task, User as UserType, ProjectDefinition, Attachment, Priority, Status, Comment, TaskLink, TaskActivity } from '../../types';
 import { supabase } from '../lib/supabaseClient';
 import PICDisplay from './PICDisplay';
@@ -22,6 +22,8 @@ interface TaskViewModalProps {
   onAddComment?: (taskId: string, content: string) => void;
   onDeleteComment?: (commentId: string) => void;
   onStatusChange?: (taskId: string, newStatus: Status) => void;
+  allTasks?: Task[]; // All tasks for resolving blocking task names
+  onBlockingTaskClick?: (taskId: string) => void; // Callback when clicking a blocking task
 }
 
 const getPriorityConfig = (priority: Priority) => {
@@ -70,7 +72,9 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
   activities = [],
   onAddComment,
   onDeleteComment,
-  onStatusChange
+  onStatusChange,
+  allTasks = [],
+  onBlockingTaskClick
 }) => {
   const [newComment, setNewComment] = useState('');
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
@@ -112,6 +116,16 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
   const hasAttachments = task.attachments && task.attachments.length > 0;
   const taskComments = comments.filter(comment => comment.taskId === task.id);
   const taskActivities = activities.filter(activity => activity.taskId === task.id);
+
+  // Get blocking tasks info (tasks that must complete before this one)
+  const blockingTasks = (task.blockedBy || []).map(blockingId => {
+    return allTasks.find(t => t.id === blockingId);
+  }).filter(Boolean) as Task[];
+
+  // Get tasks that THIS task blocks (reverse relationship)
+  const blockedTasks = allTasks.filter(t =>
+    t.blockedBy && t.blockedBy.includes(task.id)
+  );
 
   const handleSubmitComment = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -413,6 +427,90 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                     <span className="text-sm">Sub Kategori</span>
                   </div>
                   <span className="text-sm font-medium text-gray-900">{task.subCategory}</span>
+                </div>
+              )}
+
+              {/* Blocking Tasks (Dependencies) */}
+              {blockingTasks.length > 0 && (
+                <div className="flex items-start gap-4">
+                  <div className="flex items-center gap-3 w-28 text-gray-500">
+                    <Link2 size={16} />
+                    <span className="text-sm">Diblokir oleh</span>
+                  </div>
+                  <div className="flex-1">
+                    <div className="space-y-2">
+                      {blockingTasks.map(blockingTask => (
+                        <button
+                          key={blockingTask.id}
+                          onClick={() => onBlockingTaskClick?.(blockingTask.id)}
+                          className="w-full flex items-center gap-3 p-2.5 rounded-lg border border-gray-200 bg-gray-50 hover:bg-gray-100 hover:border-gray-300 transition-colors text-left group"
+                        >
+                          <div className={`shrink-0 ${blockingTask.status === Status.Done ? 'text-green-600' : 'text-gray-400'}`}>
+                            {blockingTask.status === Status.Done ? (
+                              <CheckCircle2 size={16} />
+                            ) : (
+                              <Circle size={16} />
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium text-gray-700 truncate group-hover:text-blue-600">
+                              {blockingTask.title}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {blockingTask.status === Status.Done ? (
+                                <span className="text-green-600">✓ Selesai</span>
+                              ) : (
+                                <span>{blockingTask.status}</span>
+                              )}
+                            </div>
+                          </div>
+                          <ExternalLink size={14} className="shrink-0 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Tasks that THIS task blocks */}
+              {blockedTasks.length > 0 && (
+                <div className="flex items-start gap-4">
+                  <div className="flex items-center gap-3 w-28 text-gray-500">
+                    <Link2 size={16} className="rotate-90" />
+                    <span className="text-sm">Memblokir</span>
+                  </div>
+                  <div className="flex-1">
+                    <div className="space-y-2">
+                      {blockedTasks.map(blockedTask => (
+                        <button
+                          key={blockedTask.id}
+                          onClick={() => onBlockingTaskClick?.(blockedTask.id)}
+                          className="w-full flex items-center gap-3 p-2.5 rounded-lg border border-orange-200 bg-orange-50 hover:bg-orange-100 hover:border-orange-300 transition-colors text-left group"
+                        >
+                          <div className={`shrink-0 ${blockedTask.status === Status.Done ? 'text-green-600' : 'text-orange-500'}`}>
+                            {blockedTask.status === Status.Done ? (
+                              <CheckCircle2 size={16} />
+                            ) : (
+                              <Circle size={16} />
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium text-gray-700 truncate group-hover:text-orange-600">
+                              {blockedTask.title}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {blockedTask.status === Status.Done ? (
+                                <span className="text-green-600">✓ Selesai</span>
+                              ) : (
+                                <span className="text-orange-600">Menunggu task ini selesai</span>
+                              )}
+                            </div>
+                          </div>
+                          <ExternalLink size={14} className="shrink-0 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
 

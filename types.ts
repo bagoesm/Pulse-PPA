@@ -141,6 +141,7 @@ export interface Task {
   comments?: Comment[]; // OPSIONAL - Comments for the task
   isMeeting?: boolean; // Flag untuk menandai task dari meeting
   meetingId?: string; // ID meeting jika task berasal dari meeting
+  blockedBy?: string[]; // Task IDs yang harus selesai sebelum task ini bisa dimulai
 }
 
 export interface FilterState {

@@ -185,13 +185,13 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
 
                 <div className="flex items-center gap-1 flex-shrink-0">
                     {value && (
-                        <button
-                            type="button"
+                        <span
+                            role="button"
                             onClick={handleClear}
-                            className="p-0.5 hover:bg-slate-100 rounded"
+                            className="p-0.5 hover:bg-slate-100 rounded cursor-pointer"
                         >
                             <X size={14} className="text-slate-400" />
-                        </button>
+                        </span>
                     )}
                     <ChevronDown
                         size={16}

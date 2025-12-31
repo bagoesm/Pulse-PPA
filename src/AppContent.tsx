@@ -859,6 +859,7 @@ const AppContent: React.FC = () => {
                     tasks={filteredTasks.filter(t => t.status === status)}
                     projects={projects}
                     users={allUsers}
+                    allTasks={tasks}
                     onDragOver={handleDragOver}
                     onDrop={handleDrop}
                     onDragStart={handleDragStart}
@@ -915,6 +916,7 @@ const AppContent: React.FC = () => {
         masterCategories={masterCategories}
         masterSubCategories={masterSubCategories}
         categorySubcategoryRelations={categorySubcategoryRelations}
+        allTasks={tasks}
         // Project Modal
         isProjectModalOpen={isProjectModalOpen}
         setIsProjectModalOpen={setIsProjectModalOpen}

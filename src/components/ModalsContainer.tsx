@@ -53,6 +53,7 @@ interface ModalsContainerProps {
     masterCategories: any[];
     masterSubCategories: any[];
     categorySubcategoryRelations: any[];
+    allTasks: Task[]; // All tasks for dependency selection
 
     // Add Project Modal
     isProjectModalOpen: boolean;
@@ -144,7 +145,7 @@ const ModalsContainer: React.FC<ModalsContainerProps> = (props) => {
         handleSaveTask, handleDeleteTask, checkDeletePermission, handleAddMeeting,
         // Common
         projects, taskAssignableUsers, allUsers, subCategories,
-        masterCategories, masterSubCategories, categorySubcategoryRelations,
+        masterCategories, masterSubCategories, categorySubcategoryRelations, allTasks,
         // Project Modal
         isProjectModalOpen, setIsProjectModalOpen, editingProject, setEditingProject, handleSaveProject,
         // Status Modal
@@ -187,6 +188,14 @@ const ModalsContainer: React.FC<ModalsContainerProps> = (props) => {
                     onAddComment={handleAddComment}
                     onDeleteComment={handleDeleteComment}
                     onStatusChange={handleStatusChangeFromView}
+                    allTasks={allTasks}
+                    onBlockingTaskClick={(taskId) => {
+                        // Find the blocking task and open it
+                        const blockingTask = allTasks.find(t => t.id === taskId);
+                        if (blockingTask) {
+                            setViewingTask(blockingTask);
+                        }
+                    }}
                 />
             </Suspense>
 
@@ -212,6 +221,7 @@ const ModalsContainer: React.FC<ModalsContainerProps> = (props) => {
                         setEditingTask(null);
                         handleAddMeeting(true);
                     }}
+                    allTasks={allTasks}
                 />
             </Suspense>
 
