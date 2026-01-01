@@ -1,7 +1,7 @@
 // src/components/AddTaskModal.tsx
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { X, Trash2, Lock, Info, Upload, FileText, Paperclip, Download, ExternalLink, Plus, Loader2 } from 'lucide-react';
-import { Task, Category, Priority, Status, User, ProjectDefinition, Attachment, TaskLink } from '../../types';
+import { Task, Category, Priority, Status, User, ProjectDefinition, Attachment, TaskLink, ChecklistItem } from '../../types';
 import { supabase } from '../lib/supabaseClient';
 import { useModals } from '../hooks/useModalHelpers';
 import { useFileUpload } from '../hooks/useFileUpload';
@@ -12,6 +12,7 @@ import MultiSelectChip from './MultiSelectChip';
 import RichTextEditor from './RichTextEditor';
 import SearchableSelect from './SearchableSelect';
 import TaskDependencySelector from './TaskDependencySelector';
+import ChecklistEditor from './ChecklistEditor';
 import { formatFileSize } from '../utils/formatters';
 
 interface AddTaskModalProps {
@@ -81,6 +82,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
     attachments: [],
     links: [],
     blockedBy: [],
+    checklists: [],
     createdBy: currentUser?.name ?? ''
   });
 
@@ -146,6 +148,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
         attachments: initialData.attachments || [],
         links: initialData.links || [],
         blockedBy: initialData.blockedBy || [],
+        checklists: initialData.checklists || [],
         pic: Array.isArray(initialData.pic) ? initialData.pic : (initialData.pic ? [initialData.pic as any] : [])
       });
     } else {
@@ -162,6 +165,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
         projectId: '', // Opsional - boleh kosong
         attachments: [],
         links: [],
+        checklists: [],
         createdBy: currentUser?.name ?? ''
       });
     }
@@ -372,7 +376,8 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
       projectId: formData.projectId || undefined, // Opsional - bisa kosong
       attachments: formData.attachments || [],
       links: formData.links || [],
-      blockedBy: formData.blockedBy || []
+      blockedBy: formData.blockedBy || [],
+      checklists: formData.checklists || []
     };
 
     setIsSaving(true);
@@ -671,6 +676,21 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
                 excludeTaskId={initialData?.id}
                 disabled={isReadOnly}
                 placeholder="Cari task..."
+              />
+            </div>
+
+            {/* Checklist */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">
+                Checklist
+              </label>
+              <p className="text-xs text-slate-500 mb-2">
+                Tambahkan daftar item yang harus diselesaikan dalam task ini
+              </p>
+              <ChecklistEditor
+                items={(formData.checklists as ChecklistItem[]) || []}
+                onChange={(items) => handleChange('checklists', items)}
+                disabled={isReadOnly}
               />
             </div>
 

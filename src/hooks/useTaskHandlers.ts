@@ -2,7 +2,7 @@
 // Comprehensive task handlers - CRUD, drag/drop, comments, activities
 import { useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { Task, Status, Comment, TaskActivity, User, Category, Meeting } from '../../types';
+import { Task, Status, Comment, TaskActivity, User, Category, Meeting, ChecklistItem, ActivityType } from '../../types';
 import { parseMentions } from '../components/MentionInput';
 
 interface UseTaskHandlersProps {
@@ -81,7 +81,7 @@ export const useTaskHandlers = ({
     // Log task activity
     const logTaskActivity = useCallback(async (
         taskId: string,
-        actionType: 'created' | 'status_change' | 'pic_change' | 'priority_change' | 'deadline_change' | 'category_change',
+        actionType: ActivityType,
         oldValue?: string,
         newValue?: string
     ) => {
@@ -237,6 +237,7 @@ export const useTaskHandlers = ({
             attachments: newTaskData.attachments,
             links: newTaskData.links,
             blocked_by: newTaskData.blockedBy || [],
+            checklists: newTaskData.checklists || [],
             created_by_id: userId
         };
 
@@ -557,6 +558,178 @@ export const useTaskHandlers = ({
         }
     }, [viewingTask, checkEditPermission, setEditingTask, setViewingTask, setIsModalOpen]);
 
+    // ==================== CHECKLIST HANDLERS ====================
+
+    // Add checklist item
+    const handleAddChecklistItem = useCallback(async (taskId: string, text: string) => {
+        if (!currentUser) return;
+
+        const task = tasks.find(t => t.id === taskId);
+        if (!task) return;
+
+        const newItem: ChecklistItem = {
+            id: `cl_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            text,
+            isCompleted: false,
+            createdAt: new Date().toISOString()
+        };
+
+        const updatedChecklists = [...(task.checklists || []), newItem];
+
+        // Optimistic update
+        setTasks(prev => prev.map(t =>
+            t.id === taskId ? { ...t, checklists: updatedChecklists } : t
+        ));
+        if (viewingTask && viewingTask.id === taskId) {
+            setViewingTask({ ...viewingTask, checklists: updatedChecklists });
+        }
+
+        const { error } = await supabase
+            .from('tasks')
+            .update({ checklists: updatedChecklists })
+            .eq('id', taskId);
+
+        if (error) {
+            // Rollback on error
+            setTasks(prev => prev.map(t =>
+                t.id === taskId ? { ...t, checklists: task.checklists || [] } : t
+            ));
+            showNotification('Gagal', 'Gagal menambahkan checklist', 'error');
+            return;
+        }
+
+        // Log activity
+        await logTaskActivity(taskId, 'checklist_add', undefined, text);
+    }, [currentUser, tasks, viewingTask, setTasks, setViewingTask, showNotification, logTaskActivity]);
+
+    // Toggle checklist item
+    const handleToggleChecklistItem = useCallback(async (taskId: string, checklistId: string) => {
+        if (!currentUser) return;
+
+        const task = tasks.find(t => t.id === taskId);
+        if (!task) return;
+
+        const checklistItem = task.checklists?.find(c => c.id === checklistId);
+        if (!checklistItem) return;
+
+        const newCompleted = !checklistItem.isCompleted;
+        const updatedChecklists = task.checklists?.map(c => {
+            if (c.id === checklistId) {
+                return {
+                    ...c,
+                    isCompleted: newCompleted,
+                    completedAt: newCompleted ? new Date().toISOString() : undefined,
+                    completedBy: newCompleted ? currentUser.name : undefined
+                };
+            }
+            return c;
+        }) || [];
+
+        // Optimistic update
+        setTasks(prev => prev.map(t =>
+            t.id === taskId ? { ...t, checklists: updatedChecklists } : t
+        ));
+        if (viewingTask && viewingTask.id === taskId) {
+            setViewingTask({ ...viewingTask, checklists: updatedChecklists });
+        }
+
+        const { error } = await supabase
+            .from('tasks')
+            .update({ checklists: updatedChecklists })
+            .eq('id', taskId);
+
+        if (error) {
+            // Rollback on error
+            setTasks(prev => prev.map(t =>
+                t.id === taskId ? { ...t, checklists: task.checklists || [] } : t
+            ));
+            showNotification('Gagal', 'Gagal mengubah status checklist', 'error');
+            return;
+        }
+
+        // Log activity
+        await logTaskActivity(
+            taskId,
+            'checklist_toggle',
+            checklistItem.text,
+            newCompleted ? 'completed' : 'uncompleted'
+        );
+    }, [currentUser, tasks, viewingTask, setTasks, setViewingTask, showNotification, logTaskActivity]);
+
+    // Remove checklist item
+    const handleRemoveChecklistItem = useCallback(async (taskId: string, checklistId: string) => {
+        if (!currentUser) return;
+
+        const task = tasks.find(t => t.id === taskId);
+        if (!task) return;
+
+        const checklistItem = task.checklists?.find(c => c.id === checklistId);
+        if (!checklistItem) return;
+
+        const updatedChecklists = task.checklists?.filter(c => c.id !== checklistId) || [];
+
+        // Optimistic update
+        setTasks(prev => prev.map(t =>
+            t.id === taskId ? { ...t, checklists: updatedChecklists } : t
+        ));
+        if (viewingTask && viewingTask.id === taskId) {
+            setViewingTask({ ...viewingTask, checklists: updatedChecklists });
+        }
+
+        const { error } = await supabase
+            .from('tasks')
+            .update({ checklists: updatedChecklists })
+            .eq('id', taskId);
+
+        if (error) {
+            // Rollback on error
+            setTasks(prev => prev.map(t =>
+                t.id === taskId ? { ...t, checklists: task.checklists || [] } : t
+            ));
+            showNotification('Gagal', 'Gagal menghapus checklist', 'error');
+            return;
+        }
+
+        // Log activity
+        await logTaskActivity(taskId, 'checklist_remove', checklistItem.text, undefined);
+    }, [currentUser, tasks, viewingTask, setTasks, setViewingTask, showNotification, logTaskActivity]);
+
+    // Update checklist item text
+    const handleUpdateChecklistItem = useCallback(async (taskId: string, checklistId: string, newText: string) => {
+        if (!currentUser) return;
+
+        const task = tasks.find(t => t.id === taskId);
+        if (!task) return;
+
+        const updatedChecklists = task.checklists?.map(c => {
+            if (c.id === checklistId) {
+                return { ...c, text: newText };
+            }
+            return c;
+        }) || [];
+
+        // Optimistic update
+        setTasks(prev => prev.map(t =>
+            t.id === taskId ? { ...t, checklists: updatedChecklists } : t
+        ));
+        if (viewingTask && viewingTask.id === taskId) {
+            setViewingTask({ ...viewingTask, checklists: updatedChecklists });
+        }
+
+        const { error } = await supabase
+            .from('tasks')
+            .update({ checklists: updatedChecklists })
+            .eq('id', taskId);
+
+        if (error) {
+            // Rollback on error
+            setTasks(prev => prev.map(t =>
+                t.id === taskId ? { ...t, checklists: task.checklists || [] } : t
+            ));
+            showNotification('Gagal', 'Gagal mengubah checklist', 'error');
+        }
+    }, [currentUser, tasks, viewingTask, setTasks, setViewingTask, showNotification]);
+
     return {
         checkEditPermission,
         checkDeletePermission,
@@ -571,7 +744,12 @@ export const useTaskHandlers = ({
         handleDeleteComment,
         handleTaskClick,
         handleEditClick,
-        handleEditFromView
+        handleEditFromView,
+        // Checklist handlers
+        handleAddChecklistItem,
+        handleToggleChecklistItem,
+        handleRemoveChecklistItem,
+        handleUpdateChecklistItem
     };
 };
 

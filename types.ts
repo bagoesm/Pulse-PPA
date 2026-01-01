@@ -123,6 +123,16 @@ export interface TaskLink {
   url: string;
 }
 
+// Checklist Item untuk Task
+export interface ChecklistItem {
+  id: string;
+  text: string;
+  isCompleted: boolean;
+  createdAt: string;
+  completedAt?: string;
+  completedBy?: string;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -142,6 +152,7 @@ export interface Task {
   isMeeting?: boolean; // Flag untuk menandai task dari meeting
   meetingId?: string; // ID meeting jika task berasal dari meeting
   blockedBy?: string[]; // Task IDs yang harus selesai sebelum task ini bisa dimulai
+  checklists?: ChecklistItem[]; // Daftar checklist items
 }
 
 export interface FilterState {
@@ -216,7 +227,7 @@ export interface DataInventoryItem {
 }
 
 // Task Activity Log
-export type ActivityType = 'created' | 'status_change' | 'pic_change' | 'priority_change' | 'deadline_change' | 'category_change';
+export type ActivityType = 'created' | 'status_change' | 'pic_change' | 'priority_change' | 'deadline_change' | 'category_change' | 'checklist_add' | 'checklist_remove' | 'checklist_toggle';
 
 export interface TaskActivity {
   id: string;

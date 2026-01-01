@@ -34,6 +34,11 @@ interface ModalsContainerProps {
     handleAddComment: (taskId: string, content: string) => Promise<void>;
     handleDeleteComment: (commentId: string) => Promise<void>;
     handleStatusChangeFromView: (taskId: string, newStatus: string) => Promise<void>;
+    // Checklist handlers
+    handleAddChecklistItem: (taskId: string, text: string) => Promise<void>;
+    handleToggleChecklistItem: (taskId: string, checklistId: string) => Promise<void>;
+    handleRemoveChecklistItem: (taskId: string, checklistId: string) => Promise<void>;
+    handleUpdateChecklistItem: (taskId: string, checklistId: string, text: string) => Promise<void>;
 
     // Add Task Modal
     isModalOpen: boolean;
@@ -140,6 +145,7 @@ const ModalsContainer: React.FC<ModalsContainerProps> = (props) => {
         isTaskViewModalOpen, setIsTaskViewModalOpen, viewingTask, setViewingTask,
         checkEditPermission, handleEditFromView, comments, taskActivities,
         handleAddComment, handleDeleteComment, handleStatusChangeFromView,
+        handleAddChecklistItem, handleToggleChecklistItem, handleRemoveChecklistItem, handleUpdateChecklistItem,
         // Add Task Modal
         isModalOpen, setIsModalOpen, editingTask, setEditingTask,
         handleSaveTask, handleDeleteTask, checkDeletePermission, handleAddMeeting,
@@ -196,6 +202,10 @@ const ModalsContainer: React.FC<ModalsContainerProps> = (props) => {
                             setViewingTask(blockingTask);
                         }
                     }}
+                    onAddChecklistItem={handleAddChecklistItem}
+                    onToggleChecklistItem={handleToggleChecklistItem}
+                    onRemoveChecklistItem={handleRemoveChecklistItem}
+                    onUpdateChecklistItem={handleUpdateChecklistItem}
                 />
             </Suspense>
 

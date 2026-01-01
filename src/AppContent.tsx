@@ -285,7 +285,12 @@ const AppContent: React.FC = () => {
     handleDeleteComment,
     handleTaskClick,
     handleEditClick,
-    handleEditFromView
+    handleEditFromView,
+    // Checklist handlers
+    handleAddChecklistItem,
+    handleToggleChecklistItem,
+    handleRemoveChecklistItem,
+    handleUpdateChecklistItem
   } = useTaskHandlers({
     currentUser,
     tasks,
@@ -899,6 +904,11 @@ const AppContent: React.FC = () => {
         handleAddComment={handleAddComment}
         handleDeleteComment={handleDeleteComment}
         handleStatusChangeFromView={handleStatusChangeFromView}
+        // Checklist handlers
+        handleAddChecklistItem={handleAddChecklistItem}
+        handleToggleChecklistItem={handleToggleChecklistItem}
+        handleRemoveChecklistItem={handleRemoveChecklistItem}
+        handleUpdateChecklistItem={handleUpdateChecklistItem}
         // Add Task Modal
         isModalOpen={isModalOpen}
         setIsModalOpen={setIsModalOpen}

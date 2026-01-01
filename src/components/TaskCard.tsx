@@ -1,6 +1,6 @@
 import React from 'react';
 import { Task, Priority, Category, ProjectDefinition, User, Status } from '../../types';
-import { Calendar, Layers, Paperclip, Link2 } from 'lucide-react';
+import { Calendar, Layers, Paperclip, Link2, CheckSquare } from 'lucide-react';
 import PICDisplay from './PICDisplay';
 import ShareButton from './ShareButton';
 
@@ -47,6 +47,11 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({ task, projects, users = 
   // Check how many tasks THIS task is blocking
   const blockedTasks = allTasks.filter(t => t.blockedBy && t.blockedBy.includes(task.id));
   const blocksOthers = blockedTasks.length > 0;
+
+  // Checklist progress
+  const checklistCount = task.checklists?.length || 0;
+  const completedChecklistCount = task.checklists?.filter(c => c.isCompleted).length || 0;
+  const hasChecklists = checklistCount > 0;
 
   return (
     <div
@@ -128,6 +133,15 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({ task, projects, users = 
             >
               <Link2 size={10} className="rotate-90" />
               <span className="text-[9px] sm:text-[10px] font-medium">{blockedTasks.length}</span>
+            </div>
+          )}
+          {hasChecklists && (
+            <div
+              className={`flex items-center gap-1 ${completedChecklistCount === checklistCount ? 'text-green-500' : 'text-slate-400'}`}
+              title={`${completedChecklistCount}/${checklistCount} checklist selesai`}
+            >
+              <CheckSquare size={10} />
+              <span className="text-[9px] sm:text-[10px] font-medium">{completedChecklistCount}/{checklistCount}</span>
             </div>
           )}
         </div>

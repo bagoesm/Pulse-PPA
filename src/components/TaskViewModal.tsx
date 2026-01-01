@@ -7,6 +7,7 @@ import PICDisplay from './PICDisplay';
 import UserAvatar from './UserAvatar';
 import MentionInput, { renderMentionText, renderRichText } from './MentionInput';
 import { formatFileSize, ensureHttps } from '../utils/formatters';
+import ChecklistSection from './ChecklistSection';
 
 interface TaskViewModalProps {
   isOpen: boolean;
@@ -24,6 +25,11 @@ interface TaskViewModalProps {
   onStatusChange?: (taskId: string, newStatus: Status) => void;
   allTasks?: Task[]; // All tasks for resolving blocking task names
   onBlockingTaskClick?: (taskId: string) => void; // Callback when clicking a blocking task
+  // Checklist handlers
+  onAddChecklistItem?: (taskId: string, text: string) => void;
+  onToggleChecklistItem?: (taskId: string, checklistId: string) => void;
+  onRemoveChecklistItem?: (taskId: string, checklistId: string) => void;
+  onUpdateChecklistItem?: (taskId: string, checklistId: string, text: string) => void;
 }
 
 const getPriorityConfig = (priority: Priority) => {
@@ -74,7 +80,11 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
   onDeleteComment,
   onStatusChange,
   allTasks = [],
-  onBlockingTaskClick
+  onBlockingTaskClick,
+  onAddChecklistItem,
+  onToggleChecklistItem,
+  onRemoveChecklistItem,
+  onUpdateChecklistItem
 }) => {
   const [newComment, setNewComment] = useState('');
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
@@ -546,6 +556,18 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                 </div>
               )}
 
+              {/* Checklist Section */}
+              {((task.checklists && task.checklists.length > 0) || canEdit || isCurrentUserPIC()) && (
+                <ChecklistSection
+                  checklists={task.checklists || []}
+                  canEdit={canEdit || isCurrentUserPIC()}
+                  onAdd={(text) => onAddChecklistItem?.(task.id, text)}
+                  onToggle={(id) => onToggleChecklistItem?.(task.id, id)}
+                  onRemove={(id) => onRemoveChecklistItem?.(task.id, id)}
+                  onUpdate={(id, text) => onUpdateChecklistItem?.(task.id, id, text)}
+                />
+              )}
+
               {/* Links */}
               {task.links && task.links.length > 0 && (
                 <div className="flex items-start gap-4">
@@ -793,6 +815,9 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                             case 'priority_change': return '🎯';
                             case 'deadline_change': return '📅';
                             case 'category_change': return '📁';
+                            case 'checklist_add': return '☑️';
+                            case 'checklist_remove': return '❌';
+                            case 'checklist_toggle': return '✅';
                             default: return '📝';
                           }
                         };
@@ -831,6 +856,22 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                                   mengubah kategori dari <span className="font-medium text-gray-700">{activity.oldValue}</span> ke <span className="font-medium text-gray-700">{activity.newValue}</span>
                                 </>
                               );
+                            case 'checklist_add':
+                              return (
+                                <>
+                                  menambahkan checklist: <span className="font-medium text-gray-700">{activity.newValue}</span>
+                                </>
+                              );
+                            case 'checklist_remove':
+                              return (
+                                <>
+                                  menghapus checklist: <span className="font-medium text-gray-700">{activity.oldValue}</span>
+                                </>
+                              );
+                            case 'checklist_toggle':
+                              return activity.newValue === 'completed'
+                                ? (<>menyelesaikan checklist: <span className="font-medium text-gray-700">{activity.oldValue}</span></>)
+                                : (<>membatalkan checklist: <span className="font-medium text-gray-700">{activity.oldValue}</span></>);
                             default:
                               return 'melakukan perubahan';
                           }
