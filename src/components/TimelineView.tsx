@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { Task, User, ProjectDefinition, Priority, Status, Category } from '../../types';
-import { Calendar, User as UserIcon, Clock, X } from 'lucide-react';
+import { Task, User, ProjectDefinition, Priority, Status, Category, Epic } from '../../types';
+import { Calendar, User as UserIcon, Clock, X, ChevronDown, ChevronRight, Layers } from 'lucide-react';
 import SearchableSelect from './SearchableSelect';
 
 interface TimelineViewProps {
@@ -10,11 +10,41 @@ interface TimelineViewProps {
   categories?: any[];
   subCategories?: any[];
   onTaskClick: (task: Task) => void;
+  // Epic props
+  epics?: Epic[];
+  epicFilter?: string; // 'All' or epic ID
+  projectFilter?: string; // 'All' or project ID
 }
 
-const TimelineView: React.FC<TimelineViewProps> = ({ tasks, projects, users, categories = [], subCategories = [], onTaskClick }) => {
+const TimelineView: React.FC<TimelineViewProps> = ({
+  tasks, projects, users, categories = [], subCategories = [], onTaskClick,
+  epics = [], epicFilter = 'All', projectFilter = 'All'
+}) => {
   const [sortBy, setSortBy] = useState<'startDate' | 'priority' | 'status' | 'project'>('startDate');
   const [filterStatus, setFilterStatus] = useState<Status | 'All'>('All');
+  const [expandedEpics, setExpandedEpics] = useState<Set<string>>(new Set());
+  const [timelineViewMode, setTimelineViewMode] = useState<'tasks' | 'epics'>('tasks');
+
+  // Check if filtering by specific project (to show view mode toggle)
+  const isFilteringByProject = projectFilter !== 'All';
+  const projectEpics = isFilteringByProject ? epics.filter(e => e.projectId === projectFilter) : [];
+
+  // Toggle Epic expansion
+  const toggleEpicExpanded = (epicId: string) => {
+    setExpandedEpics(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(epicId)) {
+        newSet.delete(epicId);
+      } else {
+        newSet.add(epicId);
+      }
+      return newSet;
+    });
+  };
+
+  // Check if filtering by specific Epic
+  const isFilteringByEpic = epicFilter !== 'All';
+  const filteredEpic = isFilteringByEpic ? epics.find(e => e.id === epicFilter) : null;
 
   // New Filters
 
@@ -216,11 +246,37 @@ const TimelineView: React.FC<TimelineViewProps> = ({ tasks, projects, users, cat
                   Reset
                 </button>
               )}
+
+              {/* View Mode Toggle - Show when filtering by project */}
+              {isFilteringByProject && projectEpics.length > 0 && (
+                <div className="flex items-center gap-1 bg-slate-200 rounded-lg p-0.5">
+                  <button
+                    onClick={() => setTimelineViewMode('tasks')}
+                    className={`px-2 sm:px-3 py-1 text-xs font-medium rounded-md transition-colors ${timelineViewMode === 'tasks'
+                      ? 'bg-white text-slate-700 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-700'
+                      }`}
+                  >
+                    Tasks
+                  </button>
+                  <button
+                    onClick={() => setTimelineViewMode('epics')}
+                    className={`px-2 sm:px-3 py-1 text-xs font-medium rounded-md transition-colors ${timelineViewMode === 'epics'
+                      ? 'bg-purple-600 text-white shadow-sm'
+                      : 'text-slate-500 hover:text-slate-700'
+                      }`}
+                  >
+                    Epics ({projectEpics.length})
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="text-xs sm:text-sm text-slate-500 font-medium whitespace-nowrap">
-              {filteredAndSortedTasks.length} task{filteredAndSortedTasks.length !== 1 ? 's' : ''}
-              {filteredAndSortedTasks.length !== tasks.length && ` (dari ${tasks.length})`}
+              {timelineViewMode === 'epics' && isFilteringByProject
+                ? `${projectEpics.length} epic${projectEpics.length !== 1 ? 's' : ''}`
+                : `${filteredAndSortedTasks.length} task${filteredAndSortedTasks.length !== 1 ? 's' : ''}${filteredAndSortedTasks.length !== tasks.length ? ` (dari ${tasks.length})` : ''}`
+              }
             </div>
           </div>
 
@@ -255,7 +311,194 @@ const TimelineView: React.FC<TimelineViewProps> = ({ tasks, projects, users, cat
 
           {/* Task Rows */}
           <div>
-            {filteredAndSortedTasks.length > 0 ? (
+            {/* Epic Header Card - Show when filtering by Epic */}
+            {isFilteringByEpic && filteredEpic && (
+              <div className="border-b border-purple-200 bg-purple-50/50">
+                <div
+                  className="flex border-b border-purple-200 cursor-pointer hover:bg-purple-100/50 transition-colors"
+                  onClick={() => toggleEpicExpanded(filteredEpic.id)}
+                >
+                  {/* Epic Info Column */}
+                  <div className="w-80 p-4 shrink-0 border-r border-purple-200 bg-purple-50 sticky left-0 z-10">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-purple-100 text-purple-700 rounded-lg">
+                        <Layers size={20} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          {expandedEpics.has(filteredEpic.id) ? (
+                            <ChevronDown size={16} className="text-purple-600 flex-shrink-0" />
+                          ) : (
+                            <ChevronRight size={16} className="text-purple-600 flex-shrink-0" />
+                          )}
+                          <h3 className="font-bold text-purple-900 text-sm truncate">{filteredEpic.name}</h3>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2 mt-1 text-xs">
+                          <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full font-medium">
+                            {filteredAndSortedTasks.length} Tasks
+                          </span>
+                          {filteredEpic.pic && filteredEpic.pic.length > 0 && (
+                            <span className="flex items-center gap-1 text-purple-600">
+                              <UserIcon size={12} />
+                              {filteredEpic.pic.length === 1
+                                ? filteredEpic.pic[0]
+                                : `${filteredEpic.pic.length} PICs`}
+                            </span>
+                          )}
+                          <span className={`px-2 py-0.5 rounded-full font-medium ${filteredEpic.status === 'Completed' ? 'bg-green-100 text-green-700' :
+                            filteredEpic.status === 'In Progress' ? 'bg-blue-100 text-blue-700' :
+                              'bg-slate-100 text-slate-600'
+                            }`}>
+                            {filteredEpic.status}
+                          </span>
+                        </div>
+                        {filteredEpic.description && (
+                          <p className="text-xs text-purple-600 mt-1 line-clamp-1">{filteredEpic.description}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  {/* Epic Timeline Area - Background pattern */}
+                  <div className="flex-1 relative bg-purple-50/30" style={{ minWidth: `${dates.length * 120}px` }}>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="text-xs text-purple-400 font-medium">
+                        {expandedEpics.has(filteredEpic.id) ? 'Klik untuk collapse tasks' : 'Klik untuk expand tasks'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Epic List View - Show when in epics view mode and filtering by project */}
+            {timelineViewMode === 'epics' && isFilteringByProject && projectEpics.length > 0 && (
+              <>
+                {projectEpics.map(epic => {
+                  const epicTasks = tasks.filter(t => t.epicId === epic.id);
+                  const completedTasks = epicTasks.filter(t => t.status === 'Done');
+                  const progress = epicTasks.length > 0 ? Math.round((completedTasks.length / epicTasks.length) * 100) : 0;
+                  const isExpanded = expandedEpics.has(epic.id);
+
+                  return (
+                    <div key={epic.id}>
+                      {/* Epic Row */}
+                      <div
+                        className="flex border-b border-purple-200 cursor-pointer hover:bg-purple-50/50 transition-colors"
+                        onClick={() => toggleEpicExpanded(epic.id)}
+                      >
+                        {/* Epic Info Column */}
+                        <div className="w-80 p-4 shrink-0 border-r border-purple-200 bg-white sticky left-0 z-10">
+                          <div className="flex items-center gap-3">
+                            <div className={`p-2 rounded-lg ${epic.color === 'purple' ? 'bg-purple-100 text-purple-700' :
+                                epic.color === 'blue' ? 'bg-blue-100 text-blue-700' :
+                                  epic.color === 'green' ? 'bg-emerald-100 text-emerald-700' :
+                                    epic.color === 'orange' ? 'bg-orange-100 text-orange-700' :
+                                      'bg-purple-100 text-purple-700'
+                              }`}>
+                              <Layers size={18} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                {isExpanded ? (
+                                  <ChevronDown size={14} className="text-purple-600 flex-shrink-0" />
+                                ) : (
+                                  <ChevronRight size={14} className="text-purple-600 flex-shrink-0" />
+                                )}
+                                <h4 className="font-semibold text-slate-800 text-sm truncate">{epic.name}</h4>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-2 mt-1 text-xs">
+                                <span className="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded font-medium">
+                                  {epicTasks.length} Tasks
+                                </span>
+                                <span className="text-slate-400">•</span>
+                                <span className="text-slate-500">{progress}% selesai</span>
+                                {epic.pic && epic.pic.length > 0 && (
+                                  <>
+                                    <span className="text-slate-400">•</span>
+                                    <span className="flex items-center gap-1 text-slate-500">
+                                      <UserIcon size={10} />
+                                      {epic.pic.length === 1 ? epic.pic[0] : `${epic.pic.length} PICs`}
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        {/* Epic Progress Bar Area */}
+                        <div className="flex-1 relative" style={{ minWidth: `${dates.length * 120}px` }}>
+                          <div className="absolute inset-0 flex items-center px-4">
+                            <div className="w-full max-w-md">
+                              <div className="flex items-center gap-3">
+                                <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                                  <div
+                                    className={`h-full rounded-full transition-all ${epic.color === 'purple' ? 'bg-purple-500' :
+                                        epic.color === 'blue' ? 'bg-blue-500' :
+                                          epic.color === 'green' ? 'bg-emerald-500' :
+                                            epic.color === 'orange' ? 'bg-orange-500' :
+                                              'bg-purple-500'
+                                      }`}
+                                    style={{ width: `${progress}%` }}
+                                  />
+                                </div>
+                                <span className="text-xs text-slate-500 font-medium w-10">{progress}%</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Expanded Tasks for this Epic */}
+                      {isExpanded && epicTasks.length > 0 && (
+                        <div className="bg-purple-50/20">
+                          {epicTasks.map(task => {
+                            const position = getTaskPosition(task);
+                            const taskPics = Array.isArray(task.pic) ? task.pic : [task.pic];
+                            return (
+                              <div key={task.id} className="flex border-b border-slate-100 hover:bg-slate-50/50 transition-colors min-h-[60px]">
+                                {/* Indented Task Info */}
+                                <div className="w-80 p-3 pl-12 shrink-0 border-r border-slate-200 bg-white sticky left-0 z-10">
+                                  <div className="font-medium text-slate-700 text-xs leading-tight truncate">{task.title}</div>
+                                  <div className="flex items-center gap-2 mt-1 text-[10px] text-slate-500">
+                                    <span className={`px-1.5 py-0.5 rounded-full font-medium ${task.status === 'Done' ? 'bg-green-100 text-green-700' :
+                                        task.status === 'In Progress' ? 'bg-blue-100 text-blue-700' :
+                                          'bg-slate-100 text-slate-600'
+                                      }`}>{task.status}</span>
+                                    <span>{taskPics[0]}</span>
+                                  </div>
+                                </div>
+                                {/* Task Timeline */}
+                                <div className="flex-1 relative" style={{ minWidth: `${dates.length * 120}px` }}>
+                                  {position && (
+                                    <div className="absolute inset-0 flex items-center" style={{ paddingLeft: '12px' }}>
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); onTaskClick(task); }}
+                                        className={`absolute rounded text-white shadow-sm hover:shadow-md transition-all text-[10px] font-medium px-2 py-1 truncate ${getPriorityColor(task.priority, isTaskOverdue(task))}`}
+                                        style={{ left: `${position.left}px`, width: `${position.width}px`, height: '24px', zIndex: 5 }}
+                                      >
+                                        {task.title}
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                      {isExpanded && epicTasks.length === 0 && (
+                        <div className="py-4 px-12 text-sm text-slate-400 italic bg-purple-50/20 border-b border-slate-100">
+                          Belum ada task di epic ini
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </>
+            )}
+
+            {/* Show tasks: normal task view */}
+            {timelineViewMode === 'tasks' && (!isFilteringByEpic || (isFilteringByEpic && filteredEpic && expandedEpics.has(filteredEpic.id))) && filteredAndSortedTasks.length > 0 ? (
               filteredAndSortedTasks.map((task) => {
                 const position = getTaskPosition(task);
                 const project = projects.find(p => p.id === task.projectId);

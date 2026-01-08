@@ -105,16 +105,15 @@ const ProjectListView: React.FC<ProjectListViewProps> = ({
                         <span className="hidden sm:inline">Refresh</span>
                     </button>
 
-                    {canManageProjects && (
-                        <button
-                            onClick={onCreateProject}
-                            className="flex items-center gap-1 sm:gap-2 bg-gov-600 text-white px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg font-medium hover:bg-gov-700 transition-colors shadow-sm text-sm flex-1 sm:flex-none justify-center"
-                        >
-                            <Plus size={14} />
-                            <span className="hidden sm:inline">Buat Project Baru</span>
-                            <span className="sm:hidden">Project</span>
-                        </button>
-                    )}
+                    {/* All users can create projects */}
+                    <button
+                        onClick={onCreateProject}
+                        className="flex items-center gap-1 sm:gap-2 bg-gov-600 text-white px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg font-medium hover:bg-gov-700 transition-colors shadow-sm text-sm flex-1 sm:flex-none justify-center"
+                    >
+                        <Plus size={14} />
+                        <span className="hidden sm:inline">Buat Project Baru</span>
+                        <span className="sm:hidden">Project</span>
+                    </button>
                 </div>
             </div>
 
@@ -353,14 +352,14 @@ const ProjectListView: React.FC<ProjectListViewProps> = ({
                                 >
                                     Reset Filter
                                 </button>
-                            ) : canManageProjects ? (
+                            ) : (
                                 <button
                                     onClick={onCreateProject}
                                     className="px-4 py-2 bg-gov-600 text-white rounded-lg hover:bg-gov-700 transition-colors"
                                 >
                                     Buat Project Pertama
                                 </button>
-                            ) : null}
+                            )}
                         </div>
                     </div>
                 )}

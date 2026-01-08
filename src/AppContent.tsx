@@ -24,9 +24,11 @@ import { useUsers } from './contexts/UsersContext';
 import { useMasterData } from './contexts/MasterDataContext';
 import { useAppContent } from './contexts/AppContentContext';
 import { useUI } from './contexts/UIContext';
+import { useEpics } from './contexts/EpicsContext';
 import { useUserHandlers } from './hooks/useUserHandlers';
 import { useTaskHandlers } from './hooks/useTaskHandlers';
 import { useProjectHandlers } from './hooks/useProjectHandlers';
+import { useEpicHandlers } from './hooks/useEpicHandlers';
 import { useMeetingHandlers } from './hooks/useMeetingHandlers';
 import { useMasterDataHandlers } from './hooks/useMasterDataHandlers';
 import { useTemplateHandlers } from './hooks/useTemplateHandlers';
@@ -86,6 +88,7 @@ const AppContent: React.FC = () => {
   } = useTasks();
 
   const { projects, setProjects } = useProjects();
+  const { epics, setEpics, getEpicsByProject, getEpicProgress } = useEpics();
 
   const {
     meetings, setMeetings,
@@ -152,6 +155,10 @@ const AppContent: React.FC = () => {
     draggedTaskId, setDraggedTaskId,
     suratSubTab, setSuratSubTab,
     projectRefreshTrigger, triggerProjectRefresh,
+    // Epic Modal States
+    isEpicModalOpen, setIsEpicModalOpen,
+    editingEpic, setEditingEpic,
+    defaultEpicProjectId, setDefaultEpicProjectId,
     // Notification & Confirm Modals
     notificationModal, showNotification, hideNotification,
     confirmModal, showConfirm, hideConfirm
@@ -180,7 +187,8 @@ const AppContent: React.FC = () => {
         pic: filters.pic,
         priority: filters.priority,
         status: filters.status,
-        projectId: filters.projectId
+        projectId: filters.projectId,
+        epicId: filters.epicId
       },
       activeTab
     ),
@@ -333,6 +341,18 @@ const AppContent: React.FC = () => {
     editingProject,
     setEditingProject,
     setIsProjectModalOpen,
+    setProjectRefreshTrigger,
+    showNotification
+  });
+
+  // Epic handlers
+  const epicHandlers = useEpicHandlers({
+    currentUser,
+    epics,
+    setEpics,
+    editingEpic,
+    setEditingEpic,
+    setIsEpicModalOpen,
     setProjectRefreshTrigger,
     showNotification
   });
@@ -664,11 +684,23 @@ const AppContent: React.FC = () => {
                   <SearchableSelect
                     options={projects.map(p => ({ value: p.id, label: p.name }))}
                     value={filters.projectId === 'All' ? '' : filters.projectId}
-                    onChange={(val) => setFilters(prev => ({ ...prev, projectId: val || 'All' }))}
+                    onChange={(val) => setFilters(prev => ({ ...prev, projectId: val || 'All', epicId: 'All' }))}
                     placeholder="Project"
                     emptyOption="Semua Project"
                     className="min-w-[120px]"
                   />
+
+                  {/* Epic Filter - only show when a project is selected */}
+                  {filters.projectId !== 'All' && (
+                    <SearchableSelect
+                      options={getEpicsByProject(filters.projectId).map(e => ({ value: e.id, label: e.name }))}
+                      value={filters.epicId === 'All' ? '' : filters.epicId}
+                      onChange={(val) => setFilters(prev => ({ ...prev, epicId: val || 'All' }))}
+                      placeholder="Epic"
+                      emptyOption="Semua Epic"
+                      className="min-w-[100px]"
+                    />
+                  )}
 
                   <SearchableSelect
                     options={allUniquePics.map(pic => ({ value: pic, label: pic }))}
@@ -772,6 +804,18 @@ const AppContent: React.FC = () => {
             users={allUsers}
             meetings={meetings}
             allTasks={tasks}
+            epics={epics}
+            getEpicsByProject={getEpicsByProject}
+            getEpicProgress={getEpicProgress}
+            onEpicClick={(epic) => {
+              // Handle opening epic details or filtering by epic
+            }}
+            onCreateEpic={(projectId) => {
+              setDefaultEpicProjectId(projectId || null);
+              epicHandlers.handleCreateEpic(projectId);
+            }}
+            onEditEpic={epicHandlers.handleEditEpic}
+            onDeleteEpic={epicHandlers.handleDeleteEpic}
           />
         ) : activeTab === 'Saran Masukan' ? (
           <WallOfFeedback
@@ -882,6 +926,9 @@ const AppContent: React.FC = () => {
                 categories={masterCategories}
                 subCategories={masterSubCategories}
                 onTaskClick={handleTaskClick}
+                epics={epics}
+                epicFilter={filters.epicId}
+                projectFilter={filters.projectId}
               />
             )}
           </div>
@@ -927,6 +974,15 @@ const AppContent: React.FC = () => {
         masterSubCategories={masterSubCategories}
         categorySubcategoryRelations={categorySubcategoryRelations}
         allTasks={tasks}
+        epics={epics}
+        // Epic Modal
+        isEpicModalOpen={isEpicModalOpen}
+        setIsEpicModalOpen={setIsEpicModalOpen}
+        editingEpic={editingEpic}
+        setEditingEpic={setEditingEpic}
+        defaultEpicProjectId={defaultEpicProjectId}
+        handleSaveEpic={epicHandlers.handleSaveEpic}
+        handleDeleteEpic={epicHandlers.handleDeleteEpic}
         // Project Modal
         isProjectModalOpen={isProjectModalOpen}
         setIsProjectModalOpen={setIsProjectModalOpen}

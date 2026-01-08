@@ -32,7 +32,7 @@ interface TasksContextType {
     getFilteredTasks: (
         allTasksWithMeetings: Task[],
         debouncedSearch: string,
-        filters: { category: string; pic: string; priority: string; status: string; projectId: string },
+        filters: { category: string; pic: string; priority: string; status: string; projectId: string; epicId: string },
         activeTab: string
     ) => Task[];
 }
@@ -116,7 +116,7 @@ export const TasksProvider: React.FC<TasksProviderProps> = ({ children, session 
     const getFilteredTasks = useCallback((
         allTasksWithMeetings: Task[],
         debouncedSearch: string,
-        filters: { category: string; pic: string; priority: string; status: string; projectId: string },
+        filters: { category: string; pic: string; priority: string; status: string; projectId: string; epicId: string },
         activeTab: string
     ): Task[] => {
         return allTasksWithMeetings.filter(task => {
@@ -131,9 +131,10 @@ export const TasksProvider: React.FC<TasksProviderProps> = ({ children, session 
             const matchesPriority = filters.priority === 'All' || task.priority === filters.priority;
             const matchesStatus = filters.status === 'All' || task.status === filters.status;
             const matchesProject = filters.projectId === 'All' || task.projectId === filters.projectId;
+            const matchesEpic = filters.epicId === 'All' || task.epicId === filters.epicId;
             const matchesSidebar = activeTab === 'Semua Task' || activeTab === 'Dashboard' || task.category === activeTab;
 
-            return matchesSearch && matchesCategory && matchesPic && matchesPriority && matchesStatus && matchesSidebar && matchesProject;
+            return matchesSearch && matchesCategory && matchesPic && matchesPriority && matchesStatus && matchesSidebar && matchesProject && matchesEpic;
         });
     }, []);
 
@@ -199,6 +200,7 @@ export const TasksProvider: React.FC<TasksProviderProps> = ({ children, session 
                             subCategory: safe(t.sub_category) || safe(t.subCategory) || '',
                             startDate: t.start_date || t.startDate || new Date().toISOString().split('T')[0],
                             projectId: t.project_id || t.projectId || null,
+                            epicId: t.epic_id || t.epicId || null,
                             createdBy: createdByName,
                             deadline: t.deadline || (t.deadline_at || null),
                             attachments,

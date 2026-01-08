@@ -2,13 +2,15 @@
 // Refactored - main orchestration component using extracted hooks and components
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Task, ProjectDefinition, User, Meeting } from '../../types';
-import { ArrowLeft, RefreshCw } from 'lucide-react';
+import { Task, ProjectDefinition, User, Meeting, Epic } from '../../types';
+import { ArrowLeft, RefreshCw, Plus } from 'lucide-react';
 
 // Hooks
 import { useProjectData } from '../hooks/useProjectData';
 import { useProjectStats } from '../hooks/useProjectStats';
 import { useProjectFilters } from '../hooks/useProjectFilters';
+import { useProjectLinks } from '../hooks/useProjectLinks';
+import { useNotificationModal } from '../hooks/useModal';
 
 // Components
 import ProjectListView from './ProjectListView';
@@ -16,6 +18,8 @@ import ProjectTasksSection from './ProjectTasksSection';
 import ProjectDocumentsSection from './ProjectDocumentsSection';
 import ProjectLinksSection from './ProjectLinksSection';
 import ProjectTeamSection from './ProjectTeamSection';
+import ProjectEpicsSection from './ProjectEpicsSection';
+import AddProjectLinkModal from './AddProjectLinkModal';
 
 // Icon mapping
 import {
@@ -61,6 +65,14 @@ interface ProjectOverviewProps {
   users?: User[];
   meetings?: Meeting[];
   allTasks?: Task[]; // All tasks for extracting all documents/links
+  // Epic Props
+  epics?: Epic[];
+  onEpicClick?: (epic: Epic) => void;
+  onCreateEpic?: (projectId: string) => void;
+  onEditEpic?: (epic: Epic) => void;
+  onDeleteEpic?: (epicId: string) => Promise<void>;
+  getEpicProgress?: (epicId: string, tasks: Task[]) => number;
+  getEpicsByProject?: (projectId: string) => Epic[];
 }
 
 const ProjectOverview: React.FC<ProjectOverviewProps> = ({
@@ -78,7 +90,14 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
   onUpdatePinnedLinks,
   users = [],
   meetings = [],
-  allTasks = []
+  allTasks = [],
+  epics = [],
+  onEpicClick,
+  onCreateEpic,
+  onEditEpic,
+  onDeleteEpic,
+  getEpicProgress,
+  getEpicsByProject
 }) => {
   // Filters
   const filters = useProjectFilters();
@@ -94,6 +113,13 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
 
   // Stats
   const projectStats = useProjectStats({ fetchProjectTasks });
+
+  // Notification Modal
+  const { showNotification } = useNotificationModal();
+
+  // Project Links (standalone)
+  const projectLinksHook = useProjectLinks(showNotification);
+  const [isAddLinkModalOpen, setIsAddLinkModalOpen] = useState(false);
 
   // Pinned links
   const [pinnedLinkIds, setPinnedLinkIds] = useState<Set<string>>(new Set());
@@ -124,6 +150,13 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
       });
     }
   }, [filters.selectedProjectId, filters.taskSearch, filters.statusFilter, filters.priorityFilter, filters.picFilter, filters.currentPage]);
+
+  // Fetch project links when project selected
+  useEffect(() => {
+    if (filters.selectedProjectId) {
+      projectLinksHook.fetchProjectLinks(filters.selectedProjectId);
+    }
+  }, [filters.selectedProjectId, projectLinksHook.fetchProjectLinks]);
 
   // Load stats for projects
   useEffect(() => {
@@ -369,14 +402,40 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
               users={users}
             />
 
-            <ProjectDocumentsSection documents={documentsList} />
+            {/* Epics Section */}
+            <ProjectEpicsSection
+              epics={getEpicsByProject ? getEpicsByProject(selectedProject.id) : []}
+              projectTasks={projectTasks}
+              getEpicProgress={getEpicProgress || (() => 0)}
+              onEpicClick={onEpicClick}
+              onEditEpic={onEditEpic}
+              onDeleteEpic={onDeleteEpic}
+              onCreateEpic={() => onCreateEpic && onCreateEpic(selectedProject.id)}
+              canManage={canManageProjects || currentUserName === selectedProject.manager}
+            />
+
+            <ProjectDocumentsSection
+              documents={documentsList}
+              projectDocuments={projectLinksHook.projectLinks}
+              onAddDocument={() => setIsAddLinkModalOpen(true)}
+              onDeleteProjectDocument={async (docId) => {
+                await projectLinksHook.deleteProjectLink(docId);
+              }}
+              canManage={canManageProjects || currentUserName === selectedProject.manager}
+            />
 
             <ProjectLinksSection
               links={linksList}
+              projectLinks={projectLinksHook.projectLinks}
               pinnedLinkIds={pinnedLinkIds}
               togglePinLink={togglePinLink}
               linksPage={filters.linksPage}
               setLinksPage={filters.setLinksPage}
+              onAddLink={() => setIsAddLinkModalOpen(true)}
+              onDeleteProjectLink={async (linkId) => {
+                await projectLinksHook.deleteProjectLink(linkId);
+              }}
+              canManage={canManageProjects || currentUserName === selectedProject.manager}
             />
           </div>
 
@@ -388,6 +447,32 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
           />
         </div>
       </div>
+
+      {/* Add Project Link Modal */}
+      <AddProjectLinkModal
+        isOpen={isAddLinkModalOpen}
+        onClose={() => setIsAddLinkModalOpen(false)}
+        projectName={selectedProject.name}
+        onAddLink={async (title, url, description) => {
+          return await projectLinksHook.addProjectLink({
+            projectId: selectedProject.id,
+            title,
+            url,
+            type: 'link',
+            description,
+            createdBy: currentUserName || ''
+          });
+        }}
+        onUploadDocument={async (file, title, description) => {
+          return await projectLinksHook.uploadProjectDocument(
+            selectedProject.id,
+            file,
+            title,
+            description,
+            currentUserName || ''
+          );
+        }}
+      />
     </div>
   );
 };

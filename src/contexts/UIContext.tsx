@@ -1,6 +1,6 @@
 // src/contexts/UIContext.tsx
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
-import { Task, ProjectDefinition, Announcement, FilterState, ViewMode, Meeting } from '../../types';
+import { Task, ProjectDefinition, Announcement, FilterState, ViewMode, Meeting, Epic } from '../../types';
 
 interface NotificationModalState {
     isOpen: boolean;
@@ -59,6 +59,10 @@ interface UIContextType {
     isMeetingFromTask: boolean;
     setIsMeetingFromTask: (isFromTask: boolean) => void;
 
+    // Epic Modal States
+    isEpicModalOpen: boolean;
+    setIsEpicModalOpen: (open: boolean) => void;
+
     // Editing States
     editingTask: Task | null;
     setEditingTask: (task: Task | null) => void;
@@ -72,6 +76,10 @@ interface UIContextType {
     setEditingMeeting: (meeting: Meeting | null) => void;
     viewingMeeting: Meeting | null;
     setViewingMeeting: (meeting: Meeting | null) => void;
+    editingEpic: Epic | null;
+    setEditingEpic: (epic: Epic | null) => void;
+    defaultEpicProjectId: string | null;
+    setDefaultEpicProjectId: (id: string | null) => void;
 
     // Drag State
     draggedTaskId: string | null;
@@ -120,6 +128,7 @@ const defaultFilters: FilterState = {
     priority: 'All',
     status: 'All',
     projectId: 'All',
+    epicId: 'All',
 };
 
 export const UIProvider: React.FC<UIProviderProps> = ({ children }) => {
@@ -159,6 +168,9 @@ export const UIProvider: React.FC<UIProviderProps> = ({ children }) => {
     const [isMeetingViewModalOpen, setIsMeetingViewModalOpen] = useState(false);
     const [isMeetingFromTask, setIsMeetingFromTask] = useState(false);
 
+    // Epic Modal States
+    const [isEpicModalOpen, setIsEpicModalOpen] = useState(false);
+
     // Editing States
     const [editingTask, setEditingTask] = useState<Task | null>(null);
     const [viewingTask, setViewingTask] = useState<Task | null>(null);
@@ -166,6 +178,8 @@ export const UIProvider: React.FC<UIProviderProps> = ({ children }) => {
     const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null);
     const [editingMeeting, setEditingMeeting] = useState<Meeting | null>(null);
     const [viewingMeeting, setViewingMeeting] = useState<Meeting | null>(null);
+    const [editingEpic, setEditingEpic] = useState<Epic | null>(null);
+    const [defaultEpicProjectId, setDefaultEpicProjectId] = useState<string | null>(null);
 
     // Drag State
     const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
@@ -244,6 +258,7 @@ export const UIProvider: React.FC<UIProviderProps> = ({ children }) => {
         isMeetingModalOpen, setIsMeetingModalOpen,
         isMeetingViewModalOpen, setIsMeetingViewModalOpen,
         isMeetingFromTask, setIsMeetingFromTask,
+        isEpicModalOpen, setIsEpicModalOpen,
 
         // Editing States
         editingTask, setEditingTask,
@@ -252,6 +267,8 @@ export const UIProvider: React.FC<UIProviderProps> = ({ children }) => {
         editingAnnouncement, setEditingAnnouncement,
         editingMeeting, setEditingMeeting,
         viewingMeeting, setViewingMeeting,
+        editingEpic, setEditingEpic,
+        defaultEpicProjectId, setDefaultEpicProjectId,
 
         // Drag State
         draggedTaskId, setDraggedTaskId,

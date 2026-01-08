@@ -108,6 +108,25 @@ export interface ProjectDefinition {
   pinnedLinks?: string[]; // Array of link IDs that are pinned
 }
 
+// Epic - Middle layer between Project and Task
+export type EpicStatus = 'Not Started' | 'In Progress' | 'Completed';
+
+export interface Epic {
+  id: string;
+  name: string;
+  description?: string;
+  projectId: string;          // Parent project
+  pic: string[];              // Array of PIC names
+  status: EpicStatus;
+  startDate: string;          // ISO Date string
+  targetDate: string;         // ISO Date string
+  color?: string;             // Theme color
+  icon?: string;              // Icon name
+  createdBy: string;          // User name yang membuat
+  createdAt: string;          // ISO Date string
+  updatedAt?: string;         // ISO Date string
+}
+
 export interface Attachment {
   id: string;
   name: string;
@@ -121,6 +140,21 @@ export interface TaskLink {
   id: string;
   title: string;
   url: string;
+}
+
+// Standalone project links/documents (not from tasks)
+export interface ProjectLink {
+  id: string;
+  projectId: string;
+  title: string;
+  url?: string;           // For links
+  filePath?: string;      // For uploaded files (Supabase storage path)
+  fileName?: string;      // Original file name
+  type: 'link' | 'document';
+  description?: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt?: string;
 }
 
 // Checklist Item untuk Task
@@ -146,6 +180,7 @@ export interface Task {
   description: string;
   createdBy: string; // User Name
   projectId?: string; // OPSIONAL - Task boleh tanpa project
+  epicId?: string; // OPSIONAL - Task boleh tanpa epic
   attachments: Attachment[];
   links: TaskLink[]; // Links related to the task
   comments?: Comment[]; // OPSIONAL - Comments for the task
@@ -162,6 +197,7 @@ export interface FilterState {
   priority: Priority | 'All';
   status: Status | 'All';
   projectId: string | 'All';
+  epicId: string | 'All';
 }
 
 export interface Comment {

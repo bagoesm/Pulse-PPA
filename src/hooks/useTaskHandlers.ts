@@ -234,6 +234,7 @@ export const useTaskHandlers = ({
             status: newTaskData.status,
             description: newTaskData.description,
             project_id: newTaskData.projectId || null,
+            epic_id: newTaskData.epicId || null,
             attachments: newTaskData.attachments,
             links: newTaskData.links,
             blocked_by: newTaskData.blockedBy || [],
@@ -331,6 +332,7 @@ export const useTaskHandlers = ({
             subCategory: data.sub_category,
             startDate: data.start_date,
             projectId: data.project_id,
+            epicId: data.epic_id,
             createdBy: createdByName,
         };
 

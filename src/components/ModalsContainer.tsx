@@ -1,7 +1,8 @@
 // src/components/ModalsContainer.tsx
 // All application modals in one container to reduce AppContent size
 import React, { lazy, Suspense } from 'react';
-import { Task, User, ProjectDefinition, Comment, TaskActivity, Announcement, Meeting, MeetingInviter } from '../../types';
+import { Task, User, ProjectDefinition, Comment, TaskActivity, Announcement, Meeting, MeetingInviter, Epic } from '../../types';
+import AddEpicModal from './AddEpicModal';
 
 // Small modals - regular imports (keep synchronous for fast feedback)
 import AddProjectModal from './AddProjectModal';
@@ -59,6 +60,16 @@ interface ModalsContainerProps {
     masterSubCategories: any[];
     categorySubcategoryRelations: any[];
     allTasks: Task[]; // All tasks for dependency selection
+    epics: Epic[];
+
+    // Epic Modal
+    isEpicModalOpen: boolean;
+    setIsEpicModalOpen: (open: boolean) => void;
+    editingEpic: Epic | null;
+    setEditingEpic: (epic: Epic | null) => void;
+    handleSaveEpic: (epic: Omit<Epic, 'id'> | Epic) => Promise<void>;
+    handleDeleteEpic: (epicId: string) => Promise<void>;
+    defaultEpicProjectId: string | null;
 
     // Add Project Modal
     isProjectModalOpen: boolean;
@@ -173,7 +184,10 @@ const ModalsContainer: React.FC<ModalsContainerProps> = (props) => {
         // Meeting Edit Modal
         isMeetingModalOpen, setIsMeetingModalOpen, editingMeeting, setEditingMeeting,
         isMeetingFromTask, setIsMeetingFromTask, handleSaveMeeting, handleDeleteMeeting,
-        meetingInviters, handleBackToTask
+        meetingInviters, handleBackToTask,
+        // Epics
+        epics, isEpicModalOpen, setIsEpicModalOpen, editingEpic, setEditingEpic,
+        handleSaveEpic, handleDeleteEpic, defaultEpicProjectId
     } = props;
 
     return (
@@ -232,6 +246,7 @@ const ModalsContainer: React.FC<ModalsContainerProps> = (props) => {
                         handleAddMeeting(true);
                     }}
                     allTasks={allTasks}
+                    epics={epics}
                 />
             </Suspense>
 
@@ -345,6 +360,19 @@ const ModalsContainer: React.FC<ModalsContainerProps> = (props) => {
                     onBackToTask={handleBackToTask}
                 />
             </Suspense>
+
+            {/* Add/Edit Epic Modal */}
+            <AddEpicModal
+                isOpen={isEpicModalOpen}
+                onClose={() => { setIsEpicModalOpen(false); setEditingEpic(null); }}
+                onSave={handleSaveEpic}
+                onDelete={handleDeleteEpic}
+                initialData={editingEpic}
+                currentUser={currentUser}
+                projects={projects}
+                users={allUsers}
+                defaultProjectId={defaultEpicProjectId}
+            />
         </>
     );
 };

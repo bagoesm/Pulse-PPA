@@ -70,16 +70,13 @@ export const useProjectHelpers = () => {
                 pinnedLinks: p.pinned_links
             }));
 
-            // Also update global projects state when loading first page without filters
-            if (page === 1 && !search && status === 'All' && manager === 'All') {
-                setProjects(mapped);
-            }
-
+            // Note: Do NOT update global projects state here - that's handled by ProjectsContext.
+            // This function returns paginated data only for ProjectListView.
             return { projects: mapped, totalCount, totalPages };
         }
 
         return { projects: [], totalCount: 0, totalPages: 0 };
-    }, [setProjects]);
+    }, []);
 
     // Get tasks for a specific project with pagination
     const fetchProjectTasks = useCallback(async (projectId: string, filters: TaskFilters = {}) => {

@@ -1,7 +1,7 @@
 // src/components/AddTaskModal.tsx
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { X, Trash2, Lock, Info, Upload, FileText, Paperclip, Download, ExternalLink, Plus, Loader2 } from 'lucide-react';
-import { Task, Category, Priority, Status, User, ProjectDefinition, Attachment, TaskLink, ChecklistItem } from '../../types';
+import { Task, Category, Priority, Status, User, ProjectDefinition, Attachment, TaskLink, ChecklistItem, Epic } from '../../types';
 import { supabase } from '../lib/supabaseClient';
 import { useModals } from '../hooks/useModalHelpers';
 import { useFileUpload } from '../hooks/useFileUpload';
@@ -25,6 +25,7 @@ interface AddTaskModalProps {
   canEdit: boolean;
   canDelete: boolean;
   projects: ProjectDefinition[];
+  epics?: Epic[]; // Epics for selection
   users: User[];
   subCategories: string[];
   masterCategories: any[];
@@ -44,6 +45,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
   canEdit,
   canDelete,
   projects,
+  epics = [],
   users,
   subCategories,
   masterCategories,
@@ -79,6 +81,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
     status: Status.ToDo,
     description: '',
     projectId: '', // Opsional - boleh kosong
+    epicId: '', // Opsional - boleh kosong
     attachments: [],
     links: [],
     blockedBy: [],
@@ -374,6 +377,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
       description: (formData.description || '').trim(),
       createdBy: initialData?.createdBy || currentUser?.name || 'System',
       projectId: formData.projectId || undefined, // Opsional - bisa kosong
+      epicId: formData.epicId || undefined, // Opsional - bisa kosong
       attachments: formData.attachments || [],
       links: formData.links || [],
       blockedBy: formData.blockedBy || [],
@@ -543,6 +547,33 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
                     <div className="text-[12px] italic">{selectedProject.description}</div>
                     <div className="text-[12px] mt-1"><span className="font-medium">PIC:</span> {selectedProject.manager}</div>
                   </div>
+                </div>
+              )}
+
+              {/* Epic Selection - Only show if project is selected */}
+              {formData.projectId && (
+                <div className="mt-3">
+                  <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                    Pilih Epic (Opsional)
+                  </label>
+                  {isReadOnly ? (
+                    <div className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-slate-50 text-slate-500 text-sm">
+                      {epics.find(e => e.id === formData.epicId)?.name || '-- Tidak terkait epic --'}
+                    </div>
+                  ) : (
+                    <SearchableSelect
+                      options={epics
+                        .filter(e => e.projectId === formData.projectId)
+                        .map(e => ({ value: e.id, label: e.name }))}
+                      value={formData.epicId || ''}
+                      onChange={(val) => handleChange('epicId', val)}
+                      placeholder="Cari epic..."
+                      emptyOption="-- Tidak terkait epic --"
+                    />
+                  )}
+                  <p className="text-[10px] text-slate-400 mt-1 italic">
+                    Epic membantu mengelompokkan task-task dalam satu fitur atau milestone.
+                  </p>
                 </div>
               )}
 

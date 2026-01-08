@@ -4,6 +4,7 @@
 // - useUsers() for user data
 // - useTasks() for task data  
 // - useProjects() for project data
+// - useEpics() for epic data
 // - useMeetings() for meeting data
 // - useMasterData() for master data
 // - useAppContent() for feedbacks, templates, announcements, etc.
@@ -12,6 +13,7 @@ import React, { ReactNode, useMemo, useCallback } from 'react';
 import { useUsers } from './UsersContext';
 import { useTasks } from './TasksContext';
 import { useProjects } from './ProjectsContext';
+import { useEpics } from './EpicsContext';
 import { useMeetings } from './MeetingsContext';
 import { useMasterData } from './MasterDataContext';
 import { useAppContent } from './AppContentContext';
@@ -19,6 +21,7 @@ import { useUI } from './UIContext';
 import { UsersProvider } from './UsersContext';
 import { TasksProvider } from './TasksContext';
 import { ProjectsProvider } from './ProjectsContext';
+import { EpicsProvider } from './EpicsContext';
 import { MeetingsProvider } from './MeetingsContext';
 import { MasterDataProvider } from './MasterDataContext';
 import { AppContentProvider } from './AppContentContext';
@@ -37,13 +40,15 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, session })
         <UsersProvider session={session}>
             <MasterDataProvider session={session}>
                 <ProjectsProvider session={session}>
-                    <MeetingsProvider session={session}>
-                        <TasksProvider session={session}>
-                            <AppContentProvider session={session}>
-                                {children}
-                            </AppContentProvider>
-                        </TasksProvider>
-                    </MeetingsProvider>
+                    <EpicsProvider session={session}>
+                        <MeetingsProvider session={session}>
+                            <TasksProvider session={session}>
+                                <AppContentProvider session={session}>
+                                    {children}
+                                </AppContentProvider>
+                            </TasksProvider>
+                        </MeetingsProvider>
+                    </EpicsProvider>
                 </ProjectsProvider>
             </MasterDataProvider>
         </UsersProvider>
@@ -64,6 +69,7 @@ export const useData = () => {
     const users = useUsers();
     const tasks = useTasks();
     const projects = useProjects();
+    const epicsContext = useEpics();
     const meetings = useMeetings();
     const masterData = useMasterData();
     const appContent = useAppContent();
@@ -91,7 +97,8 @@ export const useData = () => {
                 pic: ui.filters.pic,
                 priority: ui.filters.priority,
                 status: ui.filters.status,
-                projectId: ui.filters.projectId
+                projectId: ui.filters.projectId,
+                epicId: ui.filters.epicId
             },
             ui.activeTab
         ),
@@ -102,6 +109,7 @@ export const useData = () => {
     const isDataLoading = users.isUsersLoading ||
         tasks.isTasksLoading ||
         projects.isProjectsLoading ||
+        epicsContext.isEpicsLoading ||
         meetings.isMeetingsLoading ||
         masterData.isMasterDataLoading ||
         appContent.isAppContentLoading;
@@ -155,6 +163,12 @@ export const useData = () => {
         // Projects
         projects: projects.projects,
         setProjects: projects.setProjects,
+
+        // Epics
+        epics: epicsContext.epics,
+        setEpics: epicsContext.setEpics,
+        getEpicsByProject: epicsContext.getEpicsByProject,
+        getEpicProgress: epicsContext.getEpicProgress,
 
         // Meetings
         meetings: meetings.meetings,
