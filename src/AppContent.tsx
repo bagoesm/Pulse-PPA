@@ -387,7 +387,8 @@ const AppContent: React.FC = () => {
     setIsModalOpen,
     showNotification,
     allUsers,
-    createMentionNotification
+    createMentionNotification,
+    createMeetingNotification
   });
 
   // Master data handlers  

@@ -22,6 +22,7 @@ interface UseMeetingHandlersProps {
     showNotification: (title: string, message: string, type?: 'success' | 'error' | 'warning' | 'info') => void;
     allUsers: User[];
     createMentionNotification: (entityId: string, entityTitle: string, mentionerName: string, mentionedNames: string[], isMeeting?: boolean) => Promise<void>;
+    createMeetingNotification: (meetingId: string, meetingTitle: string, meetingDate: string, picNames: string[], inviteeNames: string[], creatorName: string, allUsers: User[]) => Promise<void>;
 }
 
 export const useMeetingHandlers = ({
@@ -40,7 +41,8 @@ export const useMeetingHandlers = ({
     setIsModalOpen,
     showNotification,
     allUsers,
-    createMentionNotification
+    createMentionNotification,
+    createMeetingNotification
 }: UseMeetingHandlersProps) => {
 
     // Permission checks
@@ -233,6 +235,25 @@ export const useMeetingHandlers = ({
                     await createMentionNotification(editingMeeting.id, meetingData.title, currentUser?.name || 'Unknown', addedMentions, true);
                 }
 
+                // Notify newly added PICs and invitees
+                const oldPics = editingMeeting.pic || [];
+                const oldInvitees = editingMeeting.invitees || [];
+                const newPics = (meetingData.pic || []).filter(pic => !oldPics.includes(pic));
+                const newInvitees = (meetingData.invitees || []).filter(inv => !oldInvitees.includes(inv));
+
+                if (newPics.length > 0 || newInvitees.length > 0) {
+                    const formattedDate = new Date(meetingData.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+                    await createMeetingNotification(
+                        editingMeeting.id,
+                        meetingData.title,
+                        formattedDate,
+                        newPics,
+                        newInvitees,
+                        currentUser?.name || 'Unknown',
+                        allUsers
+                    );
+                }
+
                 // Log to activity_logs for admin view
                 await logToActivityLogs('update', editingMeeting.id, meetingData.title, meetingData.projectId);
             } else {
@@ -264,6 +285,18 @@ export const useMeetingHandlers = ({
                         await createMentionNotification(data.id, meetingData.title, currentUser?.name || 'Unknown', allMentions, true);
                     }
 
+                    // Send notifications to PICs and invitees
+                    const formattedDate = new Date(meetingData.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+                    await createMeetingNotification(
+                        data.id,
+                        meetingData.title,
+                        formattedDate,
+                        meetingData.pic || [],
+                        meetingData.invitees || [],
+                        currentUser?.name || 'Unknown',
+                        allUsers
+                    );
+
                     showNotification('Jadwal Ditambahkan!', `"${meetingData.title}" berhasil ditambahkan.`, 'success');
 
                     // Log to activity_logs for admin view
@@ -276,7 +309,7 @@ export const useMeetingHandlers = ({
         } catch (error: any) {
             showNotification('Kesalahan', `Terjadi kesalahan: ${error.message}`, 'error');
         }
-    }, [editingMeeting, mapMeeting, setMeetings, setMeetingInviters, setIsMeetingModalOpen, setEditingMeeting, showNotification, allUsers, createMentionNotification, currentUser, logToActivityLogs]);
+    }, [editingMeeting, mapMeeting, setMeetings, setMeetingInviters, setIsMeetingModalOpen, setEditingMeeting, showNotification, allUsers, createMentionNotification, createMeetingNotification, currentUser, logToActivityLogs]);
 
     const handleDeleteMeeting = useCallback(async (meetingId: string) => {
         try {
