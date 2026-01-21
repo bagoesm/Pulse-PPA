@@ -71,6 +71,7 @@ export const MeetingsProvider: React.FC<MeetingsProviderProps> = ({ children, se
                     type: m.type,
                     description: m.description,
                     date: m.date,
+                    endDate: m.end_date,
                     startTime: m.start_time,
                     endTime: m.end_time,
                     location: m.location,
@@ -96,7 +97,19 @@ export const MeetingsProvider: React.FC<MeetingsProviderProps> = ({ children, se
                     createdBy: m.created_by,
                     createdAt: m.created_at,
                     updatedAt: m.updated_at,
-                    comments: commentsByMeetingId.get(m.id) || []
+                    comments: commentsByMeetingId.get(m.id) || [],
+                    // Field surat undangan
+                    jenisSurat: m.jenis_surat,
+                    nomorSurat: m.nomor_surat,
+                    hal: m.hal,
+                    asalSurat: m.asal_surat,
+                    tujuanSurat: m.tujuan_surat,
+                    klasifikasiSurat: m.klasifikasi_surat,
+                    jenisNaskah: m.jenis_naskah,
+                    tanggalSurat: m.tanggal_surat,
+                    bidangTugas: m.bidang_tugas,
+                    disposisi: m.disposisi,
+                    hasilTindakLanjut: m.hasil_tindak_lanjut
                 }));
                 setMeetings(mappedMeetings);
 

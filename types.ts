@@ -132,10 +132,11 @@ export interface Attachment {
   name: string;
   size: number;
   type: string;
-  path: string;     // <— path file di bucket “attachment”
+  path: string;     // <— path file di bucket "attachment"
   url?: string;     // <— signed URL untuk download
+  isLink?: boolean; // <— flag untuk menandai ini adalah link, bukan file upload
+  suratId?: string; // ID surat jika attachment berasal dari tabel surats
 }
-
 export interface TaskLink {
   id: string;
   title: string;
@@ -312,6 +313,19 @@ export interface Meeting {
   createdBy: string;
   createdAt: string;
   updatedAt?: string;
+  
+  // Field tambahan untuk Surat Undangan/Naskah Dinas
+  jenisSurat?: 'Masuk' | 'Keluar'; // Jenis surat
+  nomorSurat?: string; // Nomor surat
+  hal?: string; // Perihal/Hal surat
+  asalSurat?: string; // Asal surat (K/L/I/Satker) - untuk surat MASUK
+  tujuanSurat?: string; // Tujuan surat (K/L/I/Satker) - untuk surat KELUAR
+  klasifikasiSurat?: string; // Klasifikasi surat
+  jenisNaskah?: string; // Surat/ND/Disposisi/Memorandum
+  tanggalSurat?: string; // Tanggal surat (ISO Date)
+  bidangTugas?: string; // Bidang tugas/kerja
+  disposisi?: string; // Isi disposisi/tindak lanjut
+  hasilTindakLanjut?: string; // Progress dan hasil
 }
 
 export const SIDEBAR_ITEMS = [
@@ -321,6 +335,7 @@ export const SIDEBAR_ITEMS = [
   { name: 'Pengembangan Aplikasi', icon: 'Code' },
   { name: 'Surat & Dokumen', icon: 'FileText' },
   { name: 'Jadwal Kegiatan', icon: 'CalendarDays' },
+  { name: 'Daftar Surat', icon: 'FileSpreadsheet' },
   { name: 'Permintaan Satker', icon: 'Inbox' },
   { name: 'Tindak Lanjut', icon: 'Forward' },
   { name: 'Administrasi', icon: 'FolderOpen' },
@@ -329,3 +344,34 @@ export const SIDEBAR_ITEMS = [
   { name: 'Pengumuman', icon: 'Megaphone' },
   { name: 'Inventori Data', icon: 'Database' },
 ];
+
+// Surat - Separate entity from Meeting
+export interface Surat {
+  id: string;
+  jenisSurat: 'Masuk' | 'Keluar';
+  nomorSurat: string;
+  tanggalSurat: string; // ISO Date
+  hal?: string;
+  asalSurat?: string; // Untuk surat masuk
+  tujuanSurat?: string; // Untuk surat keluar
+  klasifikasiSurat?: string;
+  jenisNaskah?: string;
+  sifatSurat?: string; // Biasa, Segera, Sangat Segera, Rahasia
+  bidangTugas?: string;
+  tanggalDiterima?: string; // ISO Date - untuk surat masuk
+  tanggalDikirim?: string; // ISO Date - untuk surat keluar
+  disposisi?: string; // Untuk surat masuk
+  hasilTindakLanjut?: string;
+  fileSurat?: Attachment;
+  
+  // Relasi ke meeting (opsional)
+  meetingId?: string;
+  tanggalKegiatan?: string; // ISO Date
+  waktuMulai?: string; // HH:mm
+  waktuSelesai?: string; // HH:mm
+  
+  // Metadata
+  createdBy: string;
+  createdAt: string;
+  updatedAt?: string;
+}

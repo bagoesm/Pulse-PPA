@@ -9,6 +9,7 @@ export { ProjectsProvider, useProjects } from './ProjectsContext';
 export { MeetingsProvider, useMeetings } from './MeetingsContext';
 export { MasterDataProvider, useMasterData } from './MasterDataContext';
 export { AppContentProvider, useAppContent } from './AppContentContext';
+export { SuratsProvider, useSurats } from './SuratsContext';
 
 // Legacy aggregate hook (deprecated - use domain-specific hooks instead)
 export { DataProvider, useData } from './DataContext';

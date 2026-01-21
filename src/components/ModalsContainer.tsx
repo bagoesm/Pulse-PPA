@@ -146,6 +146,7 @@ interface ModalsContainerProps {
     handleSaveMeeting: (meeting: any) => Promise<void>;
     handleDeleteMeeting: (meetingId: string) => Promise<void>;
     meetingInviters: MeetingInviter[];
+    meetings: Meeting[]; // All meetings for surat selection
     handleBackToTask: () => void;
 }
 
@@ -184,7 +185,7 @@ const ModalsContainer: React.FC<ModalsContainerProps> = (props) => {
         // Meeting Edit Modal
         isMeetingModalOpen, setIsMeetingModalOpen, editingMeeting, setEditingMeeting,
         isMeetingFromTask, setIsMeetingFromTask, handleSaveMeeting, handleDeleteMeeting,
-        meetingInviters, handleBackToTask,
+        meetingInviters, meetings, handleBackToTask,
         // Epics
         epics, isEpicModalOpen, setIsEpicModalOpen, editingEpic, setEditingEpic,
         handleSaveEpic, handleDeleteEpic, defaultEpicProjectId

@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X, Calendar, Clock, MapPin, Video, Users, Building2, Briefcase, FileText,
   Download, ExternalLink, Edit2, Trash2, GraduationCap, Link2, Send, MessageCircle
 } from 'lucide-react';
 import { Meeting, MeetingType, User, ProjectDefinition, Attachment, Comment } from '../../types';
+import { getAttachmentUrl } from '../utils/storageUtils';
 
 import UserAvatar from './UserAvatar';
 import MentionInput, { renderMentionText, renderRichText } from './MentionInput';
@@ -118,6 +119,34 @@ const MeetingViewModal: React.FC<MeetingViewModalProps> = ({
   allUsers
 }) => {
   const [activeTab, setActiveTab] = useState<Tab>('info');
+  const [refreshedAttachments, setRefreshedAttachments] = useState<{
+    suratUndangan?: string;
+    suratTugas?: string;
+    laporan?: string;
+  }>({});
+
+  // Refresh signed URLs when modal opens
+  useEffect(() => {
+    if (!isOpen || !meeting) return;
+
+    const refreshUrls = async () => {
+      const urls: typeof refreshedAttachments = {};
+      
+      if (meeting.suratUndangan) {
+        urls.suratUndangan = await getAttachmentUrl(meeting.suratUndangan);
+      }
+      if (meeting.suratTugas) {
+        urls.suratTugas = await getAttachmentUrl(meeting.suratTugas);
+      }
+      if (meeting.laporan) {
+        urls.laporan = await getAttachmentUrl(meeting.laporan);
+      }
+
+      setRefreshedAttachments(urls);
+    };
+
+    refreshUrls();
+  }, [isOpen, meeting]);
 
   if (!isOpen || !meeting) return null;
 
@@ -138,27 +167,33 @@ const MeetingViewModal: React.FC<MeetingViewModalProps> = ({
     }
   }
 
-  const renderAttachment = (label: string, attachment?: Attachment) => {
+  const renderAttachment = (label: string, attachment?: Attachment, refreshedUrl?: string) => {
     if (!attachment) return null;
+    const isLink = attachment.isLink;
+    const displayUrl = refreshedUrl || attachment.url;
+    
     return (
       <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-10 h-10 rounded-lg bg-gov-100 flex items-center justify-center">
-            <FileText size={20} className="text-gov-600" />
+            {isLink ? <Link2 size={20} className="text-gov-600" /> : <FileText size={20} className="text-gov-600" />}
           </div>
           <div className="min-w-0">
             <p className="text-sm font-medium text-slate-700 truncate">{label}</p>
-            <p className="text-xs text-slate-500">{attachment.name} • {formatFileSize(attachment.size)}</p>
+            <p className="text-xs text-slate-500">
+              {attachment.name}
+              {isLink ? ' • Link' : ` • ${formatFileSize(attachment.size)}`}
+            </p>
           </div>
         </div>
-        {attachment.url && (
+        {displayUrl && (
           <a
-            href={attachment.url}
+            href={displayUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="p-2 hover:bg-slate-200 rounded-lg text-slate-600 transition-colors"
           >
-            <Download size={18} />
+            {isLink ? <ExternalLink size={18} /> : <Download size={18} />}
           </a>
         )}
       </div>
@@ -370,9 +405,96 @@ const MeetingViewModal: React.FC<MeetingViewModalProps> = ({
                 <div>
                   <p className="text-xs text-slate-500 uppercase font-semibold mb-3">Dokumen</p>
                   <div className="space-y-2">
-                    {renderAttachment('Surat Undangan', meeting.suratUndangan)}
-                    {renderAttachment('Surat Tugas', meeting.suratTugas)}
-                    {renderAttachment('Laporan', meeting.laporan)}
+                    {renderAttachment('Surat Undangan', meeting.suratUndangan, refreshedAttachments.suratUndangan)}
+                    {renderAttachment('Surat Tugas', meeting.suratTugas, refreshedAttachments.suratTugas)}
+                    {renderAttachment('Laporan', meeting.laporan, refreshedAttachments.laporan)}
+                  </div>
+                </div>
+              )}
+
+              {/* Detail Surat */}
+              {(meeting.nomorSurat || meeting.hal || meeting.asalSurat || meeting.tujuanSurat || meeting.klasifikasiSurat || 
+                meeting.jenisNaskah || meeting.tanggalSurat || meeting.bidangTugas || 
+                meeting.disposisi || meeting.hasilTindakLanjut || meeting.jenisSurat) && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <p className="text-xs text-blue-900 uppercase font-bold mb-3">Detail Surat</p>
+                  <div className="space-y-3">
+                    {meeting.jenisSurat && (
+                      <div>
+                        <p className="text-xs text-slate-500 font-semibold">Jenis Surat</p>
+                        <span className={`inline-block text-sm font-medium px-2.5 py-1 rounded-full ${
+                          meeting.jenisSurat === 'Masuk' 
+                            ? 'bg-green-100 text-green-700' 
+                            : 'bg-blue-100 text-blue-700'
+                        }`}>
+                          Surat {meeting.jenisSurat}
+                        </span>
+                      </div>
+                    )}
+                    {meeting.nomorSurat && (
+                      <div>
+                        <p className="text-xs text-slate-500 font-semibold">Nomor Surat</p>
+                        <p className="text-sm text-slate-800">{meeting.nomorSurat}</p>
+                      </div>
+                    )}
+                    {meeting.tanggalSurat && (
+                      <div>
+                        <p className="text-xs text-slate-500 font-semibold">Tanggal Surat</p>
+                        <p className="text-sm text-slate-800">
+                          {new Date(meeting.tanggalSurat).toLocaleDateString('id-ID', { 
+                            day: 'numeric', 
+                            month: 'long', 
+                            year: 'numeric' 
+                          })}
+                        </p>
+                      </div>
+                    )}
+                    {meeting.jenisNaskah && (
+                      <div>
+                        <p className="text-xs text-slate-500 font-semibold">Jenis Naskah</p>
+                        <p className="text-sm text-slate-800">{meeting.jenisNaskah}</p>
+                      </div>
+                    )}
+                    {meeting.klasifikasiSurat && (
+                      <div>
+                        <p className="text-xs text-slate-500 font-semibold">Klasifikasi Surat</p>
+                        <p className="text-sm text-slate-800">{meeting.klasifikasiSurat}</p>
+                      </div>
+                    )}
+                    {meeting.hal && (
+                      <div>
+                        <p className="text-xs text-slate-500 font-semibold">Hal / Perihal</p>
+                        <p className="text-sm text-slate-800">{meeting.hal}</p>
+                      </div>
+                    )}
+                    {(meeting.asalSurat || meeting.tujuanSurat) && (
+                      <div>
+                        <p className="text-xs text-slate-500 font-semibold">
+                          {meeting.jenisSurat === 'Keluar' ? 'Tujuan Surat' : 'Asal Surat'}
+                        </p>
+                        <p className="text-sm text-slate-800">
+                          {meeting.jenisSurat === 'Keluar' ? meeting.tujuanSurat : meeting.asalSurat}
+                        </p>
+                      </div>
+                    )}
+                    {meeting.bidangTugas && (
+                      <div>
+                        <p className="text-xs text-slate-500 font-semibold">Bidang Tugas / Kerja</p>
+                        <p className="text-sm text-slate-800">{meeting.bidangTugas}</p>
+                      </div>
+                    )}
+                    {meeting.disposisi && (
+                      <div>
+                        <p className="text-xs text-slate-500 font-semibold">Isi Disposisi / Tindak Lanjut</p>
+                        <p className="text-sm text-slate-800 whitespace-pre-wrap">{meeting.disposisi}</p>
+                      </div>
+                    )}
+                    {meeting.hasilTindakLanjut && (
+                      <div>
+                        <p className="text-xs text-slate-500 font-semibold">Progress / Hasil Tindak Lanjut</p>
+                        <p className="text-sm text-slate-800 whitespace-pre-wrap">{meeting.hasilTindakLanjut}</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

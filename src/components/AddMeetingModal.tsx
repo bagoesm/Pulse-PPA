@@ -4,11 +4,12 @@ import {
   X, Trash2, Lock, Upload, FileText, Download, Plus, MapPin, Video, Clock, Calendar,
   Building2, Users, Search, Check, Link2, ExternalLink, Loader2
 } from 'lucide-react';
-import { Meeting, MeetingType, MeetingInviter, User, ProjectDefinition, Attachment, TaskLink } from '../../types';
+import { Meeting, MeetingType, MeetingInviter, User, ProjectDefinition, Attachment, TaskLink, Surat } from '../../types';
 import { supabase } from '../lib/supabaseClient';
 import { useModals } from '../hooks/useModalHelpers';
 import { useFileUpload } from '../hooks/useFileUpload';
 import { useAttachmentHandlers } from '../hooks/useAttachmentHandlers';
+import { mapSuratsFromDB } from '../utils/suratMappers';
 import NotificationModal from './NotificationModal';
 import ConfirmModal from './ConfirmModal';
 import MultiSelectChip from './MultiSelectChip';
@@ -110,6 +111,28 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
   const [newLinkTitle, setNewLinkTitle] = useState('');
   const [newLinkUrl, setNewLinkUrl] = useState('');
 
+  // Document link input state
+  const [docLinkInputs, setDocLinkInputs] = useState<{
+    suratUndangan: { title: string; url: string };
+    suratTugas: { title: string; url: string };
+    laporan: { title: string; url: string };
+  }>({
+    suratUndangan: { title: '', url: '' },
+    suratTugas: { title: '', url: '' },
+    laporan: { title: '', url: '' },
+  });
+
+  // Show link input state for each document
+  const [showDocLinkInput, setShowDocLinkInput] = useState<{
+    suratUndangan: boolean;
+    suratTugas: boolean;
+    laporan: boolean;
+  }>({
+    suratUndangan: false,
+    suratTugas: false,
+    laporan: false,
+  });
+
   // Track newly uploaded attachments for cleanup on cancel
   const [newlyUploadedAttachments, setNewlyUploadedAttachments] = useState<Attachment[]>([]);
   // Loading state for save button
@@ -119,7 +142,100 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
   // Loading state for cleanup on close
   const [isCleaningUp, setIsCleaningUp] = useState(false);
 
+  // State for selecting existing surat
+  const [showSuratSelector, setShowSuratSelector] = useState<'suratUndangan' | 'suratTugas' | null>(null);
+  const [suratSearchQuery, setSuratSearchQuery] = useState('');
+  const [availableSurats, setAvailableSurats] = useState<Surat[]>([]);
+  const [isLoadingSurats, setIsLoadingSurats] = useState(false);
+
   const isReadOnly = !!initialData && !canEdit;
+
+  // Fetch available surats when selector opens
+  useEffect(() => {
+    if (showSuratSelector) {
+      const fetchSurats = async () => {
+        setIsLoadingSurats(true);
+        try {
+          const { data, error } = await supabase
+            .from('surats')
+            .select('*')
+            .order('tanggal_surat', { ascending: false });
+
+          if (error) throw error;
+
+          if (data) {
+            setAvailableSurats(mapSuratsFromDB(data));
+          }
+        } catch (error) {
+          console.error('Error fetching surats:', error);
+          showNotification('Gagal Memuat Surat', 'Terjadi kesalahan saat memuat daftar surat', 'error');
+        } finally {
+          setIsLoadingSurats(false);
+        }
+      };
+      fetchSurats();
+    }
+  }, [showSuratSelector, showNotification]);
+
+  // Filter surats for selection
+  const filteredSurats = availableSurats.filter(s => {
+    const query = suratSearchQuery.toLowerCase();
+    return (
+      s.nomorSurat?.toLowerCase().includes(query) ||
+      s.hal?.toLowerCase().includes(query)
+    );
+  });
+
+  // Function to select existing surat
+  const handleSelectExistingSurat = (surat: Surat, target: 'suratUndangan' | 'suratTugas') => {
+    if (surat.fileSurat) {
+      // Add suratId to the attachment for tracking
+      const attachmentWithSuratId = {
+        ...surat.fileSurat,
+        suratId: surat.id // Add surat ID for later linking
+      };
+      
+      handleChange(target, attachmentWithSuratId);
+      
+      // Also copy surat details if not already filled
+      if (!formData.jenisSurat && surat.jenisSurat) {
+        handleChange('jenisSurat', surat.jenisSurat);
+      }
+      if (!formData.nomorSurat && surat.nomorSurat) {
+        handleChange('nomorSurat', surat.nomorSurat);
+      }
+      if (!formData.tanggalSurat && surat.tanggalSurat) {
+        handleChange('tanggalSurat', surat.tanggalSurat);
+      }
+      if (!formData.hal && surat.hal) {
+        handleChange('hal', surat.hal);
+      }
+      if (!formData.asalSurat && surat.asalSurat) {
+        handleChange('asalSurat', surat.asalSurat);
+      }
+      if (!formData.tujuanSurat && surat.tujuanSurat) {
+        handleChange('tujuanSurat', surat.tujuanSurat);
+      }
+      if (!formData.klasifikasiSurat && surat.klasifikasiSurat) {
+        handleChange('klasifikasiSurat', surat.klasifikasiSurat);
+      }
+      if (!formData.jenisNaskah && surat.jenisNaskah) {
+        handleChange('jenisNaskah', surat.jenisNaskah);
+      }
+      if (!formData.bidangTugas && surat.bidangTugas) {
+        handleChange('bidangTugas', surat.bidangTugas);
+      }
+      if (!formData.disposisi && surat.disposisi) {
+        handleChange('disposisi', surat.disposisi);
+      }
+      if (!formData.hasilTindakLanjut && surat.hasilTindakLanjut) {
+        handleChange('hasilTindakLanjut', surat.hasilTindakLanjut);
+      }
+    }
+    setShowSuratSelector(null);
+    setSuratSearchQuery('');
+    showNotification('Surat Dipilih', `Surat ${surat.nomorSurat} berhasil ditambahkan`, 'success');
+  };
 
   // Filter inviters based on search
   const filteredInviters = existingInviters.filter(inv =>
@@ -203,7 +319,8 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
       ...(initialData?.attachments || []).map(a => a.id)
     ].filter(Boolean));
 
-    const attachmentsToClean = newlyUploadedAttachments.filter(a => !originalIds.has(a.id));
+    // Only clean up actual file uploads, not links
+    const attachmentsToClean = newlyUploadedAttachments.filter(a => !originalIds.has(a.id) && !a.isLink);
 
     if (attachmentsToClean.length > 0) {
       setIsCleaningUp(true);
@@ -279,7 +396,8 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
     if (['suratUndangan', 'suratTugas', 'laporan'].includes(target)) {
       const file = formData[target as keyof Meeting] as Attachment | undefined;
 
-      if (file) {
+      // Only remove from storage if it's an actual file, not a link
+      if (file && !file.isLink) {
         await handleRemoveFromStorage(file);
       }
 
@@ -305,7 +423,8 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
       // Remove from attachments array
       const att = formData.attachments?.find(a => a.id === target);
 
-      if (att) {
+      // Only remove from storage if it's an actual file, not a link
+      if (att && !att.isLink) {
         await handleRemoveFromStorage(att);
       }
 
@@ -356,6 +475,22 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
       return;
     }
 
+    // Validasi detail surat jika ada file surat yang diupload
+    if (formData.suratUndangan || formData.suratTugas) {
+      if (!formData.jenisSurat) {
+        showNotification('Jenis Surat Wajib', 'Mohon pilih jenis surat (Masuk/Keluar).', 'warning');
+        return;
+      }
+      if (!formData.nomorSurat?.trim()) {
+        showNotification('Nomor Surat Wajib', 'Mohon isi nomor surat.', 'warning');
+        return;
+      }
+      if (!formData.tanggalSurat) {
+        showNotification('Tanggal Surat Wajib', 'Mohon isi tanggal surat.', 'warning');
+        return;
+      }
+    }
+
     const payload: Omit<Meeting, 'id' | 'createdAt'> = {
       title: formData.title!.trim(),
       type: formData.type as MeetingType,
@@ -380,6 +515,17 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
       status: formData.status || 'scheduled',
       createdBy: initialData?.createdBy || currentUser?.name || 'System',
       updatedAt: new Date().toISOString(),
+      // Field surat undangan
+      jenisSurat: formData.jenisSurat || undefined,
+      nomorSurat: formData.nomorSurat?.trim() || undefined,
+      hal: formData.hal?.trim() || undefined,
+      asalSurat: formData.asalSurat?.trim() || undefined,
+      klasifikasiSurat: formData.klasifikasiSurat?.trim() || undefined,
+      jenisNaskah: formData.jenisNaskah || undefined,
+      tanggalSurat: formData.tanggalSurat || undefined,
+      bidangTugas: formData.bidangTugas?.trim() || undefined,
+      disposisi: formData.disposisi?.trim() || undefined,
+      hasilTindakLanjut: formData.hasilTindakLanjut?.trim() || undefined,
     };
 
     setIsSaving(true);
@@ -428,42 +574,132 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
     showConfirm('Hapus Jadwal', 'Hapus jadwal ini? Tindakan tidak dapat dibatalkan.', () => onDelete(initialData.id), 'error', 'Hapus', 'Batal');
   };
 
-  const renderFileUpload = (label: string, target: 'suratUndangan' | 'suratTugas' | 'laporan', file?: Attachment) => (
-    <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
-      <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">{label}</label>
-      {file ? (
-        <div className="flex items-center justify-between bg-white p-2 rounded border border-slate-200">
-          <div className="flex items-center gap-2 min-w-0">
-            <FileText size={16} className="text-gov-600 shrink-0" />
-            <span className="text-sm text-slate-700 truncate">{file.name}</span>
-            <span className="text-xs text-slate-400">({formatFileSize(file.size)})</span>
+  const handleAddDocLink = (target: 'suratUndangan' | 'suratTugas' | 'laporan') => {
+    const input = docLinkInputs[target];
+    if (!input.title.trim() || !input.url.trim()) {
+      showNotification('Data Tidak Lengkap', 'Mohon isi judul dan URL dokumen.', 'warning');
+      return;
+    }
+
+    let url = input.url.trim();
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      url = 'https://' + url;
+    }
+
+    const linkAttachment: Attachment = {
+      id: `link_${Date.now()}`,
+      name: input.title.trim(),
+      size: 0,
+      type: 'link',
+      path: '',
+      url: url,
+      isLink: true,
+    };
+
+    setFormData(prev => ({ ...prev, [target]: linkAttachment }));
+    setDocLinkInputs(prev => ({ ...prev, [target]: { title: '', url: '' } }));
+    setShowDocLinkInput(prev => ({ ...prev, [target]: false }));
+  };
+
+  const renderFileUpload = (label: string, target: 'suratUndangan' | 'suratTugas' | 'laporan', file?: Attachment) => {
+    const showLinkInput = showDocLinkInput[target];
+
+    return (
+      <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+        <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">{label}</label>
+        {file ? (
+          <div className="flex items-center justify-between bg-white p-2 rounded border border-slate-200">
+            <div className="flex items-center gap-2 min-w-0">
+              {file.isLink ? <Link2 size={16} className="text-gov-600 shrink-0" /> : <FileText size={16} className="text-gov-600 shrink-0" />}
+              <span className="text-sm text-slate-700 truncate">{file.name}</span>
+              {!file.isLink && <span className="text-xs text-slate-400">({formatFileSize(file.size)})</span>}
+              {file.isLink && <span className="text-xs text-gov-500">(Link)</span>}
+            </div>
+            <div className="flex items-center gap-1">
+              {file.url && (
+                <button type="button" onClick={() => window.open(file.url, '_blank')} className="p-1.5 hover:bg-slate-100 rounded text-slate-500">
+                  {file.isLink ? <ExternalLink size={14} /> : <Download size={14} />}
+                </button>
+              )}
+              {!isReadOnly && (
+                <button type="button" onClick={() => removeFile(target)} className="p-1.5 hover:bg-red-50 rounded text-red-500">
+                  <Trash2 size={14} />
+                </button>
+              )}
+            </div>
           </div>
-          <div className="flex items-center gap-1">
-            {file.url && (
-              <button type="button" onClick={() => window.open(file.url, '_blank')} className="p-1.5 hover:bg-slate-100 rounded text-slate-500">
-                <Download size={14} />
+        ) : showLinkInput ? (
+          <div className="space-y-2 bg-white p-3 rounded-lg border border-slate-300">
+            <input
+              type="text"
+              value={docLinkInputs[target].title}
+              onChange={(e) => setDocLinkInputs(prev => ({ ...prev, [target]: { ...prev[target], title: e.target.value } }))}
+              placeholder="Judul dokumen..."
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm"
+            />
+            <input
+              type="url"
+              value={docLinkInputs[target].url}
+              onChange={(e) => setDocLinkInputs(prev => ({ ...prev, [target]: { ...prev[target], url: e.target.value } }))}
+              placeholder="https://..."
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm"
+            />
+            <div className="flex gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => handleAddDocLink(target)}
+                className="flex-1 py-2.5 bg-gov-600 text-white rounded-lg text-sm font-medium hover:bg-gov-700 transition-colors"
+              >
+                Simpan
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowDocLinkInput(prev => ({ ...prev, [target]: false }));
+                  setDocLinkInputs(prev => ({ ...prev, [target]: { title: '', url: '' } }));
+                }}
+                className="flex-1 py-2.5 bg-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-300 transition-colors"
+              >
+                Batal
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-2">
+            <button
+              type="button"
+              onClick={() => triggerFileUpload(target)}
+              disabled={isReadOnly}
+              className="w-full py-2.5 border-2 border-dashed border-slate-300 rounded-lg text-sm text-slate-600 hover:border-gov-400 hover:text-gov-600 hover:bg-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              <Upload size={16} />
+              Upload File
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowDocLinkInput(prev => ({ ...prev, [target]: true }))}
+              disabled={isReadOnly}
+              className="w-full py-2.5 border border-slate-300 rounded-lg text-sm text-slate-600 hover:border-gov-400 hover:text-gov-600 hover:bg-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              <Link2 size={16} />
+              Tambah Link
+            </button>
+            {(target === 'suratUndangan' || target === 'suratTugas') && (
+              <button
+                type="button"
+                onClick={() => setShowSuratSelector(target)}
+                disabled={isReadOnly}
+                className="w-full py-2.5 border border-blue-300 bg-blue-50 rounded-lg text-sm text-blue-700 hover:border-blue-400 hover:bg-blue-100 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                <FileText size={16} />
+                Pilih Surat yang Ada
               </button>
             )}
-            {!isReadOnly && (
-              <button type="button" onClick={() => removeFile(target)} className="p-1.5 hover:bg-red-50 rounded text-red-500">
-                <Trash2 size={14} />
-              </button>
-            )}
           </div>
-        </div>
-      ) : (
-        <button
-          type="button"
-          onClick={() => triggerFileUpload(target)}
-          disabled={isReadOnly}
-          className="w-full py-3 border-2 border-dashed border-slate-300 rounded-lg text-sm text-slate-500 hover:border-gov-400 hover:text-gov-600 transition-colors disabled:opacity-50"
-        >
-          <Upload size={16} className="inline mr-2" />
-          Upload {label}
-        </button>
-      )}
-    </div>
-  );
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/40 backdrop-blur-sm">
@@ -842,6 +1078,185 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
               </div>
             </div>
 
+            {/* Detail Surat Section - Only show if any surat file is uploaded */}
+            {(formData.suratUndangan || formData.suratTugas) && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
+                <h3 className="text-sm font-bold text-blue-900 uppercase tracking-wider">Detail Surat</h3>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Jenis Surat */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                      Jenis Surat <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      disabled={isReadOnly}
+                      value={formData.jenisSurat || ''}
+                      onChange={(e) => handleChange('jenisSurat', e.target.value as 'Masuk' | 'Keluar')}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm bg-white disabled:bg-slate-50"
+                    >
+                      <option value="">-- Pilih Jenis --</option>
+                      <option value="Masuk">Surat Masuk</option>
+                      <option value="Keluar">Surat Keluar</option>
+                    </select>
+                  </div>
+
+                  {/* Nomor Surat */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                      Nomor Surat <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      disabled={isReadOnly}
+                      value={formData.nomorSurat || ''}
+                      onChange={(e) => handleChange('nomorSurat', e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm disabled:bg-slate-50"
+                      placeholder="Contoh: 123/ABC/2024"
+                    />
+                  </div>
+
+                  {/* Tanggal Surat */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                      Tanggal Surat <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      disabled={isReadOnly}
+                      value={formData.tanggalSurat || ''}
+                      onChange={(e) => handleChange('tanggalSurat', e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm disabled:bg-slate-50"
+                    />
+                  </div>
+
+                  {/* Jenis Naskah */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Jenis Naskah</label>
+                    <select
+                      disabled={isReadOnly}
+                      value={formData.jenisNaskah || ''}
+                      onChange={(e) => handleChange('jenisNaskah', e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm bg-white disabled:bg-slate-50"
+                    >
+                      <option value="">-- Pilih Jenis --</option>
+                      <option value="Surat">Surat</option>
+                      <option value="Nota Dinas">Nota Dinas</option>
+                      <option value="Surat Edaran">Surat Edaran</option>
+                      <option value="Surat Keputusan">Surat Keputusan</option>
+                      <option value="Surat Perintah">Surat Perintah</option>
+                      <option value="Surat Tugas">Surat Tugas</option>
+                      <option value="Surat Undangan">Surat Undangan</option>
+                      <option value="Disposisi">Disposisi</option>
+                      <option value="Memorandum">Memorandum</option>
+                    </select>
+                  </div>
+
+                  {/* Klasifikasi Surat */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Klasifikasi Surat</label>
+                    <input
+                      type="text"
+                      disabled={isReadOnly}
+                      value={formData.klasifikasiSurat || ''}
+                      onChange={(e) => handleChange('klasifikasiSurat', e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm disabled:bg-slate-50"
+                      placeholder="Contoh: Biasa, Rahasia, dll"
+                    />
+                  </div>
+                </div>
+
+                {/* Hal/Perihal */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Hal / Perihal</label>
+                  <input
+                    type="text"
+                    disabled={isReadOnly}
+                    value={formData.hal || ''}
+                    onChange={(e) => handleChange('hal', e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm disabled:bg-slate-50"
+                    placeholder="Perihal surat..."
+                  />
+                </div>
+
+                {/* Asal/Tujuan Surat - Conditional based on jenis surat */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                      {formData.jenisSurat === 'Keluar' ? 'Kepada (Penerima)' : 'Dari (Pengirim)'}
+                    </label>
+                    {formData.jenisSurat === 'Keluar' ? (
+                      <input
+                        type="text"
+                        disabled={isReadOnly}
+                        value={formData.tujuanSurat || ''}
+                        onChange={(e) => handleChange('tujuanSurat', e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm disabled:bg-slate-50"
+                        placeholder="Nama K/L/Instansi/Satker tujuan"
+                      />
+                    ) : (
+                      <input
+                        type="text"
+                        disabled={isReadOnly}
+                        value={formData.asalSurat || ''}
+                        onChange={(e) => handleChange('asalSurat', e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm disabled:bg-slate-50"
+                        placeholder="Nama K/L/Instansi/Satker pengirim"
+                      />
+                    )}
+                  </div>
+
+                  {/* Bidang Tugas */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Bidang Tugas / Kerja</label>
+                    <input
+                      type="text"
+                      disabled={isReadOnly}
+                      value={formData.bidangTugas || ''}
+                      onChange={(e) => handleChange('bidangTugas', e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm disabled:bg-slate-50"
+                      placeholder="Bidang tugas terkait"
+                    />
+                  </div>
+                </div>
+
+                {/* Disposisi - Only for Surat Masuk */}
+                {formData.jenisSurat === 'Masuk' && (
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                      Disposisi / Instruksi Pimpinan
+                    </label>
+                    <textarea
+                      disabled={isReadOnly}
+                      value={formData.disposisi || ''}
+                      onChange={(e) => handleChange('disposisi', e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm disabled:bg-slate-50 resize-none"
+                      placeholder="Instruksi atau arahan dari pimpinan terkait surat masuk ini..."
+                      rows={3}
+                    />
+                  </div>
+                )}
+
+                {/* Hasil Tindak Lanjut / Catatan */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                    {formData.jenisSurat === 'Masuk' ? 'Hasil Tindak Lanjut' : 'Catatan / Keterangan'}
+                  </label>
+                  <textarea
+                    disabled={isReadOnly}
+                    value={formData.hasilTindakLanjut || ''}
+                    onChange={(e) => handleChange('hasilTindakLanjut', e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm disabled:bg-slate-50 resize-none"
+                    placeholder={formData.jenisSurat === 'Masuk' 
+                      ? 'Progress dan hasil tindak lanjut dari disposisi...'
+                      : 'Catatan tambahan terkait surat keluar ini...'
+                    }
+                    rows={3}
+                  />
+                </div>
+              </div>
+            )}
+
             {/* Additional Attachments */}
             <div>
               <div className="flex justify-between items-center mb-2">
@@ -1041,6 +1456,119 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
         confirmText={confirmModal.confirmText}
         cancelText={confirmModal.cancelText}
       />
+
+      {/* Surat Selector Modal */}
+      {showSuratSelector && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <FileText size={24} />
+                  <h3 className="text-xl font-bold">Pilih Surat yang Ada</h3>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowSuratSelector(null);
+                    setSuratSearchQuery('');
+                  }}
+                  className="p-1.5 hover:bg-white/20 rounded-lg transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-4 border-b border-slate-200">
+              <div className="relative">
+                <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  value={suratSearchQuery}
+                  onChange={(e) => setSuratSearchQuery(e.target.value)}
+                  placeholder="Cari nomor surat, perihal..."
+                  className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none text-sm"
+                  autoFocus
+                />
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 space-y-2">
+              {isLoadingSurats ? (
+                <div className="text-center py-12">
+                  <Loader2 size={48} className="mx-auto mb-3 text-gov-600 animate-spin" />
+                  <p className="text-slate-600 font-medium">Memuat daftar surat...</p>
+                </div>
+              ) : filteredSurats.length === 0 ? (
+                <div className="text-center py-12">
+                  <FileText size={48} className="mx-auto mb-3 text-slate-300" />
+                  <p className="text-slate-600 font-medium">Tidak ada surat ditemukan</p>
+                  <p className="text-sm text-slate-400 mt-1">Coba ubah kata kunci pencarian</p>
+                </div>
+              ) : (
+                filteredSurats.map(surat => (
+                  <button
+                    key={surat.id}
+                    onClick={() => handleSelectExistingSurat(surat, showSuratSelector!)}
+                    className="w-full text-left p-4 border border-slate-200 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition-colors"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          {surat.jenisSurat && (
+                            <span className={`text-xs font-semibold px-2 py-0.5 rounded ${
+                              surat.jenisSurat === 'Masuk' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+                            }`}>
+                              {surat.jenisSurat}
+                            </span>
+                          )}
+                          <span className="text-sm font-bold text-slate-800">{surat.nomorSurat || 'Tanpa Nomor'}</span>
+                        </div>
+                        <p className="text-sm text-slate-700 font-medium mb-1">{surat.hal || '-'}</p>
+                        {surat.asalSurat && (
+                          <p className="text-xs text-slate-500">Dari: {surat.asalSurat}</p>
+                        )}
+                        {surat.tujuanSurat && (
+                          <p className="text-xs text-slate-500">Kepada: {surat.tujuanSurat}</p>
+                        )}
+                        {surat.tanggalSurat && (
+                          <p className="text-xs text-slate-500 mt-1">
+                            Tanggal: {new Date(surat.tanggalSurat).toLocaleDateString('id-ID', { 
+                              day: 'numeric', 
+                              month: 'long', 
+                              year: 'numeric' 
+                            })}
+                          </p>
+                        )}
+                      </div>
+                      <div className="shrink-0">
+                        {surat.fileSurat && (
+                          <div className="flex items-center gap-1 text-xs text-gov-600 bg-gov-50 px-2 py-1 rounded">
+                            {surat.fileSurat.isLink ? <Link2 size={12} /> : <FileText size={12} />}
+                            <span>Tersedia</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+
+            <div className="p-4 border-t border-slate-200 bg-slate-50">
+              <button
+                onClick={() => {
+                  setShowSuratSelector(null);
+                  setSuratSearchQuery('');
+                }}
+                className="w-full px-4 py-2.5 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-100 transition-colors font-medium"
+              >
+                Batal
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

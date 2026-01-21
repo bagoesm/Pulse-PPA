@@ -48,6 +48,7 @@ const DocumentTemplates = lazy(() => import('./components/DocumentTemplates'));
 const DataInventory = lazy(() => import('./components/DataInventory'));
 const AnnouncementManager = lazy(() => import('./components/AnnouncementManager'));
 const MeetingCalendar = lazy(() => import('./components/MeetingCalendar'));
+const SuratListView = lazy(() => import('./components/SuratListView'));
 const AddMeetingModal = lazy(() => import('./components/AddMeetingModal'));
 const MeetingViewModal = lazy(() => import('./components/MeetingViewModal'));
 const ActivityLogPage = lazy(() => import('./components/ActivityLogPage'));
@@ -92,7 +93,8 @@ const AppContent: React.FC = () => {
 
   const {
     meetings, setMeetings,
-    meetingInviters, setMeetingInviters
+    meetingInviters, setMeetingInviters,
+    fetchMeetings
   } = useMeetings();
 
   const {
@@ -565,7 +567,7 @@ const AppContent: React.FC = () => {
         )}
 
         {/* Top Header / Filter Bar - HIDDEN for special pages */}
-        {activeTab !== 'Dashboard' && activeTab !== 'Project' && activeTab !== 'Master Data' && activeTab !== 'Saran Masukan' && activeTab !== 'Pengumuman' && activeTab !== 'Inventori Data' && activeTab !== 'Jadwal Kegiatan' && activeTab !== 'Activity Log' && (
+        {activeTab !== 'Dashboard' && activeTab !== 'Project' && activeTab !== 'Master Data' && activeTab !== 'Saran Masukan' && activeTab !== 'Pengumuman' && activeTab !== 'Inventori Data' && activeTab !== 'Jadwal Kegiatan' && activeTab !== 'Daftar Surat' && activeTab !== 'Activity Log' && (
           <header className="bg-white border-b border-slate-200 px-3 sm:px-6 py-3 sm:py-4 z-20 relative">
             <div className="flex flex-col gap-3 sm:gap-4 mb-3 sm:mb-4">
               {/* Title Section */}
@@ -848,6 +850,11 @@ const AppContent: React.FC = () => {
             onEditMeeting={handleEditMeeting}
             onViewMeeting={handleViewMeeting}
           />
+        ) : activeTab === 'Daftar Surat' ? (
+          <SuratListView
+            currentUser={currentUser}
+            showNotification={showNotification}
+          />
         ) : activeTab === 'Inventori Data' ? (
           <DataInventory
             items={dataInventory}
@@ -1035,6 +1042,7 @@ const AppContent: React.FC = () => {
         handleSaveMeeting={handleSaveMeeting}
         handleDeleteMeeting={handleDeleteMeeting}
         meetingInviters={meetingInviters}
+        meetings={meetings}
         handleBackToTask={handleBackToTask}
       />
     </div >

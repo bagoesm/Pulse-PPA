@@ -95,7 +95,19 @@ export const useMeetingHandlers = ({
         status: data.status,
         createdBy: data.created_by,
         createdAt: data.created_at,
-        updatedAt: data.updated_at
+        updatedAt: data.updated_at,
+        // Field surat undangan
+        jenisSurat: data.jenis_surat,
+        nomorSurat: data.nomor_surat,
+        hal: data.hal,
+        asalSurat: data.asal_surat,
+        tujuanSurat: data.tujuan_surat,
+        klasifikasiSurat: data.klasifikasi_surat,
+        jenisNaskah: data.jenis_naskah,
+        tanggalSurat: data.tanggal_surat,
+        bidangTugas: data.bidang_tugas,
+        disposisi: data.disposisi,
+        hasilTindakLanjut: data.hasil_tindak_lanjut
     }), []);
 
     // Helper to log to activity_logs table (for admin view)
@@ -189,7 +201,19 @@ export const useMeetingHandlers = ({
                 notes: meetingData.notes,
                 status: meetingData.status,
                 created_by: meetingData.createdBy,
-                updated_at: new Date().toISOString()
+                updated_at: new Date().toISOString(),
+                // Field surat undangan
+                jenis_surat: meetingData.jenisSurat || null,
+                nomor_surat: meetingData.nomorSurat || null,
+                hal: meetingData.hal || null,
+                asal_surat: meetingData.jenisSurat === 'Masuk' ? (meetingData.asalSurat || null) : null,
+                tujuan_surat: meetingData.jenisSurat === 'Keluar' ? (meetingData.tujuanSurat || null) : null,
+                klasifikasi_surat: meetingData.klasifikasiSurat || null,
+                jenis_naskah: meetingData.jenisNaskah || null,
+                tanggal_surat: meetingData.tanggalSurat || null,
+                bidang_tugas: meetingData.bidangTugas || null,
+                disposisi: meetingData.disposisi || null,
+                hasil_tindak_lanjut: meetingData.hasilTindakLanjut || null
             };
 
             if (editingMeeting) {
@@ -274,6 +298,130 @@ export const useMeetingHandlers = ({
 
                     if (meetingData.inviter?.id && meetingData.inviter?.name) {
                         setMeetingInviters(prev => [...prev, meetingData.inviter]);
+                    }
+
+                    // Handle surat files - either update existing or create new entries
+                    const suratPromises: Promise<any>[] = [];
+                    
+                    // Helper function to extract surat ID from file metadata
+                    const extractSuratId = (attachment: any): string | null => {
+                      return attachment?.suratId || null;
+                    };
+                    
+                    // Helper function to create new surat entry
+                    const createSuratEntry = async (
+                      attachment: any, 
+                      meetingId: string, 
+                      meetingDate: string,
+                      startTime: string,
+                      endTime: string,
+                      meetingData: any,
+                      suratType: 'undangan' | 'tugas' // To differentiate between the two
+                    ) => {
+                      // Only create if we have surat details
+                      if (!meetingData.nomorSurat || !meetingData.tanggalSurat || !meetingData.jenisSurat) {
+                        return;
+                      }
+                      
+                      // Add suffix to nomor surat if both undangan and tugas exist
+                      let nomorSurat = meetingData.nomorSurat;
+                      if (meetingData.suratUndangan && meetingData.suratTugas) {
+                        // Both exist, add suffix
+                        nomorSurat = suratType === 'undangan' 
+                          ? `${meetingData.nomorSurat} (Undangan)`
+                          : `${meetingData.nomorSurat} (Tugas)`;
+                      }
+                      
+                      const suratPayload = {
+                        jenis_surat: meetingData.jenisSurat,
+                        nomor_surat: nomorSurat,
+                        tanggal_surat: meetingData.tanggalSurat,
+                        hal: meetingData.hal || null,
+                        asal_surat: meetingData.jenisSurat === 'Masuk' ? (meetingData.asalSurat || null) : null,
+                        tujuan_surat: meetingData.jenisSurat === 'Keluar' ? (meetingData.tujuanSurat || null) : null,
+                        klasifikasi_surat: meetingData.klasifikasiSurat || null,
+                        jenis_naskah: suratType === 'undangan' ? 'Surat Undangan' : 'Surat Tugas', // Auto-set based on type
+                        bidang_tugas: meetingData.bidangTugas || null,
+                        disposisi: meetingData.jenisSurat === 'Masuk' ? (meetingData.disposisi || null) : null,
+                        hasil_tindak_lanjut: meetingData.hasilTindakLanjut || null,
+                        file_surat: attachment,
+                        meeting_id: meetingId,
+                        tanggal_kegiatan: meetingDate,
+                        waktu_mulai: startTime,
+                        waktu_selesai: endTime,
+                        created_by: meetingData.createdBy,
+                        created_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString()
+                      };
+                      
+                      return supabase.from('surats').insert([suratPayload]);
+                    };
+                    
+                    // Handle surat undangan
+                    if (meetingData.suratUndangan) {
+                      const suratId = extractSuratId(meetingData.suratUndangan);
+                      if (suratId) {
+                        // Update existing surat
+                        suratPromises.push(
+                          supabase.from('surats').update({
+                            meeting_id: data.id,
+                            tanggal_kegiatan: meetingData.date,
+                            waktu_mulai: meetingData.startTime,
+                            waktu_selesai: meetingData.endTime,
+                            updated_at: new Date().toISOString()
+                          }).eq('id', suratId)
+                        );
+                      } else {
+                        // Create new surat entry
+                        const createPromise = createSuratEntry(
+                          meetingData.suratUndangan,
+                          data.id,
+                          meetingData.date,
+                          meetingData.startTime,
+                          meetingData.endTime,
+                          meetingData,
+                          'undangan'
+                        );
+                        if (createPromise) {
+                          suratPromises.push(createPromise);
+                        }
+                      }
+                    }
+                    
+                    // Handle surat tugas
+                    if (meetingData.suratTugas) {
+                      const suratId = extractSuratId(meetingData.suratTugas);
+                      if (suratId) {
+                        // Update existing surat
+                        suratPromises.push(
+                          supabase.from('surats').update({
+                            meeting_id: data.id,
+                            tanggal_kegiatan: meetingData.date,
+                            waktu_mulai: meetingData.startTime,
+                            waktu_selesai: meetingData.endTime,
+                            updated_at: new Date().toISOString()
+                          }).eq('id', suratId)
+                        );
+                      } else {
+                        // Create new surat entry
+                        const createPromise = createSuratEntry(
+                          meetingData.suratTugas,
+                          data.id,
+                          meetingData.date,
+                          meetingData.startTime,
+                          meetingData.endTime,
+                          meetingData,
+                          'tugas'
+                        );
+                        if (createPromise) {
+                          suratPromises.push(createPromise);
+                        }
+                      }
+                    }
+                    
+                    // Execute all surat operations
+                    if (suratPromises.length > 0) {
+                      await Promise.all(suratPromises);
                     }
 
                     // Send mention notifications for mentions in description/notes

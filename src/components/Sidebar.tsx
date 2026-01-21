@@ -18,7 +18,8 @@ import {
   Code,
   Settings,
   Megaphone,
-  CalendarDays
+  CalendarDays,
+  FileSpreadsheet
 } from 'lucide-react';
 import { SIDEBAR_ITEMS, User } from '../../types';
 
@@ -48,7 +49,8 @@ const IconMap: Record<string, React.ElementType> = {
   'Code': Code,
   'Megaphone': Megaphone,
   'Database': Database,
-  'CalendarDays': CalendarDays
+  'CalendarDays': CalendarDays,
+  'FileSpreadsheet': FileSpreadsheet
 };
 
 const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser, users, onSwitchUser, onLogout }) => {
