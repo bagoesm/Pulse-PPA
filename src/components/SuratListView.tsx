@@ -2,7 +2,8 @@
 import React, { useState, useMemo } from 'react';
 import { 
   FileText, Calendar, Building2,
-  X, Search, FileDown, Link2, Eye, Plus
+  X, Search, FileDown, Link2, Eye, Plus,
+  ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { Surat, User } from '../../types';
 import { supabase } from '../lib/supabaseClient';
@@ -29,6 +30,10 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
   const [showAddSuratModal, setShowAddSuratModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedSurat, setSelectedSurat] = useState<Surat | null>(null);
+  
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(20);
   
   // Export modal states
   const [exportStartDate, setExportStartDate] = useState('');
@@ -83,6 +88,17 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
       return dateB - dateA; // Descending order (newest first)
     });
   }, [surats, searchQuery, filterJenisSurat, filterJenisNaskah, filterStartDate, filterEndDate]);
+
+  // Pagination logic
+  const totalPages = Math.ceil(filteredSurats.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedSurats = filteredSurats.slice(startIndex, endIndex);
+
+  // Reset to page 1 when filters change
+  useMemo(() => {
+    setCurrentPage(1);
+  }, [searchQuery, filterJenisSurat, filterJenisNaskah, filterStartDate, filterEndDate]);
 
   // Prepare URLs for display - use existing URLs without refresh to avoid 404 errors
   const displayUrls = useMemo(() => {
@@ -409,9 +425,9 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
 
       {/* Table */}
       <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto overflow-y-auto max-h-[600px]">
           <table className="w-full">
-            <thead className="bg-gradient-to-r from-slate-50 to-slate-100 border-b-2 border-slate-200">
+            <thead className="bg-gradient-to-r from-slate-50 to-slate-100 border-b-2 border-slate-200 sticky top-0 z-10">
               <tr>
                 <th className="px-4 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider min-w-[100px]">Jenis</th>
                 <th className="px-4 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider min-w-[150px]">Nomor Surat</th>
@@ -425,7 +441,7 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredSurats.length === 0 ? (
+              {paginatedSurats.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="px-4 py-12 text-center">
                     <FileText size={56} className="mx-auto mb-3 text-slate-300" />
@@ -434,7 +450,7 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
                   </td>
                 </tr>
               ) : (
-                filteredSurats.map(surat => {
+                paginatedSurats.map(surat => {
                   return (
                     <tr key={surat.id} className="hover:bg-slate-50 transition-colors">
                       {/* Jenis Surat */}
@@ -558,6 +574,64 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
           </table>
         </div>
       </div>
+
+      {/* Pagination Controls */}
+      {filteredSurats.length > 0 && (
+        <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            {/* Items per page selector */}
+            <div className="flex items-center gap-3">
+              <label className="text-sm text-slate-600 font-medium">Tampilkan:</label>
+              <select
+                value={itemsPerPage}
+                onChange={(e) => {
+                  setItemsPerPage(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 focus:border-gov-400 outline-none text-sm bg-white"
+              >
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+              <span className="text-sm text-slate-600">
+                dari {filteredSurats.length} surat
+              </span>
+            </div>
+
+            {/* Page info and navigation */}
+            <div className="flex items-center gap-4">
+              <span className="text-sm text-slate-600">
+                Halaman {currentPage} dari {totalPages}
+              </span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                  className="p-2 border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  title="Halaman Sebelumnya"
+                >
+                  <ChevronLeft size={18} />
+                </button>
+                <button
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                  className="p-2 border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  title="Halaman Berikutnya"
+                >
+                  <ChevronRight size={18} />
+                </button>
+              </div>
+            </div>
+
+            {/* Showing range */}
+            <div className="text-sm text-slate-600">
+              Menampilkan {startIndex + 1}-{Math.min(endIndex, filteredSurats.length)} surat
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Export Modal */}
       {showExportModal && (
