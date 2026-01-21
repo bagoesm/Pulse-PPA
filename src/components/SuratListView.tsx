@@ -3,7 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { 
   FileText, Calendar, Building2,
   X, Search, FileDown, Link2, Eye, Plus,
-  ChevronLeft, ChevronRight
+  ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown
 } from 'lucide-react';
 import { Surat, User } from '../../types';
 import { supabase } from '../lib/supabaseClient';
@@ -34,6 +34,10 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
+  
+  // Sort states
+  const [sortColumn, setSortColumn] = useState<'tanggalSurat' | 'nomorSurat' | 'jenisSurat' | 'jenisNaskah' | 'hal' | 'asalTujuan' | 'tanggalKegiatan'>('tanggalSurat');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   
   // Export modal states
   const [exportStartDate, setExportStartDate] = useState('');
@@ -81,13 +85,50 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
       return matchesSearch && matchesJenisSurat && matchesJenisNaskah && matchesDateRange;
     });
 
-    // Sort by tanggalSurat (newest first)
+    // Apply sorting
     return filtered.sort((a, b) => {
-      const dateA = a.tanggalSurat ? new Date(a.tanggalSurat).getTime() : 0;
-      const dateB = b.tanggalSurat ? new Date(b.tanggalSurat).getTime() : 0;
-      return dateB - dateA; // Descending order (newest first)
+      let compareA: any;
+      let compareB: any;
+
+      switch (sortColumn) {
+        case 'tanggalSurat':
+          compareA = a.tanggalSurat ? new Date(a.tanggalSurat).getTime() : 0;
+          compareB = b.tanggalSurat ? new Date(b.tanggalSurat).getTime() : 0;
+          break;
+        case 'nomorSurat':
+          compareA = a.nomorSurat.toLowerCase();
+          compareB = b.nomorSurat.toLowerCase();
+          break;
+        case 'jenisSurat':
+          compareA = a.jenisSurat || '';
+          compareB = b.jenisSurat || '';
+          break;
+        case 'jenisNaskah':
+          compareA = a.jenisNaskah?.toLowerCase() || '';
+          compareB = b.jenisNaskah?.toLowerCase() || '';
+          break;
+        case 'hal':
+          compareA = a.hal?.toLowerCase() || '';
+          compareB = b.hal?.toLowerCase() || '';
+          break;
+        case 'asalTujuan':
+          compareA = (a.jenisSurat === 'Masuk' ? a.asalSurat : a.tujuanSurat)?.toLowerCase() || '';
+          compareB = (b.jenisSurat === 'Masuk' ? b.asalSurat : b.tujuanSurat)?.toLowerCase() || '';
+          break;
+        case 'tanggalKegiatan':
+          compareA = a.tanggalKegiatan ? new Date(a.tanggalKegiatan).getTime() : 0;
+          compareB = b.tanggalKegiatan ? new Date(b.tanggalKegiatan).getTime() : 0;
+          break;
+        default:
+          compareA = 0;
+          compareB = 0;
+      }
+
+      if (compareA < compareB) return sortDirection === 'asc' ? -1 : 1;
+      if (compareA > compareB) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
     });
-  }, [surats, searchQuery, filterJenisSurat, filterJenisNaskah, filterStartDate, filterEndDate]);
+  }, [surats, searchQuery, filterJenisSurat, filterJenisNaskah, filterStartDate, filterEndDate, sortColumn, sortDirection]);
 
   // Pagination logic
   const totalPages = Math.ceil(filteredSurats.length / itemsPerPage);
@@ -287,6 +328,26 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
     setFilterEndDate('');
   };
 
+  const handleSort = (column: typeof sortColumn) => {
+    if (sortColumn === column) {
+      // Toggle direction if same column
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // New column, default to ascending
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
+  const getSortIcon = (column: typeof sortColumn) => {
+    if (sortColumn !== column) {
+      return <ArrowUpDown size={14} className="text-slate-400" />;
+    }
+    return sortDirection === 'asc' 
+      ? <ArrowUp size={14} className="text-gov-600" />
+      : <ArrowDown size={14} className="text-gov-600" />;
+  };
+
   const handleViewSurat = (surat: Surat) => {
     setSelectedSurat(surat);
     setShowViewModal(true);
@@ -429,13 +490,69 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
           <table className="w-full">
             <thead className="bg-gradient-to-r from-slate-50 to-slate-100 border-b-2 border-slate-200 sticky top-0 z-10">
               <tr>
-                <th className="px-4 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider min-w-[100px]">Jenis</th>
-                <th className="px-4 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider min-w-[150px]">Nomor Surat</th>
-                <th className="px-4 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider min-w-[120px]">Jenis Naskah</th>
-                <th className="px-4 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider min-w-[120px]">Tanggal</th>
-                <th className="px-4 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider min-w-[200px]">Hal/Perihal</th>
-                <th className="px-4 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider min-w-[180px]">Asal/Tujuan</th>
-                <th className="px-4 py-3.5 text-left text-xs font-bold text-slate-700 uppercase tracking-wider min-w-[120px]">Kegiatan</th>
+                <th className="px-4 py-3.5 text-left min-w-[100px]">
+                  <button
+                    onClick={() => handleSort('jenisSurat')}
+                    className="flex items-center gap-2 text-xs font-bold text-slate-700 uppercase tracking-wider hover:text-gov-600 transition-colors"
+                  >
+                    Jenis
+                    {getSortIcon('jenisSurat')}
+                  </button>
+                </th>
+                <th className="px-4 py-3.5 text-left min-w-[150px]">
+                  <button
+                    onClick={() => handleSort('nomorSurat')}
+                    className="flex items-center gap-2 text-xs font-bold text-slate-700 uppercase tracking-wider hover:text-gov-600 transition-colors"
+                  >
+                    Nomor Surat
+                    {getSortIcon('nomorSurat')}
+                  </button>
+                </th>
+                <th className="px-4 py-3.5 text-left min-w-[120px]">
+                  <button
+                    onClick={() => handleSort('jenisNaskah')}
+                    className="flex items-center gap-2 text-xs font-bold text-slate-700 uppercase tracking-wider hover:text-gov-600 transition-colors"
+                  >
+                    Jenis Naskah
+                    {getSortIcon('jenisNaskah')}
+                  </button>
+                </th>
+                <th className="px-4 py-3.5 text-left min-w-[120px]">
+                  <button
+                    onClick={() => handleSort('tanggalSurat')}
+                    className="flex items-center gap-2 text-xs font-bold text-slate-700 uppercase tracking-wider hover:text-gov-600 transition-colors"
+                  >
+                    Tanggal
+                    {getSortIcon('tanggalSurat')}
+                  </button>
+                </th>
+                <th className="px-4 py-3.5 text-left min-w-[200px]">
+                  <button
+                    onClick={() => handleSort('hal')}
+                    className="flex items-center gap-2 text-xs font-bold text-slate-700 uppercase tracking-wider hover:text-gov-600 transition-colors"
+                  >
+                    Hal/Perihal
+                    {getSortIcon('hal')}
+                  </button>
+                </th>
+                <th className="px-4 py-3.5 text-left min-w-[180px]">
+                  <button
+                    onClick={() => handleSort('asalTujuan')}
+                    className="flex items-center gap-2 text-xs font-bold text-slate-700 uppercase tracking-wider hover:text-gov-600 transition-colors"
+                  >
+                    Asal/Tujuan
+                    {getSortIcon('asalTujuan')}
+                  </button>
+                </th>
+                <th className="px-4 py-3.5 text-left min-w-[120px]">
+                  <button
+                    onClick={() => handleSort('tanggalKegiatan')}
+                    className="flex items-center gap-2 text-xs font-bold text-slate-700 uppercase tracking-wider hover:text-gov-600 transition-colors"
+                  >
+                    Kegiatan
+                    {getSortIcon('tanggalKegiatan')}
+                  </button>
+                </th>
                 <th className="px-4 py-3.5 text-center text-xs font-bold text-slate-700 uppercase tracking-wider w-24">Dokumen</th>
                 <th className="px-4 py-3.5 text-center text-xs font-bold text-slate-700 uppercase tracking-wider w-20">Aksi</th>
               </tr>
