@@ -301,7 +301,7 @@ export const useMeetingHandlers = ({
                     }
 
                     // Handle surat files - either update existing or create new entries
-                    const suratPromises: Promise<any>[] = [];
+                    const suratPromises: any[] = [];
                     
                     // Helper function to extract surat ID from file metadata
                     const extractSuratId = (attachment: any): string | null => {
@@ -369,7 +369,7 @@ export const useMeetingHandlers = ({
                             waktu_mulai: meetingData.startTime,
                             waktu_selesai: meetingData.endTime,
                             updated_at: new Date().toISOString()
-                          }).eq('id', suratId)
+                          }).eq('id', suratId).then()
                         );
                       } else {
                         // Create new surat entry
@@ -400,7 +400,7 @@ export const useMeetingHandlers = ({
                             waktu_mulai: meetingData.startTime,
                             waktu_selesai: meetingData.endTime,
                             updated_at: new Date().toISOString()
-                          }).eq('id', suratId)
+                          }).eq('id', suratId).then()
                         );
                       } else {
                         // Create new surat entry
