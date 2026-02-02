@@ -24,6 +24,7 @@ import { ProjectsProvider } from './ProjectsContext';
 import { EpicsProvider } from './EpicsContext';
 import { MeetingsProvider } from './MeetingsContext';
 import { SuratsProvider } from './SuratsContext';
+import { DisposisiProvider } from './DisposisiContext';
 import { MasterDataProvider } from './MasterDataContext';
 import { AppContentProvider } from './AppContentContext';
 
@@ -44,11 +45,13 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, session })
                     <EpicsProvider session={session}>
                         <MeetingsProvider session={session}>
                             <SuratsProvider session={session}>
-                                <TasksProvider session={session}>
-                                    <AppContentProvider session={session}>
-                                        {children}
-                                    </AppContentProvider>
-                                </TasksProvider>
+                                <DisposisiProvider session={session}>
+                                    <TasksProvider session={session}>
+                                        <AppContentProvider session={session}>
+                                            {children}
+                                        </AppContentProvider>
+                                    </TasksProvider>
+                                </DisposisiProvider>
                             </SuratsProvider>
                         </MeetingsProvider>
                     </EpicsProvider>

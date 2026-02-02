@@ -211,7 +211,7 @@ export interface Comment {
   updatedAt?: string; // ISO Date string
 }
 
-export type NotificationType = 'comment' | 'deadline' | 'assignment' | 'meeting_pic' | 'meeting_invitee' | 'meeting_mention' | 'meeting_comment';
+export type NotificationType = 'comment' | 'deadline' | 'assignment' | 'meeting_pic' | 'meeting_invitee' | 'meeting_mention' | 'meeting_comment' | 'disposisi_assignment' | 'disposisi_updated' | 'disposisi_deadline';
 
 export interface Notification {
   id: string;
@@ -223,6 +223,8 @@ export interface Notification {
   taskTitle: string;
   meetingId?: string; // For meeting notifications
   meetingTitle?: string; // For meeting notifications
+  disposisiId?: string; // For disposisi notifications
+  disposisiText?: string; // For disposisi notifications
   isRead: boolean;
   isDismissed: boolean; // Kept for backward compatibility
   createdAt: string;
@@ -326,6 +328,15 @@ export interface Meeting {
   bidangTugas?: string; // Bidang tugas/kerja
   disposisi?: string; // Isi disposisi/tindak lanjut
   hasilTindakLanjut?: string; // Progress dan hasil
+  
+  // Enhanced Surat linking
+  linkedSuratId?: string;             // ID of linked Surat
+  linkedSurat?: Surat;                // Populated Surat data
+  
+  // Disposisi integration
+  hasDisposisi?: boolean;             // Flag indicating if Disposisi exists
+  disposisiCount?: number;            // Number of Disposisi assignments
+  disposisiStatus?: 'Pending' | 'In Progress' | 'Completed' | 'Mixed';
 }
 
 export const SIDEBAR_ITEMS = [
@@ -333,9 +344,16 @@ export const SIDEBAR_ITEMS = [
   { name: 'Semua Task', icon: 'ListTodo' },
   { name: 'Project', icon: 'Briefcase' },
   { name: 'Pengembangan Aplikasi', icon: 'Code' },
+  { 
+    name: 'Surat & Kegiatan', 
+    icon: 'FileText',
+    submenu: [
+      { name: 'Jadwal Kegiatan', icon: 'CalendarDays' },
+      { name: 'Daftar Surat', icon: 'FileSpreadsheet' },
+      { name: 'Daftar Disposisi', icon: 'ClipboardList' },
+    ]
+  },
   { name: 'Surat & Dokumen', icon: 'FileText' },
-  { name: 'Jadwal Kegiatan', icon: 'CalendarDays' },
-  { name: 'Daftar Surat', icon: 'FileSpreadsheet' },
   { name: 'Permintaan Satker', icon: 'Inbox' },
   { name: 'Tindak Lanjut', icon: 'Forward' },
   { name: 'Administrasi', icon: 'FolderOpen' },
@@ -345,6 +363,49 @@ export const SIDEBAR_ITEMS = [
   { name: 'Inventori Data', icon: 'Database' },
 ];
 
+// Disposisi - Disposition workflow for Surat-Kegiatan integration
+export type DisposisiStatus = 'Pending' | 'In Progress' | 'Completed' | 'Cancelled';
+
+export type DisposisiAction = 
+  | 'created' 
+  | 'status_changed' 
+  | 'assignee_added' 
+  | 'assignee_removed'
+  | 'laporan_uploaded'
+  | 'laporan_deleted'
+  | 'notes_updated'
+  | 'deadline_changed'
+  | 'subdisposisi_created';
+
+export interface Disposisi {
+  id: string;
+  suratId: string;                    // Foreign key to Surat
+  kegiatanId: string;                 // Foreign key to Meeting/Kegiatan
+  assignedTo: string;                 // User ID of assignee
+  disposisiText: string;              // Disposition instructions
+  status: DisposisiStatus;            // Current status
+  deadline?: string;                  // ISO Date string
+  laporan?: Attachment[];             // Report documents
+  attachments?: Attachment[];         // Additional attachments
+  notes?: string;                     // Additional notes
+  createdBy: string;                  // User who created
+  createdAt: string;                  // ISO Date string
+  updatedAt?: string;                 // ISO Date string
+  completedAt?: string;               // ISO Date string
+  completedBy?: string;               // User who completed
+  parentDisposisiId?: string;         // Parent disposisi ID for subdisposisi (disposisi berantai)
+}
+
+export interface DisposisiHistory {
+  id: string;
+  disposisiId: string;
+  action: DisposisiAction;
+  oldValue?: string;
+  newValue?: string;
+  performedBy: string;
+  performedAt: string;
+}
+
 // Surat - Separate entity from Meeting
 export interface Surat {
   id: string;
@@ -353,7 +414,8 @@ export interface Surat {
   tanggalSurat: string; // ISO Date
   hal?: string;
   asalSurat?: string; // Untuk surat masuk
-  tujuanSurat?: string; // Untuk surat keluar
+  tujuanSurat?: string; // Untuk surat keluar (display string)
+  tujuanSuratList?: Array<{name: string, type: 'Internal' | 'Eksternal'}>; // Structured list with types
   klasifikasiSurat?: string;
   jenisNaskah?: string;
   sifatSurat?: string; // Biasa, Segera, Sangat Segera, Rahasia
@@ -369,6 +431,11 @@ export interface Surat {
   tanggalKegiatan?: string; // ISO Date
   waktuMulai?: string; // HH:mm
   waktuSelesai?: string; // HH:mm
+  
+  // New fields for Disposisi integration
+  hasDisposisi?: boolean;             // Flag indicating if Disposisi exists
+  disposisiCount?: number;            // Number of Disposisi assignments
+  disposisiStatus?: 'Pending' | 'In Progress' | 'Completed' | 'Mixed';
   
   // Metadata
   createdBy: string;

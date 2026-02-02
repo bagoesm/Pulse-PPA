@@ -7,6 +7,7 @@ interface UseNotificationsProps {
   tasks: Task[];
   onTaskNavigation: (taskId: string) => void;
   onMeetingNavigation?: (meetingId: string) => void;
+  onDisposisiNavigation?: (disposisiId: string) => void;
 }
 
 interface DbNotification {
@@ -19,6 +20,8 @@ interface DbNotification {
   task_title: string;
   meeting_id?: string;
   meeting_title?: string;
+  disposisi_id?: string;
+  disposisi_text?: string;
   is_read: boolean;
   created_at: string;
 }
@@ -33,13 +36,15 @@ const mapDbToNotification = (n: DbNotification): Notification => ({
   taskTitle: n.task_title,
   meetingId: n.meeting_id,
   meetingTitle: n.meeting_title,
+  disposisiId: n.disposisi_id,
+  disposisiText: n.disposisi_text,
   isRead: n.is_read,
   isDismissed: false,
   createdAt: n.created_at,
   expiresAt: new Date(new Date(n.created_at).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString()
 });
 
-export const useNotifications = ({ currentUser, tasks, onTaskNavigation, onMeetingNavigation }: UseNotificationsProps) => {
+export const useNotifications = ({ currentUser, tasks, onTaskNavigation, onMeetingNavigation, onDisposisiNavigation }: UseNotificationsProps) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const deadlineCheckDone = useRef(false);
@@ -378,6 +383,16 @@ export const useNotifications = ({ currentUser, tasks, onTaskNavigation, onMeeti
       await markAsRead(notification.id);
     }
 
+    // Check if it's a disposisi notification
+    const isDisposisiNotification = notification.type === 'disposisi_assignment' ||
+      notification.type === 'disposisi_updated' ||
+      notification.type === 'disposisi_deadline';
+
+    if (isDisposisiNotification && notification.disposisiId && onDisposisiNavigation) {
+      onDisposisiNavigation(notification.disposisiId);
+      return;
+    }
+
     // Check if it's a meeting notification (includes meeting mentions and comments)
     const isMeetingNotification = notification.type === 'meeting_pic' ||
       notification.type === 'meeting_invitee' ||
@@ -389,7 +404,7 @@ export const useNotifications = ({ currentUser, tasks, onTaskNavigation, onMeeti
     } else if (notification.taskId) {
       onTaskNavigation(notification.taskId);
     }
-  }, [markAsRead, onTaskNavigation, onMeetingNavigation]);
+  }, [markAsRead, onTaskNavigation, onMeetingNavigation, onDisposisiNavigation]);
 
   // Dismiss all (just mark as read for simplicity)
   const dismissAllNotifications = useCallback(async () => {
@@ -424,6 +439,28 @@ export const useNotifications = ({ currentUser, tasks, onTaskNavigation, onMeeti
 
     return () => clearTimeout(timer);
   }, [currentUser?.id, tasks.length, checkDeadlines]);
+
+  // Check disposisi deadlines periodically (every 6 hours)
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const checkDisposisiDeadlines = async () => {
+      try {
+        // Import dynamically to avoid circular dependencies
+        const { disposisiService } = await import('../services/DisposisiService');
+        await disposisiService.checkAndCreateDeadlineReminders();
+      } catch (error) {
+        console.error('Error checking disposisi deadlines:', error);
+      }
+    };
+
+    // Check immediately on mount
+    checkDisposisiDeadlines();
+
+    // Then check every 6 hours
+    const interval = setInterval(checkDisposisiDeadlines, 6 * 60 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [currentUser?.id]);
 
   // Realtime subscription
   useEffect(() => {

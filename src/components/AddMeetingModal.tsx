@@ -10,11 +10,15 @@ import { useModals } from '../hooks/useModalHelpers';
 import { useFileUpload } from '../hooks/useFileUpload';
 import { useAttachmentHandlers } from '../hooks/useAttachmentHandlers';
 import { mapSuratsFromDB } from '../utils/suratMappers';
+import { LinkingService } from '../services/LinkingService';
 import NotificationModal from './NotificationModal';
 import ConfirmModal from './ConfirmModal';
 import MultiSelectChip from './MultiSelectChip';
 import RichTextEditor from './RichTextEditor';
 import SearchableSelect from './SearchableSelect';
+import SearchableSelectWithActions from './SearchableSelectWithActions';
+import { useMasterData } from '../contexts/MasterDataContext';
+import { useMasterDataCRUD } from '../hooks/useMasterDataCRUD';
 
 interface AddMeetingModalProps {
   isOpen: boolean;
@@ -73,13 +77,14 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
 
   const { uploadFile } = useFileUpload('attachment');
   const { handleRemoveFromStorage } = useAttachmentHandlers('attachment', showError);
+  
+  // Master data for inviter
+  const { unitInternalList, unitEksternalList } = useMasterData();
+  const { addMasterData, editMasterData, deleteMasterData, canDeleteMasterData } = useMasterDataCRUD();
 
-  // Inviter search state
-  const [inviterSearch, setInviterSearch] = useState('');
-  const [showInviterDropdown, setShowInviterDropdown] = useState(false);
-  const [isAddingNewInviter, setIsAddingNewInviter] = useState(false);
-  const [newInviterName, setNewInviterName] = useState('');
-  const [newInviterOrg, setNewInviterOrg] = useState('');
+  // Inviter state
+  const [inviterType, setInviterType] = useState<'Internal' | 'Eksternal'>('Internal');
+  const [inviterName, setInviterName] = useState('');
 
   const defaultPic = currentUser?.name ?? '';
 
@@ -148,6 +153,12 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
   const [availableSurats, setAvailableSurats] = useState<Surat[]>([]);
   const [isLoadingSurats, setIsLoadingSurats] = useState(false);
 
+  // State for Disposisi when linking Surat to Kegiatan
+  const [disposisiAssignees, setDisposisiAssignees] = useState<string[]>([]);
+  const [disposisiText, setDisposisiText] = useState('');
+  const [disposisiDeadline, setDisposisiDeadline] = useState('');
+  const [selectedSuratForLinking, setSelectedSuratForLinking] = useState<Surat | null>(null);
+
   const isReadOnly = !!initialData && !canEdit;
 
   // Fetch available surats when selector opens
@@ -197,6 +208,9 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
       
       handleChange(target, attachmentWithSuratId);
       
+      // Track the selected Surat for linking
+      setSelectedSuratForLinking(surat);
+      
       // Also copy surat details if not already filled
       if (!formData.jenisSurat && surat.jenisSurat) {
         handleChange('jenisSurat', surat.jenisSurat);
@@ -228,20 +242,16 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
       if (!formData.disposisi && surat.disposisi) {
         handleChange('disposisi', surat.disposisi);
       }
-      if (!formData.hasilTindakLanjut && surat.hasilTindakLanjut) {
-        handleChange('hasilTindakLanjut', surat.hasilTindakLanjut);
-      }
     }
     setShowSuratSelector(null);
     setSuratSearchQuery('');
     showNotification('Surat Dipilih', `Surat ${surat.nomorSurat} berhasil ditambahkan`, 'success');
   };
 
-  // Filter inviters based on search
-  const filteredInviters = existingInviters.filter(inv =>
-    inv.name.toLowerCase().includes(inviterSearch.toLowerCase()) ||
-    (inv.organization && inv.organization.toLowerCase().includes(inviterSearch.toLowerCase()))
-  );
+  // Combine internal and external units for inviter options
+  const inviterOptions = inviterType === 'Internal' 
+    ? unitInternalList.map(u => ({ value: u, label: u }))
+    : unitEksternalList.map(u => ({ value: u, label: u }));
 
   // Ref to track initialized state - prevents re-initialization on tab switch
   const initializedForRef = useRef<string | null>(null);
@@ -274,7 +284,75 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
 
     if (initialData) {
       setFormData({ ...initialData });
-      setInviterSearch(initialData.inviter?.name || '');
+      setInviterName(initialData.inviter?.name || '');
+      // Determine inviter type from organization
+      if (initialData.inviter?.organization) {
+        const isInternal = unitInternalList.includes(initialData.inviter.name);
+        setInviterType(isInternal ? 'Internal' : 'Eksternal');
+      }
+      
+      // Fetch linked surat data if linkedSuratId exists
+      if (initialData.linkedSuratId) {
+        const fetchLinkedSurat = async () => {
+          try {
+            const { data, error } = await supabase
+              .from('surats')
+              .select('*')
+              .eq('id', initialData.linkedSuratId)
+              .single();
+
+            if (error) throw error;
+
+            if (data) {
+              const surat = mapSuratsFromDB([data])[0];
+              // Auto-fill surat details if not already filled in meeting
+              if (!initialData.jenisSurat && surat.jenisSurat) {
+                setFormData(prev => ({ ...prev, jenisSurat: surat.jenisSurat }));
+              }
+              if (!initialData.nomorSurat && surat.nomorSurat) {
+                setFormData(prev => ({ ...prev, nomorSurat: surat.nomorSurat }));
+              }
+              if (!initialData.tanggalSurat && surat.tanggalSurat) {
+                setFormData(prev => ({ ...prev, tanggalSurat: surat.tanggalSurat }));
+              }
+              if (!initialData.hal && surat.hal) {
+                setFormData(prev => ({ ...prev, hal: surat.hal }));
+              }
+              if (!initialData.asalSurat && surat.asalSurat) {
+                setFormData(prev => ({ ...prev, asalSurat: surat.asalSurat }));
+              }
+              if (!initialData.tujuanSurat && surat.tujuanSurat) {
+                setFormData(prev => ({ ...prev, tujuanSurat: surat.tujuanSurat }));
+              }
+              if (!initialData.klasifikasiSurat && surat.klasifikasiSurat) {
+                setFormData(prev => ({ ...prev, klasifikasiSurat: surat.klasifikasiSurat }));
+              }
+              if (!initialData.jenisNaskah && surat.jenisNaskah) {
+                setFormData(prev => ({ ...prev, jenisNaskah: surat.jenisNaskah }));
+              }
+              if (!initialData.bidangTugas && surat.bidangTugas) {
+                setFormData(prev => ({ ...prev, bidangTugas: surat.bidangTugas }));
+              }
+              
+              // Fetch disposisi data for this kegiatan
+              const { data: disposisiData, error: disposisiError } = await supabase
+                .from('disposisi')
+                .select('disposisi_text')
+                .eq('kegiatan_id', initialData.id)
+                .order('created_at', { ascending: true })
+                .limit(1)
+                .maybeSingle();
+              
+              if (!disposisiError && disposisiData && !initialData.disposisi) {
+                setFormData(prev => ({ ...prev, disposisi: disposisiData.disposisi_text }));
+              }
+            }
+          } catch (error) {
+            console.error('Error fetching linked surat:', error);
+          }
+        };
+        fetchLinkedSurat();
+      }
     } else {
       setFormData({
         title: '',
@@ -299,9 +377,15 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
         status: 'scheduled',
         createdBy: currentUser?.name ?? '',
       });
-      setInviterSearch('');
+      setInviterName('');
+      setInviterType('Internal');
       setNewLinkTitle('');
       setNewLinkUrl('');
+      // Reset disposisi state
+      setDisposisiAssignees([]);
+      setDisposisiText('');
+      setDisposisiDeadline('');
+      setSelectedSuratForLinking(null);
     }
     // Reset tracking state when modal opens
     setNewlyUploadedAttachments([]);
@@ -343,25 +427,19 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
     setFormData(prev => ({ ...prev, [key]: value }));
   };
 
-  const selectInviter = (inviter: MeetingInviter) => {
-    setFormData(prev => ({ ...prev, inviter }));
-    setInviterSearch(inviter.name);
-    setShowInviterDropdown(false);
-  };
-
-  const addNewInviter = () => {
-    if (!newInviterName.trim()) return;
-    const newInviter: MeetingInviter = {
-      id: `inv_${Date.now()}`,
-      name: newInviterName.trim(),
-      organization: newInviterOrg.trim() || undefined,
-    };
-    setFormData(prev => ({ ...prev, inviter: newInviter }));
-    setInviterSearch(newInviter.name);
-    setIsAddingNewInviter(false);
-    setNewInviterName('');
-    setNewInviterOrg('');
-    setShowInviterDropdown(false);
+  // Handle inviter name change
+  const handleInviterChange = (name: string) => {
+    setInviterName(name);
+    if (name) {
+      const inviter: MeetingInviter = {
+        id: `inv_${Date.now()}`,
+        name: name,
+        organization: inviterType === 'Internal' ? 'Internal' : name,
+      };
+      setFormData(prev => ({ ...prev, inviter }));
+    } else {
+      setFormData(prev => ({ ...prev, inviter: { id: '', name: '', organization: '' } }));
+    }
   };
 
   const triggerFileUpload = (target: typeof uploadTarget) => {
@@ -491,6 +569,19 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
       }
     }
 
+    // Validate Disposisi when linking to existing Surat
+    // Requirements 4.1, 4.2, 9.1, 9.2, 9.3, 9.4, 9.5
+    if (selectedSuratForLinking) {
+      if (!disposisiText.trim()) {
+        showNotification('Disposisi Wajib', 'Mohon isi disposisi saat menghubungkan dengan surat.', 'warning');
+        return;
+      }
+      if (disposisiAssignees.length === 0) {
+        showNotification('Assignee Wajib', 'Mohon pilih minimal 1 assignee untuk disposisi.', 'warning');
+        return;
+      }
+    }
+
     const payload: Omit<Meeting, 'id' | 'createdAt'> = {
       title: formData.title!.trim(),
       type: formData.type as MeetingType,
@@ -525,14 +616,56 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
       tanggalSurat: formData.tanggalSurat || undefined,
       bidangTugas: formData.bidangTugas?.trim() || undefined,
       disposisi: formData.disposisi?.trim() || undefined,
-      hasilTindakLanjut: formData.hasilTindakLanjut?.trim() || undefined,
     };
 
     setIsSaving(true);
     try {
       await onSave(payload);
+      
+      // If linking to existing Surat, create the link and Disposisi
+      if (selectedSuratForLinking && !initialData) {
+        // Get the newly created meeting ID from the database
+        // We need to fetch the most recent meeting created by this user
+        const { data: newMeeting, error: fetchError } = await supabase
+          .from('meetings')
+          .select('id')
+          .eq('title', payload.title)
+          .eq('created_by', payload.createdBy)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (fetchError) {
+          console.error('Error fetching new meeting:', fetchError);
+          showNotification('Peringatan', 'Kegiatan berhasil dibuat, tetapi gagal menghubungkan dengan surat. Silakan hubungkan secara manual.', 'warning');
+        } else if (newMeeting) {
+          // Use LinkingService to create the link and Disposisi
+          const linkingService = new LinkingService();
+          try {
+            await linkingService.linkSuratToKegiatan(
+              selectedSuratForLinking.id,
+              newMeeting.id,
+              {
+                assignees: disposisiAssignees,
+                disposisiText: disposisiText,
+                deadline: disposisiDeadline || undefined,
+                createdBy: currentUser?.name || 'System'
+              }
+            );
+            showNotification('Berhasil', 'Kegiatan berhasil dibuat dan dihubungkan dengan surat', 'success');
+          } catch (linkError) {
+            console.error('Error linking Surat to Kegiatan:', linkError);
+            showNotification('Peringatan', 'Kegiatan berhasil dibuat, tetapi gagal menghubungkan dengan surat. Silakan hubungkan secara manual.', 'warning');
+          }
+        }
+      }
+      
       // Clear tracking on successful save
       setNewlyUploadedAttachments([]);
+      setSelectedSuratForLinking(null);
+      setDisposisiAssignees([]);
+      setDisposisiText('');
+      setDisposisiDeadline('');
     } finally {
       setIsSaving(false);
     }
@@ -912,78 +1045,81 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
             </div>
 
             {/* Inviter - Yang Mengundang */}
-            <div className="relative">
-              <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">
                 <Building2 size={12} className="inline mr-1" />Yang Mengundang
               </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  disabled={isReadOnly}
-                  value={inviterSearch}
-                  onChange={(e) => {
-                    setInviterSearch(e.target.value);
-                    setShowInviterDropdown(true);
-                  }}
-                  onFocus={() => setShowInviterDropdown(true)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm disabled:bg-slate-50"
-                  placeholder="Cari atau tambah yang mengundang..."
-                />
-                <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              </div>
-
-              {showInviterDropdown && !isReadOnly && (
-                <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-auto">
-                  {filteredInviters.map(inv => (
-                    <button
-                      key={inv.id}
-                      type="button"
-                      onClick={() => selectInviter(inv)}
-                      className="w-full px-3 py-2 text-left hover:bg-slate-50 flex items-center justify-between"
-                    >
-                      <div>
-                        <div className="text-sm font-medium text-slate-700">{inv.name}</div>
-                        {inv.organization && <div className="text-xs text-slate-500">{inv.organization}</div>}
-                      </div>
-                      {formData.inviter?.id === inv.id && <Check size={16} className="text-gov-600" />}
-                    </button>
-                  ))}
-
-                  {!isAddingNewInviter ? (
+              
+              {isReadOnly ? (
+                <div className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-slate-50 text-slate-700 text-sm">
+                  {formData.inviter?.name || '-'}
+                  {formData.inviter?.organization && (
+                    <span className="text-xs text-slate-500 ml-2">({formData.inviter.organization})</span>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {/* Pilihan Internal/Eksternal */}
+                  <div className="flex gap-3">
                     <button
                       type="button"
-                      onClick={() => setIsAddingNewInviter(true)}
-                      className="w-full px-3 py-2 text-left hover:bg-gov-50 text-gov-600 font-medium text-sm border-t"
+                      onClick={() => {
+                        setInviterType('Internal');
+                        setInviterName('');
+                        handleInviterChange('');
+                      }}
+                      className={`flex-1 px-4 py-2.5 rounded-lg border-2 text-sm font-medium transition-all ${
+                        inviterType === 'Internal'
+                          ? 'border-gov-500 bg-gov-50 text-gov-700'
+                          : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400'
+                      }`}
                     >
-                      <Plus size={14} className="inline mr-1" />
-                      Tambah Baru: "{inviterSearch}"
+                      Internal
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setInviterType('Eksternal');
+                        setInviterName('');
+                        handleInviterChange('');
+                      }}
+                      className={`flex-1 px-4 py-2.5 rounded-lg border-2 text-sm font-medium transition-all ${
+                        inviterType === 'Eksternal'
+                          ? 'border-gov-500 bg-gov-50 text-gov-700'
+                          : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400'
+                      }`}
+                    >
+                      Eksternal
+                    </button>
+                  </div>
+                  
+                  {/* Dropdown dengan CRUD */}
+                  {inviterType === 'Internal' ? (
+                    <SearchableSelectWithActions
+                      options={inviterOptions}
+                      value={inviterName}
+                      onChange={handleInviterChange}
+                      placeholder="Cari unit internal..."
+                      emptyOption="Pilih Unit Internal"
+                      tableName="Unit Internal"
+                      onAdd={(name) => addMasterData('master_unit_internal', name)}
+                      onEdit={(oldName, newName) => editMasterData('master_unit_internal', oldName, newName)}
+                      onDelete={(name) => deleteMasterData('master_unit_internal', name)}
+                      canDelete={(name) => canDeleteMasterData('master_unit_internal', name)}
+                    />
                   ) : (
-                    <div className="p-3 border-t space-y-2">
-                      <input
-                        type="text"
-                        value={newInviterName}
-                        onChange={(e) => setNewInviterName(e.target.value)}
-                        placeholder="Nama"
-                        className="w-full px-2 py-1.5 border border-slate-300 rounded text-sm"
-                        autoFocus
-                      />
-                      <input
-                        type="text"
-                        value={newInviterOrg}
-                        onChange={(e) => setNewInviterOrg(e.target.value)}
-                        placeholder="Organisasi (opsional)"
-                        className="w-full px-2 py-1.5 border border-slate-300 rounded text-sm"
-                      />
-                      <div className="flex gap-2">
-                        <button type="button" onClick={addNewInviter} className="flex-1 py-1.5 bg-gov-600 text-white rounded text-sm font-medium">
-                          Simpan
-                        </button>
-                        <button type="button" onClick={() => setIsAddingNewInviter(false)} className="flex-1 py-1.5 bg-slate-200 text-slate-700 rounded text-sm">
-                          Batal
-                        </button>
-                      </div>
-                    </div>
+                    <SearchableSelectWithActions
+                      options={inviterOptions}
+                      value={inviterName}
+                      onChange={handleInviterChange}
+                      placeholder="Cari unit eksternal..."
+                      emptyOption="Pilih Unit Eksternal"
+                      tableName="Unit Eksternal"
+                      onAdd={(name) => addMasterData('master_unit_eksternal', name)}
+                      onEdit={(oldName, newName) => editMasterData('master_unit_eksternal', oldName, newName)}
+                      onDelete={(name) => deleteMasterData('master_unit_eksternal', name)}
+                      canDelete={(name) => canDeleteMasterData('master_unit_eksternal', name)}
+                    />
                   )}
                 </div>
               )}
@@ -1078,180 +1214,184 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
               </div>
             </div>
 
-            {/* Detail Surat Section - Only show if any surat file is uploaded */}
+            {/* Detail Surat Section - Read-only display when linked to surat */}
             {(formData.suratUndangan || formData.suratTugas) && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
-                <h3 className="text-sm font-bold text-blue-900 uppercase tracking-wider">Detail Surat</h3>
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-5 space-y-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <FileText className="text-blue-600" size={20} />
+                  <h3 className="text-sm font-bold text-blue-900 uppercase tracking-wider">Detail Surat</h3>
+                  <span className="ml-auto text-xs bg-blue-200 text-blue-800 px-2 py-1 rounded-full font-semibold">
+                    Read-only
+                  </span>
+                </div>
                 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Jenis Surat */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
-                      Jenis Surat <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      disabled={isReadOnly}
-                      value={formData.jenisSurat || ''}
-                      onChange={(e) => handleChange('jenisSurat', e.target.value as 'Masuk' | 'Keluar')}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm bg-white disabled:bg-slate-50"
-                    >
-                      <option value="">-- Pilih Jenis --</option>
-                      <option value="Masuk">Surat Masuk</option>
-                      <option value="Keluar">Surat Keluar</option>
-                    </select>
-                  </div>
+                  {formData.jenisSurat && (
+                    <div className="bg-white rounded-lg p-3 border border-blue-100">
+                      <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
+                        Jenis Surat
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                          formData.jenisSurat === 'Masuk' 
+                            ? 'bg-green-100 text-green-700' 
+                            : 'bg-blue-100 text-blue-700'
+                        }`}>
+                          {formData.jenisSurat === 'Masuk' ? '📥 Surat Masuk' : '📤 Surat Keluar'}
+                        </span>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Nomor Surat */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
-                      Nomor Surat <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      disabled={isReadOnly}
-                      value={formData.nomorSurat || ''}
-                      onChange={(e) => handleChange('nomorSurat', e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm disabled:bg-slate-50"
-                      placeholder="Contoh: 123/ABC/2024"
-                    />
-                  </div>
+                  {formData.nomorSurat && (
+                    <div className="bg-white rounded-lg p-3 border border-blue-100">
+                      <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
+                        Nomor Surat
+                      </label>
+                      <p className="text-sm font-semibold text-slate-800">{formData.nomorSurat}</p>
+                    </div>
+                  )}
 
                   {/* Tanggal Surat */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
-                      Tanggal Surat <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="date"
-                      disabled={isReadOnly}
-                      value={formData.tanggalSurat || ''}
-                      onChange={(e) => handleChange('tanggalSurat', e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm disabled:bg-slate-50"
-                    />
-                  </div>
+                  {formData.tanggalSurat && (
+                    <div className="bg-white rounded-lg p-3 border border-blue-100">
+                      <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
+                        Tanggal Surat
+                      </label>
+                      <p className="text-sm font-semibold text-slate-800">
+                        {new Date(formData.tanggalSurat).toLocaleDateString('id-ID', { 
+                          day: 'numeric', 
+                          month: 'long', 
+                          year: 'numeric' 
+                        })}
+                      </p>
+                    </div>
+                  )}
 
                   {/* Jenis Naskah */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Jenis Naskah</label>
-                    <select
-                      disabled={isReadOnly}
-                      value={formData.jenisNaskah || ''}
-                      onChange={(e) => handleChange('jenisNaskah', e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm bg-white disabled:bg-slate-50"
-                    >
-                      <option value="">-- Pilih Jenis --</option>
-                      <option value="Surat">Surat</option>
-                      <option value="Nota Dinas">Nota Dinas</option>
-                      <option value="Surat Edaran">Surat Edaran</option>
-                      <option value="Surat Keputusan">Surat Keputusan</option>
-                      <option value="Surat Perintah">Surat Perintah</option>
-                      <option value="Surat Tugas">Surat Tugas</option>
-                      <option value="Surat Undangan">Surat Undangan</option>
-                      <option value="Disposisi">Disposisi</option>
-                      <option value="Memorandum">Memorandum</option>
-                    </select>
-                  </div>
+                  {formData.jenisNaskah && (
+                    <div className="bg-white rounded-lg p-3 border border-blue-100">
+                      <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
+                        Jenis Naskah
+                      </label>
+                      <p className="text-sm font-semibold text-slate-800">{formData.jenisNaskah}</p>
+                    </div>
+                  )}
 
                   {/* Klasifikasi Surat */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Klasifikasi Surat</label>
-                    <input
-                      type="text"
-                      disabled={isReadOnly}
-                      value={formData.klasifikasiSurat || ''}
-                      onChange={(e) => handleChange('klasifikasiSurat', e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm disabled:bg-slate-50"
-                      placeholder="Contoh: Biasa, Rahasia, dll"
-                    />
-                  </div>
-                </div>
-
-                {/* Hal/Perihal */}
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Hal / Perihal</label>
-                  <input
-                    type="text"
-                    disabled={isReadOnly}
-                    value={formData.hal || ''}
-                    onChange={(e) => handleChange('hal', e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm disabled:bg-slate-50"
-                    placeholder="Perihal surat..."
-                  />
-                </div>
-
-                {/* Asal/Tujuan Surat - Conditional based on jenis surat */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
-                      {formData.jenisSurat === 'Keluar' ? 'Kepada (Penerima)' : 'Dari (Pengirim)'}
-                    </label>
-                    {formData.jenisSurat === 'Keluar' ? (
-                      <input
-                        type="text"
-                        disabled={isReadOnly}
-                        value={formData.tujuanSurat || ''}
-                        onChange={(e) => handleChange('tujuanSurat', e.target.value)}
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm disabled:bg-slate-50"
-                        placeholder="Nama K/L/Instansi/Satker tujuan"
-                      />
-                    ) : (
-                      <input
-                        type="text"
-                        disabled={isReadOnly}
-                        value={formData.asalSurat || ''}
-                        onChange={(e) => handleChange('asalSurat', e.target.value)}
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm disabled:bg-slate-50"
-                        placeholder="Nama K/L/Instansi/Satker pengirim"
-                      />
-                    )}
-                  </div>
+                  {formData.klasifikasiSurat && (
+                    <div className="bg-white rounded-lg p-3 border border-blue-100">
+                      <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
+                        Klasifikasi
+                      </label>
+                      <p className="text-sm font-semibold text-slate-800">{formData.klasifikasiSurat}</p>
+                    </div>
+                  )}
 
                   {/* Bidang Tugas */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Bidang Tugas / Kerja</label>
-                    <input
-                      type="text"
-                      disabled={isReadOnly}
-                      value={formData.bidangTugas || ''}
-                      onChange={(e) => handleChange('bidangTugas', e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm disabled:bg-slate-50"
-                      placeholder="Bidang tugas terkait"
-                    />
-                  </div>
+                  {formData.bidangTugas && (
+                    <div className="bg-white rounded-lg p-3 border border-blue-100">
+                      <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
+                        Bidang Tugas
+                      </label>
+                      <p className="text-sm font-semibold text-slate-800">{formData.bidangTugas}</p>
+                    </div>
+                  )}
                 </div>
 
-                {/* Disposisi - Only for Surat Masuk */}
-                {formData.jenisSurat === 'Masuk' && (
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
-                      Disposisi / Instruksi Pimpinan
+                {/* Hal/Perihal - Full width */}
+                {formData.hal && (
+                  <div className="bg-white rounded-lg p-3 border border-blue-100">
+                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
+                      Hal / Perihal
                     </label>
-                    <textarea
-                      disabled={isReadOnly}
-                      value={formData.disposisi || ''}
-                      onChange={(e) => handleChange('disposisi', e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm disabled:bg-slate-50 resize-none"
-                      placeholder="Instruksi atau arahan dari pimpinan terkait surat masuk ini..."
-                      rows={3}
-                    />
+                    <p className="text-sm text-slate-800">{formData.hal}</p>
                   </div>
                 )}
 
-                {/* Hasil Tindak Lanjut / Catatan */}
+                {/* Asal/Tujuan Surat */}
+                {(formData.asalSurat || formData.tujuanSurat) && (
+                  <div className="bg-white rounded-lg p-3 border border-blue-100">
+                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
+                      {formData.jenisSurat === 'Keluar' ? '📤 Kepada (Penerima)' : '📥 Dari (Pengirim)'}
+                    </label>
+                    <p className="text-sm text-slate-800">
+                      {formData.jenisSurat === 'Keluar' ? formData.tujuanSurat : formData.asalSurat}
+                    </p>
+                  </div>
+                )}
+
+                {/* Teks Disposisi - Only for Surat Masuk */}
+                {formData.jenisSurat === 'Masuk' && formData.disposisi && (
+                  <div className="bg-amber-50 rounded-lg p-4 border-2 border-amber-200">
+                    <label className="block text-xs font-semibold text-amber-800 uppercase tracking-wider mb-2 flex items-center gap-2">
+                      <span className="text-lg">📋</span>
+                      Teks Disposisi
+                    </label>
+                    <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">
+                      {formData.disposisi}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Create Disposisi Section - Only show when Surat is selected from existing records */}
+            {selectedSuratForLinking && !initialData && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <Users size={18} className="text-green-700" />
+                  <h3 className="text-sm font-bold text-green-900 uppercase tracking-wider">
+                    Buat Disposisi <span className="text-red-500">*</span>
+                  </h3>
+                </div>
+                <p className="text-xs text-green-700 mb-3">
+                  Karena Anda menghubungkan kegiatan ini dengan surat yang ada, disposisi wajib dibuat untuk menugaskan PIC.
+                </p>
+
+                {/* Disposisi Assignees */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
-                    {formData.jenisSurat === 'Masuk' ? 'Hasil Tindak Lanjut' : 'Catatan / Keterangan'}
+                    <Users size={12} className="inline mr-1" />
+                    Assignee / Ditugaskan Kepada <span className="text-red-500">*</span>
+                  </label>
+                  <MultiSelectChip
+                    options={users.map(u => ({ value: u.name, label: u.name }))}
+                    value={disposisiAssignees}
+                    onChange={setDisposisiAssignees}
+                    placeholder="Pilih user yang ditugaskan..."
+                    maxVisibleChips={3}
+                  />
+                  <p className="text-xs text-slate-500 mt-1">Pilih satu atau lebih user untuk ditugaskan</p>
+                </div>
+
+                {/* Disposisi Text */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                    Instruksi Disposisi <span className="text-red-500">*</span>
                   </label>
                   <textarea
-                    disabled={isReadOnly}
-                    value={formData.hasilTindakLanjut || ''}
-                    onChange={(e) => handleChange('hasilTindakLanjut', e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm disabled:bg-slate-50 resize-none"
-                    placeholder={formData.jenisSurat === 'Masuk' 
-                      ? 'Progress dan hasil tindak lanjut dari disposisi...'
-                      : 'Catatan tambahan terkait surat keluar ini...'
-                    }
+                    value={disposisiText}
+                    onChange={(e) => setDisposisiText(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm resize-none"
+                    placeholder="Instruksi atau arahan terkait surat ini..."
                     rows={3}
+                  />
+                </div>
+
+                {/* Disposisi Deadline */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                    <Calendar size={12} className="inline mr-1" />
+                    Deadline (Opsional)
+                  </label>
+                  <input
+                    type="date"
+                    value={disposisiDeadline}
+                    onChange={(e) => setDisposisiDeadline(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm"
                   />
                 </div>
               </div>

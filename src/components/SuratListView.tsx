@@ -3,13 +3,16 @@ import React, { useState, useMemo } from 'react';
 import { 
   FileText, Calendar, Building2,
   X, Search, FileDown, Link2, Eye, Plus,
-  ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown
+  ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown,
+  CheckCircle2, Clock, AlertCircle, Users
 } from 'lucide-react';
 import { Surat, User } from '../../types';
-import { supabase } from '../lib/supabaseClient';
 import AddSuratModal from './AddSuratModal';
 import SuratViewModal from './SuratViewModal';
+import SearchableSelect from './SearchableSelect';
 import { useSurats } from '../contexts/SuratsContext';
+import { useUsers } from '../contexts/UsersContext';
+import { useMeetings } from '../contexts/MeetingsContext';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -20,12 +23,16 @@ interface SuratListViewProps {
 }
 
 const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotification }) => {
-  const { surats, fetchSurats } = useSurats();
+  const { surats, fetchSurats, unlinkFromKegiatan } = useSurats();
+  const { allUsers } = useUsers();
+  const { meetings } = useMeetings();
   const [searchQuery, setSearchQuery] = useState('');
   const [filterJenisSurat, setFilterJenisSurat] = useState<'All' | 'Masuk' | 'Keluar'>('All');
   const [filterJenisNaskah, setFilterJenisNaskah] = useState<string>('All');
   const [filterStartDate, setFilterStartDate] = useState('');
   const [filterEndDate, setFilterEndDate] = useState('');
+  const [filterDisposisiStatus, setFilterDisposisiStatus] = useState<'All' | 'Pending' | 'In Progress' | 'Completed' | 'Mixed'>('All');
+  const [filterHasDisposisi, setFilterHasDisposisi] = useState<boolean | null>(null);
   const [showExportModal, setShowExportModal] = useState(false);
   const [showAddSuratModal, setShowAddSuratModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
@@ -43,6 +50,20 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
   const [exportStartDate, setExportStartDate] = useState('');
   const [exportEndDate, setExportEndDate] = useState('');
   const [exportJenisSurat, setExportJenisSurat] = useState<'All' | 'Masuk' | 'Keluar'>('All');
+
+  // Helper function to get meeting date from linked meeting
+  const getKegiatanDate = (surat: Surat): string | null => {
+    if (!surat.meetingId) return null;
+    const meeting = meetings.find(m => m.id === surat.meetingId);
+    return meeting?.date || null;
+  };
+
+  // Helper function to get meeting title from linked meeting
+  const getKegiatanTitle = (surat: Surat): string | null => {
+    if (!surat.meetingId) return null;
+    const meeting = meetings.find(m => m.id === surat.meetingId);
+    return meeting?.title || null;
+  };
   const [exportJenisNaskah, setExportJenisNaskah] = useState<string>('All');
 
   // Apply filters and sort
@@ -82,7 +103,16 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
         }
       }
 
-      return matchesSearch && matchesJenisSurat && matchesJenisNaskah && matchesDateRange;
+      // Disposisi status filter
+      const matchesDisposisiStatus = filterDisposisiStatus === 'All' || surat.disposisiStatus === filterDisposisiStatus;
+
+      // Has Disposisi filter
+      let matchesHasDisposisi = true;
+      if (filterHasDisposisi !== null) {
+        matchesHasDisposisi = filterHasDisposisi ? (surat.hasDisposisi === true) : (surat.hasDisposisi !== true);
+      }
+
+      return matchesSearch && matchesJenisSurat && matchesJenisNaskah && matchesDateRange && matchesDisposisiStatus && matchesHasDisposisi;
     });
 
     // Apply sorting
@@ -128,7 +158,7 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
       if (compareA > compareB) return sortDirection === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [surats, searchQuery, filterJenisSurat, filterJenisNaskah, filterStartDate, filterEndDate, sortColumn, sortDirection]);
+  }, [surats, searchQuery, filterJenisSurat, filterJenisNaskah, filterStartDate, filterEndDate, filterDisposisiStatus, filterHasDisposisi, sortColumn, sortDirection]);
 
   // Pagination logic
   const totalPages = Math.ceil(filteredSurats.length / itemsPerPage);
@@ -139,7 +169,7 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
   // Reset to page 1 when filters change
   useMemo(() => {
     setCurrentPage(1);
-  }, [searchQuery, filterJenisSurat, filterJenisNaskah, filterStartDate, filterEndDate]);
+  }, [searchQuery, filterJenisSurat, filterJenisNaskah, filterStartDate, filterEndDate, filterDisposisiStatus, filterHasDisposisi]);
 
   // Prepare URLs for display - use existing URLs without refresh to avoid 404 errors
   const displayUrls = useMemo(() => {
@@ -219,9 +249,11 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
       'Bidang Tugas': surat.bidangTugas || '-',
       'Tanggal Diterima': surat.tanggalDiterima ? new Date(surat.tanggalDiterima).toLocaleDateString('id-ID') : '-',
       'Tanggal Dikirim': surat.tanggalDikirim ? new Date(surat.tanggalDikirim).toLocaleDateString('id-ID') : '-',
-      'Disposisi': surat.disposisi || '-',
-      'Hasil Tindak Lanjut': surat.hasilTindakLanjut || '-',
-      'Tanggal Kegiatan': surat.tanggalKegiatan ? new Date(surat.tanggalKegiatan).toLocaleDateString('id-ID') : '-',
+      'Tanggal Kegiatan': getKegiatanDate(surat) ? new Date(getKegiatanDate(surat)!).toLocaleDateString('id-ID') : '-',
+      'Judul Kegiatan': getKegiatanTitle(surat) || '-',
+      'Ada Disposisi': surat.hasDisposisi ? 'Ya' : 'Tidak',
+      'Jumlah Disposisi': surat.hasDisposisi ? (surat.disposisiCount || 0).toString() : '0',
+      'Status Disposisi': surat.disposisiStatus || '-',
       'File Surat': surat.fileSurat ? (surat.fileSurat.isLink ? surat.fileSurat.url : surat.fileSurat.name) : '-',
       'Dibuat Oleh': surat.createdBy,
       'Tanggal Dibuat': new Date(surat.createdAt).toLocaleDateString('id-ID')
@@ -254,6 +286,9 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
       { wch: 40 }, // Disposisi
       { wch: 40 }, // Hasil Tindak Lanjut
       { wch: 15 }, // Tanggal Kegiatan
+      { wch: 15 }, // Ada Disposisi
+      { wch: 15 }, // Jumlah Disposisi
+      { wch: 15 }, // Status Disposisi
       { wch: 40 }, // File Surat
       { wch: 20 }, // Dibuat Oleh
       { wch: 15 }  // Tanggal Dibuat
@@ -292,25 +327,29 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
       surat.jenisNaskah || '-',
       surat.hal || '-',
       surat.jenisSurat === 'Masuk' ? (surat.asalSurat || '-') : (surat.tujuanSurat || '-'),
-      surat.tanggalKegiatan ? new Date(surat.tanggalKegiatan).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-'
+      getKegiatanDate(surat) ? new Date(getKegiatanDate(surat)!).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-',
+      surat.hasDisposisi ? `${surat.disposisiCount || 0}` : '0',
+      surat.disposisiStatus || '-'
     ]);
 
     // Add table
     autoTable(doc, {
       startY: 32,
-      head: [['Jenis', 'Nomor Surat', 'Tgl Surat', 'Jenis Naskah', 'Hal/Perihal', 'Asal/Tujuan', 'Tgl Kegiatan']],
+      head: [['Jenis', 'Nomor Surat', 'Tgl Surat', 'Jenis Naskah', 'Hal/Perihal', 'Asal/Tujuan', 'Tgl Kegiatan', 'Jml Disp', 'Status Disp']],
       body: tableData,
       styles: { fontSize: 8, cellPadding: 2 },
       headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold' },
       alternateRowStyles: { fillColor: [245, 245, 245] },
       columnStyles: {
         0: { cellWidth: 20 },
-        1: { cellWidth: 40 },
-        2: { cellWidth: 25 },
-        3: { cellWidth: 30 },
-        4: { cellWidth: 60 },
-        5: { cellWidth: 50 },
-        6: { cellWidth: 25 }
+        1: { cellWidth: 35 },
+        2: { cellWidth: 22 },
+        3: { cellWidth: 28 },
+        4: { cellWidth: 50 },
+        5: { cellWidth: 45 },
+        6: { cellWidth: 22 },
+        7: { cellWidth: 18 },
+        8: { cellWidth: 25 }
       },
       margin: { left: 14, right: 14 }
     });
@@ -355,10 +394,28 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
 
   const handleDeleteSurat = async (id: string) => {
     try {
-      const { error } = await supabase.from('surats').delete().eq('id', id);
-      if (error) throw error;
+      // Import cleanup utilities dynamically
+      const { getDisposisiForSurat, formatDisposisiWarning, deleteSuratWithCleanup } = await import('../utils/disposisiCleanup');
       
-      showNotification('Surat Dihapus', 'Surat berhasil dihapus', 'success');
+      // Get related Disposisi to show warning
+      const relatedDisposisi = await getDisposisiForSurat(id);
+      const warning = formatDisposisiWarning(relatedDisposisi);
+      
+      // Find the surat to get its number for the confirmation message
+      const surat = surats.find(s => s.id === id);
+      const suratNumber = surat?.nomorSurat || 'ini';
+      
+      // Show confirmation dialog with Disposisi warning
+      const confirmMessage = `Hapus surat ${suratNumber}? Tindakan ini tidak dapat dibatalkan.${warning}`;
+      
+      if (!window.confirm(confirmMessage)) {
+        return;
+      }
+      
+      // Delete with cleanup
+      await deleteSuratWithCleanup(id);
+      
+      showNotification('Surat Dihapus', 'Surat dan disposisi terkait berhasil dihapus', 'success');
       fetchSurats();
     } catch (error: any) {
       showNotification('Gagal Hapus Surat', error.message, 'error');
@@ -437,16 +494,13 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
           {/* Jenis Naskah Filter */}
           <div>
             <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">Jenis Naskah</label>
-            <select
-              value={filterJenisNaskah}
-              onChange={(e) => setFilterJenisNaskah(e.target.value)}
-              className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 focus:border-gov-400 outline-none text-sm bg-white"
-            >
-              <option value="All">Semua Naskah</option>
-              {jenisNaskahOptions.map(jenis => (
-                <option key={jenis} value={jenis}>{jenis}</option>
-              ))}
-            </select>
+            <SearchableSelect
+              options={jenisNaskahOptions.map(jenis => ({ value: jenis, label: jenis }))}
+              value={filterJenisNaskah === 'All' ? '' : filterJenisNaskah}
+              onChange={(value) => setFilterJenisNaskah(value || 'All')}
+              placeholder="Cari jenis naskah..."
+              emptyOption="Semua Naskah"
+            />
           </div>
 
           {/* Start Date Filter */}
@@ -480,6 +534,72 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
                 </button>
               )}
             </div>
+          </div>
+        </div>
+
+        {/* Second row for Disposisi filters */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-3 pt-3 border-t border-slate-200">
+          {/* Disposisi Status Filter */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">Status Disposisi</label>
+            <SearchableSelect
+              options={[
+                { value: 'All', label: '📋 Semua Status' },
+                { value: 'Pending', label: '⏳ Pending' },
+                { value: 'In Progress', label: '🔄 In Progress' },
+                { value: 'Completed', label: '✅ Completed' },
+                { value: 'Mixed', label: '🔀 Mixed' }
+              ]}
+              value={filterDisposisiStatus === 'All' ? '' : filterDisposisiStatus}
+              onChange={(value) => setFilterDisposisiStatus((value || 'All') as any)}
+              placeholder="Cari status..."
+              emptyOption="📋 Semua Status"
+            />
+          </div>
+
+          {/* Has Disposisi Filter */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">Filter Disposisi</label>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setFilterHasDisposisi(filterHasDisposisi === true ? null : true)}
+                className={`flex-1 px-3 py-2.5 border rounded-lg transition-colors text-sm font-medium ${
+                  filterHasDisposisi === true
+                    ? 'bg-gov-600 text-white border-gov-600'
+                    : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+                }`}
+              >
+                Ada Disposisi
+              </button>
+              <button
+                onClick={() => setFilterHasDisposisi(filterHasDisposisi === false ? null : false)}
+                className={`flex-1 px-3 py-2.5 border rounded-lg transition-colors text-sm font-medium ${
+                  filterHasDisposisi === false
+                    ? 'bg-gov-600 text-white border-gov-600'
+                    : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+                }`}
+              >
+                Tanpa Disposisi
+              </button>
+            </div>
+          </div>
+
+          {/* Clear all filters button */}
+          <div className="flex items-end">
+            <button
+              onClick={() => {
+                setSearchQuery('');
+                setFilterJenisSurat('All');
+                setFilterJenisNaskah('All');
+                setFilterStartDate('');
+                setFilterEndDate('');
+                setFilterDisposisiStatus('All');
+                setFilterHasDisposisi(null);
+              }}
+              className="w-full px-3 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors text-sm font-medium"
+            >
+              Reset Semua Filter
+            </button>
           </div>
         </div>
       </div>
@@ -553,6 +673,7 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
                     {getSortIcon('tanggalKegiatan')}
                   </button>
                 </th>
+                <th className="px-4 py-3.5 text-center text-xs font-bold text-slate-700 uppercase tracking-wider min-w-[140px]">Disposisi</th>
                 <th className="px-4 py-3.5 text-center text-xs font-bold text-slate-700 uppercase tracking-wider w-24">Dokumen</th>
                 <th className="px-4 py-3.5 text-center text-xs font-bold text-slate-700 uppercase tracking-wider w-20">Aksi</th>
               </tr>
@@ -560,7 +681,7 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
             <tbody className="divide-y divide-slate-100">
               {paginatedSurats.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-12 text-center">
+                  <td colSpan={10} className="px-4 py-12 text-center">
                     <FileText size={56} className="mx-auto mb-3 text-slate-300" />
                     <p className="text-base font-medium text-slate-600 mb-1">Tidak ada surat ditemukan</p>
                     <p className="text-sm text-slate-400">Coba ubah filter atau kata kunci pencarian</p>
@@ -638,16 +759,57 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
 
                         {/* Kegiatan */}
                         <td className="px-4 py-4">
-                          {surat.tanggalKegiatan ? (
-                            <span className="text-sm font-medium text-slate-700">
-                              {new Date(surat.tanggalKegiatan).toLocaleDateString('id-ID', { 
-                                day: 'numeric', 
-                                month: 'short',
-                                year: 'numeric'
-                              })}
-                            </span>
+                          {getKegiatanDate(surat) ? (
+                            <div className="flex flex-col gap-1">
+                              <span className="text-sm font-medium text-slate-700">
+                                {new Date(getKegiatanDate(surat)!).toLocaleDateString('id-ID', { 
+                                  day: 'numeric', 
+                                  month: 'short',
+                                  year: 'numeric'
+                                })}
+                              </span>
+                              {getKegiatanTitle(surat) && (
+                                <span className="text-xs text-slate-500 truncate max-w-[150px]" title={getKegiatanTitle(surat)!}>
+                                  {getKegiatanTitle(surat)}
+                                </span>
+                              )}
+                            </div>
                           ) : (
                             <span className="text-xs text-slate-400 italic">Tidak ada</span>
+                          )}
+                        </td>
+
+                        {/* Disposisi */}
+                        <td className="px-4 py-4">
+                          {surat.hasDisposisi ? (
+                            <div className="flex items-center justify-center gap-2">
+                              {/* Disposisi Count Badge */}
+                              <div className="flex items-center gap-1.5 bg-purple-100 text-purple-700 px-2.5 py-1 rounded-full">
+                                <Users size={14} />
+                                <span className="text-xs font-semibold">{surat.disposisiCount || 0}</span>
+                              </div>
+                              
+                              {/* Disposisi Status Badge */}
+                              {surat.disposisiStatus && (
+                                <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full ${
+                                  surat.disposisiStatus === 'Completed' 
+                                    ? 'bg-green-100 text-green-700' 
+                                    : surat.disposisiStatus === 'In Progress'
+                                    ? 'bg-blue-100 text-blue-700'
+                                    : surat.disposisiStatus === 'Pending'
+                                    ? 'bg-yellow-100 text-yellow-700'
+                                    : 'bg-slate-100 text-slate-700'
+                                }`}>
+                                  {surat.disposisiStatus === 'Completed' && <CheckCircle2 size={12} />}
+                                  {surat.disposisiStatus === 'In Progress' && <Clock size={12} />}
+                                  {surat.disposisiStatus === 'Pending' && <AlertCircle size={12} />}
+                                  {surat.disposisiStatus === 'Mixed' && <Users size={12} />}
+                                  {surat.disposisiStatus}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-slate-400 italic">-</span>
                           )}
                         </td>
 
@@ -888,6 +1050,7 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
           setShowAddSuratModal(false);
         }}
         currentUserName={currentUser?.name || 'Unknown'}
+        currentUser={currentUser}
         showNotification={showNotification}
       />
 
@@ -904,7 +1067,10 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
         }}
         onDelete={handleDeleteSurat}
         currentUserName={currentUser?.name || 'Unknown'}
+        currentUser={currentUser}
+        users={allUsers}
         showNotification={showNotification}
+        onUnlinkFromKegiatan={unlinkFromKegiatan}
       />
     </div>
   );

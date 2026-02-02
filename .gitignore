@@ -29,3 +29,36 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Build files
+tsconfig.tsbuildinfo
+
+# Tests
+src/tests/
+vitest.config.ts
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+
+# Database (migrations and queries)
+database/
+
+# Development documentation (temporary)
+*_IMPLEMENTATION.md
+*_COMPLETE.md
+*_GUIDE.md
+*_REQUIREMENT.md
+*_FIX.md
+*_UPDATE.md
+*_FEATURE.md
+*_SEARCH.md
+CARA_KERJA_*.md
+TESTING_*.md
+TROUBLESHOOTING_*.md
+HOTFIX_*.md
+QUICK_START_*.md
+MANUAL_*.md
+
+# Kiro specs (development)
+.kiro/specs/

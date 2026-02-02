@@ -52,6 +52,7 @@ const SuratListView = lazy(() => import('./components/SuratListView'));
 const AddMeetingModal = lazy(() => import('./components/AddMeetingModal'));
 const MeetingViewModal = lazy(() => import('./components/MeetingViewModal'));
 const ActivityLogPage = lazy(() => import('./components/ActivityLogPage'));
+const DisposisiListView = lazy(() => import('./components/DisposisiListView'));
 
 // Loading fallback
 const PageLoader: React.FC = () => (
@@ -235,6 +236,13 @@ const AppContent: React.FC = () => {
     }
   }, [meetings]);
 
+  const handleDisposisiNavigation = useCallback((disposisiId: string) => {
+    // Navigate to Daftar Disposisi and highlight the specific disposisi
+    setActiveTab('Daftar Disposisi');
+    // The DisposisiListView component will handle highlighting the specific disposisi
+    // by checking the URL or a state parameter
+  }, [setActiveTab]);
+
   // Modal helper
   const openNewTaskModal = useCallback(() => {
     setEditingTask(null);
@@ -257,7 +265,8 @@ const AppContent: React.FC = () => {
     currentUser,
     tasks,
     onTaskNavigation: handleTaskNavigation,
-    onMeetingNavigation: handleMeetingNavigation
+    onMeetingNavigation: handleMeetingNavigation,
+    onDisposisiNavigation: handleDisposisiNavigation
   });
 
   // User handlers
@@ -567,7 +576,7 @@ const AppContent: React.FC = () => {
         )}
 
         {/* Top Header / Filter Bar - HIDDEN for special pages */}
-        {activeTab !== 'Dashboard' && activeTab !== 'Project' && activeTab !== 'Master Data' && activeTab !== 'Saran Masukan' && activeTab !== 'Pengumuman' && activeTab !== 'Inventori Data' && activeTab !== 'Jadwal Kegiatan' && activeTab !== 'Daftar Surat' && activeTab !== 'Activity Log' && (
+        {activeTab !== 'Dashboard' && activeTab !== 'Project' && activeTab !== 'Master Data' && activeTab !== 'Saran Masukan' && activeTab !== 'Pengumuman' && activeTab !== 'Inventori Data' && activeTab !== 'Jadwal Kegiatan' && activeTab !== 'Daftar Surat' && activeTab !== 'Activity Log' && activeTab !== 'Daftar Disposisi' && (
           <header className="bg-white border-b border-slate-200 px-3 sm:px-6 py-3 sm:py-4 z-20 relative">
             <div className="flex flex-col gap-3 sm:gap-4 mb-3 sm:mb-4">
               {/* Title Section */}
@@ -855,6 +864,13 @@ const AppContent: React.FC = () => {
             currentUser={currentUser}
             showNotification={showNotification}
           />
+        ) : activeTab === 'Daftar Disposisi' ? (
+          <Suspense fallback={<PageLoader />}>
+            <DisposisiListView
+              currentUser={currentUser}
+              showNotification={showNotification}
+            />
+          </Suspense>
         ) : activeTab === 'Inventori Data' ? (
           <DataInventory
             items={dataInventory}

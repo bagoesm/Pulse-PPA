@@ -3,6 +3,8 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { Meeting, MeetingInviter } from '../../types';
+import { linkingService } from '../services/LinkingService';
+import { mappers } from '../utils/mappers';
 
 interface MeetingsContextType {
     meetings: Meeting[];
@@ -12,6 +14,17 @@ interface MeetingsContextType {
     fetchMeetings: () => Promise<void>;
     clearMeetings: () => void;
     isMeetingsLoading: boolean;
+    linkToSurat: (
+        kegiatanId: string,
+        suratId: string,
+        disposisiData: {
+            assignees: string[];
+            disposisiText: string;
+            deadline?: string;
+            createdBy: string;
+        }
+    ) => Promise<void>;
+    unlinkFromSurat: (kegiatanId: string, suratId: string) => Promise<void>;
 }
 
 const MeetingsContext = createContext<MeetingsContextType | undefined>(undefined);
@@ -37,19 +50,27 @@ export const MeetingsProvider: React.FC<MeetingsProviderProps> = ({ children, se
     const fetchMeetings = useCallback(async () => {
         setIsMeetingsLoading(true);
         try {
-            // Fetch meetings and comments in parallel
-            const [meetingsResult, commentsResult] = await Promise.all([
-                supabase.from('meetings').select('*').order('date', { ascending: true }),
-                supabase.from('meeting_comments').select('*').order('created_at', { ascending: false })
-            ]);
+            // Fetch from the view that includes disposisi information
+            const { data: meetingsData, error: meetingsError } = await supabase
+                .from('meetings_with_disposisi')
+                .select('*')
+                .order('date', { ascending: true });
 
-            const meetingsData = meetingsResult.data;
-            const commentsData = commentsResult.data || [];
+            // Fallback to regular meetings table if view doesn't exist
+            const finalMeetingsData = meetingsError 
+                ? (await supabase.from('meetings').select('*').order('date', { ascending: true })).data
+                : meetingsData;
 
-            if (meetingsData) {
+            // Fetch comments
+            const { data: commentsData } = await supabase
+                .from('meeting_comments')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (finalMeetingsData) {
                 // Group comments by meeting_id
                 const commentsByMeetingId = new Map<string, any[]>();
-                commentsData.forEach((c: any) => {
+                (commentsData || []).forEach((c: any) => {
                     const meetingId = c.meeting_id;
                     if (!commentsByMeetingId.has(meetingId)) {
                         commentsByMeetingId.set(meetingId, []);
@@ -65,52 +86,14 @@ export const MeetingsProvider: React.FC<MeetingsProviderProps> = ({ children, se
                     });
                 });
 
-                const mappedMeetings = meetingsData.map((m: any) => ({
-                    id: m.id,
-                    title: m.title,
-                    type: m.type,
-                    description: m.description,
-                    date: m.date,
-                    endDate: m.end_date,
-                    startTime: m.start_time,
-                    endTime: m.end_time,
-                    location: m.location,
-                    isOnline: m.is_online,
-                    onlineLink: m.online_link,
-                    inviter: m.inviter || { id: '', name: '', organization: '' },
-                    invitees: m.invitees || [],
-                    pic: m.pic || [],
-                    projectId: m.project_id,
-                    suratUndangan: m.surat_undangan,
-                    suratTugas: m.surat_tugas,
-                    laporan: m.laporan,
-                    attachments: (m.attachments || []).map((att: any, idx: number) => ({
-                        ...att,
-                        id: att.id || `att_${m.id}_${idx}`
-                    })),
-                    links: (m.links || []).map((link: any, idx: number) => ({
-                        ...link,
-                        id: link.id || `link_${m.id}_${idx}`
-                    })),
-                    notes: m.notes,
-                    status: m.status,
-                    createdBy: m.created_by,
-                    createdAt: m.created_at,
-                    updatedAt: m.updated_at,
-                    comments: commentsByMeetingId.get(m.id) || [],
-                    // Field surat undangan
-                    jenisSurat: m.jenis_surat,
-                    nomorSurat: m.nomor_surat,
-                    hal: m.hal,
-                    asalSurat: m.asal_surat,
-                    tujuanSurat: m.tujuan_surat,
-                    klasifikasiSurat: m.klasifikasi_surat,
-                    jenisNaskah: m.jenis_naskah,
-                    tanggalSurat: m.tanggal_surat,
-                    bidangTugas: m.bidang_tugas,
-                    disposisi: m.disposisi,
-                    hasilTindakLanjut: m.hasil_tindak_lanjut
-                }));
+                // OPTIMIZATION: Use centralized mapper
+                const mappedMeetings = finalMeetingsData.map((m: any) => {
+                    const meeting = mappers.meeting(m);
+                    // Add comments from grouped data
+                    meeting.comments = commentsByMeetingId.get(m.id) || [];
+                    return meeting;
+                });
+                
                 setMeetings(mappedMeetings);
 
                 // Extract unique inviters
@@ -132,6 +115,48 @@ export const MeetingsProvider: React.FC<MeetingsProviderProps> = ({ children, se
         setMeetingInviters([]);
     }, []);
 
+    /**
+     * Link Kegiatan to Surat with Disposisi
+     * Validates: Requirements 3.1, 4.1, 4.2
+     */
+    const linkToSurat = useCallback(async (
+        kegiatanId: string,
+        suratId: string,
+        disposisiData: {
+            assignees: string[];
+            disposisiText: string;
+            deadline?: string;
+            createdBy: string;
+        }
+    ) => {
+        try {
+            await linkingService.linkSuratToKegiatan(suratId, kegiatanId, disposisiData);
+            // Refresh meetings to get updated data
+            await fetchMeetings();
+        } catch (error) {
+            console.error('Error linking Kegiatan to Surat:', error);
+            throw error;
+        }
+    }, [fetchMeetings]);
+
+    /**
+     * Unlink Kegiatan from Surat
+     * Validates: Requirements 3.5
+     */
+    const unlinkFromSurat = useCallback(async (
+        kegiatanId: string,
+        suratId: string
+    ) => {
+        try {
+            await linkingService.unlinkSuratFromKegiatan(suratId, kegiatanId);
+            // Refresh meetings to get updated data
+            await fetchMeetings();
+        } catch (error) {
+            console.error('Error unlinking Kegiatan from Surat:', error);
+            throw error;
+        }
+    }, [fetchMeetings]);
+
     useEffect(() => {
         if (session) {
             fetchMeetings();
@@ -147,7 +172,9 @@ export const MeetingsProvider: React.FC<MeetingsProviderProps> = ({ children, se
         setMeetingInviters,
         fetchMeetings,
         clearMeetings,
-        isMeetingsLoading
+        isMeetingsLoading,
+        linkToSurat,
+        unlinkFromSurat,
     };
 
     return (

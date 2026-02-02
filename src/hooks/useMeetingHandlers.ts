@@ -228,6 +228,50 @@ export const useMeetingHandlers = ({
                     return;
                 }
 
+                // Sync to linked surat if exists
+                if (editingMeeting.linkedSuratId) {
+                    try {
+                        // Prepare surat update payload with meeting details
+                        const suratPayload: any = {
+                            jenis_surat: meetingData.jenisSurat || null,
+                            nomor_surat: meetingData.nomorSurat || null,
+                            tanggal_surat: meetingData.tanggalSurat || null,
+                            hal: meetingData.hal || null,
+                            asal_surat: meetingData.jenisSurat === 'Masuk' ? (meetingData.asalSurat || null) : null,
+                            tujuan_surat: meetingData.jenisSurat === 'Keluar' ? (meetingData.tujuanSurat || null) : null,
+                            klasifikasi_surat: meetingData.klasifikasiSurat || null,
+                            jenis_naskah: meetingData.jenisNaskah || null,
+                            bidang_tugas: meetingData.bidangTugas || null,
+                            disposisi: meetingData.jenisSurat === 'Masuk' ? (meetingData.disposisi || null) : null,
+                            hasil_tindak_lanjut: meetingData.hasilTindakLanjut || null,
+                            tanggal_kegiatan: meetingData.date,
+                            waktu_mulai: meetingData.startTime,
+                            waktu_selesai: meetingData.endTime,
+                            updated_at: new Date().toISOString()
+                        };
+
+                        // Update surat file if changed
+                        if (meetingData.suratUndangan) {
+                            suratPayload.file_surat = meetingData.suratUndangan;
+                        } else if (meetingData.suratTugas) {
+                            suratPayload.file_surat = meetingData.suratTugas;
+                        }
+
+                        const { error: suratError } = await supabase
+                            .from('surats')
+                            .update(suratPayload)
+                            .eq('id', editingMeeting.linkedSuratId);
+
+                        if (suratError) {
+                            console.error('Error syncing to surat:', suratError);
+                            // Don't fail the whole operation, just log
+                        }
+                    } catch (syncError) {
+                        console.error('Error syncing to surat:', syncError);
+                        // Don't fail the whole operation, just log
+                    }
+                }
+
                 // Then fetch the updated data separately (handles RLS better)
                 const { data, error: fetchError } = await supabase
                     .from('meetings')
@@ -464,20 +508,28 @@ export const useMeetingHandlers = ({
             // Get meeting data before deletion for logging
             const meetingToDelete = meetings.find(m => m.id === meetingId);
 
-            const { error } = await supabase
-                .from('meetings')
-                .delete()
-                .eq('id', meetingId);
-
-            if (error) {
-                showNotification('Gagal Hapus Jadwal', error.message, 'error');
+            // Import cleanup utilities
+            const { getDisposisiForKegiatan, formatDisposisiWarning, deleteKegiatanWithCleanup } = await import('../utils/disposisiCleanup');
+            
+            // Get related Disposisi to show warning
+            const relatedDisposisi = await getDisposisiForKegiatan(meetingId);
+            const warning = formatDisposisiWarning(relatedDisposisi);
+            
+            // Show confirmation dialog with Disposisi warning
+            const meetingTitle = meetingToDelete?.title || 'ini';
+            const confirmMessage = `Hapus jadwal "${meetingTitle}"? Tindakan ini tidak dapat dibatalkan.${warning}`;
+            
+            if (!window.confirm(confirmMessage)) {
                 return;
             }
+
+            // Delete with cleanup
+            await deleteKegiatanWithCleanup(meetingId);
 
             setMeetings(prev => prev.filter(m => m.id !== meetingId));
             setIsMeetingViewModalOpen(false);
             setViewingMeeting(null);
-            showNotification('Jadwal Dihapus', 'Jadwal berhasil dihapus.', 'success');
+            showNotification('Jadwal Dihapus', 'Jadwal dan disposisi terkait berhasil dihapus.', 'success');
 
             // Log to activity_logs for admin view
             if (meetingToDelete) {

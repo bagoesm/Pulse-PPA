@@ -19,7 +19,8 @@ import {
   X,
   Users,
   Loader2,
-  ChevronUp
+  ChevronUp,
+  ClipboardList
 } from 'lucide-react';
 import { Meeting, MeetingType, User, ProjectDefinition } from '../../types';
 
@@ -94,6 +95,7 @@ const MeetingCalendar: React.FC<MeetingCalendarProps> = ({
   const [filterType, setFilterType] = useState<MeetingType | 'all'>('all');
   const [filterStatus, setFilterStatus] = useState<MeetingStatus | 'all'>('all');
   const [filterPic, setFilterPic] = useState<string>('all');
+  const [filterDisposisi, setFilterDisposisi] = useState<'all' | 'with' | 'without'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -123,7 +125,7 @@ const MeetingCalendar: React.FC<MeetingCalendarProps> = ({
   }, [meetings]);
 
   // Active filter count
-  const activeFilterCount = (filterType !== 'all' ? 1 : 0) + (filterStatus !== 'all' ? 1 : 0) + (filterPic !== 'all' ? 1 : 0) + (searchQuery ? 1 : 0);
+  const activeFilterCount = (filterType !== 'all' ? 1 : 0) + (filterStatus !== 'all' ? 1 : 0) + (filterPic !== 'all' ? 1 : 0) + (filterDisposisi !== 'all' ? 1 : 0) + (searchQuery ? 1 : 0);
 
   // Filter meetings
   const filteredMeetings = useMemo(() => {
@@ -141,6 +143,12 @@ const MeetingCalendar: React.FC<MeetingCalendarProps> = ({
       filtered = filtered.filter(m => (m.pic || []).includes(filterPic));
     }
 
+    if (filterDisposisi === 'with') {
+      filtered = filtered.filter(m => m.hasDisposisi === true);
+    } else if (filterDisposisi === 'without') {
+      filtered = filtered.filter(m => !m.hasDisposisi);
+    }
+
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(m =>
@@ -154,7 +162,7 @@ const MeetingCalendar: React.FC<MeetingCalendarProps> = ({
     }
 
     return filtered;
-  }, [meetings, filterType, filterStatus, filterPic, searchQuery]);
+  }, [meetings, filterType, filterStatus, filterPic, filterDisposisi, searchQuery]);
 
   // Get calendar data
   const calendarData = useMemo(() => {
@@ -309,10 +317,27 @@ const MeetingCalendar: React.FC<MeetingCalendarProps> = ({
 
   const getProject = (projectId?: string) => projects.find(p => p.id === projectId);
 
+  // Get Disposisi status color
+  const getDisposisiStatusColor = (status?: string) => {
+    switch (status) {
+      case 'Pending':
+        return 'bg-yellow-100 text-yellow-700 border-yellow-200';
+      case 'In Progress':
+        return 'bg-blue-100 text-blue-700 border-blue-200';
+      case 'Completed':
+        return 'bg-green-100 text-green-700 border-green-200';
+      case 'Mixed':
+        return 'bg-purple-100 text-purple-700 border-purple-200';
+      default:
+        return 'bg-slate-100 text-slate-700 border-slate-200';
+    }
+  };
+
   const clearFilters = () => {
     setFilterType('all');
     setFilterStatus('all');
     setFilterPic('all');
+    setFilterDisposisi('all');
     setSearchQuery('');
   };
 
@@ -335,9 +360,17 @@ const MeetingCalendar: React.FC<MeetingCalendarProps> = ({
             <span className="sm:hidden">{typeConfig.shortLabel}</span>
             <span className="hidden sm:inline">{typeConfig.label}</span>
           </span>
-          <span className={`text-[10px] sm:text-xs font-medium ${statusConfig.color}`}>
-            {statusConfig.label}
-          </span>
+          <div className="flex items-center gap-1.5">
+            {meeting.hasDisposisi && meeting.disposisiCount && meeting.disposisiCount > 0 && (
+              <span className={`inline-flex items-center gap-1 text-[10px] sm:text-xs font-semibold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full border ${getDisposisiStatusColor(meeting.disposisiStatus)}`} title={`Disposisi: ${meeting.disposisiStatus || 'Unknown'}`}>
+                <ClipboardList size={10} className="sm:w-3 sm:h-3" />
+                <span>{meeting.disposisiCount}</span>
+              </span>
+            )}
+            <span className={`text-[10px] sm:text-xs font-medium ${statusConfig.color}`}>
+              {statusConfig.label}
+            </span>
+          </div>
         </div>
         <h4 className="font-semibold text-sm sm:text-base text-slate-800 mb-1.5 sm:mb-2 line-clamp-2">{meeting.title}</h4>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:text-sm text-slate-600">
@@ -366,6 +399,15 @@ const MeetingCalendar: React.FC<MeetingCalendarProps> = ({
             <FileText size={10} className="sm:w-3 sm:h-3 text-slate-400" />
             <span className="text-[10px] sm:text-xs text-slate-500">
               {[meeting.suratUndangan && 'Undangan', meeting.suratTugas && 'ST', meeting.laporan && 'Laporan'].filter(Boolean).join(', ')}
+            </span>
+          </div>
+        )}
+        {meeting.hasDisposisi && meeting.disposisiStatus && (
+          <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-slate-200/50">
+            <ClipboardList size={10} className="sm:w-3 sm:h-3 text-slate-400" />
+            <span className="text-[10px] sm:text-xs text-slate-500">
+              Disposisi: <span className="font-medium">{meeting.disposisiStatus}</span>
+              {meeting.disposisiCount && meeting.disposisiCount > 1 && ` (${meeting.disposisiCount} assignee)`}
             </span>
           </div>
         )}
@@ -432,6 +474,12 @@ const MeetingCalendar: React.FC<MeetingCalendarProps> = ({
               {uniquePics.map(pic => <option key={pic} value={pic}>{pic}</option>)}
             </select>
 
+            <select value={filterDisposisi} onChange={(e) => setFilterDisposisi(e.target.value as 'all' | 'with' | 'without')} className="hidden sm:block px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-600 focus:border-gov-400 focus:ring-1 focus:ring-gov-400 outline-none">
+              <option value="all">Semua Disposisi</option>
+              <option value="with">Dengan Disposisi</option>
+              <option value="without">Tanpa Disposisi</option>
+            </select>
+
             <button onClick={onAddMeeting} className="flex items-center gap-1.5 px-2.5 sm:px-4 py-2 bg-gov-600 text-white rounded-lg hover:bg-gov-700 transition-colors font-medium text-sm">
               <Plus size={16} className="sm:w-[18px] sm:h-[18px]" />
               <span className="hidden sm:inline">Tambah</span>
@@ -451,7 +499,7 @@ const MeetingCalendar: React.FC<MeetingCalendarProps> = ({
               <span className="text-xs font-semibold text-slate-500 uppercase">Filter</span>
               {activeFilterCount > 0 && <button onClick={clearFilters} className="text-xs text-gov-600 font-medium">Reset</button>}
             </div>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               <select value={filterType} onChange={(e) => setFilterType(e.target.value as MeetingType | 'all')} className="px-2 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-600">
                 <option value="all">Semua Jenis</option>
                 <option value="internal">Internal</option>
@@ -469,6 +517,11 @@ const MeetingCalendar: React.FC<MeetingCalendarProps> = ({
               <select value={filterPic} onChange={(e) => setFilterPic(e.target.value)} className="px-2 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-600">
                 <option value="all">Semua PIC</option>
                 {uniquePics.map(pic => <option key={pic} value={pic}>{pic}</option>)}
+              </select>
+              <select value={filterDisposisi} onChange={(e) => setFilterDisposisi(e.target.value as 'all' | 'with' | 'without')} className="px-2 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-600">
+                <option value="all">Semua Disposisi</option>
+                <option value="with">Dengan Disposisi</option>
+                <option value="without">Tanpa Disposisi</option>
               </select>
             </div>
           </div>
@@ -502,14 +555,30 @@ const MeetingCalendar: React.FC<MeetingCalendarProps> = ({
                       <div className="sm:hidden flex justify-center gap-0.5 flex-wrap">
                         {day.meetings.slice(0, 3).map(meeting => {
                           const config = MEETING_TYPE_CONFIG[meeting.type];
-                          return <div key={meeting.id} className={`w-1.5 h-1.5 rounded-full ${config.bgColor.replace('100', '500')}`} />;
+                          const hasDisposisi = meeting.hasDisposisi && meeting.disposisiCount && meeting.disposisiCount > 0;
+                          return (
+                            <div key={meeting.id} className="relative">
+                              <div className={`w-1.5 h-1.5 rounded-full ${config.bgColor.replace('100', '500')}`} />
+                              {hasDisposisi && (
+                                <div className="absolute -top-0.5 -right-0.5 w-1 h-1 rounded-full bg-amber-500 border border-white" title="Memiliki Disposisi" />
+                              )}
+                            </div>
+                          );
                         })}
                         {day.meetings.length > 3 && <div className="w-1.5 h-1.5 rounded-full bg-slate-400" />}
                       </div>
                       <div className="hidden sm:block space-y-0.5">
                         {day.meetings.slice(0, 2).map(meeting => {
                           const config = MEETING_TYPE_CONFIG[meeting.type];
-                          return <div key={meeting.id} className={`text-[10px] sm:text-xs px-1.5 py-0.5 rounded truncate ${config.bgColor} ${config.color}`} title={meeting.title}>{meeting.title}</div>;
+                          const hasDisposisi = meeting.hasDisposisi && meeting.disposisiCount && meeting.disposisiCount > 0;
+                          return (
+                            <div key={meeting.id} className="relative">
+                              <div className={`text-[10px] sm:text-xs px-1.5 py-0.5 rounded truncate ${config.bgColor} ${config.color}`} title={meeting.title}>
+                                {hasDisposisi && <ClipboardList size={8} className="inline mr-0.5" />}
+                                {meeting.title}
+                              </div>
+                            </div>
+                          );
                         })}
                         {day.meetings.length > 2 && <div className="text-[10px] text-slate-500 px-1">+{day.meetings.length - 2} lagi</div>}
                       </div>

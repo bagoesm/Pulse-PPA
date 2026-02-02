@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   LayoutDashboard,
   ListTodo,
@@ -19,7 +19,11 @@ import {
   Settings,
   Megaphone,
   CalendarDays,
-  FileSpreadsheet
+  FileSpreadsheet,
+  ClipboardCheck,
+  ClipboardList,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react';
 import { SIDEBAR_ITEMS, User } from '../../types';
 
@@ -50,10 +54,18 @@ const IconMap: Record<string, React.ElementType> = {
   'Megaphone': Megaphone,
   'Database': Database,
   'CalendarDays': CalendarDays,
-  'FileSpreadsheet': FileSpreadsheet
+  'FileSpreadsheet': FileSpreadsheet,
+  'ClipboardCheck': ClipboardCheck,
+  'ClipboardList': ClipboardList
 };
 
 const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser, users, onSwitchUser, onLogout }) => {
+  const [openSubmenu, setOpenSubmenu] = useState<string | null>('Surat & Kegiatan'); // Default open
+  
+  const toggleSubmenu = (menuName: string) => {
+    setOpenSubmenu(openSubmenu === menuName ? null : menuName);
+  };
+
   return (
     <aside className="w-64 bg-white border-r border-slate-200 h-screen fixed left-0 top-0 overflow-y-auto hidden md:flex flex-col z-10">
       <div className="p-6 border-b border-slate-100">
@@ -69,17 +81,73 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser,
       </div>
 
       <nav className="flex-1 p-4 space-y-1">
-        {SIDEBAR_ITEMS.map((item) => {
+        {SIDEBAR_ITEMS.map((item: any) => {
           const Icon = IconMap[item.icon];
           const isActive = activeTab === item.name;
+          const hasSubmenu = item.submenu && item.submenu.length > 0;
+          const isSubmenuOpen = openSubmenu === item.name;
+          const isSubmenuItemActive = hasSubmenu && item.submenu.some((sub: any) => sub.name === activeTab);
+
+          if (hasSubmenu) {
+            return (
+              <div key={item.name}>
+                {/* Parent menu with submenu */}
+                <button
+                  onClick={() => toggleSubmenu(item.name)}
+                  className={`w-full flex items-center justify-between gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-colors duration-200 ${
+                    isSubmenuItemActive
+                      ? 'bg-gov-50 text-gov-700'
+                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <Icon size={18} className={isSubmenuItemActive ? 'text-gov-600' : 'text-slate-400'} />
+                    {item.name}
+                  </div>
+                  {isSubmenuOpen ? (
+                    <ChevronDown size={16} className="text-slate-400" />
+                  ) : (
+                    <ChevronRight size={16} className="text-slate-400" />
+                  )}
+                </button>
+
+                {/* Submenu items */}
+                {isSubmenuOpen && (
+                  <div className="ml-4 mt-1 space-y-1 border-l-2 border-slate-100 pl-2">
+                    {item.submenu.map((subItem: any) => {
+                      const SubIcon = IconMap[subItem.icon];
+                      const isSubActive = activeTab === subItem.name;
+                      return (
+                        <button
+                          key={subItem.name}
+                          onClick={() => setActiveTab(subItem.name)}
+                          className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${
+                            isSubActive
+                              ? 'bg-gov-50 text-gov-700'
+                              : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                          }`}
+                        >
+                          <SubIcon size={16} className={isSubActive ? 'text-gov-600' : 'text-slate-400'} />
+                          {subItem.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          }
+
+          // Regular menu item without submenu
           return (
             <button
               key={item.name}
               onClick={() => setActiveTab(item.name)}
-              className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-colors duration-200 ${isActive
+              className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-colors duration-200 ${
+                isActive
                   ? 'bg-gov-50 text-gov-700'
                   : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                }`}
+              }`}
             >
               <Icon size={18} className={isActive ? 'text-gov-600' : 'text-slate-400'} />
               {item.name}

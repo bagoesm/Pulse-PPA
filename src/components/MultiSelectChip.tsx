@@ -1,6 +1,6 @@
 // src/components/MultiSelectChip.tsx
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, X } from 'lucide-react';
+import { Search, X, Edit2 } from 'lucide-react';
 
 type Option = {
   value: string;
@@ -18,6 +18,8 @@ interface MultiSelectChipProps {
   id?: string;
   searchable?: boolean;                // enable search functionality (default: true)
   searchPlaceholder?: string;          // placeholder for search input
+  onEdit?: (value: string, label: string) => void;  // callback for edit action
+  canEdit?: (value: string) => boolean; // check if item can be edited
 }
 
 const MultiSelectChip: React.FC<MultiSelectChipProps> = ({
@@ -30,7 +32,9 @@ const MultiSelectChip: React.FC<MultiSelectChipProps> = ({
   dropdownClassName = '',
   id,
   searchable = true,
-  searchPlaceholder = 'Cari nama...'
+  searchPlaceholder = 'Cari nama...',
+  onEdit,
+  canEdit
 }) => {
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -138,7 +142,9 @@ const MultiSelectChip: React.FC<MultiSelectChipProps> = ({
                 );
               })}
               {hiddenCount > 0 && (
-                <div className="text-slate-400 text-xs px-2 py-0.5 rounded-full">+{hiddenCount}</div>
+                <div className="text-slate-500 text-xs px-2 py-0.5 bg-slate-100 rounded-full whitespace-nowrap">
+                  {hiddenCount} penerima dipilih
+                </div>
               )}
             </div>
           )}
@@ -181,18 +187,33 @@ const MultiSelectChip: React.FC<MultiSelectChipProps> = ({
           {/* Options List */}
           <div className="max-h-48 overflow-y-auto p-2">
             {filteredOptions.map(opt => (
-              <label
+              <div
                 key={opt.value}
-                className="flex items-center gap-2 px-2 py-2 rounded hover:bg-slate-50 cursor-pointer"
+                className="flex items-center gap-2 px-2 py-2 rounded hover:bg-slate-50 group"
               >
-                <input
-                  type="checkbox"
-                  checked={isSelected(opt.value)}
-                  onChange={() => toggle(opt.value)}
-                  className="w-4 h-4 text-gov-600 rounded focus:ring-gov-500"
-                />
-                <span className="text-sm text-slate-700">{opt.label}</span>
-              </label>
+                <label className="flex items-center gap-2 flex-1 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={isSelected(opt.value)}
+                    onChange={() => toggle(opt.value)}
+                    className="w-4 h-4 text-gov-600 rounded focus:ring-gov-500"
+                  />
+                  <span className="text-sm text-slate-700">{opt.label}</span>
+                </label>
+                {onEdit && canEdit && canEdit(opt.value) && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEdit(opt.value, opt.label);
+                    }}
+                    className="opacity-0 group-hover:opacity-100 p-1 hover:bg-slate-200 rounded transition-opacity"
+                    title="Edit"
+                  >
+                    <Edit2 size={12} className="text-slate-600" />
+                  </button>
+                )}
+              </div>
             ))}
 
             {filteredOptions.length === 0 && searchQuery && (

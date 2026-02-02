@@ -1,9 +1,17 @@
 // src/components/SuratViewModal.tsx
 import React, { useState, useEffect } from 'react';
-import { X, Edit2, Trash2, FileText, Calendar, Building2, Link2, ExternalLink, Save, Upload } from 'lucide-react';
-import { Surat } from '../../types';
+import { X, Edit2, Trash2, FileText, Calendar, Building2, Link2, ExternalLink, Save, Upload, Users, Eye, Unlink, Search, Plus } from 'lucide-react';
+import { Surat, Meeting, Disposisi, User } from '../../types';
 import { supabase } from '../lib/supabaseClient';
 import { getAttachmentUrl } from '../utils/storageUtils';
+import { useLinkedKegiatanDisposisi } from '../hooks/useLinkedKegiatanDisposisi';
+import { useMasterData } from '../contexts/MasterDataContext';
+import { useMasterDataCRUD } from '../hooks/useMasterDataCRUD';
+import SearchableSelect from './SearchableSelect';
+import SearchableSelectWithActions from './SearchableSelectWithActions';
+import MultiSelectChip from './MultiSelectChip';
+import DisposisiModal from './DisposisiModal';
+import MeetingViewModal from './MeetingViewModal';
 
 interface SuratViewModalProps {
   isOpen: boolean;
@@ -12,7 +20,10 @@ interface SuratViewModalProps {
   onUpdate: () => void;
   onDelete: (id: string) => void;
   currentUserName: string;
+  currentUser: User | null;
+  users: User[];
   showNotification: (title: string, message: string, type?: 'success' | 'error' | 'warning' | 'info') => void;
+  onUnlinkFromKegiatan?: (suratId: string, kegiatanId: string) => Promise<void>;
 }
 
 const SuratViewModal: React.FC<SuratViewModalProps> = ({
@@ -22,7 +33,10 @@ const SuratViewModal: React.FC<SuratViewModalProps> = ({
   onUpdate,
   onDelete,
   currentUserName,
-  showNotification
+  currentUser,
+  users,
+  showNotification,
+  onUnlinkFromKegiatan
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -33,8 +47,91 @@ const SuratViewModal: React.FC<SuratViewModalProps> = ({
   const [linkUrl, setLinkUrl] = useState('');
   const [linkTitle, setLinkTitle] = useState('');
   
-  // Edit form state
+  // Get master data from context
+  const { 
+    unitInternalList,
+    unitEksternalList,
+    sifatSuratList, 
+    jenisNaskahList, 
+    klasifikasiSuratList, 
+    bidangTugasList 
+  } = useMasterData();
+  
+  const { addMasterData, editMasterData, deleteMasterData, canDeleteMasterData } = useMasterDataCRUD();
+  
+  // Edit form state - MUST BE BEFORE HOOK
   const [editData, setEditData] = useState<Partial<Surat>>({});
+  
+  // Use optimized hook for linked data - SOLVES N+1 QUERY PROBLEM
+  const {
+    kegiatan: linkedKegiatan,
+    disposisi: disposisiList,
+    isLoading: isLoadingDisposisi,
+    refetch: refetchLinkedData,
+  } = useLinkedKegiatanDisposisi(
+    surat?.id,
+    surat?.meetingId || editData.meetingId,
+    isOpen && !!(surat?.meetingId || editData.meetingId)
+  );
+  
+  const [selectedDisposisi, setSelectedDisposisi] = useState<Disposisi | null>(null);
+  const [showDisposisiModal, setShowDisposisiModal] = useState(false);
+  const [showMeetingModal, setShowMeetingModal] = useState(false);
+  const [showCreateDisposisiModal, setShowCreateDisposisiModal] = useState(false);
+  
+  // Edit linking state
+  const [showLinkingSection, setShowLinkingSection] = useState(false);
+  const [availableMeetings, setAvailableMeetings] = useState<Meeting[]>([]);
+  const [selectedMeetingForLink, setSelectedMeetingForLink] = useState<string>('');
+  const [isLinking, setIsLinking] = useState(false);
+  const [meetingSearch, setMeetingSearch] = useState('');
+
+  // Fetch available meetings for linking
+  const fetchAvailableMeetings = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('meetings')
+        .select('*')
+        .order('date', { ascending: false });
+
+      if (error) throw error;
+
+      if (data) {
+        const mappedMeetings: Meeting[] = data.map((row: any) => ({
+          id: row.id,
+          title: row.title,
+          type: row.type,
+          description: row.description,
+          date: row.date,
+          endDate: row.end_date,
+          startTime: row.start_time,
+          endTime: row.end_time,
+          location: row.location,
+          isOnline: row.is_online,
+          onlineLink: row.online_link,
+          inviter: row.inviter,
+          invitees: row.invitees || [],
+          pic: row.pic || [],
+          projectId: row.project_id,
+          suratUndangan: row.surat_undangan,
+          suratTugas: row.surat_tugas,
+          laporan: row.laporan,
+          attachments: row.attachments || [],
+          links: row.links || [],
+          comments: row.comments || [],
+          notes: row.notes,
+          status: row.status,
+          createdBy: row.created_by,
+          createdAt: row.created_at,
+          updatedAt: row.updated_at,
+        }));
+        setAvailableMeetings(mappedMeetings);
+      }
+    } catch (error) {
+      console.error('Error fetching meetings:', error);
+      showNotification('Gagal Memuat Kegiatan', 'Tidak dapat memuat daftar kegiatan', 'error');
+    }
+  };
 
   useEffect(() => {
     if (surat) {
@@ -46,10 +143,259 @@ const SuratViewModal: React.FC<SuratViewModalProps> = ({
       } else if (surat.fileSurat?.isLink) {
         setFileUrl(surat.fileSurat.url || '');
       }
+      
+      // Note: Linked data is now handled by useLinkedKegiatanDisposisi hook
+      // No need for manual fetchLinkedKegiatanAndDisposisi call
     }
   }, [surat]);
 
+  // Load meetings when linking section is shown
+  useEffect(() => {
+    if (showLinkingSection && availableMeetings.length === 0) {
+      fetchAvailableMeetings();
+    }
+  }, [showLinkingSection, availableMeetings.length]);
+
+  // Note: fetchLinkedKegiatanAndDisposisi removed - now using useLinkedKegiatanDisposisi hook
+
+  // Handle linking surat to kegiatan
+  const handleLinkToKegiatan = async () => {
+    if (!surat || !selectedMeetingForLink) {
+      showNotification('Pilih Kegiatan', 'Mohon pilih kegiatan yang akan di-link', 'warning');
+      return;
+    }
+
+    setIsLinking(true);
+    try {
+      // Update surat with meetingId
+      const { error } = await supabase
+        .from('surats')
+        .update({ meeting_id: selectedMeetingForLink })
+        .eq('id', surat.id);
+
+      if (error) throw error;
+
+      showNotification('Berhasil', 'Surat berhasil di-link ke Kegiatan', 'success');
+      setShowLinkingSection(false);
+      setSelectedMeetingForLink('');
+      setMeetingSearch('');
+      
+      // Exit edit mode to show linked kegiatan
+      setIsEditing(false);
+      
+      // Refresh parent component (this will re-fetch all surats)
+      onUpdate();
+      
+      // Fetch the updated surat data to update the modal
+      const { data: updatedSurat, error: fetchError } = await supabase
+        .from('surats')
+        .select('*')
+        .eq('id', surat.id)
+        .single();
+
+      if (fetchError) {
+        console.error('Error fetching updated surat:', fetchError);
+      } else if (updatedSurat) {
+        // Update editData with the new meetingId
+        setEditData(prev => ({ ...prev, meetingId: selectedMeetingForLink }));
+      }
+      
+      // Refresh linked data using hook
+      await refetchLinkedData();
+    } catch (error: any) {
+      console.error('Error linking to kegiatan:', error);
+      showNotification('Gagal Link', error.message || 'Gagal menghubungkan ke Kegiatan', 'error');
+    } finally {
+      setIsLinking(false);
+    }
+  };
+
   if (!isOpen || !surat) return null;
+
+  const handleUnlinkFromKegiatan = async () => {
+    if (!surat.meetingId || !onUnlinkFromKegiatan) return;
+
+    if (!window.confirm('Apakah Anda yakin ingin memutuskan link antara Surat dan Kegiatan? Semua Disposisi terkait akan dihapus.')) {
+      return;
+    }
+
+    try {
+      await onUnlinkFromKegiatan(surat.id, surat.meetingId);
+      showNotification('Link Diputus', 'Surat berhasil diputus dari Kegiatan', 'success');
+      // Data will be automatically updated by the hook when meetingId changes
+      onUpdate();
+    } catch (error: any) {
+      showNotification('Gagal Memutus Link', error.message, 'error');
+    }
+  };
+
+  const handleViewDisposisi = (disposisi: Disposisi) => {
+    setSelectedDisposisi(disposisi);
+    setShowDisposisiModal(true);
+  };
+
+  const handleDisposisiModalClose = () => {
+    setShowDisposisiModal(false);
+    setSelectedDisposisi(null);
+  };
+
+  const handleCreateDisposisiModalClose = () => {
+    setShowCreateDisposisiModal(false);
+  };
+
+  const handleDisposisiSave = async (disposisiData: Omit<Disposisi, 'id' | 'createdAt'>) => {
+    try {
+      if (selectedDisposisi) {
+        // Update existing disposisi
+        const updateData: any = {
+          disposisi_text: disposisiData.disposisiText,
+          status: disposisiData.status,
+          deadline: disposisiData.deadline,
+          laporan: disposisiData.laporan,
+          attachments: disposisiData.attachments,
+          notes: disposisiData.notes,
+          updated_at: new Date().toISOString(),
+          completed_at: disposisiData.completedAt,
+          completed_by: disposisiData.completedBy,
+        };
+
+        const { error } = await supabase
+          .from('disposisi')
+          .update(updateData)
+          .eq('id', selectedDisposisi.id);
+
+        if (error) throw error;
+
+        // Refresh disposisi list using hook
+        if (surat.meetingId) {
+          await refetchLinkedData();
+        }
+      }
+    } catch (error: any) {
+      throw error;
+    }
+  };
+
+  const handleCreateDisposisiSave = async (disposisiData: Omit<Disposisi, 'id' | 'createdAt'>) => {
+    try {
+      // Create new disposisi
+      const insertData: any = {
+        surat_id: disposisiData.suratId,
+        kegiatan_id: disposisiData.kegiatanId,
+        assigned_to: disposisiData.assignedTo,
+        disposisi_text: disposisiData.disposisiText,
+        status: disposisiData.status || 'Pending',
+        deadline: disposisiData.deadline,
+        laporan: disposisiData.laporan || [],
+        attachments: disposisiData.attachments || [],
+        notes: disposisiData.notes,
+        created_by: disposisiData.createdBy,
+      };
+
+      const { error } = await supabase
+        .from('disposisi')
+        .insert(insertData);
+
+      if (error) throw error;
+
+      showNotification('Disposisi Dibuat', 'Disposisi berhasil dibuat', 'success');
+
+      // Refresh disposisi list using hook
+      if (surat.meetingId) {
+        await refetchLinkedData();
+      }
+
+      // Trigger update to refresh parent components
+      onUpdate();
+    } catch (error: any) {
+      throw error;
+    }
+  };
+
+  const handleRemoveAssignee = async (disposisi: Disposisi) => {
+    const assigneeName = getUserName(disposisi.assignedTo);
+    
+    if (!window.confirm(
+      `Apakah Anda yakin ingin menghapus disposisi untuk ${assigneeName}?\n\n` +
+      `Disposisi untuk assignee lain akan tetap dipertahankan.\n\n` +
+      `Tindakan ini tidak dapat dibatalkan.`
+    )) {
+      return;
+    }
+
+    try {
+      // Check authorization
+      if (!currentUser) {
+        throw new Error('You must be logged in to remove assignee');
+      }
+
+      const canDelete = 
+        currentUser.role === 'Super Admin' ||
+        currentUser.id === disposisi.createdBy ||
+        currentUser.name === disposisi.createdBy;
+
+      if (!canDelete) {
+        throw new Error('You do not have permission to remove this assignee. Only the creator or Super Admin can remove assignees.');
+      }
+
+      // Delete the specific disposisi record
+      const { error } = await supabase
+        .from('disposisi')
+        .delete()
+        .eq('id', disposisi.id);
+
+      if (error) throw error;
+
+      // Create audit trail for removal
+      await supabase
+        .from('disposisi_history')
+        .insert({
+          disposisi_id: disposisi.id,
+          action: 'assignee_removed',
+          old_value: assigneeName,
+          new_value: 'Disposisi deleted',
+          performed_by: currentUser.id || currentUser.name,
+          performed_at: new Date().toISOString(),
+        });
+
+      showNotification(
+        'Assignee Dihapus',
+        `Disposisi untuk ${assigneeName} berhasil dihapus`,
+        'success'
+      );
+
+      // Refresh disposisi list using hook
+      if (surat.meetingId) {
+        await refetchLinkedData();
+      }
+
+      // Trigger update to refresh parent components
+      onUpdate();
+    } catch (error: any) {
+      console.error('Error removing assignee:', error);
+      showNotification('Gagal Menghapus Assignee', error.message, 'error');
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'Pending':
+        return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+      case 'In Progress':
+        return 'bg-blue-100 text-blue-800 border-blue-300';
+      case 'Completed':
+        return 'bg-green-100 text-green-800 border-green-300';
+      case 'Cancelled':
+        return 'bg-red-100 text-red-800 border-red-300';
+      default:
+        return 'bg-slate-100 text-slate-800 border-slate-300';
+    }
+  };
+
+  const getUserName = (userId: string): string => {
+    const user = users.find(u => u.id === userId);
+    return user?.name || userId;
+  };
 
   const handleEdit = () => {
     setIsEditing(true);
@@ -173,7 +519,65 @@ const SuratViewModal: React.FC<SuratViewModalProps> = ({
 
       if (error) throw error;
 
-      showNotification('Surat Berhasil Diupdate', `Surat ${editData.nomorSurat} berhasil diperbarui`, 'success');
+      // Sync to linked meeting if exists
+      if (surat.meetingId || editData.meetingId) {
+        try {
+          const meetingId = editData.meetingId || surat.meetingId;
+          
+          // Prepare meeting update payload with surat details
+          const meetingPayload: any = {
+            jenis_surat: editData.jenisSurat,
+            nomor_surat: editData.nomorSurat,
+            tanggal_surat: editData.tanggalSurat,
+            hal: editData.hal || null,
+            asal_surat: editData.asalSurat || null,
+            tujuan_surat: editData.tujuanSurat || null,
+            klasifikasi_surat: editData.klasifikasiSurat || null,
+            jenis_naskah: editData.jenisNaskah || null,
+            bidang_tugas: editData.bidangTugas || null,
+            updated_at: new Date().toISOString()
+          };
+
+          // Update surat file attachment in meeting
+          if (fileSurat) {
+            if (editData.jenisSurat === 'Masuk') {
+              meetingPayload.surat_undangan = fileSurat;
+            } else if (editData.jenisSurat === 'Keluar') {
+              meetingPayload.surat_tugas = fileSurat;
+            }
+          }
+
+          const { error: meetingError } = await supabase
+            .from('meetings')
+            .update(meetingPayload)
+            .eq('id', meetingId);
+
+          if (meetingError) {
+            console.error('Error syncing to meeting:', meetingError);
+            showNotification(
+              'Surat Diupdate, Meeting Gagal Sync',
+              'Surat berhasil diupdate, tapi gagal sync ke kegiatan terhubung',
+              'warning'
+            );
+          } else {
+            showNotification(
+              'Surat & Kegiatan Berhasil Diupdate',
+              `Surat ${editData.nomorSurat} dan kegiatan terhubung berhasil diperbarui`,
+              'success'
+            );
+          }
+        } catch (syncError) {
+          console.error('Error syncing to meeting:', syncError);
+          showNotification(
+            'Surat Diupdate, Meeting Gagal Sync',
+            'Surat berhasil diupdate, tapi gagal sync ke kegiatan terhubung',
+            'warning'
+          );
+        }
+      } else {
+        showNotification('Surat Berhasil Diupdate', `Surat ${editData.nomorSurat} berhasil diperbarui`, 'success');
+      }
+
       setIsEditing(false);
       setNewFile(null);
       onUpdate();
@@ -193,10 +597,30 @@ const SuratViewModal: React.FC<SuratViewModalProps> = ({
     }
   };
 
-  const handleDelete = () => {
-    if (window.confirm(`Hapus surat ${surat.nomorSurat}? Tindakan ini tidak dapat dibatalkan.`)) {
+  const handleDelete = async () => {
+    try {
+      // Import cleanup utilities dynamically
+      const { getDisposisiForSurat, formatDisposisiWarning, deleteSuratWithCleanup } = await import('../utils/disposisiCleanup');
+      
+      // Get related Disposisi to show warning
+      const relatedDisposisi = await getDisposisiForSurat(surat.id);
+      const warning = formatDisposisiWarning(relatedDisposisi);
+      
+      // Show confirmation dialog with Disposisi warning
+      const confirmMessage = `Hapus surat ${surat.nomorSurat}? Tindakan ini tidak dapat dibatalkan.${warning}`;
+      
+      if (!window.confirm(confirmMessage)) {
+        return;
+      }
+      
+      // Delete with cleanup
+      await deleteSuratWithCleanup(surat.id);
+      
       onDelete(surat.id);
       onClose();
+    } catch (error: any) {
+      console.error('Error deleting surat:', error);
+      alert(`Gagal menghapus surat: ${error.message}`);
     }
   };
 
@@ -317,36 +741,23 @@ const SuratViewModal: React.FC<SuratViewModalProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">Jenis Naskah</label>
-                  <select
+                  <SearchableSelect
+                    options={jenisNaskahList.map(j => ({ value: j, label: j }))}
                     value={editData.jenisNaskah || ''}
-                    onChange={(e) => setEditData(prev => ({ ...prev, jenisNaskah: e.target.value }))}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm bg-white"
-                  >
-                    <option value="">-- Pilih Jenis --</option>
-                    <option value="Surat">Surat</option>
-                    <option value="Nota Dinas">Nota Dinas</option>
-                    <option value="Surat Edaran">Surat Edaran</option>
-                    <option value="Surat Keputusan">Surat Keputusan</option>
-                    <option value="Surat Perintah">Surat Perintah</option>
-                    <option value="Surat Tugas">Surat Tugas</option>
-                    <option value="Surat Undangan">Surat Undangan</option>
-                    <option value="Disposisi">Disposisi</option>
-                    <option value="Memorandum">Memorandum</option>
-                  </select>
+                    onChange={(value) => setEditData(prev => ({ ...prev, jenisNaskah: value }))}
+                    placeholder="Cari jenis naskah..."
+                    emptyOption="-- Pilih Jenis --"
+                  />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">Sifat Surat</label>
-                  <select
+                  <SearchableSelect
+                    options={sifatSuratList.map(s => ({ value: s, label: s }))}
                     value={editData.sifatSurat || ''}
-                    onChange={(e) => setEditData(prev => ({ ...prev, sifatSurat: e.target.value }))}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm bg-white"
-                  >
-                    <option value="">-- Pilih Sifat --</option>
-                    <option value="Biasa">Biasa</option>
-                    <option value="Segera">Segera</option>
-                    <option value="Sangat Segera">Sangat Segera</option>
-                    <option value="Rahasia">Rahasia</option>
-                  </select>
+                    onChange={(value) => setEditData(prev => ({ ...prev, sifatSurat: value }))}
+                    placeholder="Cari sifat surat..."
+                    emptyOption="-- Pilih Sifat --"
+                  />
                 </div>
               </div>
             )}
@@ -489,33 +900,418 @@ const SuratViewModal: React.FC<SuratViewModalProps> = ({
 
             {/* Pengirim/Penerima */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {surat.jenisSurat === 'Masuk' && renderField('Dari (Pengirim)', surat.asalSurat, 'asalSurat')}
-              {surat.jenisSurat === 'Keluar' && renderField('Kepada (Penerima)', surat.tujuanSurat, 'tujuanSurat')}
-              {renderField('Bidang Tugas', surat.bidangTugas, 'bidangTugas')}
+              {surat.jenisSurat === 'Masuk' && (
+                isEditing ? (
+                  <div className="bg-white p-3 rounded-lg border border-slate-200">
+                    <label className="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Dari (Pengirim)</label>
+                    <SearchableSelectWithActions
+                      options={[...unitInternalList.map(u => ({ value: u, label: `${u} (Internal)` })), ...unitEksternalList.map(u => ({ value: u, label: `${u} (Eksternal)` }))]}
+                      value={editData.asalSurat || ''}
+                      onChange={(value) => setEditData(prev => ({ ...prev, asalSurat: value }))}
+                      placeholder="Cari unit..."
+                      emptyOption="-- Pilih Unit --"
+                      tableName="Unit"
+                    />
+                  </div>
+                ) : (
+                  renderField('Dari (Pengirim)', surat.asalSurat, 'asalSurat')
+                )
+              )}
+              {surat.jenisSurat === 'Keluar' && (
+                <div className="bg-white p-3 rounded-lg border border-slate-200">
+                  <label className="block text-xs font-semibold text-slate-500 uppercase mb-1.5">
+                    Kepada (Penerima)
+                  </label>
+                  {surat.tujuanSuratList && surat.tujuanSuratList.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {surat.tujuanSuratList.map((recipient, index) => (
+                        <span
+                          key={index}
+                          className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${
+                            recipient.type === 'Internal'
+                              ? 'bg-gov-100 text-gov-700 border border-gov-200'
+                              : 'bg-blue-100 text-blue-700 border border-blue-200'
+                          }`}
+                        >
+                          <span className="opacity-60 text-[10px]">{recipient.type}:</span>
+                          {recipient.name}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-slate-700">{surat.tujuanSurat || '-'}</p>
+                  )}
+                </div>
+              )}
+              {isEditing ? (
+                <div className="bg-white p-3 rounded-lg border border-slate-200">
+                  <label className="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Bidang Tugas</label>
+                  <SearchableSelectWithActions
+                    options={bidangTugasList.map(b => ({ value: b, label: b }))}
+                    value={editData.bidangTugas || ''}
+                    onChange={(value) => setEditData(prev => ({ ...prev, bidangTugas: value }))}
+                    placeholder="Cari bidang tugas..."
+                    emptyOption="-- Pilih Bidang Tugas --"
+                    onAdd={async (value) => await addMasterData('bidang_tugas', value)}
+                    onEdit={async (oldValue, newValue) => await editMasterData('bidang_tugas', oldValue, newValue)}
+                    onDelete={async (value) => await deleteMasterData('bidang_tugas', value)}
+                    canDelete={async (value) => await canDeleteMasterData('bidang_tugas', value)}
+                    tableName="Bidang Tugas"
+                  />
+                </div>
+              ) : (
+                renderField('Bidang Tugas', surat.bidangTugas, 'bidangTugas')
+              )}
             </div>
 
             {/* Klasifikasi */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {renderField('Klasifikasi Surat', surat.klasifikasiSurat, 'klasifikasiSurat')}
+              {isEditing ? (
+                <div className="bg-white p-3 rounded-lg border border-slate-200">
+                  <label className="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Klasifikasi Surat</label>
+                  <SearchableSelectWithActions
+                    options={klasifikasiSuratList.map(k => ({ value: k, label: k }))}
+                    value={editData.klasifikasiSurat || ''}
+                    onChange={(value) => setEditData(prev => ({ ...prev, klasifikasiSurat: value }))}
+                    placeholder="Cari klasifikasi..."
+                    emptyOption="-- Pilih Klasifikasi --"
+                    onAdd={async (value) => await addMasterData('klasifikasi_surat', value)}
+                    onEdit={async (oldValue, newValue) => await editMasterData('klasifikasi_surat', oldValue, newValue)}
+                    onDelete={async (value) => await deleteMasterData('klasifikasi_surat', value)}
+                    canDelete={async (value) => await canDeleteMasterData('klasifikasi_surat', value)}
+                    tableName="Klasifikasi Surat"
+                  />
+                </div>
+              ) : (
+                renderField('Klasifikasi Surat', surat.klasifikasiSurat, 'klasifikasiSurat')
+              )}
               {surat.jenisSurat === 'Masuk' && renderField('Tanggal Diterima', surat.tanggalDiterima, 'tanggalDiterima', 'date')}
               {surat.jenisSurat === 'Keluar' && renderField('Tanggal Dikirim', surat.tanggalDikirim, 'tanggalDikirim', 'date')}
             </div>
 
-            {/* Disposisi (only for Surat Masuk) */}
-            {surat.jenisSurat === 'Masuk' && renderField('Disposisi', surat.disposisi, 'disposisi', 'textarea')}
-
-            {/* Hasil Tindak Lanjut */}
-            {renderField('Hasil Tindak Lanjut', surat.hasilTindakLanjut, 'hasilTindakLanjut', 'textarea')}
-
-            {/* Jadwal Kegiatan */}
-            {(surat.tanggalKegiatan || isEditing) && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p className="text-xs font-semibold text-blue-700 uppercase mb-3">Jadwal Kegiatan</p>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  {renderField('Tanggal', surat.tanggalKegiatan, 'tanggalKegiatan', 'date')}
-                  {renderField('Waktu Mulai', surat.waktuMulai, 'waktuMulai', 'time')}
-                  {renderField('Waktu Selesai', surat.waktuSelesai, 'waktuSelesai', 'time')}
+            {/* Link to Kegiatan Section - Only in Edit Mode and if not already linked */}
+            {isEditing && !editData.meetingId && (
+              <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Link2 size={20} className="text-blue-600" />
+                    <h4 className="text-base font-bold text-blue-900">Link ke Kegiatan (Opsional)</h4>
+                  </div>
+                  {!showLinkingSection && (
+                    <button
+                      type="button"
+                      onClick={() => setShowLinkingSection(true)}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                    >
+                      Tambah Link
+                    </button>
+                  )}
                 </div>
+
+                {showLinkingSection && (
+                  <div className="bg-white rounded-lg p-4 border border-blue-200 space-y-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">
+                        Pilih Kegiatan
+                      </label>
+                      
+                      {/* Search Input */}
+                      <div className="relative mb-2">
+                        <input
+                          type="text"
+                          value={meetingSearch}
+                          onChange={(e) => setMeetingSearch(e.target.value)}
+                          placeholder="Cari kegiatan..."
+                          className="w-full px-3 py-2.5 pl-10 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none"
+                        />
+                        <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      </div>
+
+                      {/* Filtered Meetings List */}
+                      <div className="max-h-60 overflow-y-auto border border-slate-300 rounded-lg">
+                        {availableMeetings
+                          .filter(meeting => 
+                            meeting.title.toLowerCase().includes(meetingSearch.toLowerCase()) ||
+                            meeting.location.toLowerCase().includes(meetingSearch.toLowerCase()) ||
+                            new Date(meeting.date).toLocaleDateString('id-ID').includes(meetingSearch)
+                          )
+                          .map(meeting => (
+                            <button
+                              key={meeting.id}
+                              type="button"
+                              onClick={() => setSelectedMeetingForLink(meeting.id)}
+                              className={`w-full px-4 py-3 text-left hover:bg-blue-50 transition-colors border-b border-slate-200 last:border-b-0 ${
+                                selectedMeetingForLink === meeting.id ? 'bg-blue-100' : ''
+                              }`}
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium text-slate-800 truncate">{meeting.title}</p>
+                                  <div className="flex items-center gap-3 mt-1 text-xs text-slate-500">
+                                    <span className="flex items-center gap-1">
+                                      <Calendar size={12} />
+                                      {new Date(meeting.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                    </span>
+                                    <span className="flex items-center gap-1">
+                                      <Building2 size={12} />
+                                      {meeting.location}
+                                    </span>
+                                  </div>
+                                </div>
+                                {selectedMeetingForLink === meeting.id && (
+                                  <div className="w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
+                                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                  </div>
+                                )}
+                              </div>
+                            </button>
+                          ))}
+                        {availableMeetings.filter(meeting => 
+                          meeting.title.toLowerCase().includes(meetingSearch.toLowerCase()) ||
+                          meeting.location.toLowerCase().includes(meetingSearch.toLowerCase()) ||
+                          new Date(meeting.date).toLocaleDateString('id-ID').includes(meetingSearch)
+                        ).length === 0 && (
+                          <div className="px-4 py-8 text-center text-slate-500 text-sm">
+                            Tidak ada kegiatan ditemukan
+                          </div>
+                        )}
+                      </div>
+                      
+                      <p className="text-xs text-slate-500 mt-1.5">
+                        Pilih kegiatan yang terkait dengan surat ini
+                      </p>
+                    </div>
+
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowLinkingSection(false);
+                          setSelectedMeetingForLink('');
+                          setMeetingSearch('');
+                        }}
+                        className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-100 transition-colors font-medium"
+                      >
+                        Batal
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleLinkToKegiatan}
+                        disabled={isLinking || !selectedMeetingForLink}
+                        className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      >
+                        {isLinking ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                            Menghubungkan...
+                          </>
+                        ) : (
+                          <>
+                            <Link2 size={16} />
+                            Link ke Kegiatan
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {!showLinkingSection && (
+                  <p className="text-sm text-blue-700">
+                    Hubungkan surat ini ke kegiatan untuk membuat disposisi dan tracking
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Linked Kegiatan and Disposisi Section */}
+            {surat.meetingId && (
+              <div className="bg-gradient-to-br from-purple-50 to-indigo-50 border-2 border-purple-200 rounded-xl p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Link2 size={20} className="text-purple-600" />
+                    <h4 className="text-base font-bold text-purple-900">Linked Kegiatan & Disposisi</h4>
+                  </div>
+                  {onUnlinkFromKegiatan && isEditing && (
+                    <button
+                      onClick={handleUnlinkFromKegiatan}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors text-sm font-medium"
+                    >
+                      <Unlink size={14} />
+                      Unlink
+                    </button>
+                  )}
+                </div>
+
+                {/* Linked Kegiatan Info */}
+                {isLoadingDisposisi ? (
+                  <div className="flex items-center justify-center py-4">
+                    <div className="animate-spin rounded-full h-6 w-6 border-2 border-purple-600 border-t-transparent"></div>
+                  </div>
+                ) : linkedKegiatan ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowMeetingModal(true)}
+                    className="w-full bg-white rounded-lg p-4 border border-purple-200 hover:border-purple-300 hover:shadow-md transition-all text-left"
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1">
+                        <p className="text-xs font-semibold text-purple-600 uppercase mb-1">Kegiatan Terkait</p>
+                        <h5 className="text-base font-bold text-slate-800">{linkedKegiatan.title}</h5>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
+                          linkedKegiatan.type === 'internal' ? 'bg-blue-100 text-blue-700' :
+                          linkedKegiatan.type === 'external' ? 'bg-green-100 text-green-700' :
+                          linkedKegiatan.type === 'bimtek' ? 'bg-orange-100 text-orange-700' :
+                          'bg-purple-100 text-purple-700'
+                        }`}>
+                          {linkedKegiatan.type === 'internal' ? 'Internal' :
+                           linkedKegiatan.type === 'external' ? 'Eksternal' :
+                           linkedKegiatan.type === 'bimtek' ? 'Bimtek' :
+                           linkedKegiatan.type === 'audiensi' ? 'Audiensi' :
+                           linkedKegiatan.type}
+                        </span>
+                        <Eye size={16} className="text-purple-600" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div className="flex items-center gap-2 text-slate-600">
+                        <Calendar size={14} className="text-purple-600" />
+                        <span>{new Date(linkedKegiatan.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-slate-600">
+                        <Building2 size={14} className="text-purple-600" />
+                        <span>{linkedKegiatan.location}</span>
+                      </div>
+                    </div>
+                    {linkedKegiatan.pic && linkedKegiatan.pic.length > 0 && (
+                      <div className="mt-3 pt-3 border-t border-slate-200">
+                        <p className="text-xs font-semibold text-slate-500 uppercase mb-1.5">PIC</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {linkedKegiatan.pic.map((picName, idx) => (
+                            <span key={idx} className="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded-full">
+                              {picName}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <div className="mt-3 pt-3 border-t border-slate-200">
+                      <p className="text-xs text-purple-600 font-medium flex items-center gap-1">
+                        <Eye size={12} />
+                        Klik untuk melihat detail kegiatan
+                      </p>
+                    </div>
+                  </button>
+                ) : (
+                  <div className="bg-white rounded-lg p-4 border border-purple-200 text-center text-sm text-slate-500">
+                    Kegiatan tidak ditemukan
+                  </div>
+                )}
+
+                {/* Disposisi List */}
+                {disposisiList.length > 0 && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Users size={16} className="text-purple-600" />
+                        <h5 className="text-sm font-bold text-purple-900">
+                          Disposisi Assignments ({disposisiList.length})
+                        </h5>
+                      </div>
+                      {isEditing && (
+                        <button
+                          type="button"
+                          onClick={() => setShowCreateDisposisiModal(true)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-xs font-medium"
+                        >
+                          <Plus size={14} />
+                          Tambah Disposisi
+                        </button>
+                      )}
+                    </div>
+                    
+                    <div className="space-y-2">
+                      {disposisiList.map((disposisi) => (
+                        <div
+                          key={disposisi.id}
+                          className="bg-white rounded-lg p-4 border border-purple-200 hover:border-purple-300 transition-colors"
+                        >
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <p className="text-sm font-semibold text-slate-800">
+                                  {getUserName(disposisi.assignedTo)}
+                                </p>
+                                <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${getStatusColor(disposisi.status)}`}>
+                                  {disposisi.status}
+                                </span>
+                              </div>
+                              <p className="text-xs text-slate-600 line-clamp-2">
+                                {disposisi.disposisiText}
+                              </p>
+                            </div>
+                            <div className="ml-3 flex gap-2 shrink-0">
+                              <button
+                                onClick={() => handleViewDisposisi(disposisi)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors text-xs font-medium"
+                                title="View Disposisi"
+                              >
+                                <Eye size={14} />
+                                View
+                              </button>
+                              {!isEditing && (
+                                <button
+                                  onClick={() => handleRemoveAssignee(disposisi)}
+                                  className="flex items-center gap-1.5 px-3 py-1.5 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors text-xs font-medium"
+                                  title="Remove Assignee"
+                                >
+                                  <Trash2 size={14} />
+                                  Remove
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          
+                          {disposisi.deadline && (
+                            <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-2">
+                              <Calendar size={12} />
+                              <span>Deadline: {new Date(disposisi.deadline).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                            </div>
+                          )}
+                          
+                          {disposisi.laporan && disposisi.laporan.length > 0 && (
+                            <div className="flex items-center gap-1.5 text-xs text-green-600 mt-1">
+                              <FileText size={12} />
+                              <span>{disposisi.laporan.length} laporan uploaded</span>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {disposisiList.length === 0 && !isLoadingDisposisi && (
+                  <div className="bg-white rounded-lg p-4 border border-purple-200">
+                    <p className="text-sm text-slate-500 text-center mb-3">Belum ada disposisi untuk link ini</p>
+                    {isEditing && (
+                      <div className="flex justify-center">
+                        <button
+                          type="button"
+                          onClick={() => setShowCreateDisposisiModal(true)}
+                          className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
+                        >
+                          <Plus size={16} />
+                          Tambah Disposisi
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
@@ -600,6 +1396,54 @@ const SuratViewModal: React.FC<SuratViewModalProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Disposisi Modal */}
+      {showDisposisiModal && selectedDisposisi && (
+        <DisposisiModal
+          isOpen={showDisposisiModal}
+          onClose={handleDisposisiModalClose}
+          onSave={handleDisposisiSave}
+          initialData={selectedDisposisi}
+          currentUser={currentUser}
+          users={users}
+          suratId={surat.id}
+          kegiatanId={surat.meetingId}
+          showNotification={showNotification}
+        />
+      )}
+
+      {/* Meeting View Modal */}
+      {showMeetingModal && linkedKegiatan && (
+        <MeetingViewModal
+          isOpen={showMeetingModal}
+          onClose={() => setShowMeetingModal(false)}
+          meeting={linkedKegiatan}
+          projects={[]} // Empty array since we don't need project context here
+          canEdit={false} // View only from surat modal
+          canDelete={false} // Cannot delete from surat modal
+          onEdit={() => {}} // No-op
+          onDelete={() => {}} // No-op
+          onAddComment={async () => {}} // No-op
+          onDeleteComment={async () => {}} // No-op
+          currentUser={currentUser}
+          allUsers={users}
+        />
+      )}
+
+      {/* Create Disposisi Modal */}
+      {showCreateDisposisiModal && surat.meetingId && (
+        <DisposisiModal
+          isOpen={showCreateDisposisiModal}
+          onClose={handleCreateDisposisiModalClose}
+          onSave={handleCreateDisposisiSave}
+          initialData={null}
+          currentUser={currentUser}
+          users={users}
+          suratId={surat.id}
+          kegiatanId={surat.meetingId}
+          showNotification={showNotification}
+        />
+      )}
     </div>
   );
 };
