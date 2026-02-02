@@ -12,6 +12,7 @@ import SearchableSelectWithActions from './SearchableSelectWithActions';
 import MultiSelectChip from './MultiSelectChip';
 import DisposisiModal from './DisposisiModal';
 import MeetingViewModal from './MeetingViewModal';
+import ConfirmModal from './ConfirmModal';
 
 interface SuratViewModalProps {
   isOpen: boolean;
@@ -78,6 +79,20 @@ const SuratViewModal: React.FC<SuratViewModalProps> = ({
   const [showDisposisiModal, setShowDisposisiModal] = useState(false);
   const [showMeetingModal, setShowMeetingModal] = useState(false);
   const [showCreateDisposisiModal, setShowCreateDisposisiModal] = useState(false);
+  
+  // Confirm modal states
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmModalConfig, setConfirmModalConfig] = useState<{
+    title: string;
+    message: string;
+    type: 'success' | 'warning' | 'error' | 'info';
+    onConfirm: () => void;
+  }>({
+    title: '',
+    message: '',
+    type: 'info',
+    onConfirm: () => {}
+  });
   
   // Edit linking state
   const [showLinkingSection, setShowLinkingSection] = useState(false);
@@ -215,18 +230,22 @@ const SuratViewModal: React.FC<SuratViewModalProps> = ({
   const handleUnlinkFromKegiatan = async () => {
     if (!surat.meetingId || !onUnlinkFromKegiatan) return;
 
-    if (!window.confirm('Apakah Anda yakin ingin memutuskan link antara Surat dan Kegiatan? Semua Disposisi terkait akan dihapus.')) {
-      return;
-    }
-
-    try {
-      await onUnlinkFromKegiatan(surat.id, surat.meetingId);
-      showNotification('Link Diputus', 'Surat berhasil diputus dari Kegiatan', 'success');
-      // Data will be automatically updated by the hook when meetingId changes
-      onUpdate();
-    } catch (error: any) {
-      showNotification('Gagal Memutus Link', error.message, 'error');
-    }
+    setConfirmModalConfig({
+      title: 'Putuskan Link Surat-Kegiatan',
+      message: 'Apakah Anda yakin ingin memutuskan link antara Surat dan Kegiatan? Semua Disposisi terkait akan dihapus.',
+      type: 'warning',
+      onConfirm: async () => {
+        try {
+          await onUnlinkFromKegiatan(surat.id, surat.meetingId!);
+          showNotification('Link Diputus', 'Surat berhasil diputus dari Kegiatan', 'success');
+          // Data will be automatically updated by the hook when meetingId changes
+          onUpdate();
+        } catch (error: any) {
+          showNotification('Gagal Memutus Link', error.message, 'error');
+        }
+      }
+    });
+    setShowConfirmModal(true);
   };
 
   const handleViewDisposisi = (disposisi: Disposisi) => {
@@ -315,66 +334,66 @@ const SuratViewModal: React.FC<SuratViewModalProps> = ({
   const handleRemoveAssignee = async (disposisi: Disposisi) => {
     const assigneeName = getUserName(disposisi.assignedTo);
     
-    if (!window.confirm(
-      `Apakah Anda yakin ingin menghapus disposisi untuk ${assigneeName}?\n\n` +
-      `Disposisi untuk assignee lain akan tetap dipertahankan.\n\n` +
-      `Tindakan ini tidak dapat dibatalkan.`
-    )) {
-      return;
-    }
+    setConfirmModalConfig({
+      title: 'Hapus Disposisi',
+      message: `Apakah Anda yakin ingin menghapus disposisi untuk ${assigneeName}?\n\nDisposisi untuk assignee lain akan tetap dipertahankan.\n\nTindakan ini tidak dapat dibatalkan.`,
+      type: 'warning',
+      onConfirm: async () => {
+        try {
+          // Check authorization
+          if (!currentUser) {
+            throw new Error('You must be logged in to remove assignee');
+          }
 
-    try {
-      // Check authorization
-      if (!currentUser) {
-        throw new Error('You must be logged in to remove assignee');
+          const canDelete = 
+            currentUser.role === 'Super Admin' ||
+            currentUser.id === disposisi.createdBy ||
+            currentUser.name === disposisi.createdBy;
+
+          if (!canDelete) {
+            throw new Error('You do not have permission to remove this assignee. Only the creator or Super Admin can remove assignees.');
+          }
+
+          // Delete the specific disposisi record
+          const { error } = await supabase
+            .from('disposisi')
+            .delete()
+            .eq('id', disposisi.id);
+
+          if (error) throw error;
+
+          // Create audit trail for removal
+          await supabase
+            .from('disposisi_history')
+            .insert({
+              disposisi_id: disposisi.id,
+              action: 'assignee_removed',
+              old_value: assigneeName,
+              new_value: 'Disposisi deleted',
+              performed_by: currentUser.id || currentUser.name,
+              performed_at: new Date().toISOString(),
+            });
+
+          showNotification(
+            'Assignee Dihapus',
+            `Disposisi untuk ${assigneeName} berhasil dihapus`,
+            'success'
+          );
+
+          // Refresh disposisi list using hook
+          if (surat.meetingId) {
+            await refetchLinkedData();
+          }
+
+          // Trigger update to refresh parent components
+          onUpdate();
+        } catch (error: any) {
+          console.error('Error removing assignee:', error);
+          showNotification('Gagal Menghapus Assignee', error.message, 'error');
+        }
       }
-
-      const canDelete = 
-        currentUser.role === 'Super Admin' ||
-        currentUser.id === disposisi.createdBy ||
-        currentUser.name === disposisi.createdBy;
-
-      if (!canDelete) {
-        throw new Error('You do not have permission to remove this assignee. Only the creator or Super Admin can remove assignees.');
-      }
-
-      // Delete the specific disposisi record
-      const { error } = await supabase
-        .from('disposisi')
-        .delete()
-        .eq('id', disposisi.id);
-
-      if (error) throw error;
-
-      // Create audit trail for removal
-      await supabase
-        .from('disposisi_history')
-        .insert({
-          disposisi_id: disposisi.id,
-          action: 'assignee_removed',
-          old_value: assigneeName,
-          new_value: 'Disposisi deleted',
-          performed_by: currentUser.id || currentUser.name,
-          performed_at: new Date().toISOString(),
-        });
-
-      showNotification(
-        'Assignee Dihapus',
-        `Disposisi untuk ${assigneeName} berhasil dihapus`,
-        'success'
-      );
-
-      // Refresh disposisi list using hook
-      if (surat.meetingId) {
-        await refetchLinkedData();
-      }
-
-      // Trigger update to refresh parent components
-      onUpdate();
-    } catch (error: any) {
-      console.error('Error removing assignee:', error);
-      showNotification('Gagal Menghapus Assignee', error.message, 'error');
-    }
+    });
+    setShowConfirmModal(true);
   };
 
   const getStatusColor = (status: string) => {
@@ -609,18 +628,27 @@ const SuratViewModal: React.FC<SuratViewModalProps> = ({
       // Show confirmation dialog with Disposisi warning
       const confirmMessage = `Hapus surat ${surat.nomorSurat}? Tindakan ini tidak dapat dibatalkan.${warning}`;
       
-      if (!window.confirm(confirmMessage)) {
-        return;
-      }
-      
-      // Delete with cleanup
-      await deleteSuratWithCleanup(surat.id);
-      
-      onDelete(surat.id);
-      onClose();
+      setConfirmModalConfig({
+        title: 'Hapus Surat',
+        message: confirmMessage,
+        type: 'error',
+        onConfirm: async () => {
+          try {
+            // Delete with cleanup
+            await deleteSuratWithCleanup(surat.id);
+            
+            onDelete(surat.id);
+            onClose();
+          } catch (error: any) {
+            console.error('Error deleting surat:', error);
+            showNotification('Gagal Menghapus', `Gagal menghapus surat: ${error.message}`, 'error');
+          }
+        }
+      });
+      setShowConfirmModal(true);
     } catch (error: any) {
-      console.error('Error deleting surat:', error);
-      alert(`Gagal menghapus surat: ${error.message}`);
+      console.error('Error preparing delete:', error);
+      showNotification('Gagal Menghapus', `Gagal menghapus surat: ${error.message}`, 'error');
     }
   };
 
@@ -1444,6 +1472,18 @@ const SuratViewModal: React.FC<SuratViewModalProps> = ({
           showNotification={showNotification}
         />
       )}
+
+      {/* Confirm Modal */}
+      <ConfirmModal
+        isOpen={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        onConfirm={confirmModalConfig.onConfirm}
+        title={confirmModalConfig.title}
+        message={confirmModalConfig.message}
+        type={confirmModalConfig.type}
+        confirmText="Ya, Lanjutkan"
+        cancelText="Batal"
+      />
     </div>
   );
 };

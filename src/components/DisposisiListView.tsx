@@ -11,6 +11,7 @@ import { useSurats } from '../contexts/SuratsContext';
 import { useMeetings } from '../contexts/MeetingsContext';
 import DisposisiModal from './DisposisiModal';
 import SearchableSelect from './SearchableSelect';
+import ConfirmModal from './ConfirmModal';
 
 interface DisposisiListViewProps {
   currentUser: User | null;
@@ -41,6 +42,20 @@ const DisposisiListView: React.FC<DisposisiListViewProps> = ({ currentUser, show
   // Modal states
   const [selectedDisposisi, setSelectedDisposisi] = useState<Disposisi | null>(null);
   const [showViewModal, setShowViewModal] = useState(false);
+  
+  // Confirm modal states
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmModalConfig, setConfirmModalConfig] = useState<{
+    title: string;
+    message: string;
+    type: 'success' | 'warning' | 'error' | 'info';
+    onConfirm: () => void;
+  }>({
+    title: '',
+    message: '',
+    type: 'info',
+    onConfirm: () => {}
+  });
 
   // Helper function to get user name by ID
   const getUserName = (userId: string): string => {
@@ -184,24 +199,24 @@ const DisposisiListView: React.FC<DisposisiListViewProps> = ({ currentUser, show
   const handleRemoveAssignee = async (disposisi: Disposisi) => {
     const assigneeName = getUserName(disposisi.assignedTo);
     
-    if (!window.confirm(
-      `Apakah Anda yakin ingin menghapus disposisi untuk ${assigneeName}?\n\n` +
-      `Disposisi untuk assignee lain akan tetap dipertahankan.\n\n` +
-      `Tindakan ini tidak dapat dibatalkan.`
-    )) {
-      return;
-    }
-
-    try {
-      await deleteDisposisi(disposisi.id);
-      showNotification(
-        'Assignee Dihapus',
-        `Disposisi untuk ${assigneeName} berhasil dihapus`,
-        'success'
-      );
-    } catch (error: any) {
-      showNotification('Gagal Menghapus Assignee', error.message, 'error');
-    }
+    setConfirmModalConfig({
+      title: 'Hapus Disposisi',
+      message: `Apakah Anda yakin ingin menghapus disposisi untuk ${assigneeName}?\n\nDisposisi untuk assignee lain akan tetap dipertahankan.\n\nTindakan ini tidak dapat dibatalkan.`,
+      type: 'warning',
+      onConfirm: async () => {
+        try {
+          await deleteDisposisi(disposisi.id);
+          showNotification(
+            'Assignee Dihapus',
+            `Disposisi untuk ${assigneeName} berhasil dihapus`,
+            'success'
+          );
+        } catch (error: any) {
+          showNotification('Gagal Menghapus Assignee', error.message, 'error');
+        }
+      }
+    });
+    setShowConfirmModal(true);
   };
 
   return (
@@ -568,6 +583,18 @@ const DisposisiListView: React.FC<DisposisiListViewProps> = ({ currentUser, show
           showNotification={showNotification}
         />
       )}
+
+      {/* Confirm Modal */}
+      <ConfirmModal
+        isOpen={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        onConfirm={confirmModalConfig.onConfirm}
+        title={confirmModalConfig.title}
+        message={confirmModalConfig.message}
+        type={confirmModalConfig.type}
+        confirmText="Ya, Lanjutkan"
+        cancelText="Batal"
+      />
     </div>
   );
 };

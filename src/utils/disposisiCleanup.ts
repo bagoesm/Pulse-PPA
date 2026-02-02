@@ -123,21 +123,24 @@ export async function getDisposisiForKegiatan(kegiatanId: string): Promise<Dispo
 /**
  * Delete Surat with cascade deletion and file cleanup
  * This function:
- * 1. Fetches the Surat to get file_surat
+ * 1. Fetches the Surat to get file_surat and meetingId
  * 2. Fetches all related Disposisi
  * 3. Cleans up Laporan files from Disposisi
  * 4. Cleans up Surat file from storage
- * 5. Deletes the Surat (which cascades to Disposisi via DB constraint)
+ * 5. Manually deletes Disposisi records
+ * 6. Deletes linked Kegiatan if exists
+ * 7. Deletes the Surat
  */
 export async function deleteSuratWithCleanup(suratId: string): Promise<void> {
-  // Get the Surat to access file_surat
-  const { data: surat, error: fetchError } = await supabase
+  // Get the Surat to access file_surat and meetingId
+  const { data: suratData, error: fetchError } = await supabase
     .from('surats')
-    .select('file_surat')
-    .eq('id', suratId)
-    .single();
+    .select('file_surat, meeting_id')
+    .eq('id', suratId);
 
   if (fetchError) throw fetchError;
+  
+  const surat = suratData?.[0];
 
   // Get all related Disposisi before deletion
   const relatedDisposisi = await getDisposisiForSurat(suratId);
@@ -164,7 +167,40 @@ export async function deleteSuratWithCleanup(suratId: string): Promise<void> {
     }
   }
 
-  // Delete the Surat (cascade deletion will handle Disposisi records)
+  // Manually delete all related Disposisi records
+  if (relatedDisposisi.length > 0) {
+    const { error: disposisiError } = await supabase
+      .from('disposisi')
+      .delete()
+      .eq('surat_id', suratId);
+
+    if (disposisiError) {
+      console.error('Error deleting disposisi records:', disposisiError);
+      throw disposisiError;
+    }
+  }
+
+  // Delete linked Kegiatan if exists
+  if (surat?.meeting_id) {
+    try {
+      const { error: meetingError } = await supabase
+        .from('meetings')
+        .delete()
+        .eq('id', surat.meeting_id);
+
+      if (meetingError) {
+        console.error('Error deleting linked kegiatan:', meetingError);
+        // Don't throw - we still want to proceed with surat deletion
+      } else {
+        console.log(`Successfully deleted linked kegiatan: ${surat.meeting_id}`);
+      }
+    } catch (error) {
+      console.error('Error in kegiatan deletion:', error);
+      // Don't throw - we still want to proceed with surat deletion
+    }
+  }
+
+  // Delete the Surat
   const { error } = await supabase
     .from('surats')
     .delete()
@@ -178,7 +214,8 @@ export async function deleteSuratWithCleanup(suratId: string): Promise<void> {
  * This function:
  * 1. Fetches all related Disposisi
  * 2. Cleans up Laporan files
- * 3. Deletes the Kegiatan (which cascades to Disposisi via DB constraint)
+ * 3. Manually deletes Disposisi records
+ * 4. Deletes the Kegiatan
  */
 export async function deleteKegiatanWithCleanup(kegiatanId: string): Promise<void> {
   // Get all related Disposisi before deletion
@@ -187,7 +224,20 @@ export async function deleteKegiatanWithCleanup(kegiatanId: string): Promise<voi
   // Clean up Laporan files
   await cleanupLaporanFiles(relatedDisposisi);
 
-  // Delete the Kegiatan (cascade deletion will handle Disposisi records)
+  // Manually delete all related Disposisi records
+  if (relatedDisposisi.length > 0) {
+    const { error: disposisiError } = await supabase
+      .from('disposisi')
+      .delete()
+      .eq('kegiatan_id', kegiatanId);
+
+    if (disposisiError) {
+      console.error('Error deleting disposisi records:', disposisiError);
+      throw disposisiError;
+    }
+  }
+
+  // Delete the Kegiatan
   const { error } = await supabase
     .from('meetings')
     .delete()

@@ -10,6 +10,7 @@ import { Surat, User } from '../../types';
 import AddSuratModal from './AddSuratModal';
 import SuratViewModal from './SuratViewModal';
 import SearchableSelect from './SearchableSelect';
+import ConfirmModal from './ConfirmModal';
 import { useSurats } from '../contexts/SuratsContext';
 import { useUsers } from '../contexts/UsersContext';
 import { useMeetings } from '../contexts/MeetingsContext';
@@ -50,6 +51,21 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
   const [exportStartDate, setExportStartDate] = useState('');
   const [exportEndDate, setExportEndDate] = useState('');
   const [exportJenisSurat, setExportJenisSurat] = useState<'All' | 'Masuk' | 'Keluar'>('All');
+  const [exportJenisNaskah, setExportJenisNaskah] = useState<string>('All');
+  
+  // Confirm modal states
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmModalConfig, setConfirmModalConfig] = useState<{
+    title: string;
+    message: string;
+    type: 'success' | 'warning' | 'error' | 'info';
+    onConfirm: () => void;
+  }>({
+    title: '',
+    message: '',
+    type: 'info',
+    onConfirm: () => {}
+  });
 
   // Helper function to get meeting date from linked meeting
   const getKegiatanDate = (surat: Surat): string | null => {
@@ -64,7 +80,6 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
     const meeting = meetings.find(m => m.id === surat.meetingId);
     return meeting?.title || null;
   };
-  const [exportJenisNaskah, setExportJenisNaskah] = useState<string>('All');
 
   // Apply filters and sort
   const filteredSurats = useMemo(() => {
@@ -408,15 +423,23 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
       // Show confirmation dialog with Disposisi warning
       const confirmMessage = `Hapus surat ${suratNumber}? Tindakan ini tidak dapat dibatalkan.${warning}`;
       
-      if (!window.confirm(confirmMessage)) {
-        return;
-      }
-      
-      // Delete with cleanup
-      await deleteSuratWithCleanup(id);
-      
-      showNotification('Surat Dihapus', 'Surat dan disposisi terkait berhasil dihapus', 'success');
-      fetchSurats();
+      setConfirmModalConfig({
+        title: 'Hapus Surat',
+        message: confirmMessage,
+        type: 'error',
+        onConfirm: async () => {
+          try {
+            // Delete with cleanup
+            await deleteSuratWithCleanup(id);
+            
+            showNotification('Surat Dihapus', 'Surat dan disposisi terkait berhasil dihapus', 'success');
+            fetchSurats();
+          } catch (error: any) {
+            showNotification('Gagal Hapus Surat', error.message, 'error');
+          }
+        }
+      });
+      setShowConfirmModal(true);
     } catch (error: any) {
       showNotification('Gagal Hapus Surat', error.message, 'error');
     }
@@ -1071,6 +1094,18 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
         users={allUsers}
         showNotification={showNotification}
         onUnlinkFromKegiatan={unlinkFromKegiatan}
+      />
+
+      {/* Confirm Modal */}
+      <ConfirmModal
+        isOpen={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        onConfirm={confirmModalConfig.onConfirm}
+        title={confirmModalConfig.title}
+        message={confirmModalConfig.message}
+        type={confirmModalConfig.type}
+        confirmText="Ya, Lanjutkan"
+        cancelText="Batal"
       />
     </div>
   );

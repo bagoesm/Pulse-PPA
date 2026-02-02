@@ -503,7 +503,7 @@ export const useMeetingHandlers = ({
         }
     }, [editingMeeting, mapMeeting, setMeetings, setMeetingInviters, setIsMeetingModalOpen, setEditingMeeting, showNotification, allUsers, createMentionNotification, createMeetingNotification, currentUser, logToActivityLogs]);
 
-    const handleDeleteMeeting = useCallback(async (meetingId: string) => {
+    const handleDeleteMeeting = useCallback(async (meetingId: string, onConfirm?: (message: string, title: string) => Promise<boolean>) => {
         try {
             // Get meeting data before deletion for logging
             const meetingToDelete = meetings.find(m => m.id === meetingId);
@@ -519,7 +519,12 @@ export const useMeetingHandlers = ({
             const meetingTitle = meetingToDelete?.title || 'ini';
             const confirmMessage = `Hapus jadwal "${meetingTitle}"? Tindakan ini tidak dapat dibatalkan.${warning}`;
             
-            if (!window.confirm(confirmMessage)) {
+            // Use custom confirm callback if provided, otherwise use window.confirm
+            const confirmed = onConfirm 
+                ? await onConfirm(confirmMessage, meetingTitle)
+                : window.confirm(confirmMessage);
+            
+            if (!confirmed) {
                 return;
             }
 

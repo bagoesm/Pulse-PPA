@@ -378,8 +378,8 @@ const AppContent: React.FC = () => {
     handleViewMeeting,
     handleEditMeetingFromView,
     handleSaveMeeting,
-    handleDeleteMeeting,
-    handleDeleteMeetingFromView,
+    handleDeleteMeeting: handleDeleteMeetingOriginal,
+    handleDeleteMeetingFromView: handleDeleteMeetingFromViewOriginal,
     handleAddComment: handleAddMeetingComment,
     handleDeleteComment: handleDeleteMeetingComment
   } = useMeetingHandlers({
@@ -401,6 +401,37 @@ const AppContent: React.FC = () => {
     createMentionNotification,
     createMeetingNotification
   });
+
+  // Wrap handleDeleteMeeting to use modal instead of window.confirm
+  const handleDeleteMeeting = useCallback(async (meetingId: string) => {
+    // Get meeting data and disposisi warning
+    const meetingToDelete = meetings.find(m => m.id === meetingId);
+    const { getDisposisiForKegiatan, formatDisposisiWarning } = await import('./utils/disposisiCleanup');
+    const relatedDisposisi = await getDisposisiForKegiatan(meetingId);
+    const warning = formatDisposisiWarning(relatedDisposisi);
+    const meetingTitle = meetingToDelete?.title || 'ini';
+    const confirmMessage = `Hapus jadwal "${meetingTitle}"? Tindakan ini tidak dapat dibatalkan.${warning}`;
+    
+    // Show confirm modal with callback that calls the actual delete
+    showConfirm(
+      'Hapus Jadwal',
+      confirmMessage,
+      () => {
+        // Call the original handler with skipConfirm callback that always returns true
+        handleDeleteMeetingOriginal(meetingId, async () => true);
+        hideConfirm();
+      },
+      'error',
+      'Ya, Hapus',
+      'Batal'
+    );
+  }, [meetings, handleDeleteMeetingOriginal, showConfirm, hideConfirm]);
+
+  const handleDeleteMeetingFromView = useCallback(() => {
+    if (viewingMeeting) {
+      handleDeleteMeeting(viewingMeeting.id);
+    }
+  }, [viewingMeeting, handleDeleteMeeting]);
 
   // Master data handlers  
   const {
