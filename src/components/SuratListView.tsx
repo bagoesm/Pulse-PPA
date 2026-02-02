@@ -212,6 +212,30 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
     setShowExportModal(true);
   };
 
+  // Helper function to generate export title based on filters
+  const getExportTitle = () => {
+    const jenisSuratText = exportJenisSurat === 'All' 
+      ? 'Naskah Masuk / Naskah Keluar' 
+      : exportJenisSurat === 'Masuk' 
+        ? 'Naskah Masuk' 
+        : 'Naskah Keluar';
+    
+    let dateRangeText = '';
+    if (exportStartDate && exportEndDate) {
+      const startDate = new Date(exportStartDate);
+      const endDate = new Date(exportEndDate);
+      dateRangeText = ` ${startDate.getDate()} ${startDate.toLocaleDateString('id-ID', { month: 'long' })} - ${endDate.getDate()} ${endDate.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}`;
+    } else if (exportStartDate) {
+      const startDate = new Date(exportStartDate);
+      dateRangeText = ` mulai ${startDate.getDate()} ${startDate.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}`;
+    } else if (exportEndDate) {
+      const endDate = new Date(exportEndDate);
+      dateRangeText = ` sampai ${endDate.getDate()} ${endDate.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}`;
+    }
+    
+    return `Monitoring ${jenisSuratText}${dateRangeText}`;
+  };
+
   // Helper function to apply export filters (avoid duplication)
   const getFilteredExportData = () => {
     let dataToExport = surats;
@@ -278,6 +302,7 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
   const handleExportExcel = () => {
     const dataToExport = getFilteredExportData();
     const data = prepareExportData(dataToExport);
+    const exportTitle = getExportTitle();
 
     // Create workbook and worksheet
     const ws = XLSX.utils.json_to_sheet(data);
@@ -310,8 +335,12 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
     ];
     ws['!cols'] = colWidths;
 
+    // Generate filename with sanitized title
+    const sanitizedTitle = exportTitle.replace(/[/\\?%*:|"<>]/g, '-');
+    const filename = `${sanitizedTitle}_${new Date().toISOString().split('T')[0]}.xlsx`;
+
     // Download Excel file
-    XLSX.writeFile(wb, `Daftar_Surat_${new Date().toISOString().split('T')[0]}.xlsx`);
+    XLSX.writeFile(wb, filename);
 
     // Close modal
     setShowExportModal(false);
@@ -321,13 +350,14 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
   const handleExportPDF = () => {
     // Use helper function to get filtered data
     const dataToExport = getFilteredExportData();
+    const exportTitle = getExportTitle();
 
     // Create PDF
     const doc = new jsPDF('landscape');
     
     // Add title
     doc.setFontSize(16);
-    doc.text('Daftar Surat', 14, 15);
+    doc.text(exportTitle, 14, 15);
     
     // Add export info
     doc.setFontSize(10);
@@ -369,8 +399,12 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
       margin: { left: 14, right: 14 }
     });
 
+    // Generate filename with sanitized title
+    const sanitizedTitle = exportTitle.replace(/[/\\?%*:|"<>]/g, '-');
+    const filename = `${sanitizedTitle}_${new Date().toISOString().split('T')[0]}.pdf`;
+
     // Download PDF
-    doc.save(`Daftar_Surat_${new Date().toISOString().split('T')[0]}.pdf`);
+    doc.save(filename);
 
     // Close modal
     setShowExportModal(false);
