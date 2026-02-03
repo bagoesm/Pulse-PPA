@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import { User } from '../../types';
 import { Lock, Mail, ArrowRight } from 'lucide-react';
 
+// Import version from package.json
+const APP_VERSION = import.meta.env.VITE_APP_VERSION || '1.5.3';
+
 interface LoginPageProps {
   onLogin: (email: string, password: string) => void;
   error?: string;
@@ -82,6 +85,9 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, error }) => {
         <div className="mt-6 sm:mt-8 text-center">
             <p className="text-[10px] sm:text-xs text-slate-400">
                 &copy; {new Date().getFullYear()} Biro Data & Informasi KemenPPPA
+            </p>
+            <p className="text-[9px] sm:text-[10px] text-slate-300 mt-1">
+                v{APP_VERSION}
             </p>
         </div>
       </div>
