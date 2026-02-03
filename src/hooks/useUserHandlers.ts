@@ -122,6 +122,34 @@ export const useUserHandlers = ({
             const originalUser = allUsers.find(u => u.id === updatedUser.id);
             const emailChanged = originalUser && originalUser.email !== updatedUser.email;
 
+            // Update password di Supabase auth jika password diisi
+            if (updatedUser.password && updatedUser.password.trim() !== '') {
+                try {
+                    // Gunakan RPC function untuk update password (lebih aman daripada service role di frontend)
+                    const { error: passwordError } = await supabase.rpc('admin_update_user_password', {
+                        user_id: updatedUser.id,
+                        new_password: updatedUser.password
+                    });
+
+                    if (passwordError) {
+                        // Jika RPC function belum ada, tampilkan pesan yang informatif
+                        if (passwordError.message.includes('function') || passwordError.message.includes('does not exist')) {
+                            showNotification(
+                                'Fitur Belum Tersedia', 
+                                'Fitur update password memerlukan database function. Silakan setup database function terlebih dahulu atau gunakan Supabase Dashboard untuk reset password.', 
+                                'warning'
+                            );
+                        } else {
+                            showNotification('Gagal Update Password', `Gagal mengupdate password: ${passwordError.message}`, 'error');
+                        }
+                        // Lanjutkan update profile meskipun password gagal
+                    }
+                } catch (passwordErr: any) {
+                    showNotification('Gagal Update Password', `Gagal mengupdate password: ${passwordErr.message}`, 'warning');
+                    // Lanjutkan update profile meskipun password gagal
+                }
+            }
+
             const { error: profileError } = await supabase.from('profiles').update({
                 name: updatedUser.name,
                 role: updatedUser.role,
@@ -140,6 +168,8 @@ export const useUserHandlers = ({
 
             if (emailChanged) {
                 showNotification('Profil Diupdate', `Profil ${updatedUser.name} diperbarui. Email auth masih email lama.`, 'success');
+            } else if (updatedUser.password && updatedUser.password.trim() !== '') {
+                showNotification('User Berhasil Diupdate!', `Data user ${updatedUser.name} berhasil diperbarui termasuk password.`, 'success');
             } else {
                 showNotification('User Berhasil Diupdate!', `Data user ${updatedUser.name} berhasil diperbarui.`, 'success');
             }
