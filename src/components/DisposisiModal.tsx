@@ -72,7 +72,7 @@ const DisposisiModal: React.FC<DisposisiModalProps> = ({
   kegiatanId,
   showNotification,
 }) => {
-  const { fetchSubdisposisi, createSubdisposisi } = useDisposisi();
+  const { createSubdisposisi } = useDisposisi();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -83,17 +83,15 @@ const DisposisiModal: React.FC<DisposisiModalProps> = ({
   // Tab state for view mode
   const [activeTab, setActiveTab] = useState<'detail' | 'context' | 'history' | 'subdisposisi'>('detail');
   
-  // Subdisposisi state
+  // Subdisposisi form state
   const [showSubdisposisiForm, setShowSubdisposisiForm] = useState(false);
-  const [subdisposisiList, setSubdisposisiList] = useState<Disposisi[]>([]);
-  const [isLoadingSubdisposisi, setIsLoadingSubdisposisi] = useState(false);
+  const [isCreatingSubdisposisi, setIsCreatingSubdisposisi] = useState(false);
   
   // Subdisposisi form state
   const [subSelectedUsers, setSubSelectedUsers] = useState<string[]>([]);
   const [subDisposisiText, setSubDisposisiText] = useState('');
   const [subDeadline, setSubDeadline] = useState('');
   const [subNotes, setSubNotes] = useState('');
-  const [isCreatingSubdisposisi, setIsCreatingSubdisposisi] = useState(false);
   
   // Subdisposisi user search state
   const [subUserSearch, setSubUserSearch] = useState('');
@@ -175,19 +173,11 @@ const DisposisiModal: React.FC<DisposisiModalProps> = ({
       setLinkTitle('');
       setLinkUrl('');
       setShowSubdisposisiForm(false);
-      setSubdisposisiList([]);
       setSubUserSearch('');
       setShowSubUserDropdown(false);
     }
   }, [isOpen, initialData]);
 
-  // Fetch subdisposisi when tab is opened
-  useEffect(() => {
-    if (isOpen && initialData && activeTab === 'subdisposisi') {
-      loadSubdisposisi();
-    }
-  }, [isOpen, initialData, activeTab]);
-  
   // Fetch context data (Surat & Kegiatan) when context tab is opened
   useEffect(() => {
     if (isOpen && initialData && activeTab === 'context') {
@@ -195,21 +185,6 @@ const DisposisiModal: React.FC<DisposisiModalProps> = ({
     }
   }, [isOpen, initialData, activeTab]);
 
-  const loadSubdisposisi = async () => {
-    if (!initialData) return;
-    
-    setIsLoadingSubdisposisi(true);
-    try {
-      const subs = await fetchSubdisposisi(initialData.id);
-      setSubdisposisiList(subs);
-    } catch (error) {
-      console.error('Error loading subdisposisi:', error);
-      showNotification('Gagal Memuat', 'Gagal memuat disposisi lanjutan', 'error');
-    } finally {
-      setIsLoadingSubdisposisi(false);
-    }
-  };
-  
   const loadContextData = async () => {
     if (!initialData) return;
     
@@ -497,6 +472,11 @@ const DisposisiModal: React.FC<DisposisiModalProps> = ({
       return;
     }
     
+    if (subSelectedUsers.length > 1) {
+      showNotification('Validasi Gagal', 'Disposisi lanjutan hanya dapat dibuat untuk satu user', 'warning');
+      return;
+    }
+    
     if (!subDisposisiText.trim()) {
       showNotification('Validasi Gagal', 'Teks disposisi harus diisi', 'warning');
       return;
@@ -505,37 +485,28 @@ const DisposisiModal: React.FC<DisposisiModalProps> = ({
     setIsCreatingSubdisposisi(true);
     
     try {
-      // Create subdisposisi for each selected user
-      const promises = subSelectedUsers.map(userId =>
-        createSubdisposisi(initialData.id, {
-          suratId: initialData.suratId,
-          kegiatanId: initialData.kegiatanId,
-          assignedTo: userId,
-          disposisiText: subDisposisiText,
-          status: 'Pending',
-          deadline: subDeadline || undefined,
-          notes: subNotes || undefined,
-          createdBy: currentUser.id || currentUser.name,
-          laporan: [],
-          attachments: [],
-        })
-      );
-
-      await Promise.all(promises);
+      // Create subdisposisi - this will UPDATE the existing disposisi
+      await createSubdisposisi(initialData.id, {
+        suratId: initialData.suratId,
+        kegiatanId: initialData.kegiatanId,
+        assignedTo: subSelectedUsers[0],
+        disposisiText: subDisposisiText,
+        status: 'Pending',
+        deadline: subDeadline || undefined,
+        notes: subNotes || undefined,
+        createdBy: currentUser.id || currentUser.name,
+        laporan: [],
+        attachments: [],
+      });
 
       showNotification(
         'Berhasil',
-        `Disposisi lanjutan berhasil dibuat untuk ${subSelectedUsers.length} user`,
+        'Disposisi berhasil dilanjutkan. Disposisi sebelumnya tercatat dalam riwayat perubahan.',
         'success'
       );
 
-      // Reset form and reload list
-      setSubSelectedUsers([]);
-      setSubDisposisiText('');
-      setSubDeadline('');
-      setSubNotes('');
-      setShowSubdisposisiForm(false);
-      await loadSubdisposisi();
+      // Close modal and refresh
+      handleClose();
     } catch (error: any) {
       console.error('Error creating subdisposisi:', error);
       showNotification('Gagal', error.message || 'Gagal membuat disposisi lanjutan', 'error');
@@ -1456,28 +1427,40 @@ const DisposisiModal: React.FC<DisposisiModalProps> = ({
                 {/* Check if current user is the assignee */}
                 {currentUser && (currentUser.id === initialData.assignedTo || currentUser.role === 'Super Admin' || currentUser.role === 'Atasan') ? (
               <div className="space-y-6">
-                {/* Header with Add Button */}
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="text-lg font-semibold text-slate-800">Disposisi Lanjutan</h4>
-                    <p className="text-sm text-slate-500 mt-1">
-                      Buat disposisi lanjutan untuk mendelegasikan tugas ini ke user lain
-                    </p>
+                {/* Info Box */}
+                <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 bg-blue-100 rounded-lg">
+                      <AlertCircle size={20} className="text-blue-600" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-blue-900 mb-1">Tentang Disposisi Lanjutan</h4>
+                      <p className="text-sm text-blue-800">
+                        Disposisi lanjutan akan <strong>mengupdate disposisi ini</strong> dengan assignee baru. 
+                        Disposisi sebelumnya akan tetap tercatat dalam <strong>Riwayat Perubahan</strong>.
+                      </p>
+                    </div>
                   </div>
-                  {!showSubdisposisiForm && (
-                    <button
-                      type="button"
-                      onClick={() => setShowSubdisposisiForm(true)}
-                      className="px-4 py-2 bg-gov-600 text-white rounded-lg hover:bg-gov-700 transition-colors flex items-center gap-2"
-                    >
-                      <Plus size={18} />
-                      Tambah Disposisi Lanjutan
-                    </button>
-                  )}
                 </div>
 
                 {/* Subdisposisi Form */}
-                {showSubdisposisiForm && (
+                {!showSubdisposisiForm ? (
+                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-8 text-center">
+                    <FileText size={56} className="mx-auto mb-4 text-slate-300" />
+                    <h4 className="text-lg font-semibold text-slate-700 mb-2">Lanjutkan Disposisi</h4>
+                    <p className="text-sm text-slate-500 mb-6">
+                      Delegasikan disposisi ini ke user lain. Perubahan akan tercatat dalam riwayat.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setShowSubdisposisiForm(true)}
+                      className="px-6 py-3 bg-gov-600 text-white rounded-lg hover:bg-gov-700 transition-colors flex items-center gap-2 mx-auto"
+                    >
+                      <Plus size={20} />
+                      Buat Disposisi Lanjutan
+                    </button>
+                  </div>
+                ) : (
                   <div className="bg-slate-50 border border-slate-200 rounded-lg p-6">
                     <div className="flex items-center justify-between mb-4">
                       <h5 className="font-semibold text-slate-800">Form Disposisi Lanjutan</h5>
@@ -1499,18 +1482,32 @@ const DisposisiModal: React.FC<DisposisiModalProps> = ({
                     </div>
 
                     <div className="space-y-4">
+                      {/* Current Assignment Info */}
+                      <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-2">
+                          Disposisi Saat Ini
+                        </label>
+                        <div className="flex items-center gap-2 text-sm">
+                          <span className="text-slate-600">Ditugaskan ke:</span>
+                          <span className="font-semibold text-slate-800">{getUserName(initialData.assignedTo)}</span>
+                        </div>
+                        <div className="mt-2 text-sm text-slate-600">
+                          <span className="font-medium">Instruksi:</span> {initialData.disposisiText}
+                        </div>
+                      </div>
+
                       {/* Info Box */}
                       <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                         <p className="text-sm text-blue-800">
-                          <strong>Info:</strong> Disposisi lanjutan akan terhubung ke Surat "{initialData.suratId}" dan Kegiatan yang sama.
+                          <strong>Info:</strong> Disposisi lanjutan akan mengupdate disposisi ini. Riwayat akan tersimpan di tab "Riwayat Perubahan".
                         </p>
                       </div>
 
-                      {/* User Selection - Dropdown */}
+                      {/* User Selection - Single Select */}
                       <div>
                         <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
                           <Users size={16} className="text-gov-600" />
-                          Ditugaskan Ke <span className="text-red-500">*</span>
+                          Lanjutkan Ke <span className="text-red-500">*</span>
                         </label>
                         <div className="space-y-2">
                           {/* Search input */}
@@ -1552,7 +1549,10 @@ const DisposisiModal: React.FC<DisposisiModalProps> = ({
                                       <button
                                         key={user.id}
                                         type="button"
-                                        onClick={() => toggleSubUserSelection(user.id)}
+                                        onClick={() => {
+                                          setSubSelectedUsers([user.id]);
+                                          setShowSubUserDropdown(false);
+                                        }}
                                         className={`w-full px-4 py-2.5 text-left hover:bg-slate-50 transition-colors flex items-center justify-between ${
                                           subSelectedUsers.includes(user.id) ? 'bg-gov-50' : ''
                                         }`}
@@ -1572,15 +1572,6 @@ const DisposisiModal: React.FC<DisposisiModalProps> = ({
                                         )}
                                       </button>
                                     ))}
-                                    <div className="sticky bottom-0 bg-slate-50 border-t border-slate-200 p-2">
-                                      <button
-                                        type="button"
-                                        onClick={() => setShowSubUserDropdown(false)}
-                                        className="w-full py-1.5 text-sm font-medium text-gov-600 hover:text-gov-700"
-                                      >
-                                        Done ({subSelectedUsers.length} selected)
-                                      </button>
-                                    </div>
                                   </>
                                 ) : (
                                   <div className="px-4 py-3 text-sm text-slate-500 text-center">
@@ -1591,7 +1582,7 @@ const DisposisiModal: React.FC<DisposisiModalProps> = ({
                             )}
                           </div>
 
-                          {/* Selected users chips */}
+                          {/* Selected user chip */}
                           {subSelectedUsers.length > 0 && (
                             <div className="flex flex-wrap gap-2 p-3 bg-slate-50 rounded-lg border border-slate-200">
                               {subSelectedUsers.map(userId => {
@@ -1605,7 +1596,7 @@ const DisposisiModal: React.FC<DisposisiModalProps> = ({
                                     <span>{user.name}</span>
                                     <button
                                       type="button"
-                                      onClick={() => toggleSubUserSelection(userId)}
+                                      onClick={() => setSubSelectedUsers([])}
                                       className="hover:bg-gov-200 rounded-full p-0.5 transition-colors"
                                     >
                                       <X size={14} />
@@ -1621,7 +1612,7 @@ const DisposisiModal: React.FC<DisposisiModalProps> = ({
                       {/* Disposisi Text */}
                       <div>
                         <label className="block text-sm font-semibold text-slate-700 mb-2">
-                          Teks Disposisi <span className="text-red-500">*</span>
+                          Instruksi Baru <span className="text-red-500">*</span>
                         </label>
                         <textarea
                           value={subDisposisiText}
@@ -1685,12 +1676,12 @@ const DisposisiModal: React.FC<DisposisiModalProps> = ({
                           {isCreatingSubdisposisi ? (
                             <>
                               <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                              Membuat...
+                              Memproses...
                             </>
                           ) : (
                             <>
-                              <Plus size={18} />
-                              Buat Disposisi Lanjutan
+                              <ArrowRight size={18} />
+                              Lanjutkan Disposisi
                             </>
                           )}
                         </button>
@@ -1698,72 +1689,6 @@ const DisposisiModal: React.FC<DisposisiModalProps> = ({
                     </div>
                   </div>
                 )}
-
-                {/* List of Subdisposisi */}
-                <div>
-                  <h5 className="font-semibold text-slate-700 mb-3">
-                    Daftar Disposisi Lanjutan ({subdisposisiList.length})
-                  </h5>
-                  
-                  {isLoadingSubdisposisi ? (
-                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-8 text-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-2 border-gov-600 border-t-transparent mx-auto mb-3"></div>
-                      <p className="text-slate-500">Memuat disposisi lanjutan...</p>
-                    </div>
-                  ) : subdisposisiList.length === 0 ? (
-                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-8 text-center">
-                      <FileText size={48} className="mx-auto mb-3 text-slate-300" />
-                      <p className="text-slate-500">Belum ada disposisi lanjutan</p>
-                      <p className="text-sm text-slate-400 mt-1">
-                        Disposisi lanjutan yang dibuat akan muncul di sini
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {subdisposisiList.map(sub => (
-                        <div key={sub.id} className="bg-white border border-slate-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-2">
-                                <span className={`inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full ${
-                                  sub.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' :
-                                  sub.status === 'In Progress' ? 'bg-blue-100 text-blue-700' :
-                                  sub.status === 'Completed' ? 'bg-green-100 text-green-700' :
-                                  'bg-red-100 text-red-700'
-                                }`}>
-                                  {sub.status}
-                                </span>
-                                {sub.deadline && (
-                                  <span className="text-xs text-slate-500">
-                                    Deadline: {new Date(sub.deadline).toLocaleDateString('id-ID', {
-                                      day: 'numeric',
-                                      month: 'short',
-                                      year: 'numeric'
-                                    })}
-                                  </span>
-                                )}
-                              </div>
-                              <p className="text-sm text-slate-800 mb-2">{sub.disposisiText}</p>
-                              <div className="flex items-center gap-4 text-xs text-slate-500">
-                                <div className="flex items-center gap-1">
-                                  <Users size={12} />
-                                  <span>Ke: {getUserName(sub.assignedTo)}</span>
-                                </div>
-                                <div>
-                                  Dibuat: {new Date(sub.createdAt).toLocaleDateString('id-ID', {
-                                    day: 'numeric',
-                                    month: 'short',
-                                    year: 'numeric'
-                                  })}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
               </div>
             ) : (
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">

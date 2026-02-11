@@ -371,6 +371,8 @@ export type DisposisiAction =
   | 'status_changed' 
   | 'assignee_added' 
   | 'assignee_removed'
+  | 'reassigned'
+  | 'text_updated'
   | 'laporan_uploaded'
   | 'laporan_deleted'
   | 'notes_updated'

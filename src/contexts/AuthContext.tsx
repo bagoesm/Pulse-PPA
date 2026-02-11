@@ -112,7 +112,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, onShowNoti
 
             if (error) {
                 console.error('Login error:', error);
-                setAuthError(error.message || 'Gagal login');
+                
+                // Provide more helpful error messages
+                let errorMessage = error.message || 'Gagal login';
+                
+                if (error.message?.includes('Invalid login credentials')) {
+                    errorMessage = 'Email atau password salah. Jika akun baru dibuat, pastikan email sudah dikonfirmasi atau email confirmation dinonaktifkan di Supabase.';
+                } else if (error.message?.includes('Email not confirmed')) {
+                    errorMessage = 'Email belum dikonfirmasi. Silakan cek email Anda atau hubungi administrator untuk mengaktifkan akun.';
+                }
+                
+                setAuthError(errorMessage);
                 setIsLoadingAuth(false);
                 return;
             }

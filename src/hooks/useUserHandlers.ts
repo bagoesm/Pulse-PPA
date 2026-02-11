@@ -63,7 +63,10 @@ export const useUserHandlers = ({
                             role: newUser.role,
                             jabatan: newUser.jabatan,
                             initials: newUser.initials
-                        }
+                        },
+                        // Disable email confirmation for admin-created users
+                        // Note: This requires email confirmation to be disabled in Supabase settings
+                        // or using service role key
                     }
                 });
 
@@ -98,15 +101,24 @@ export const useUserHandlers = ({
                 await fetchAllData();
                 showNotification(
                     'User Berhasil Ditambahkan!',
-                    `User ${newUser.name} berhasil ditambahkan dengan email ${newUser.email}.`,
+                    `User ${newUser.name} berhasil ditambahkan dengan email ${newUser.email}. User dapat langsung login jika email confirmation dinonaktifkan di Supabase.`,
                     'success'
                 );
 
             } catch (authCreateError: any) {
-                if (authCreateError.message?.includes('already registered')) {
+                console.error('Auth creation error:', authCreateError);
+                if (authCreateError.message?.includes('already registered') || authCreateError.message?.includes('User already registered')) {
                     showNotification('Email Sudah Terdaftar', `Email ${newUser.email} sudah terdaftar.`, 'error');
                 } else if (authCreateError.message?.includes('Password')) {
                     showNotification('Password Tidak Valid', `Password tidak valid: ${authCreateError.message}`, 'error');
+                } else if (authCreateError.message?.includes('Email') || authCreateError.message?.includes('confirmation')) {
+                    showNotification(
+                        'Konfirmasi Email Diperlukan', 
+                        `User berhasil dibuat tetapi memerlukan konfirmasi email. Silakan cek email ${newUser.email} atau nonaktifkan email confirmation di Supabase Dashboard > Authentication > Settings > Email Auth > Disable "Enable email confirmations".`, 
+                        'warning'
+                    );
+                    // Still fetch data as the user might be created
+                    await fetchAllData();
                 } else {
                     showNotification('Gagal Membuat User', `Gagal membuat user: ${authCreateError.message}`, 'error');
                 }

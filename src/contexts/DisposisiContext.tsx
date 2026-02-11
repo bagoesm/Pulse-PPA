@@ -6,6 +6,7 @@ import { Disposisi, Attachment, User } from '../../types';
 import { filterDisposisiByRole, getTeamUserIds } from '../utils/authorization';
 import { useAuth } from './AuthContext';
 import { mappers } from '../utils/mappers';
+import { NotificationService } from '../services/NotificationService';
 import {
   ValidationError,
   DatabaseError,
@@ -226,7 +227,7 @@ export const DisposisiProvider: React.FC<DisposisiProviderProps> = ({ children, 
         throw new Error('You must be logged in to create Subdisposisi');
       }
 
-      // Get parent disposisi to verify it exists and get surat/kegiatan IDs
+      // Get parent disposisi to verify it exists
       const { data: parentData, error: parentError } = await supabase
         .from('disposisi')
         .select('*')
@@ -247,47 +248,88 @@ export const DisposisiProvider: React.FC<DisposisiProviderProps> = ({ children, 
         throw new Error('You do not have permission to create Subdisposisi. Only the assignee, Atasan, or Super Admin can create Subdisposisi.');
       }
 
-      // Create subdisposisi with parent reference and same surat/kegiatan
-      const insertData = {
-        surat_id: parentDisposisi.suratId,
-        kegiatan_id: parentDisposisi.kegiatanId,
-        assigned_to: data.assignedTo,
-        disposisi_text: data.disposisiText,
-        status: data.status || 'Pending',
-        deadline: data.deadline,
-        laporan: data.laporan || [],
-        attachments: data.attachments || [],
-        notes: data.notes,
-        created_by: data.createdBy,
-        updated_at: data.updatedAt,
-        completed_at: data.completedAt,
-        completed_by: data.completedBy,
-        parent_disposisi_id: parentId,
-      };
-
-      const { data: inserted, error } = await supabase
-        .from('disposisi')
-        .insert(insertData)
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      const newSubdisposisi = mapDisposisiFromDB(inserted);
-      setDisposisi(prev => [newSubdisposisi, ...prev]);
-
-      // Create audit trail for subdisposisi creation
+      // Record old assignee in audit trail BEFORE updating
+      const oldAssignee = parentDisposisi.assignedTo;
+      const oldDisposisiText = parentDisposisi.disposisiText;
+      const oldDeadline = parentDisposisi.deadline;
+      
+      // Create audit trail for reassignment (disposisi lanjutan)
       await supabase
         .from('disposisi_history')
         .insert({
           disposisi_id: parentId,
-          action: 'subdisposisi_created',
-          new_value: `Subdisposisi dibuat untuk ${data.assignedTo}`,
+          action: 'reassigned',
+          old_value: oldAssignee,
+          new_value: data.assignedTo,
           performed_by: currentUser.id || currentUser.name,
           performed_at: new Date().toISOString(),
         });
 
-      return newSubdisposisi;
+      // Record disposisi text change if different
+      if (data.disposisiText !== oldDisposisiText) {
+        await supabase
+          .from('disposisi_history')
+          .insert({
+            disposisi_id: parentId,
+            action: 'text_updated',
+            old_value: oldDisposisiText,
+            new_value: data.disposisiText,
+            performed_by: currentUser.id || currentUser.name,
+            performed_at: new Date().toISOString(),
+          });
+      }
+
+      // Record deadline change if different
+      if (data.deadline !== oldDeadline) {
+        await supabase
+          .from('disposisi_history')
+          .insert({
+            disposisi_id: parentId,
+            action: 'deadline_changed',
+            old_value: oldDeadline || 'No deadline',
+            new_value: data.deadline || 'No deadline',
+            performed_by: currentUser.id || currentUser.name,
+            performed_at: new Date().toISOString(),
+          });
+      }
+
+      // Update the existing disposisi with new assignee and data
+      const updateData = {
+        assigned_to: data.assignedTo,
+        disposisi_text: data.disposisiText,
+        deadline: data.deadline,
+        notes: data.notes,
+        updated_at: new Date().toISOString(),
+      };
+
+      const { data: updated, error: updateError } = await supabase
+        .from('disposisi')
+        .update(updateData)
+        .eq('id', parentId)
+        .select()
+        .single();
+
+      if (updateError) throw updateError;
+
+      const updatedDisposisi = mapDisposisiFromDB(updated);
+      
+      // Update local state
+      setDisposisi(prev => prev.map(d => d.id === parentId ? updatedDisposisi : d));
+
+      // Create notification for new assignee (optional - can be handled by NotificationService)
+      try {
+        await NotificationService.createDisposisiAssignmentNotification(
+          updatedDisposisi,
+          currentUser.name || 'System',
+          parentDisposisi.suratId,
+          parentDisposisi.kegiatanId
+        );
+      } catch (notifError) {
+        console.error('Error creating notification:', notifError);
+        // Don't throw - notification failure shouldn't block the operation
+      }
+
+      return updatedDisposisi;
     } catch (error) {
       console.error('Error creating subdisposisi:', error);
       throw error;

@@ -14,10 +14,30 @@ const AuditTrailDisplay: React.FC<AuditTrailDisplayProps> = ({ disposisiId, clas
   const [history, setHistory] = useState<DisposisiHistory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [users, setUsers] = useState<any[]>([]);
 
   useEffect(() => {
+    fetchUsers();
     fetchHistory();
   }, [disposisiId]);
+
+  const fetchUsers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('id, name');
+      
+      if (error) throw error;
+      if (data) setUsers(data);
+    } catch (err) {
+      console.error('Error fetching users:', err);
+    }
+  };
+
+  const getUserName = (userId: string): string => {
+    const user = users.find(u => u.id === userId);
+    return user?.name || userId;
+  };
 
   const fetchHistory = async () => {
     setIsLoading(true);
@@ -86,6 +106,10 @@ const AuditTrailDisplay: React.FC<AuditTrailDisplayProps> = ({ disposisiId, clas
         return 'Penugasan ditambahkan';
       case 'assignee_removed':
         return 'Penugasan dihapus';
+      case 'reassigned':
+        return 'Disposisi dilanjutkan';
+      case 'text_updated':
+        return 'Instruksi diperbarui';
       case 'laporan_uploaded':
         return 'Laporan diunggah';
       case 'laporan_deleted':
@@ -109,6 +133,10 @@ const AuditTrailDisplay: React.FC<AuditTrailDisplayProps> = ({ disposisiId, clas
         return 'bg-purple-50 border-purple-200';
       case 'assignee_removed':
         return 'bg-red-50 border-red-200';
+      case 'reassigned':
+        return 'bg-indigo-50 border-indigo-200';
+      case 'text_updated':
+        return 'bg-cyan-50 border-cyan-200';
       case 'laporan_uploaded':
         return 'bg-emerald-50 border-emerald-200';
       case 'laporan_deleted':
@@ -182,6 +210,37 @@ const AuditTrailDisplay: React.FC<AuditTrailDisplayProps> = ({ disposisiId, clas
       return (
         <div className="text-sm text-slate-600 mt-1">
           <div className="text-xs text-slate-500">Catatan diperbarui</div>
+        </div>
+      );
+    }
+
+    if (item.action === 'reassigned') {
+      return (
+        <div className="text-sm text-slate-600 mt-1">
+          <span className="text-slate-500">Dari:</span>{' '}
+          <span className="font-medium text-slate-700">{getUserName(item.oldValue || '')}</span>
+          {' → '}
+          <span className="text-slate-500">Ke:</span>{' '}
+          <span className="font-medium text-slate-700">{getUserName(item.newValue || '')}</span>
+        </div>
+      );
+    }
+
+    if (item.action === 'text_updated') {
+      return (
+        <div className="text-sm text-slate-600 mt-1 space-y-2">
+          {item.oldValue && (
+            <div className="bg-red-50 border border-red-200 rounded p-2">
+              <div className="text-xs text-red-600 font-medium mb-1">Instruksi Lama:</div>
+              <div className="text-slate-700">{item.oldValue}</div>
+            </div>
+          )}
+          {item.newValue && (
+            <div className="bg-green-50 border border-green-200 rounded p-2">
+              <div className="text-xs text-green-600 font-medium mb-1">Instruksi Baru:</div>
+              <div className="text-slate-700">{item.newValue}</div>
+            </div>
+          )}
         </div>
       );
     }
