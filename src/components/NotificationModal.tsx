@@ -51,7 +51,7 @@ const NotificationModal: React.FC<NotificationModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/40 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/40 backdrop-blur-sm">
       <div className={`bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-lg overflow-hidden animate-in fade-in-0 zoom-in-95 duration-300 border-l-4 ${getBorderColor()}`}>
         {/* Header */}
         <div className={`px-4 sm:px-6 py-4 sm:py-5 flex items-center justify-between ${
