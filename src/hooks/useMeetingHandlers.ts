@@ -195,6 +195,18 @@ export const useMeetingHandlers = ({
                 updated_at: new Date().toISOString(),
                 // Linked surat (relasi ke tabel surats)
                 linked_surat_id: meetingData.linkedSuratId || null,
+                // Surat fields (denormalized)
+                jenis_surat: (meetingData as any).jenisSurat || null,
+                nomor_surat: (meetingData as any).nomorSurat || null,
+                tanggal_surat: (meetingData as any).tanggalSurat || null,
+                jenis_naskah: (meetingData as any).jenisNaskah || null,
+                klasifikasi_surat: (meetingData as any).klasifikasiSurat || null,
+                bidang_tugas: (meetingData as any).bidangTugas || null,
+                hal: (meetingData as any).hal || null,
+                asal_surat: (meetingData as any).asalSurat || null,
+                tujuan_surat: (meetingData as any).tujuanSurat || null,
+                disposisi: (meetingData as any).disposisi || null,
+                hasil_tindak_lanjut: (meetingData as any).hasilTindakLanjut || null,
             };
 
             if (editingMeeting) {
