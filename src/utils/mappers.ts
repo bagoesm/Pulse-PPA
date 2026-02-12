@@ -36,6 +36,9 @@ export const mapDisposisiFromDB = (row: any): Disposisi => {
 export const mapMeetingFromDB = (row: any): Meeting => {
   if (!row) return null as any;
   
+  // Get surat data from join if available
+  const linkedSurat = row.linked_surat || row.surats;
+  
   return {
     id: row.id,
     title: row.title,
@@ -69,20 +72,21 @@ export const mapMeetingFromDB = (row: any): Meeting => {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     comments: row.comments || [],
-    // Surat metadata fields
-    jenisSurat: row.jenis_surat,
-    nomorSurat: row.nomor_surat,
-    hal: row.hal,
-    asalSurat: row.asal_surat,
-    tujuanSurat: row.tujuan_surat,
-    klasifikasiSurat: row.klasifikasi_surat,
-    jenisNaskah: row.jenis_naskah,
-    tanggalSurat: row.tanggal_surat,
-    bidangTugas: row.bidang_tugas,
-    disposisi: row.disposisi,
-    hasilTindakLanjut: row.hasil_tindak_lanjut,
+    // Surat metadata fields (from join with surats table)
+    jenisSurat: linkedSurat?.jenis_surat,
+    nomorSurat: linkedSurat?.nomor_surat,
+    hal: linkedSurat?.hal,
+    asalSurat: linkedSurat?.asal_surat,
+    tujuanSurat: linkedSurat?.tujuan_surat,
+    klasifikasiSurat: linkedSurat?.klasifikasi_surat,
+    jenisNaskah: linkedSurat?.jenis_naskah,
+    tanggalSurat: linkedSurat?.tanggal_surat,
+    bidangTugas: linkedSurat?.bidang_tugas,
+    disposisi: linkedSurat?.disposisi,
+    hasilTindakLanjut: linkedSurat?.hasil_tindak_lanjut,
     // Disposisi integration fields
     linkedSuratId: row.linked_surat_id,
+    linkedSurat: linkedSurat ? mapSuratFromDB(linkedSurat) : undefined,
     hasDisposisi: row.has_disposisi,
     disposisiCount: row.disposisi_count,
     disposisiStatus: row.disposisi_status,
