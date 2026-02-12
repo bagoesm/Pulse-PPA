@@ -320,6 +320,19 @@ export interface Meeting {
   linkedSuratId?: string;             // ID of linked Surat
   linkedSurat?: Surat;                // Populated Surat data (join dari tabel surats)
   
+  // Surat fields (denormalized for easier access)
+  jenisSurat?: 'Masuk' | 'Keluar';
+  nomorSurat?: string;
+  tanggalSurat?: string; // ISO Date
+  jenisNaskah?: string;
+  klasifikasiSurat?: string;
+  bidangTugas?: string;
+  hal?: string;
+  asalSurat?: string; // Untuk surat masuk
+  tujuanSurat?: string; // Untuk surat keluar
+  disposisi?: string; // Untuk surat masuk
+  hasilTindakLanjut?: string; // Hasil tindak lanjut
+  
   // Disposisi integration
   hasDisposisi?: boolean;             // Flag indicating if Disposisi exists
   disposisiCount?: number;            // Number of Disposisi assignments
