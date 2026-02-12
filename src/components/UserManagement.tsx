@@ -936,7 +936,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                                     <div>
                                         <p className="text-xs font-bold text-blue-800">Keamanan User Baru</p>
                                         <p className="text-[10px] text-blue-600 mt-1">
-                                            User baru akan dibuat dengan akun login. Jika user tidak bisa login setelah dibuat, pastikan email confirmation dinonaktifkan di Supabase Dashboard (Authentication > Settings > Email > Disable "Enable email confirmations").
+                                            User baru akan dibuat dengan akun login. Jika user tidak bisa login setelah dibuat, pastikan email confirmation dinonaktifkan di Supabase Dashboard (Authentication {'->'} Settings {'->'} Email {'->'} Disable &quot;Enable email confirmations&quot;).
                                         </p>
                                     </div>
                                 </div>
