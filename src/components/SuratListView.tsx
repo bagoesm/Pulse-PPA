@@ -10,10 +10,13 @@ import { Surat, User } from '../../types';
 import AddSuratModal from './AddSuratModal';
 import SuratViewModal from './SuratViewModal';
 import SearchableSelect from './SearchableSelect';
+import MultiSelectChip from './MultiSelectChip';
 import ConfirmModal from './ConfirmModal';
 import { useSurats } from '../contexts/SuratsContext';
 import { useUsers } from '../contexts/UsersContext';
 import { useMeetings } from '../contexts/MeetingsContext';
+import { useDisposisi } from '../contexts/DisposisiContext';
+import { useMasterData } from '../contexts/MasterDataContext';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -27,6 +30,8 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
   const { surats, fetchSurats, unlinkFromKegiatan } = useSurats();
   const { allUsers } = useUsers();
   const { meetings } = useMeetings();
+  const { disposisi } = useDisposisi();
+  const { bidangTugasList } = useMasterData();
   const [searchQuery, setSearchQuery] = useState('');
   const [filterJenisSurat, setFilterJenisSurat] = useState<'All' | 'Masuk' | 'Keluar'>('All');
   const [filterJenisNaskah, setFilterJenisNaskah] = useState<string>('All');
@@ -52,6 +57,7 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
   const [exportEndDate, setExportEndDate] = useState('');
   const [exportJenisSurat, setExportJenisSurat] = useState<'All' | 'Masuk' | 'Keluar'>('All');
   const [exportJenisNaskah, setExportJenisNaskah] = useState<string>('All');
+  const [exportBidangTugas, setExportBidangTugas] = useState<string[]>([]);
   
   // Confirm modal states
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -250,6 +256,13 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
       dataToExport = dataToExport.filter(s => s.jenisNaskah === exportJenisNaskah);
     }
 
+    // Filter by bidang tugas (multi-select)
+    if (exportBidangTugas.length > 0) {
+      dataToExport = dataToExport.filter(s => 
+        s.bidangTugas && exportBidangTugas.includes(s.bidangTugas)
+      );
+    }
+
     // Filter by date range
     if (exportStartDate || exportEndDate) {
       dataToExport = dataToExport.filter(surat => {
@@ -275,28 +288,65 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
 
   // Helper function to prepare data for export (avoid duplication)
   const prepareExportData = (dataToExport: Surat[]) => {
-    return dataToExport.map(surat => ({
-      'Jenis Surat': surat.jenisSurat || '-',
-      'Nomor Surat': surat.nomorSurat || '-',
-      'Tanggal Surat': surat.tanggalSurat ? new Date(surat.tanggalSurat).toLocaleDateString('id-ID') : '-',
-      'Jenis Naskah': surat.jenisNaskah || '-',
-      'Hal/Perihal': surat.hal || '-',
-      'Asal Surat': surat.jenisSurat === 'Masuk' ? (surat.asalSurat || '-') : '-',
-      'Tujuan Surat': surat.jenisSurat === 'Keluar' ? (surat.tujuanSurat || '-') : '-',
-      'Klasifikasi': surat.klasifikasiSurat || '-',
-      'Sifat Surat': surat.sifatSurat || '-',
-      'Bidang Tugas': surat.bidangTugas || '-',
-      'Tanggal Diterima': surat.tanggalDiterima ? new Date(surat.tanggalDiterima).toLocaleDateString('id-ID') : '-',
-      'Tanggal Dikirim': surat.tanggalDikirim ? new Date(surat.tanggalDikirim).toLocaleDateString('id-ID') : '-',
-      'Tanggal Kegiatan': getKegiatanDate(surat) ? new Date(getKegiatanDate(surat)!).toLocaleDateString('id-ID') : '-',
-      'Judul Kegiatan': getKegiatanTitle(surat) || '-',
-      'Ada Disposisi': surat.hasDisposisi ? 'Ya' : 'Tidak',
-      'Jumlah Disposisi': surat.hasDisposisi ? (surat.disposisiCount || 0).toString() : '0',
-      'Status Disposisi': surat.disposisiStatus || '-',
-      'File Surat': surat.fileSurat ? (surat.fileSurat.isLink ? surat.fileSurat.url : surat.fileSurat.name) : '-',
-      'Dibuat Oleh': surat.createdBy,
-      'Tanggal Dibuat': new Date(surat.createdAt).toLocaleDateString('id-ID')
-    }));
+    return dataToExport.map(surat => {
+      // Get disposisi details for this surat
+      const suratDisposisi = disposisi.filter(d => d.suratId === surat.id);
+      const disposisiDetails = suratDisposisi.map((d, idx) => {
+        const assignee = allUsers.find(u => u.id === d.assignedTo);
+        const status = d.status;
+        const deadline = d.deadline ? new Date(d.deadline).toLocaleDateString('id-ID') : '-';
+        const completedAt = d.completedAt ? new Date(d.completedAt).toLocaleDateString('id-ID') : '-';
+        
+        // Format laporan files with URLs for easy access
+        const laporanFiles = d.laporan && d.laporan.length > 0
+          ? d.laporan.map(l => {
+              if (l.isLink) {
+                return `${l.name} (${l.url})`;
+              } else if (l.url) {
+                return `${l.name} (${l.url})`;
+              } else {
+                return l.name;
+              }
+            }).join('; ')
+          : '-';
+        
+        return `[${idx + 1}] Assignee: ${assignee?.name || 'Unknown'} | Status: ${status} | Deadline: ${deadline} | Selesai: ${completedAt} | Laporan: ${laporanFiles}`;
+      }).join('\n');
+
+      // Collect all laporan URLs for separate column
+      const allLaporanUrls = suratDisposisi
+        .flatMap(d => d.laporan || [])
+        .filter(l => l.url)
+        .map(l => l.url)
+        .join('\n');
+
+      return {
+        'Jenis Surat': surat.jenisSurat || '-',
+        'Nomor Surat': surat.nomorSurat || '-',
+        'Tanggal Surat': surat.tanggalSurat ? new Date(surat.tanggalSurat).toLocaleDateString('id-ID') : '-',
+        'Jenis Naskah': surat.jenisNaskah || '-',
+        'Hal/Perihal': surat.hal || '-',
+        'Asal Surat': surat.jenisSurat === 'Masuk' ? (surat.asalSurat || '-') : '-',
+        'Tujuan Surat': surat.jenisSurat === 'Keluar' ? (surat.tujuanSurat || '-') : '-',
+        'Klasifikasi': surat.klasifikasiSurat || '-',
+        'Sifat Surat': surat.sifatSurat || '-',
+        'Bidang Tugas': surat.bidangTugas || '-',
+        'Tanggal Diterima': surat.tanggalDiterima ? new Date(surat.tanggalDiterima).toLocaleDateString('id-ID') : '-',
+        'Tanggal Dikirim': surat.tanggalDikirim ? new Date(surat.tanggalDikirim).toLocaleDateString('id-ID') : '-',
+        'Disposisi': surat.disposisi || '-',
+        'Hasil Tindak Lanjut': surat.hasilTindakLanjut || '-',
+        'Tanggal Kegiatan': getKegiatanDate(surat) ? new Date(getKegiatanDate(surat)!).toLocaleDateString('id-ID') : '-',
+        'Judul Kegiatan': getKegiatanTitle(surat) || '-',
+        'Ada Disposisi': surat.hasDisposisi ? 'Ya' : 'Tidak',
+        'Jumlah Disposisi': surat.hasDisposisi ? (surat.disposisiCount || 0).toString() : '0',
+        'Status Disposisi': surat.disposisiStatus || '-',
+        'Detail Disposisi': disposisiDetails || '-',
+        'Link File Laporan Disposisi': allLaporanUrls || '-',
+        'Link File Surat': surat.fileSurat?.url || '-',
+        'Dibuat Oleh': surat.createdBy,
+        'Tanggal Dibuat': new Date(surat.createdAt).toLocaleDateString('id-ID')
+      };
+    });
   };
 
   const handleExportExcel = () => {
@@ -357,46 +407,121 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
     
     // Add title
     doc.setFontSize(16);
+    doc.setFont(undefined, 'bold');
     doc.text(exportTitle, 14, 15);
     
     // Add export info
     doc.setFontSize(10);
-    doc.text(`Tanggal Export: ${new Date().toLocaleDateString('id-ID')}`, 14, 22);
+    doc.setFont(undefined, 'normal');
+    doc.text(`Tanggal Export: ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}`, 14, 22);
     doc.text(`Total Data: ${dataToExport.length} surat`, 14, 27);
 
-    // Prepare table data
-    const tableData = dataToExport.map(surat => [
-      surat.jenisSurat || '-',
-      surat.nomorSurat || '-',
-      surat.tanggalSurat ? new Date(surat.tanggalSurat).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-',
-      surat.jenisNaskah || '-',
-      surat.hal || '-',
-      surat.jenisSurat === 'Masuk' ? (surat.asalSurat || '-') : (surat.tujuanSurat || '-'),
-      getKegiatanDate(surat) ? new Date(getKegiatanDate(surat)!).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-',
-      surat.hasDisposisi ? `${surat.disposisiCount || 0}` : '0',
-      surat.disposisiStatus || '-'
-    ]);
+    // Prepare table data with complete information matching Excel export
+    const tableData = dataToExport.map(surat => {
+      // Get disposisi details for this surat
+      const suratDisposisi = disposisi.filter(d => d.suratId === surat.id);
+      const disposisiDetails = suratDisposisi.map((d, idx) => {
+        const assignee = allUsers.find(u => u.id === d.assignedTo);
+        const status = d.status;
+        const deadline = d.deadline ? new Date(d.deadline).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit' }) : '-';
+        const completedAt = d.completedAt ? new Date(d.completedAt).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit' }) : '-';
+        const hasLaporan = d.laporan && d.laporan.length > 0 ? `✓(${d.laporan.length})` : '-';
+        return `${idx + 1}. ${assignee?.name || '?'} | ${status} | DL:${deadline} | Selesai:${completedAt} | Laporan:${hasLaporan}`;
+      }).join('\n') || '-';
 
-    // Add table
+      return [
+        surat.jenisSurat || '-',
+        surat.nomorSurat || '-',
+        surat.tanggalSurat ? new Date(surat.tanggalSurat).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-',
+        surat.jenisNaskah || '-',
+        surat.hal || '-',
+        surat.jenisSurat === 'Masuk' ? (surat.asalSurat || '-') : (surat.tujuanSurat || '-'),
+        surat.klasifikasiSurat || '-',
+        surat.bidangTugas || '-',
+        surat.tanggalDiterima ? new Date(surat.tanggalDiterima).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-',
+        surat.tanggalDikirim ? new Date(surat.tanggalDikirim).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-',
+        surat.hasilTindakLanjut || '-',
+        getKegiatanDate(surat) ? new Date(getKegiatanDate(surat)!).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-',
+        getKegiatanTitle(surat) || '-',
+        surat.disposisiStatus || '-',
+        disposisiDetails
+      ];
+    });
+
+    // Add table with all important columns matching Excel
     autoTable(doc, {
       startY: 32,
-      head: [['Jenis', 'Nomor Surat', 'Tgl Surat', 'Jenis Naskah', 'Hal/Perihal', 'Asal/Tujuan', 'Tgl Kegiatan', 'Jml Disp', 'Status Disp']],
+      head: [[
+        'Jenis',
+        'Nomor Surat',
+        'Tgl Surat',
+        'Jenis Naskah',
+        'Hal/Perihal',
+        'Asal/Tujuan',
+        'Klasifikasi',
+        'Bidang Tugas',
+        'Tgl Diterima',
+        'Tgl Dikirim',
+        'Hasil TL',
+        'Tgl Kegiatan',
+        'Judul Kegiatan',
+        'Status',
+        'Detail Disposisi'
+      ]],
       body: tableData,
-      styles: { fontSize: 8, cellPadding: 2 },
-      headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold' },
+      styles: { 
+        fontSize: 6, 
+        cellPadding: 1.5, 
+        lineColor: [200, 200, 200], 
+        lineWidth: 0.1, 
+        overflow: 'linebreak', 
+        cellWidth: 'wrap',
+        valign: 'top'
+      },
+      headStyles: { 
+        fillColor: [41, 128, 185], 
+        textColor: 255, 
+        fontStyle: 'bold', 
+        fontSize: 6, 
+        halign: 'center', 
+        valign: 'middle' 
+      },
       alternateRowStyles: { fillColor: [245, 245, 245] },
       columnStyles: {
-        0: { cellWidth: 20 },
-        1: { cellWidth: 35 },
-        2: { cellWidth: 22 },
-        3: { cellWidth: 28 },
-        4: { cellWidth: 50 },
-        5: { cellWidth: 45 },
-        6: { cellWidth: 22 },
-        7: { cellWidth: 18 },
-        8: { cellWidth: 25 }
+        0: { cellWidth: 10 },  // Jenis
+        1: { cellWidth: 22 },  // Nomor Surat
+        2: { cellWidth: 14 },  // Tgl Surat
+        3: { cellWidth: 16 },  // Jenis Naskah
+        4: { cellWidth: 28 },  // Hal/Perihal
+        5: { cellWidth: 24 },  // Asal/Tujuan
+        6: { cellWidth: 12 },  // Klasifikasi
+        7: { cellWidth: 16 },  // Bidang Tugas
+        8: { cellWidth: 14 },  // Tgl Diterima
+        9: { cellWidth: 14 },  // Tgl Dikirim
+        10: { cellWidth: 20 }, // Hasil TL
+        11: { cellWidth: 14 }, // Tgl Kegiatan
+        12: { cellWidth: 20 }, // Judul Kegiatan
+        13: { cellWidth: 14 }, // Status
+        14: { cellWidth: 42 }  // Detail Disposisi
       },
-      margin: { left: 14, right: 14 }
+      margin: { left: 5, right: 5 },
+      didDrawPage: (data) => {
+        // Footer
+        const pageCount = doc.getNumberOfPages();
+        const pageSize = doc.internal.pageSize;
+        const pageHeight = pageSize.height ? pageSize.height : pageSize.getHeight();
+        doc.setFontSize(8);
+        doc.text(
+          `Halaman ${data.pageNumber} dari ${pageCount}`,
+          data.settings.margin.left,
+          pageHeight - 10
+        );
+        doc.text(
+          `Dicetak: ${new Date().toLocaleString('id-ID')}`,
+          pageSize.width - 70,
+          pageHeight - 10
+        );
+      }
     });
 
     // Generate filename with sanitized title
@@ -408,7 +533,7 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
 
     // Close modal
     setShowExportModal(false);
-    showNotification('Export Berhasil', `${dataToExport.length} surat berhasil di-export ke PDF`, 'success');
+    showNotification('Export Berhasil', `${dataToExport.length} surat berhasil di-export ke PDF dengan detail lengkap`, 'success');
   };
 
   const clearDateFilters = () => {
@@ -1047,6 +1172,21 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
                 </select>
               </div>
 
+              {/* Bidang Tugas - Multi Select */}
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Bidang Tugas</label>
+                <MultiSelectChip
+                  options={bidangTugasList.map(bidang => ({ value: bidang, label: bidang }))}
+                  value={exportBidangTugas}
+                  onChange={setExportBidangTugas}
+                  placeholder="Semua Bidang Tugas"
+                  searchable={true}
+                  searchPlaceholder="Cari bidang tugas..."
+                  maxVisibleChips={3}
+                  dropdownClassName="bottom-full mb-2"
+                />
+              </div>
+
               {/* Info */}
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <p className="text-sm text-blue-800">
@@ -1055,6 +1195,7 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
                       let matches = true;
                       if (exportJenisSurat !== 'All') matches = matches && s.jenisSurat === exportJenisSurat;
                       if (exportJenisNaskah !== 'All') matches = matches && s.jenisNaskah === exportJenisNaskah;
+                      if (exportBidangTugas.length > 0) matches = matches && s.bidangTugas && exportBidangTugas.includes(s.bidangTugas);
                       if (exportStartDate || exportEndDate) {
                         const suratDate = s.tanggalSurat ? new Date(s.tanggalSurat) : null;
                         if (!suratDate) return false;
