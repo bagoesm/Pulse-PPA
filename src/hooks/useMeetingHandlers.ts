@@ -4,6 +4,7 @@ import { useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { Meeting, MeetingInviter, User } from '../../types';
 import { parseMentions } from '../components/MentionInput';
+import { mapMeetingFromDB } from '../utils/mappers';
 
 interface UseMeetingHandlersProps {
     currentUser: User | null;
@@ -62,44 +63,6 @@ export const useMeetingHandlers = ({
         const meetingPics = Array.isArray(meeting.pic) ? meeting.pic : [meeting.pic];
         return meeting.createdBy === currentUser.name || meetingPics.includes(currentUser.name);
     }, [currentUser]);
-
-    // Helper to map database meeting to frontend format
-    const mapMeeting = useCallback((data: any): Meeting => ({
-        id: data.id,
-        title: data.title,
-        type: data.type,
-        description: data.description,
-        date: data.date,
-        endDate: data.end_date,
-        startTime: data.start_time,
-        endTime: data.end_time,
-        location: data.location,
-        isOnline: data.is_online,
-        onlineLink: data.online_link,
-        inviter: data.inviter,
-        invitees: data.invitees || [],
-        pic: data.pic || [],
-        projectId: data.project_id,
-        suratUndangan: data.surat_undangan,
-        suratTugas: data.surat_tugas,
-        laporan: data.laporan,
-        attachments: (data.attachments || []).map((att: any, idx: number) => ({
-            ...att,
-            id: att.id || `att_${data.id}_${idx}`
-        })),
-        links: (data.links || []).map((link: any, idx: number) => ({
-            ...link,
-            id: link.id || `link_${data.id}_${idx}`
-        })),
-        notes: data.notes,
-        status: data.status,
-        createdBy: data.created_by,
-        createdAt: data.created_at,
-        updatedAt: data.updated_at,
-        // Linked surat (relasi ke tabel surats)
-        linkedSuratId: data.linked_surat_id,
-        linkedSurat: data.linked_surat, // Populated via join if available
-    }), []);
 
     // Helper to log to activity_logs table (for admin view)
     const logToActivityLogs = useCallback(async (
@@ -251,7 +214,7 @@ export const useMeetingHandlers = ({
                     .maybeSingle();
 
                 // Use fetched data if available, or construct from input
-                const updatedMeeting = data ? mapMeeting(data) : {
+                const updatedMeeting = data ? mapMeetingFromDB(data) : {
                     ...editingMeeting,
                     ...meetingData,
                     updatedAt: new Date().toISOString()
@@ -308,7 +271,7 @@ export const useMeetingHandlers = ({
                 }
 
                 if (data) {
-                    const mappedMeeting = mapMeeting(data);
+                    const mappedMeeting = mapMeetingFromDB(data);
                     setMeetings(prev => [...prev, mappedMeeting]);
 
                     if (meetingData.inviter?.id && meetingData.inviter?.name) {
@@ -367,7 +330,7 @@ export const useMeetingHandlers = ({
         } catch (error: any) {
             showNotification('Kesalahan', `Terjadi kesalahan: ${error.message}`, 'error');
         }
-    }, [editingMeeting, mapMeeting, setMeetings, setMeetingInviters, setIsMeetingModalOpen, setEditingMeeting, showNotification, allUsers, createMentionNotification, createMeetingNotification, currentUser, logToActivityLogs]);
+    }, [editingMeeting, setMeetings, setMeetingInviters, setIsMeetingModalOpen, setEditingMeeting, showNotification, allUsers, createMentionNotification, createMeetingNotification, currentUser, logToActivityLogs]);
 
     const handleDeleteMeeting = useCallback(async (meetingId: string, onConfirm?: (message: string, title: string) => Promise<boolean>) => {
         try {
