@@ -316,22 +316,9 @@ export interface Meeting {
   createdAt: string;
   updatedAt?: string;
   
-  // Field tambahan untuk Surat Undangan/Naskah Dinas
-  jenisSurat?: 'Masuk' | 'Keluar'; // Jenis surat
-  nomorSurat?: string; // Nomor surat
-  hal?: string; // Perihal/Hal surat
-  asalSurat?: string; // Asal surat (K/L/I/Satker) - untuk surat MASUK
-  tujuanSurat?: string; // Tujuan surat (K/L/I/Satker) - untuk surat KELUAR
-  klasifikasiSurat?: string; // Klasifikasi surat
-  jenisNaskah?: string; // Surat/ND/Disposisi/Memorandum
-  tanggalSurat?: string; // Tanggal surat (ISO Date)
-  bidangTugas?: string; // Bidang tugas/kerja
-  disposisi?: string; // Isi disposisi/tindak lanjut
-  hasilTindakLanjut?: string; // Progress dan hasil
-  
-  // Enhanced Surat linking
+  // Enhanced Surat linking - GUNAKAN INI untuk akses detail surat
   linkedSuratId?: string;             // ID of linked Surat
-  linkedSurat?: Surat;                // Populated Surat data
+  linkedSurat?: Surat;                // Populated Surat data (join dari tabel surats)
   
   // Disposisi integration
   hasDisposisi?: boolean;             // Flag indicating if Disposisi exists

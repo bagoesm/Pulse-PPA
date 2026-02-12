@@ -208,40 +208,12 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
       
       handleChange(target, attachmentWithSuratId);
       
+      // Set linked surat data
+      handleChange('linkedSuratId', surat.id);
+      handleChange('linkedSurat', surat);
+      
       // Track the selected Surat for linking
       setSelectedSuratForLinking(surat);
-      
-      // Also copy surat details if not already filled
-      if (!formData.jenisSurat && surat.jenisSurat) {
-        handleChange('jenisSurat', surat.jenisSurat);
-      }
-      if (!formData.nomorSurat && surat.nomorSurat) {
-        handleChange('nomorSurat', surat.nomorSurat);
-      }
-      if (!formData.tanggalSurat && surat.tanggalSurat) {
-        handleChange('tanggalSurat', surat.tanggalSurat);
-      }
-      if (!formData.hal && surat.hal) {
-        handleChange('hal', surat.hal);
-      }
-      if (!formData.asalSurat && surat.asalSurat) {
-        handleChange('asalSurat', surat.asalSurat);
-      }
-      if (!formData.tujuanSurat && surat.tujuanSurat) {
-        handleChange('tujuanSurat', surat.tujuanSurat);
-      }
-      if (!formData.klasifikasiSurat && surat.klasifikasiSurat) {
-        handleChange('klasifikasiSurat', surat.klasifikasiSurat);
-      }
-      if (!formData.jenisNaskah && surat.jenisNaskah) {
-        handleChange('jenisNaskah', surat.jenisNaskah);
-      }
-      if (!formData.bidangTugas && surat.bidangTugas) {
-        handleChange('bidangTugas', surat.bidangTugas);
-      }
-      if (!formData.disposisi && surat.disposisi) {
-        handleChange('disposisi', surat.disposisi);
-      }
     }
     setShowSuratSelector(null);
     setSuratSearchQuery('');
@@ -291,68 +263,8 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
         setInviterType(isInternal ? 'Internal' : 'Eksternal');
       }
       
-      // Fetch linked surat data if linkedSuratId exists
-      if (initialData.linkedSuratId) {
-        const fetchLinkedSurat = async () => {
-          try {
-            const { data, error } = await supabase
-              .from('surats')
-              .select('*')
-              .eq('id', initialData.linkedSuratId)
-              .single();
-
-            if (error) throw error;
-
-            if (data) {
-              const surat = mapSuratsFromDB([data])[0];
-              // Auto-fill surat details if not already filled in meeting
-              if (!initialData.jenisSurat && surat.jenisSurat) {
-                setFormData(prev => ({ ...prev, jenisSurat: surat.jenisSurat }));
-              }
-              if (!initialData.nomorSurat && surat.nomorSurat) {
-                setFormData(prev => ({ ...prev, nomorSurat: surat.nomorSurat }));
-              }
-              if (!initialData.tanggalSurat && surat.tanggalSurat) {
-                setFormData(prev => ({ ...prev, tanggalSurat: surat.tanggalSurat }));
-              }
-              if (!initialData.hal && surat.hal) {
-                setFormData(prev => ({ ...prev, hal: surat.hal }));
-              }
-              if (!initialData.asalSurat && surat.asalSurat) {
-                setFormData(prev => ({ ...prev, asalSurat: surat.asalSurat }));
-              }
-              if (!initialData.tujuanSurat && surat.tujuanSurat) {
-                setFormData(prev => ({ ...prev, tujuanSurat: surat.tujuanSurat }));
-              }
-              if (!initialData.klasifikasiSurat && surat.klasifikasiSurat) {
-                setFormData(prev => ({ ...prev, klasifikasiSurat: surat.klasifikasiSurat }));
-              }
-              if (!initialData.jenisNaskah && surat.jenisNaskah) {
-                setFormData(prev => ({ ...prev, jenisNaskah: surat.jenisNaskah }));
-              }
-              if (!initialData.bidangTugas && surat.bidangTugas) {
-                setFormData(prev => ({ ...prev, bidangTugas: surat.bidangTugas }));
-              }
-              
-              // Fetch disposisi data for this kegiatan
-              const { data: disposisiData, error: disposisiError } = await supabase
-                .from('disposisi')
-                .select('disposisi_text')
-                .eq('kegiatan_id', initialData.id)
-                .order('created_at', { ascending: true })
-                .limit(1)
-                .maybeSingle();
-              
-              if (!disposisiError && disposisiData && !initialData.disposisi) {
-                setFormData(prev => ({ ...prev, disposisi: disposisiData.disposisi_text }));
-              }
-            }
-          } catch (error) {
-            console.error('Error fetching linked surat:', error);
-          }
-        };
-        fetchLinkedSurat();
-      }
+      // If there's a linked surat, it should already be populated in initialData.linkedSurat
+      // No need to fetch separately
     } else {
       setFormData({
         title: '',
@@ -553,21 +465,9 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
       return;
     }
 
-    // Validasi detail surat jika ada file surat yang diupload
-    if (formData.suratUndangan || formData.suratTugas) {
-      if (!formData.jenisSurat) {
-        showNotification('Jenis Surat Wajib', 'Mohon pilih jenis surat (Masuk/Keluar).', 'warning');
-        return;
-      }
-      if (!formData.nomorSurat?.trim()) {
-        showNotification('Nomor Surat Wajib', 'Mohon isi nomor surat.', 'warning');
-        return;
-      }
-      if (!formData.tanggalSurat) {
-        showNotification('Tanggal Surat Wajib', 'Mohon isi tanggal surat.', 'warning');
-        return;
-      }
-    }
+    // Validasi detail surat HANYA jika ada file surat yang diupload DAN user mengisi detail surat
+    // Kegiatan bisa dibuat tanpa surat, jadi validasi ini opsional
+    // Tidak ada validasi wajib untuk surat
 
     // Validate Disposisi when linking to existing Surat
     // Requirements 4.1, 4.2, 9.1, 9.2, 9.3, 9.4, 9.5
@@ -606,16 +506,9 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
       status: formData.status || 'scheduled',
       createdBy: initialData?.createdBy || currentUser?.name || 'System',
       updatedAt: new Date().toISOString(),
-      // Field surat undangan
-      jenisSurat: formData.jenisSurat || undefined,
-      nomorSurat: formData.nomorSurat?.trim() || undefined,
-      hal: formData.hal?.trim() || undefined,
-      asalSurat: formData.asalSurat?.trim() || undefined,
-      klasifikasiSurat: formData.klasifikasiSurat?.trim() || undefined,
-      jenisNaskah: formData.jenisNaskah || undefined,
-      tanggalSurat: formData.tanggalSurat || undefined,
-      bidangTugas: formData.bidangTugas?.trim() || undefined,
-      disposisi: formData.disposisi?.trim() || undefined,
+      // Linked surat (jika ada)
+      linkedSuratId: formData.linkedSuratId,
+      linkedSurat: formData.linkedSurat,
     };
 
     setIsSaving(true);
@@ -1206,7 +1099,10 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
 
             {/* Document Uploads */}
             <div className="space-y-3">
-              <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider">Dokumen</label>
+              <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider">Dokumen (Opsional)</label>
+              <p className="text-xs text-slate-500 mb-2">
+                Upload dokumen terkait kegiatan. Jika ingin menghubungkan dengan surat yang sudah ada, gunakan tombol "Pilih Surat yang Ada".
+              </p>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {renderFileUpload('Surat Undangan', 'suratUndangan', formData.suratUndangan)}
                 {renderFileUpload('Surat Tugas', 'suratTugas', formData.suratTugas)}
@@ -1214,54 +1110,54 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
               </div>
             </div>
 
-            {/* Detail Surat Section - Read-only display when linked to surat */}
-            {(formData.suratUndangan || formData.suratTugas) && (
+            {/* Detail Surat Section - Display linked surat data if exists */}
+            {formData.linkedSurat && (
               <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-5 space-y-4">
                 <div className="flex items-center gap-2 mb-3">
                   <FileText className="text-blue-600" size={20} />
-                  <h3 className="text-sm font-bold text-blue-900 uppercase tracking-wider">Detail Surat</h3>
+                  <h3 className="text-sm font-bold text-blue-900 uppercase tracking-wider">Detail Surat Terhubung</h3>
                   <span className="ml-auto text-xs bg-blue-200 text-blue-800 px-2 py-1 rounded-full font-semibold">
-                    Read-only
+                    Dari Database Surat
                   </span>
                 </div>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Jenis Surat */}
-                  {formData.jenisSurat && (
+                  {formData.linkedSurat.jenisSurat && (
                     <div className="bg-white rounded-lg p-3 border border-blue-100">
                       <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
                         Jenis Surat
                       </label>
                       <div className="flex items-center gap-2">
                         <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                          formData.jenisSurat === 'Masuk' 
+                          formData.linkedSurat.jenisSurat === 'Masuk' 
                             ? 'bg-green-100 text-green-700' 
                             : 'bg-blue-100 text-blue-700'
                         }`}>
-                          {formData.jenisSurat === 'Masuk' ? '📥 Surat Masuk' : '📤 Surat Keluar'}
+                          {formData.linkedSurat.jenisSurat === 'Masuk' ? '📥 Surat Masuk' : '📤 Surat Keluar'}
                         </span>
                       </div>
                     </div>
                   )}
 
                   {/* Nomor Surat */}
-                  {formData.nomorSurat && (
+                  {formData.linkedSurat.nomorSurat && (
                     <div className="bg-white rounded-lg p-3 border border-blue-100">
                       <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
                         Nomor Surat
                       </label>
-                      <p className="text-sm font-semibold text-slate-800">{formData.nomorSurat}</p>
+                      <p className="text-sm font-semibold text-slate-800">{formData.linkedSurat.nomorSurat}</p>
                     </div>
                   )}
 
                   {/* Tanggal Surat */}
-                  {formData.tanggalSurat && (
+                  {formData.linkedSurat.tanggalSurat && (
                     <div className="bg-white rounded-lg p-3 border border-blue-100">
                       <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
                         Tanggal Surat
                       </label>
                       <p className="text-sm font-semibold text-slate-800">
-                        {new Date(formData.tanggalSurat).toLocaleDateString('id-ID', { 
+                        {new Date(formData.linkedSurat.tanggalSurat).toLocaleDateString('id-ID', { 
                           day: 'numeric', 
                           month: 'long', 
                           year: 'numeric' 
@@ -1271,67 +1167,67 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
                   )}
 
                   {/* Jenis Naskah */}
-                  {formData.jenisNaskah && (
+                  {formData.linkedSurat.jenisNaskah && (
                     <div className="bg-white rounded-lg p-3 border border-blue-100">
                       <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
                         Jenis Naskah
                       </label>
-                      <p className="text-sm font-semibold text-slate-800">{formData.jenisNaskah}</p>
+                      <p className="text-sm font-semibold text-slate-800">{formData.linkedSurat.jenisNaskah}</p>
                     </div>
                   )}
 
                   {/* Klasifikasi Surat */}
-                  {formData.klasifikasiSurat && (
+                  {formData.linkedSurat.klasifikasiSurat && (
                     <div className="bg-white rounded-lg p-3 border border-blue-100">
                       <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
                         Klasifikasi
                       </label>
-                      <p className="text-sm font-semibold text-slate-800">{formData.klasifikasiSurat}</p>
+                      <p className="text-sm font-semibold text-slate-800">{formData.linkedSurat.klasifikasiSurat}</p>
                     </div>
                   )}
 
                   {/* Bidang Tugas */}
-                  {formData.bidangTugas && (
+                  {formData.linkedSurat.bidangTugas && (
                     <div className="bg-white rounded-lg p-3 border border-blue-100">
                       <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
                         Bidang Tugas
                       </label>
-                      <p className="text-sm font-semibold text-slate-800">{formData.bidangTugas}</p>
+                      <p className="text-sm font-semibold text-slate-800">{formData.linkedSurat.bidangTugas}</p>
                     </div>
                   )}
                 </div>
 
                 {/* Hal/Perihal - Full width */}
-                {formData.hal && (
+                {formData.linkedSurat.hal && (
                   <div className="bg-white rounded-lg p-3 border border-blue-100">
                     <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
                       Hal / Perihal
                     </label>
-                    <p className="text-sm text-slate-800">{formData.hal}</p>
+                    <p className="text-sm text-slate-800">{formData.linkedSurat.hal}</p>
                   </div>
                 )}
 
                 {/* Asal/Tujuan Surat */}
-                {(formData.asalSurat || formData.tujuanSurat) && (
+                {(formData.linkedSurat.asalSurat || formData.linkedSurat.tujuanSurat) && (
                   <div className="bg-white rounded-lg p-3 border border-blue-100">
                     <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
-                      {formData.jenisSurat === 'Keluar' ? '📤 Kepada (Penerima)' : '📥 Dari (Pengirim)'}
+                      {formData.linkedSurat.jenisSurat === 'Keluar' ? '📤 Kepada (Penerima)' : '📥 Dari (Pengirim)'}
                     </label>
                     <p className="text-sm text-slate-800">
-                      {formData.jenisSurat === 'Keluar' ? formData.tujuanSurat : formData.asalSurat}
+                      {formData.linkedSurat.jenisSurat === 'Keluar' ? formData.linkedSurat.tujuanSurat : formData.linkedSurat.asalSurat}
                     </p>
                   </div>
                 )}
 
                 {/* Teks Disposisi - Only for Surat Masuk */}
-                {formData.jenisSurat === 'Masuk' && formData.disposisi && (
+                {formData.linkedSurat.jenisSurat === 'Masuk' && formData.linkedSurat.disposisi && (
                   <div className="bg-amber-50 rounded-lg p-4 border-2 border-amber-200">
                     <label className="block text-xs font-semibold text-amber-800 uppercase tracking-wider mb-2 flex items-center gap-2">
                       <span className="text-lg">📋</span>
                       Teks Disposisi
                     </label>
                     <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">
-                      {formData.disposisi}
+                      {formData.linkedSurat.disposisi}
                     </p>
                   </div>
                 )}
