@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.5] - 2025-02-12
+
+### Added
+- ✨ Filter Bidang Tugas di Export Modal
+  - Multi-select dropdown untuk filter bidang tugas saat export
+  - Menggunakan data dari master_bidang_tugas
+  - Dropdown dengan search functionality
+  - Dapat memilih lebih dari satu bidang tugas
+
+### Fixed
+- 🐛 Export PDF terpotong karena kolom terlalu lebar
+  - Optimasi lebar kolom agar pas di halaman landscape
+  - Total lebar kolom disesuaikan dari 329 unit menjadi 280 unit
+  - Margin dikurangi untuk memberikan ruang lebih
+- 📄 Penyederhanaan kolom PDF export
+  - Hapus kolom: Sifat Surat, Dibuat Oleh, Tgl Dibuat
+  - Hapus kolom duplikat: Disposisi (teks), Ada Disposisi, Jumlah Disposisi
+  - Fokus ke kolom Detail Disposisi yang lebih informatif
+  - Total kolom dikurangi dari 21 menjadi 15 kolom
+
+### Changed
+- 🔄 Improved PDF export layout
+  - Font size tetap 6 untuk readability
+  - Text wrapping otomatis untuk konten panjang
+  - Kolom Detail Disposisi diperlebar (42 unit)
+  - Kolom Hal/Perihal diperlebar (28 unit)
+
+---
+
 ## [1.5.3] - 2024-02-03
 
 ### Added
