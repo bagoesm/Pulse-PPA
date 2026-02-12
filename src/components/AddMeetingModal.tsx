@@ -77,7 +77,7 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
 
   const { uploadFile } = useFileUpload('attachment');
   const { handleRemoveFromStorage } = useAttachmentHandlers('attachment', showError);
-  
+
   // Master data for inviter
   const { unitInternalList, unitEksternalList } = useMasterData();
   const { addMasterData, editMasterData, deleteMasterData, canDeleteMasterData } = useMasterDataCRUD();
@@ -205,13 +205,13 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
         ...surat.fileSurat,
         suratId: surat.id // Add surat ID for later linking
       };
-      
+
       handleChange(target, attachmentWithSuratId);
-      
+
       // Set linked surat data
       handleChange('linkedSuratId', surat.id);
       handleChange('linkedSurat', surat);
-      
+
       // Track the selected Surat for linking
       setSelectedSuratForLinking(surat);
     }
@@ -221,7 +221,7 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
   };
 
   // Combine internal and external units for inviter options
-  const inviterOptions = inviterType === 'Internal' 
+  const inviterOptions = inviterType === 'Internal'
     ? unitInternalList.map(u => ({ value: u, label: u }))
     : unitEksternalList.map(u => ({ value: u, label: u }));
 
@@ -262,7 +262,7 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
         const isInternal = unitInternalList.includes(initialData.inviter.name);
         setInviterType(isInternal ? 'Internal' : 'Eksternal');
       }
-      
+
       // If there's a linked surat, it should already be populated in initialData.linkedSurat
       // No need to fetch separately
     } else {
@@ -482,6 +482,20 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
       }
     }
 
+    // Auto-add link if user typed something but forgot to click Add
+    if (newLinkTitle.trim() && newLinkUrl.trim()) {
+      let url = newLinkUrl.trim();
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        url = 'https://' + url;
+      }
+      const autoLink: TaskLink = {
+        id: `link_${Date.now()}`,
+        title: newLinkTitle.trim(),
+        url: url,
+      };
+      formData.links = [...(formData.links || []), autoLink];
+    }
+
     const payload: Omit<Meeting, 'id' | 'createdAt'> = {
       title: formData.title!.trim(),
       type: formData.type as MeetingType,
@@ -514,7 +528,7 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
     setIsSaving(true);
     try {
       await onSave(payload);
-      
+
       // If linking to existing Surat, create the link and Disposisi
       if (selectedSuratForLinking && !initialData) {
         // Get the newly created meeting ID from the database
@@ -552,7 +566,7 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
           }
         }
       }
-      
+
       // Clear tracking on successful save
       setNewlyUploadedAttachments([]);
       setSelectedSuratForLinking(null);
@@ -942,7 +956,7 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
               <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">
                 <Building2 size={12} className="inline mr-1" />Yang Mengundang
               </label>
-              
+
               {isReadOnly ? (
                 <div className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-slate-50 text-slate-700 text-sm">
                   {formData.inviter?.name || '-'}
@@ -961,11 +975,10 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
                         setInviterName('');
                         handleInviterChange('');
                       }}
-                      className={`flex-1 px-4 py-2.5 rounded-lg border-2 text-sm font-medium transition-all ${
-                        inviterType === 'Internal'
+                      className={`flex-1 px-4 py-2.5 rounded-lg border-2 text-sm font-medium transition-all ${inviterType === 'Internal'
                           ? 'border-gov-500 bg-gov-50 text-gov-700'
                           : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400'
-                      }`}
+                        }`}
                     >
                       Internal
                     </button>
@@ -976,16 +989,15 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
                         setInviterName('');
                         handleInviterChange('');
                       }}
-                      className={`flex-1 px-4 py-2.5 rounded-lg border-2 text-sm font-medium transition-all ${
-                        inviterType === 'Eksternal'
+                      className={`flex-1 px-4 py-2.5 rounded-lg border-2 text-sm font-medium transition-all ${inviterType === 'Eksternal'
                           ? 'border-gov-500 bg-gov-50 text-gov-700'
                           : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400'
-                      }`}
+                        }`}
                     >
                       Eksternal
                     </button>
                   </div>
-                  
+
                   {/* Dropdown dengan CRUD */}
                   {inviterType === 'Internal' ? (
                     <SearchableSelectWithActions
@@ -1120,7 +1132,7 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
                     Dari Database Surat
                   </span>
                 </div>
-                
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Jenis Surat */}
                   {formData.linkedSurat.jenisSurat && (
@@ -1129,11 +1141,10 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
                         Jenis Surat
                       </label>
                       <div className="flex items-center gap-2">
-                        <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                          formData.linkedSurat.jenisSurat === 'Masuk' 
-                            ? 'bg-green-100 text-green-700' 
+                        <span className={`px-3 py-1 rounded-full text-sm font-semibold ${formData.linkedSurat.jenisSurat === 'Masuk'
+                            ? 'bg-green-100 text-green-700'
                             : 'bg-blue-100 text-blue-700'
-                        }`}>
+                          }`}>
                           {formData.linkedSurat.jenisSurat === 'Masuk' ? '📥 Surat Masuk' : '📤 Surat Keluar'}
                         </span>
                       </div>
@@ -1157,10 +1168,10 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
                         Tanggal Surat
                       </label>
                       <p className="text-sm font-semibold text-slate-800">
-                        {new Date(formData.linkedSurat.tanggalSurat).toLocaleDateString('id-ID', { 
-                          day: 'numeric', 
-                          month: 'long', 
-                          year: 'numeric' 
+                        {new Date(formData.linkedSurat.tanggalSurat).toLocaleDateString('id-ID', {
+                          day: 'numeric',
+                          month: 'long',
+                          year: 'numeric'
                         })}
                       </p>
                     </div>
@@ -1552,9 +1563,8 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           {surat.jenisSurat && (
-                            <span className={`text-xs font-semibold px-2 py-0.5 rounded ${
-                              surat.jenisSurat === 'Masuk' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
-                            }`}>
+                            <span className={`text-xs font-semibold px-2 py-0.5 rounded ${surat.jenisSurat === 'Masuk' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+                              }`}>
                               {surat.jenisSurat}
                             </span>
                           )}
@@ -1569,10 +1579,10 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
                         )}
                         {surat.tanggalSurat && (
                           <p className="text-xs text-slate-500 mt-1">
-                            Tanggal: {new Date(surat.tanggalSurat).toLocaleDateString('id-ID', { 
-                              day: 'numeric', 
-                              month: 'long', 
-                              year: 'numeric' 
+                            Tanggal: {new Date(surat.tanggalSurat).toLocaleDateString('id-ID', {
+                              day: 'numeric',
+                              month: 'long',
+                              year: 'numeric'
                             })}
                           </p>
                         )}

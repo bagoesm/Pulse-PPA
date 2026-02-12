@@ -399,7 +399,8 @@ const AppContent: React.FC = () => {
     showNotification,
     allUsers,
     createMentionNotification,
-    createMeetingNotification
+    createMeetingNotification,
+    fetchMeetings
   });
 
   // Wrap handleDeleteMeeting to use modal instead of window.confirm
@@ -411,7 +412,7 @@ const AppContent: React.FC = () => {
     const warning = formatDisposisiWarning(relatedDisposisi);
     const meetingTitle = meetingToDelete?.title || 'ini';
     const confirmMessage = `Hapus jadwal "${meetingTitle}"? Tindakan ini tidak dapat dibatalkan.${warning}`;
-    
+
     // Show confirm modal with callback that calls the actual delete
     showConfirm(
       'Hapus Jadwal',
@@ -887,7 +888,6 @@ const AppContent: React.FC = () => {
             projects={projects}
             currentUser={currentUser}
             onAddMeeting={() => handleAddMeeting(false)}
-            onEditMeeting={handleEditMeeting}
             onViewMeeting={handleViewMeeting}
           />
         ) : activeTab === 'Daftar Surat' ? (

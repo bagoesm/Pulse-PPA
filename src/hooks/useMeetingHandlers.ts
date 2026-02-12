@@ -24,6 +24,7 @@ interface UseMeetingHandlersProps {
     allUsers: User[];
     createMentionNotification: (entityId: string, entityTitle: string, mentionerName: string, mentionedNames: string[], isMeeting?: boolean) => Promise<void>;
     createMeetingNotification: (meetingId: string, meetingTitle: string, meetingDate: string, picNames: string[], inviteeNames: string[], creatorName: string, allUsers: User[]) => Promise<void>;
+    fetchMeetings: () => Promise<void>;
 }
 
 export const useMeetingHandlers = ({
@@ -43,7 +44,8 @@ export const useMeetingHandlers = ({
     showNotification,
     allUsers,
     createMentionNotification,
-    createMeetingNotification
+    createMeetingNotification,
+    fetchMeetings
 }: UseMeetingHandlersProps) => {
 
     // Permission checks
@@ -160,17 +162,35 @@ export const useMeetingHandlers = ({
                 linked_surat_id: meetingData.linkedSuratId || null,
             };
 
+            console.log('DEBUG: handleSaveMeeting payload:', payload);
+            console.log('DEBUG: editingMeeting:', editingMeeting);
+
             if (editingMeeting) {
                 // First, update the meeting
-                const { error: updateError } = await supabase
+                const updateResponse = await supabase
                     .from('meetings')
-                    .update(payload)
-                    .eq('id', editingMeeting.id);
+                    .update(payload, { count: 'exact' })
+                    .eq('id', editingMeeting.id)
+                    .select();
+
+                const { data: updatedData, error: updateError, status, statusText, count } = updateResponse;
+
+                console.log('DEBUG: Update status:', status, statusText);
+                console.log('DEBUG: Rows affected (count):', count);
+                console.log('DEBUG: Update returned data:', updatedData);
 
                 if (updateError) {
+                    console.error('DEBUG: updateError:', updateError);
                     showNotification('Gagal Update Jadwal', updateError.message, 'error');
                     return;
                 }
+
+                if (count === 0) {
+                    console.error('DEBUG: Update affected 0 rows. Likely RLS policy blocking or ID mismatch.');
+                    showNotification('Gagal Simpan', 'Data tidak terupdate. Anda mungkin tidak memiliki izin untuk mengedit jadwal ini.', 'error');
+                    return;
+                }
+                console.log('DEBUG: Update call finished');
 
                 // Sync to linked surat if exists
                 if (editingMeeting.linkedSuratId) {
@@ -213,14 +233,37 @@ export const useMeetingHandlers = ({
                     .eq('id', editingMeeting.id)
                     .maybeSingle();
 
+                console.log('DEBUG: Fetched after update data:', data);
+                if (fetchError) console.error('DEBUG: fetchError:', fetchError);
+
                 // Use fetched data if available, or construct from input
+                // Merge with editingMeeting to preserve comments and view fields (has_disposisi, etc.)
                 const updatedMeeting = data ? mapMeetingFromDB(data) : {
                     ...editingMeeting,
                     ...meetingData,
                     updatedAt: new Date().toISOString()
                 };
 
-                setMeetings(prev => prev.map(m => m.id === editingMeeting.id ? updatedMeeting : m));
+                // CRITICAL: Preserve comments and other view-only fields from the existing state
+                const finalUpdatedMeeting: Meeting = {
+                    ...editingMeeting,
+                    ...updatedMeeting,
+                    comments: editingMeeting.comments || updatedMeeting.comments || []
+                };
+
+                setMeetings(prev => prev.map(m => m.id === editingMeeting.id ? finalUpdatedMeeting : m));
+
+                // Update viewingMeeting if it's the one we're editing
+                if (viewingMeeting?.id === editingMeeting.id) {
+                    setViewingMeeting(finalUpdatedMeeting);
+                }
+
+                // Call fetchMeetings to sync with database view (meetings_with_disposisi)
+                await fetchMeetings();
+
+                // Close modal after successful save
+                setIsMeetingModalOpen(false);
+
                 showNotification('Jadwal Diupdate!', `"${meetingData.title}" berhasil diperbarui.`, 'success');
 
                 // Check for new mentions in description/notes
@@ -273,6 +316,12 @@ export const useMeetingHandlers = ({
                 if (data) {
                     const mappedMeeting = mapMeetingFromDB(data);
                     setMeetings(prev => [...prev, mappedMeeting]);
+
+                    // Call fetchMeetings to sync with database view
+                    await fetchMeetings();
+
+                    // Close modal after successful create
+                    setIsMeetingModalOpen(false);
 
                     if (meetingData.inviter?.id && meetingData.inviter?.name) {
                         setMeetingInviters(prev => [...prev, meetingData.inviter]);
@@ -339,20 +388,20 @@ export const useMeetingHandlers = ({
 
             // Import cleanup utilities
             const { getDisposisiForKegiatan, formatDisposisiWarning, deleteKegiatanWithCleanup } = await import('../utils/disposisiCleanup');
-            
+
             // Get related Disposisi to show warning
             const relatedDisposisi = await getDisposisiForKegiatan(meetingId);
             const warning = formatDisposisiWarning(relatedDisposisi);
-            
+
             // Show confirmation dialog with Disposisi warning
             const meetingTitle = meetingToDelete?.title || 'ini';
             const confirmMessage = `Hapus jadwal "${meetingTitle}"? Tindakan ini tidak dapat dibatalkan.${warning}`;
-            
+
             // Use custom confirm callback if provided, otherwise use window.confirm
-            const confirmed = onConfirm 
+            const confirmed = onConfirm
                 ? await onConfirm(confirmMessage, meetingTitle)
                 : window.confirm(confirmMessage);
-            
+
             if (!confirmed) {
                 return;
             }
@@ -361,6 +410,7 @@ export const useMeetingHandlers = ({
             await deleteKegiatanWithCleanup(meetingId);
 
             setMeetings(prev => prev.filter(m => m.id !== meetingId));
+            setIsMeetingModalOpen(false);
             setIsMeetingViewModalOpen(false);
             setViewingMeeting(null);
             showNotification('Jadwal Dihapus', 'Jadwal dan disposisi terkait berhasil dihapus.', 'success');

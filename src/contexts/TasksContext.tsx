@@ -105,7 +105,7 @@ export const TasksProvider: React.FC<TasksProviderProps> = ({ children, session 
                 createdBy: meeting.createdBy,
                 projectId: meeting.projectId,
                 attachments: meeting.attachments || [],
-                links: [],
+                links: meeting.links || [],
                 isMeeting: true,
                 meetingId: meeting.id
             };

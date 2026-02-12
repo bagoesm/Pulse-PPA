@@ -348,7 +348,7 @@ const ModalsContainer: React.FC<ModalsContainerProps> = (props) => {
                 <AddMeetingModal
                     isOpen={isMeetingModalOpen}
                     onClose={() => { setIsMeetingModalOpen(false); setEditingMeeting(null); setIsMeetingFromTask(false); }}
-                    onSave={(data) => { handleSaveMeeting(data); setIsMeetingFromTask(false); }}
+                    onSave={async (data) => { await handleSaveMeeting(data); setIsMeetingFromTask(false); }}
                     onDelete={handleDeleteMeeting}
                     initialData={editingMeeting}
                     currentUser={currentUser}

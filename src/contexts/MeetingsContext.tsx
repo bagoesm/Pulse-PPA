@@ -57,9 +57,12 @@ export const MeetingsProvider: React.FC<MeetingsProviderProps> = ({ children, se
                 .order('date', { ascending: true });
 
             // Fallback to regular meetings table if view doesn't exist
-            const finalMeetingsData = meetingsError 
+            const finalMeetingsData = meetingsError
                 ? (await supabase.from('meetings').select('*').order('date', { ascending: true })).data
                 : meetingsData;
+
+            console.log('DEBUG: fetchMeetings finalMeetingsData count:', finalMeetingsData?.length);
+            if (meetingsError) console.warn('DEBUG: meetingsError (using fallback):', meetingsError);
 
             // Fetch comments
             const { data: commentsData } = await supabase
@@ -93,7 +96,7 @@ export const MeetingsProvider: React.FC<MeetingsProviderProps> = ({ children, se
                     meeting.comments = commentsByMeetingId.get(m.id) || [];
                     return meeting;
                 });
-                
+
                 setMeetings(mappedMeetings);
 
                 // Extract unique inviters

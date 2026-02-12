@@ -30,7 +30,6 @@ interface MeetingCalendarProps {
   projects: ProjectDefinition[];
   currentUser: User | null;
   onAddMeeting: () => void;
-  onEditMeeting: (meeting: Meeting) => void;
   onViewMeeting: (meeting: Meeting) => void;
 }
 
