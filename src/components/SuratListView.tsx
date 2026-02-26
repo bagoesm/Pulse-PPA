@@ -36,6 +36,7 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
   const [searchQuery, setSearchQuery] = useState('');
   const [filterJenisSurat, setFilterJenisSurat] = useState<'All' | 'Masuk' | 'Keluar'>('All');
   const [filterJenisNaskah, setFilterJenisNaskah] = useState<string>('All');
+  const [filterBidangTugas, setFilterBidangTugas] = useState<string>('All');
   const [filterStartDate, setFilterStartDate] = useState('');
   const [filterEndDate, setFilterEndDate] = useState('');
   const [filterDisposisiStatus, setFilterDisposisiStatus] = useState<'All' | 'Pending' | 'In Progress' | 'Completed' | 'Mixed'>('All');
@@ -106,6 +107,9 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
       // Jenis Naskah filter
       const matchesJenisNaskah = filterJenisNaskah === 'All' || surat.jenisNaskah === filterJenisNaskah;
 
+      // Bidang Tugas filter
+      const matchesBidangTugas = filterBidangTugas === 'All' || surat.bidangTugas === filterBidangTugas;
+
       // Date range filter (based on tanggalSurat)
       let matchesDateRange = true;
       if (filterStartDate || filterEndDate) {
@@ -135,7 +139,7 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
         matchesHasDisposisi = filterHasDisposisi ? (surat.hasDisposisi === true) : (surat.hasDisposisi !== true);
       }
 
-      return matchesSearch && matchesJenisSurat && matchesJenisNaskah && matchesDateRange && matchesDisposisiStatus && matchesHasDisposisi;
+      return matchesSearch && matchesJenisSurat && matchesJenisNaskah && matchesBidangTugas && matchesDateRange && matchesDisposisiStatus && matchesHasDisposisi;
     });
 
     // Apply sorting
@@ -181,7 +185,7 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
       if (compareA > compareB) return sortDirection === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [surats, searchQuery, filterJenisSurat, filterJenisNaskah, filterStartDate, filterEndDate, filterDisposisiStatus, filterHasDisposisi, sortColumn, sortDirection]);
+  }, [surats, searchQuery, filterJenisSurat, filterJenisNaskah, filterBidangTugas, filterStartDate, filterEndDate, filterDisposisiStatus, filterHasDisposisi, sortColumn, sortDirection]);
 
   // Pagination logic
   const totalPages = Math.ceil(filteredSurats.length / itemsPerPage);
@@ -192,7 +196,7 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
   // Reset to page 1 when filters change
   useMemo(() => {
     setCurrentPage(1);
-  }, [searchQuery, filterJenisSurat, filterJenisNaskah, filterStartDate, filterEndDate, filterDisposisiStatus, filterHasDisposisi]);
+  }, [searchQuery, filterJenisSurat, filterJenisNaskah, filterBidangTugas, filterStartDate, filterEndDate, filterDisposisiStatus, filterHasDisposisi]);
 
   // Prepare URLs for display - use existing URLs without refresh to avoid 404 errors
   const displayUrls = useMemo(() => {
@@ -728,8 +732,20 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
           </div>
         </div>
 
-        {/* Second row for Disposisi filters */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-3 pt-3 border-t border-slate-200">
+        {/* Second row for Bidang Tugas, Disposisi and other filters */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-3 pt-3 border-t border-slate-200">
+          {/* Bidang Tugas Filter */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">Bidang Tugas</label>
+            <SearchableSelect
+              options={bidangTugasList.map(bidang => ({ value: bidang, label: bidang }))}
+              value={filterBidangTugas === 'All' ? '' : filterBidangTugas}
+              onChange={(value) => setFilterBidangTugas(value || 'All')}
+              placeholder="Cari bidang tugas..."
+              emptyOption="Semua Bidang"
+            />
+          </div>
+
           {/* Disposisi Status Filter */}
           <div>
             <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">Status Disposisi</label>
@@ -780,6 +796,7 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
                 setSearchQuery('');
                 setFilterJenisSurat('All');
                 setFilterJenisNaskah('All');
+                setFilterBidangTugas('All');
                 setFilterStartDate('');
                 setFilterEndDate('');
                 setFilterDisposisiStatus('All');

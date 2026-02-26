@@ -61,7 +61,6 @@ export const MeetingsProvider: React.FC<MeetingsProviderProps> = ({ children, se
                 ? (await supabase.from('meetings').select('*').order('date', { ascending: true })).data
                 : meetingsData;
 
-            console.log('DEBUG: fetchMeetings finalMeetingsData count:', finalMeetingsData?.length);
             if (meetingsError) console.warn('DEBUG: meetingsError (using fallback):', meetingsError);
 
             // Fetch comments
