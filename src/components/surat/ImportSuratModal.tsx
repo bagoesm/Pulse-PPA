@@ -33,6 +33,8 @@ interface ParsedSurat {
         assigneeNames: string[]; // Originally parsed strings
     } | null;
     raw: any;
+    existingId?: string;
+    duplicateAction?: 'skip' | 'overwrite';
 }
 
 const EXPECTED_HEADERS = [
@@ -153,7 +155,7 @@ const ImportSuratModal: React.FC<ImportSuratModalProps> = ({
         setIsProcessing(true);
         const reader = new FileReader();
 
-        reader.onload = (e) => {
+        reader.onload = async (e) => {
             try {
                 const data = new Uint8Array(e.target?.result as ArrayBuffer);
                 const workbook = XLSX.read(data, { type: 'array', cellDates: true });
@@ -374,6 +376,34 @@ const ImportSuratModal: React.FC<ImportSuratModalProps> = ({
                     });
                 });
 
+                // Pre-flight check for duplicate Nomor Surat
+                const nomorSuratsToCheck = parsedRows
+                    .filter(r => r.data.nomorSurat)
+                    .map(r => r.data.nomorSurat as string);
+
+                if (nomorSuratsToCheck.length > 0) {
+                    const { data: existingSurats } = await supabase
+                        .from('surats')
+                        .select('id, nomor_surat')
+                        .in('nomor_surat', nomorSuratsToCheck);
+
+                    if (existingSurats && existingSurats.length > 0) {
+                        const existingMap = new Map();
+                        existingSurats.forEach(s => existingMap.set(s.nomor_surat, s.id));
+
+                        parsedRows.forEach(row => {
+                            if (row.data.nomorSurat && existingMap.has(row.data.nomorSurat)) {
+                                row.existingId = existingMap.get(row.data.nomorSurat);
+                                row.duplicateAction = 'skip'; // Default to skip
+                                // If it's otherwise valid, add an info message instead of invalidating
+                                if (row.isValid) {
+                                    row.errors.push(`Nomor Surat "${row.data.nomorSurat}" sudah ada di sistem.`);
+                                }
+                            }
+                        });
+                    }
+                }
+
                 setParsedData(parsedRows);
             } catch (error: any) {
                 console.error("Error parsing Excel:", error);
@@ -396,8 +426,15 @@ const ImportSuratModal: React.FC<ImportSuratModalProps> = ({
     const handleImport = async () => {
         const validRows = parsedData.filter(d => d.isValid);
 
-        if (validRows.length === 0) {
-            showNotification('Tidak Ada Data Valid', 'Perbaiki error pada file sebelum import', 'warning');
+        // Find rows that we actually need to process (skip 'skip' ones)
+        const rowsToProcess = validRows.filter(r => r.duplicateAction !== 'skip');
+
+        if (rowsToProcess.length === 0) {
+            if (validRows.some(r => r.duplicateAction === 'skip')) {
+                showNotification('Import Dilewati', 'Silakan pilih aksi Timpa (Overwrite) pada baris yang duplikat jika ingin memprosesnya, atau abaikan data.', 'info');
+            } else {
+                showNotification('Tidak Ada Data Valid', 'Perbaiki error pada file sebelum import', 'warning');
+            }
             return;
         }
 
@@ -405,9 +442,10 @@ const ImportSuratModal: React.FC<ImportSuratModalProps> = ({
 
         try {
             let insertedCount = 0;
+            let updatedCount = 0;
 
-            // Execute insertions sequentially to ensure Kegiatan & Disposisi relate to the inserted Surat
-            for (const row of validRows) {
+            // Execute insertions sequentially
+            for (const row of rowsToProcess) {
                 const suratPayload = {
                     jenis_surat: row.data.jenisSurat,
                     nomor_surat: row.data.nomorSurat,
@@ -423,19 +461,51 @@ const ImportSuratModal: React.FC<ImportSuratModalProps> = ({
                     tanggal_dikirim: row.data.tanggalDikirim || null,
                     created_by: currentUserName,
                     created_by_id: currentUser?.id || null,
-                    created_at: new Date().toISOString(),
                     updated_at: new Date().toISOString()
                 };
 
-                const { data: suratData, error: suratError } = await supabase
-                    .from('surats')
-                    .insert(suratPayload)
-                    .select()
-                    .single();
+                let suratData;
+                let suratError;
+
+                if (row.existingId && row.duplicateAction === 'overwrite') {
+                    // Update existing surat
+                    const { data, error } = await supabase
+                        .from('surats')
+                        .update(suratPayload)
+                        .eq('id', row.existingId)
+                        .select()
+                        .single();
+                    suratData = data;
+                    suratError = error;
+
+                    if (!suratError && suratData) {
+                        updatedCount++;
+                        // Clean up relations for the overwrite
+                        if (suratData.meeting_id) {
+                            await supabase.from('meetings').delete().eq('id', suratData.meeting_id);
+                        }
+                        await supabase.from('disposisi').delete().eq('surat_id', suratData.id);
+                    }
+                } else {
+                    // Insert new surat
+                    const insertPayload = {
+                        ...suratPayload,
+                        created_at: new Date().toISOString()
+                    };
+                    const { data, error } = await supabase
+                        .from('surats')
+                        .insert(insertPayload)
+                        .select()
+                        .single();
+                    suratData = data;
+                    suratError = error;
+
+                    if (!suratError) insertedCount++;
+                }
 
                 if (suratError) {
                     if (suratError.code === '23505' || suratError.message?.includes('ux_surats_nomor_surat')) {
-                        throw new Error(`Baris ${row.rowNum}: Nomor Surat "${row.data.nomorSurat}" sudah terdaftar di sistem. Mohon revisi nomor surat atau abaikan baris ini.`);
+                        throw new Error(`Baris ${row.rowNum}: Nomor Surat "${row.data.nomorSurat}" sudah terdaftar di sistem. Mohon cek kembali opsi duplikat Anda.`);
                     }
                     throw suratError;
                 }
@@ -503,10 +573,10 @@ const ImportSuratModal: React.FC<ImportSuratModalProps> = ({
                     );
                 }
 
-                insertedCount++;
+                insertedCount++; // Count is tracked above per-branch
             }
 
-            showNotification('Import Berhasil', `${insertedCount} surat berhasil ditambahkan ke sistem beserta relasinya`, 'success');
+            showNotification('Import Berhasil', `${insertedCount} ditambahkan, ${updatedCount} diperbarui. Relasi terkait juga telah dimitigasi.`, 'success');
             onSuccess(); // Refresh List
             handleClose();
         } catch (error: any) {
@@ -708,7 +778,7 @@ const ImportSuratModal: React.FC<ImportSuratModalProps> = ({
                             {/* Preview Table */}
                             <div className="border border-slate-200 rounded-lg overflow-hidden flex flex-col mt-4">
                                 <div className="bg-slate-100 px-4 py-2 border-b border-slate-200 flex justify-between items-center">
-                                    <span className="font-semibold text-sm text-slate-700">Preview 20 Data Pertama</span>
+                                    <span className="font-semibold text-sm text-slate-700">Preview Semua Data</span>
                                 </div>
                                 <div className="overflow-x-auto max-h-[350px]">
                                     <table className="w-full text-sm text-left">
@@ -716,6 +786,7 @@ const ImportSuratModal: React.FC<ImportSuratModalProps> = ({
                                             <tr>
                                                 <th className="px-3 py-2 border-b">Status</th>
                                                 <th className="px-3 py-2 border-b">Row</th>
+                                                <th className="px-3 py-2 border-b">Aksi Duplikat</th>
                                                 <th className="px-3 py-2 border-b">Jenis</th>
                                                 <th className="px-3 py-2 border-b">Nomor Surat</th>
                                                 <th className="px-3 py-2 border-b">Tanggal Surat</th>
@@ -726,12 +797,19 @@ const ImportSuratModal: React.FC<ImportSuratModalProps> = ({
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {parsedData.slice(0, 20).map((row, idx) => (
-                                                <tr key={idx} className={`border-b ${row.isValid ? 'hover:bg-slate-50' : 'bg-red-50 hover:bg-red-100'}`}>
+                                            {parsedData.map((row, idx) => (
+                                                <tr key={idx} className={`border-b ${row.isValid && !row.existingId ? 'hover:bg-slate-50' : (row.existingId ? 'bg-yellow-50 hover:bg-yellow-100' : 'bg-red-50 hover:bg-red-100')}`}>
                                                     <td className="px-3 py-2">
-                                                        {row.isValid ? (
+                                                        {row.isValid && !row.existingId ? (
                                                             <span className="inline-flex items-center p-1 rounded-full bg-green-100 text-green-700" title="Valid">
                                                                 <Check size={14} />
+                                                            </span>
+                                                        ) : row.isValid && row.existingId ? (
+                                                            <span className="inline-flex items-center p-1 rounded-full bg-yellow-100 text-yellow-700 group relative cursor-help">
+                                                                <AlertCircle size={14} />
+                                                                <div className="absolute hidden group-hover:block bottom-full mb-1 w-max max-w-xs bg-black text-white text-xs p-2 rounded shadow-lg z-20">
+                                                                    Data Duplikat. Pilih tipe Aksi.
+                                                                </div>
                                                             </span>
                                                         ) : (
                                                             <span className="inline-flex items-center p-1 rounded-full bg-red-100 text-red-700 group relative cursor-help">
@@ -745,6 +823,25 @@ const ImportSuratModal: React.FC<ImportSuratModalProps> = ({
                                                         )}
                                                     </td>
                                                     <td className="px-3 py-2 text-slate-500">{row.rowNum}</td>
+                                                    <td className="px-3 py-2">
+                                                        {row.existingId ? (
+                                                            <select
+                                                                value={row.duplicateAction}
+                                                                onChange={(e) => {
+                                                                    const newData = [...parsedData];
+                                                                    const thisRow = newData.find(r => r.rowNum === row.rowNum);
+                                                                    if (thisRow) thisRow.duplicateAction = e.target.value as 'skip' | 'overwrite';
+                                                                    setParsedData(newData);
+                                                                }}
+                                                                className="text-xs border border-slate-300 rounded p-1 bg-white outline-none focus:border-gov-500 text-slate-700"
+                                                            >
+                                                                <option value="skip">Lewati (Skip)</option>
+                                                                <option value="overwrite">Timpa (Overwrite)</option>
+                                                            </select>
+                                                        ) : (
+                                                            <span className="text-slate-400 text-xs italic">-</span>
+                                                        )}
+                                                    </td>
                                                     <td className="px-3 py-2 whitespace-nowrap font-medium">
                                                         <span className={`px-2 py-0.5 rounded text-xs ${row.data.jenisSurat === 'Masuk' ? 'bg-green-100 text-green-800' : (row.data.jenisSurat === 'Keluar' ? 'bg-blue-100 text-blue-800' : 'bg-slate-200 text-slate-600')}`}>
                                                             {row.data.jenisSurat || 'N/A'}
@@ -778,13 +875,6 @@ const ImportSuratModal: React.FC<ImportSuratModalProps> = ({
                                                     </td>
                                                 </tr>
                                             ))}
-                                            {parsedData.length > 20 && (
-                                                <tr>
-                                                    <td colSpan={9} className="px-3 py-3 text-center text-slate-500 bg-slate-50 italic">
-                                                        ... dan {parsedData.length - 20} data lainnya
-                                                    </td>
-                                                </tr>
-                                            )}
                                         </tbody>
                                     </table>
                                 </div>
