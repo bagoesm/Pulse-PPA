@@ -260,7 +260,7 @@ const ImportSuratModal: React.FC<ImportSuratModalProps> = ({
                         if (!assigneesRaw) {
                             errors.push('Assignee Disposisi kosong meskipun teks Disposisi diisi');
                         } else {
-                            const assigneeList = String(assigneesRaw).split(',').map(s => s.trim()).filter(Boolean);
+                            const assigneeList = String(assigneesRaw).split(';').map(s => s.trim()).filter(Boolean);
                             assigneeList.forEach(nameOrEmail => {
                                 assigneesOriginal.push(nameOrEmail);
                                 const matchedUser = allUsers.find(u =>
@@ -497,7 +497,7 @@ const ImportSuratModal: React.FC<ImportSuratModalProps> = ({
                 'Ada Disposisi': 'Ya',
                 'Jumlah Disposisi': 6,
                 'Status Disposisi': 'Complete',
-                'Detail Disposisi': 'Budi Santoso, Ahmad Zikri', // Assignees equivalent
+                'Detail Disposisi': 'Budi Santoso ; Ahmad Zikri', // Assignees equivalent
                 'Link File Laporan Disposisi': 'https://bit.ly/Laporankinerja',
                 'Link File Surat': 'https://nextcloud.kemenpppa.go.id/index',
                 'Asal Pengirim': 'Internal'
