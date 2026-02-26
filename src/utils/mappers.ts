@@ -8,7 +8,7 @@ import { Disposisi, Meeting, Surat, Attachment } from '../../types';
  */
 export const mapDisposisiFromDB = (row: any): Disposisi => {
   if (!row) return null as any;
-  
+
   return {
     id: row.id,
     suratId: row.surat_id,
@@ -35,10 +35,10 @@ export const mapDisposisiFromDB = (row: any): Disposisi => {
  */
 export const mapMeetingFromDB = (row: any): Meeting => {
   if (!row) return null as any;
-  
+
   // Get surat data from join if available
   const linkedSurat = row.linked_surat || row.surats;
-  
+
   return {
     id: row.id,
     title: row.title,
@@ -99,7 +99,7 @@ export const mapMeetingFromDB = (row: any): Meeting => {
  */
 export const mapSuratFromDB = (row: any): Surat => {
   if (!row) return null as any;
-  
+
   return {
     id: row.id,
     jenisSurat: row.jenis_surat,
@@ -108,6 +108,7 @@ export const mapSuratFromDB = (row: any): Surat => {
     hal: row.hal,
     asalSurat: row.asal_surat,
     tujuanSurat: row.tujuan_surat,
+    tujuanSuratList: row.tujuan_surat_list,
     klasifikasiSurat: row.klasifikasi_surat,
     jenisNaskah: row.jenis_naskah,
     sifatSurat: row.sifat_surat,
@@ -138,7 +139,7 @@ export const mappers = {
   disposisi: mapDisposisiFromDB,
   meeting: mapMeetingFromDB,
   surat: mapSuratFromDB,
-  
+
   // Batch mappers
   disposisiList: (rows: any[]): Disposisi[] => rows?.map(mapDisposisiFromDB) || [],
   meetingList: (rows: any[]): Meeting[] => rows?.map(mapMeetingFromDB) || [],

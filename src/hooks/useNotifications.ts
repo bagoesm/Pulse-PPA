@@ -16,7 +16,7 @@ interface DbNotification {
   type: NotificationType;
   title: string;
   message: string;
-  task_id: string;
+  task_id: string | null;
   task_title: string;
   meeting_id?: string;
   meeting_title?: string;
@@ -32,7 +32,7 @@ const mapDbToNotification = (n: DbNotification): Notification => ({
   type: n.type,
   title: n.title,
   message: n.message,
-  taskId: n.task_id,
+  taskId: n.task_id || '',
   taskTitle: n.task_title,
   meetingId: n.meeting_id,
   meetingTitle: n.meeting_title,
@@ -87,7 +87,7 @@ export const useNotifications = ({ currentUser, tasks, onTaskNavigation, onMeeti
     type: NotificationType,
     title: string,
     message: string,
-    taskId: string,
+    taskId: string | null,
     taskTitle: string,
     meetingId?: string,
     meetingTitle?: string
@@ -178,7 +178,7 @@ export const useNotifications = ({ currentUser, tasks, onTaskNavigation, onMeeti
           notificationType,
           'Komentar Baru',
           `${commenterName} menambahkan komentar pada ${isMeeting ? 'jadwal' : 'task'} "${itemTitle}"`,
-          !isMeeting ? itemId : '',
+          !isMeeting ? itemId : null,
           !isMeeting ? itemTitle : '',
           isMeeting ? itemId : undefined,
           isMeeting ? itemTitle : undefined
@@ -224,7 +224,7 @@ export const useNotifications = ({ currentUser, tasks, onTaskNavigation, onMeeti
           notificationType,
           'Anda Di-mention',
           `${mentionerName} menyebut Anda dalam komentar pada ${labelType} "${entityTitle}"`,
-          isMeeting ? '' : entityId, // taskId
+          isMeeting ? null : entityId, // taskId
           isMeeting ? '' : entityTitle, // taskTitle
           isMeeting ? entityId : undefined, // meetingId
           isMeeting ? entityTitle : undefined // meetingTitle
@@ -541,7 +541,7 @@ export const useNotifications = ({ currentUser, tasks, onTaskNavigation, onMeeti
           'meeting_pic',
           '📅 Anda ditunjuk sebagai PIC',
           `${creatorName} menunjuk Anda sebagai PIC untuk jadwal "${meetingTitle}" pada ${meetingDate}`,
-          '', // No task ID
+          null, // No task ID
           '', // No task title
           meetingId,
           meetingTitle
@@ -561,7 +561,7 @@ export const useNotifications = ({ currentUser, tasks, onTaskNavigation, onMeeti
           'meeting_invitee',
           '📅 Anda diundang ke rapat',
           `${creatorName} mengundang Anda ke "${meetingTitle}" pada ${meetingDate}`,
-          '', // No task ID
+          null, // No task ID
           '', // No task title
           meetingId,
           meetingTitle

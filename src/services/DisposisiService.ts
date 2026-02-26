@@ -4,7 +4,7 @@ import { supabase as defaultSupabase } from '../lib/supabaseClient';
 import { Disposisi, DisposisiStatus, DisposisiHistory, DisposisiAction, User, Attachment } from '../../types';
 import { NotificationService } from './NotificationService';
 import { mappers } from '../utils/mappers';
-import { 
+import {
   requireCreateDisposisiPermission,
   requireDeleteDisposisiPermission,
   requireUpdateDisposisiPermission
@@ -80,6 +80,7 @@ export class DisposisiService {
             status: 'Pending' as DisposisiStatus,
             deadline: deadline,
             created_by: createdBy,
+            created_by_id: currentUser?.id || null,
           };
 
           const { data, error } = await handleDatabaseOperation(
@@ -89,7 +90,7 @@ export class DisposisiService {
                 .insert(insertData)
                 .select()
                 .single();
-              
+
               if (result.error) throw result.error;
               return result;
             },
@@ -232,6 +233,7 @@ export class DisposisiService {
       if (status === 'Completed') {
         updateData.completed_at = new Date().toISOString();
         updateData.completed_by = userId;
+        updateData.completed_by_id = userId;
       }
 
       const { error: updateError } = await this.supabase
@@ -387,7 +389,7 @@ export class DisposisiService {
       uploadedFilePath = filePath;
 
       const { error: uploadError } = await this.supabase.storage
-        .from('attachments')
+        .from('attachment')
         .upload(filePath, file);
 
       if (uploadError) {
@@ -399,7 +401,7 @@ export class DisposisiService {
 
       // Get public URL
       const { data: urlData } = this.supabase.storage
-        .from('attachments')
+        .from('attachment')
         .getPublicUrl(filePath);
 
       // Create attachment object
@@ -420,7 +422,7 @@ export class DisposisiService {
             .select('laporan')
             .eq('id', disposisiId)
             .single();
-          
+
           if (result.error) throw result.error;
           return result;
         },
@@ -435,12 +437,12 @@ export class DisposisiService {
         async () => {
           const result = await this.supabase
             .from('disposisi')
-            .update({ 
+            .update({
               laporan: updatedLaporan,
               updated_at: new Date().toISOString()
             })
             .eq('id', disposisiId);
-          
+
           if (result.error) throw result.error;
           return result;
         },
@@ -459,18 +461,18 @@ export class DisposisiService {
       return attachment;
     } catch (error) {
       console.error('Error uploading laporan:', error);
-      
+
       // Cleanup uploaded file on error
       if (uploadedFilePath) {
         await handleFileUploadError(
           error,
           uploadedFilePath,
           async (path) => {
-            await this.supabase.storage.from('attachments').remove([path]);
+            await this.supabase.storage.from('attachment').remove([path]);
           }
         );
       }
-      
+
       throw error;
     }
   }
@@ -493,7 +495,7 @@ export class DisposisiService {
             .select('laporan')
             .eq('id', disposisiId)
             .single();
-          
+
           if (result.error) throw result.error;
           return result;
         },
@@ -511,7 +513,7 @@ export class DisposisiService {
       if (attachmentToDelete.path) {
         try {
           const { error: deleteError } = await this.supabase.storage
-            .from('attachments')
+            .from('attachment')
             .remove([attachmentToDelete.path]);
 
           if (deleteError) {
@@ -526,17 +528,17 @@ export class DisposisiService {
 
       // Update disposisi without the deleted laporan
       const updatedLaporan = currentLaporan.filter((a: Attachment) => a.id !== attachmentId);
-      
+
       await handleDatabaseOperation(
         async () => {
           const result = await this.supabase
             .from('disposisi')
-            .update({ 
+            .update({
               laporan: updatedLaporan,
               updated_at: new Date().toISOString()
             })
             .eq('id', disposisiId);
-          
+
           if (result.error) throw result.error;
           return result;
         },
@@ -590,7 +592,7 @@ export class DisposisiService {
       // Update notes
       const { error: updateError } = await this.supabase
         .from('disposisi')
-        .update({ 
+        .update({
           notes: notes,
           updated_at: new Date().toISOString()
         })
@@ -645,7 +647,7 @@ export class DisposisiService {
       // Update deadline
       const { error: updateError } = await this.supabase
         .from('disposisi')
-        .update({ 
+        .update({
           deadline: deadline,
           updated_at: new Date().toISOString()
         })
@@ -685,6 +687,7 @@ export class DisposisiService {
         old_value: oldValue,
         new_value: newValue,
         performed_by: performedBy,
+        performed_by_id: performedBy,
         performed_at: new Date().toISOString(),
       };
 

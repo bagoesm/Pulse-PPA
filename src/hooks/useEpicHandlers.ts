@@ -92,6 +92,7 @@ export const useEpicHandlers = ({
                 color: epicData.color || 'blue',
                 icon: epicData.icon || 'Layers',
                 created_by: isEditing ? epicData.createdBy : currentUser.name,
+                created_by_id: currentUser.id,
                 updated_at: new Date().toISOString()
             };
 

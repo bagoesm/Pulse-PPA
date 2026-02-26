@@ -23,7 +23,7 @@ import { useMasterDataCRUD } from '../hooks/useMasterDataCRUD';
 interface AddMeetingModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (meeting: Omit<Meeting, 'id' | 'createdAt'>) => void;
+  onSave: (meeting: Omit<Meeting, 'id' | 'createdAt'>) => Promise<string | undefined>;
   onDelete?: (id: string) => void;
   initialData?: Meeting | null;
   currentUser: User | null;
@@ -527,44 +527,30 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
 
     setIsSaving(true);
     try {
-      await onSave(payload);
+      const createdMeetingId = await onSave(payload);
 
       // If linking to existing Surat, create the link and Disposisi
-      if (selectedSuratForLinking && !initialData) {
-        // Get the newly created meeting ID from the database
-        // We need to fetch the most recent meeting created by this user
-        const { data: newMeeting, error: fetchError } = await supabase
-          .from('meetings')
-          .select('id')
-          .eq('title', payload.title)
-          .eq('created_by', payload.createdBy)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
-
-        if (fetchError) {
-          console.error('Error fetching new meeting:', fetchError);
+      if (selectedSuratForLinking && !initialData && createdMeetingId) {
+        // Use LinkingService to create the link and Disposisi
+        const linkingService = new LinkingService();
+        try {
+          await linkingService.linkSuratToKegiatan(
+            selectedSuratForLinking.id,
+            createdMeetingId,
+            {
+              assignees: disposisiAssignees,
+              disposisiText: disposisiText,
+              deadline: disposisiDeadline || undefined,
+              createdBy: currentUser?.name || 'System'
+            }
+          );
+          showNotification('Berhasil', 'Kegiatan berhasil dibuat dan dihubungkan dengan surat', 'success');
+        } catch (linkError) {
+          console.error('Error linking Surat to Kegiatan:', linkError);
           showNotification('Peringatan', 'Kegiatan berhasil dibuat, tetapi gagal menghubungkan dengan surat. Silakan hubungkan secara manual.', 'warning');
-        } else if (newMeeting) {
-          // Use LinkingService to create the link and Disposisi
-          const linkingService = new LinkingService();
-          try {
-            await linkingService.linkSuratToKegiatan(
-              selectedSuratForLinking.id,
-              newMeeting.id,
-              {
-                assignees: disposisiAssignees,
-                disposisiText: disposisiText,
-                deadline: disposisiDeadline || undefined,
-                createdBy: currentUser?.name || 'System'
-              }
-            );
-            showNotification('Berhasil', 'Kegiatan berhasil dibuat dan dihubungkan dengan surat', 'success');
-          } catch (linkError) {
-            console.error('Error linking Surat to Kegiatan:', linkError);
-            showNotification('Peringatan', 'Kegiatan berhasil dibuat, tetapi gagal menghubungkan dengan surat. Silakan hubungkan secara manual.', 'warning');
-          }
         }
+      } else if (selectedSuratForLinking && !initialData && !createdMeetingId) {
+        showNotification('Peringatan', 'Kegiatan berhasil dibuat, tetapi gagal menghubungkan dengan surat. Silakan hubungkan secara manual.', 'warning');
       }
 
       // Clear tracking on successful save
@@ -976,8 +962,8 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
                         handleInviterChange('');
                       }}
                       className={`flex-1 px-4 py-2.5 rounded-lg border-2 text-sm font-medium transition-all ${inviterType === 'Internal'
-                          ? 'border-gov-500 bg-gov-50 text-gov-700'
-                          : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400'
+                        ? 'border-gov-500 bg-gov-50 text-gov-700'
+                        : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400'
                         }`}
                     >
                       Internal
@@ -990,8 +976,8 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
                         handleInviterChange('');
                       }}
                       className={`flex-1 px-4 py-2.5 rounded-lg border-2 text-sm font-medium transition-all ${inviterType === 'Eksternal'
-                          ? 'border-gov-500 bg-gov-50 text-gov-700'
-                          : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400'
+                        ? 'border-gov-500 bg-gov-50 text-gov-700'
+                        : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400'
                         }`}
                     >
                       Eksternal
@@ -1142,8 +1128,8 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
                       </label>
                       <div className="flex items-center gap-2">
                         <span className={`px-3 py-1 rounded-full text-sm font-semibold ${formData.linkedSurat.jenisSurat === 'Masuk'
-                            ? 'bg-green-100 text-green-700'
-                            : 'bg-blue-100 text-blue-700'
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-blue-100 text-blue-700'
                           }`}>
                           {formData.linkedSurat.jenisSurat === 'Masuk' ? '📥 Surat Masuk' : '📤 Surat Keluar'}
                         </span>

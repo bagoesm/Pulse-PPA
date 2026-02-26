@@ -23,7 +23,7 @@ export const useFeedbackHandlers = ({
         if (!currentUser) return;
 
         const { data, error } = await supabase.from('feedbacks').insert([{
-            title, description, category, created_by: currentUser.name
+            title, description, category, created_by: currentUser.name, created_by_id: currentUser.id
         }]).select().single();
 
         if (data && !error) {

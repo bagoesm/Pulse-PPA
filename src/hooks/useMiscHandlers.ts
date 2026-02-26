@@ -88,6 +88,7 @@ export const useMiscHandlers = ({
                 text_color: announcementData.textColor,
                 is_active: announcementData.isActive,
                 created_by: announcementData.createdBy,
+                created_by_id: currentUser?.id || null,
                 expires_at: announcementData.expiresAt,
                 updated_at: new Date().toISOString()
             };
@@ -205,6 +206,7 @@ export const useMiscHandlers = ({
                 description: itemData.description,
                 links: itemData.links,
                 created_by: currentUser.name,
+                created_by_id: currentUser.id,
                 created_at: new Date().toISOString()
             }]).select().single();
 

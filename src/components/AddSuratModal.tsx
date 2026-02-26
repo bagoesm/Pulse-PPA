@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { X, FileText, Upload, Link2, Save, Check, Search, Users, Plus } from 'lucide-react';
 import { Attachment, Meeting, User } from '../../types';
 import { supabase } from '../lib/supabaseClient';
+import { disposisiService } from '../services/DisposisiService';
 import { useMeetings } from '../contexts/MeetingsContext';
 import { useUsers } from '../contexts/UsersContext';
 import { useMasterData } from '../contexts/MasterDataContext';
@@ -31,17 +32,17 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
 }) => {
   const { meetings } = useMeetings();
   const { allUsers } = useUsers();
-  const { 
+  const {
     unitInternalList,
     unitEksternalList,
-    sifatSuratList, 
-    jenisNaskahList, 
-    klasifikasiSuratList, 
-    bidangTugasList 
+    sifatSuratList,
+    jenisNaskahList,
+    klasifikasiSuratList,
+    bidangTugasList
   } = useMasterData();
-  
+
   const { addMasterData, editMasterData, deleteMasterData, canDeleteMasterData } = useMasterDataCRUD();
-  
+
   // Master data modal states
   const [showMasterDataModal, setShowMasterDataModal] = useState(false);
   const [masterDataModalMode, setMasterDataModalMode] = useState<'add' | 'edit'>('add');
@@ -50,27 +51,27 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
   const [masterDataModalOldValue, setMasterDataModalOldValue] = useState('');
   const [editableItems, setEditableItems] = useState<Set<string>>(new Set());
   const [dropdownKey, setDropdownKey] = useState(0); // Force re-render dropdown
-  
+
   const [jenisSurat, setJenisSurat] = useState<'Masuk' | 'Keluar'>('Masuk');
   const [nomorSurat, setNomorSurat] = useState('');
   const [tanggalSurat, setTanggalSurat] = useState('');
   const [hal, setHal] = useState('');
-  
+
   // Asal surat - Internal atau Eksternal
   const [asalSuratType, setAsalSuratType] = useState<'Internal' | 'Eksternal'>('Eksternal');
   const [asalSuratInternal, setAsalSuratInternal] = useState('');
   const [asalSuratEksternal, setAsalSuratEksternal] = useState('');
-  
+
   // Tujuan surat (Surat Keluar) - Support mix Internal & Eksternal
-  const [tujuanSuratList, setTujuanSuratList] = useState<Array<{name: string, type: 'Internal' | 'Eksternal'}>>([]);
-  
+  const [tujuanSuratList, setTujuanSuratList] = useState<Array<{ name: string, type: 'Internal' | 'Eksternal' }>>([]);
+
   const [klasifikasiSurat, setKlasifikasiSurat] = useState('');
   const [jenisNaskah, setJenisNaskah] = useState('');
   const [bidangTugas, setBidangTugas] = useState('');
   const [sifatSurat, setSifatSurat] = useState(''); // Biasa, Segera, Sangat Segera, Rahasia
   const [tanggalDiterima, setTanggalDiterima] = useState(''); // Untuk surat masuk
   const [tanggalDikirim, setTanggalDikirim] = useState(''); // Untuk surat keluar
-  
+
   // File upload states
   const [suratFile, setSuratFile] = useState<Attachment | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -84,7 +85,7 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
   const [kegiatanSearch, setKegiatanSearch] = useState('');
   const [selectedKegiatan, setSelectedKegiatan] = useState<Meeting | null>(null);
   const [showKegiatanDropdown, setShowKegiatanDropdown] = useState(false);
-  
+
   // New Kegiatan form states
   const [newKegiatanTitle, setNewKegiatanTitle] = useState('');
   const [newKegiatanDate, setNewKegiatanDate] = useState('');
@@ -93,8 +94,8 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
   const [newKegiatanLocation, setNewKegiatanLocation] = useState('');
   const [newKegiatanIsOnline, setNewKegiatanIsOnline] = useState(false);
   const [newKegiatanOnlineLink, setNewKegiatanOnlineLink] = useState('');
-  const [newKegiatanType, setNewKegiatanType] = useState<'internal' | 'external' | 'bimtek' | 'other'>('internal');
-  
+  const [newKegiatanType, setNewKegiatanType] = useState<'internal' | 'external' | 'bimtek' | 'audiensi'>('internal');
+
   // Disposisi states (required when linking)
   const [disposisiText, setDisposisiText] = useState('');
   const [disposisiDeadline, setDisposisiDeadline] = useState('');
@@ -171,7 +172,7 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
 
     setIsUploading(true);
     let uploadedFilePath: string | null = null;
-    
+
     try {
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
@@ -304,7 +305,7 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
     }
 
     // Determine asal surat based on type
-    const finalAsalSurat = jenisSurat === 'Masuk' 
+    const finalAsalSurat = jenisSurat === 'Masuk'
       ? (asalSuratType === 'Internal' ? asalSuratInternal : asalSuratEksternal)
       : null;
 
@@ -312,7 +313,7 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
     const finalTujuanSuratList = jenisSurat === 'Keluar' && tujuanSuratList.length > 0
       ? tujuanSuratList
       : null;
-    
+
     const finalTujuanSurat = jenisSurat === 'Keluar' && tujuanSuratList.length > 0
       ? tujuanSuratList.map(t => `${t.name} (${t.type})`).join(', ')
       : null;
@@ -336,6 +337,7 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
         file_surat: suratFile,
         meeting_id: linkToKegiatan && selectedKegiatan ? selectedKegiatan.id : null,
         created_by: currentUserName,
+        created_by_id: currentUser?.id || null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
@@ -354,7 +356,7 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
           // Update meeting with linked_surat_id
           const { error: updateError } = await supabase
             .from('meetings')
-            .update({ 
+            .update({
               linked_surat_id: suratData.id,
               updated_at: new Date().toISOString()
             })
@@ -362,24 +364,19 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
 
           if (updateError) throw updateError;
 
-          // Create Disposisi for each assignee
-          const disposisiRecords = selectedAssignees.map(assigneeId => ({
-            surat_id: suratData.id,
-            kegiatan_id: selectedKegiatan.id,
-            assigned_to: assigneeId,
-            disposisi_text: disposisiText,
-            status: 'Pending',
-            deadline: disposisiDeadline || null,
-            created_by: currentUser?.id || currentUserName,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          }));
-
-          const { error: disposisiError } = await supabase
-            .from('disposisi')
-            .insert(disposisiRecords);
-
-          if (disposisiError) throw disposisiError;
+          // Create Disposisi via service (ensures validation, audit trail, and notifications)
+          await disposisiService.createMultiUserDisposisi(
+            suratData.id,
+            selectedKegiatan.id,
+            selectedAssignees,
+            disposisiText,
+            currentUser?.id || currentUserName,
+            currentUser,
+            disposisiDeadline || undefined,
+            currentUser?.name || currentUserName,
+            nomorSurat,
+            selectedKegiatan.title
+          );
 
           showNotification(
             'Surat & Link Berhasil Dibuat',
@@ -399,7 +396,7 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
       else if (linkToKegiatan && kegiatanMode === 'new' && suratData) {
         try {
           // Determine inviter based on jenis surat
-          const inviter = jenisSurat === 'Masuk' 
+          const inviter = jenisSurat === 'Masuk'
             ? { id: `inv_${Date.now()}`, name: finalAsalSurat || 'Tidak Diketahui', organization: finalAsalSurat }
             : { id: `inv_${Date.now()}`, name: currentUserName, organization: 'Internal' };
 
@@ -430,6 +427,7 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
             status: 'scheduled',
             linked_surat_id: suratData.id,
             created_by: currentUserName,
+            created_by_id: currentUser?.id || null,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           };
@@ -448,24 +446,19 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
             .update({ meeting_id: meetingData.id, updated_at: new Date().toISOString() })
             .eq('id', suratData.id);
 
-          // Create Disposisi for each assignee
-          const disposisiRecords = selectedAssignees.map(assigneeId => ({
-            surat_id: suratData.id,
-            kegiatan_id: meetingData.id,
-            assigned_to: assigneeId,
-            disposisi_text: disposisiText,
-            status: 'Pending',
-            deadline: disposisiDeadline || null,
-            created_by: currentUser?.id || currentUserName,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          }));
-
-          const { error: disposisiError } = await supabase
-            .from('disposisi')
-            .insert(disposisiRecords);
-
-          if (disposisiError) throw disposisiError;
+          // Create Disposisi via service (ensures validation, audit trail, and notifications)
+          await disposisiService.createMultiUserDisposisi(
+            suratData.id,
+            meetingData.id,
+            selectedAssignees,
+            disposisiText,
+            currentUser?.id || currentUserName,
+            currentUser,
+            disposisiDeadline || undefined,
+            currentUser?.name || currentUserName,
+            nomorSurat,
+            newKegiatanTitle
+          );
 
           showNotification(
             'Surat & Kegiatan Berhasil Dibuat',
@@ -512,7 +505,7 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
     setShowLinkInput(false);
     setLinkUrl('');
     setLinkTitle('');
-    
+
     // Reset linking states
     setLinkToKegiatan(false);
     setKegiatanMode('existing');
@@ -532,7 +525,7 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
     setSelectedAssignees([]);
     setShowAssigneeDropdown(false);
     setAssigneeSearch('');
-    
+
     onClose();
   };
 
@@ -553,24 +546,24 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
 
   const handleSaveMasterData = async (name: string) => {
     const tableName = masterDataModalType === 'internal' ? 'master_unit_internal' : 'master_unit_eksternal';
-    
+
     try {
       if (masterDataModalMode === 'add') {
         await addMasterData(tableName, name);
         showNotification('Berhasil', `Unit ${masterDataModalType === 'internal' ? 'Internal' : 'Eksternal'} berhasil ditambahkan`, 'success');
       } else {
         await editMasterData(tableName, masterDataModalOldValue, name);
-        
+
         // Update tujuanSuratList if the edited item is selected
         if (jenisSurat === 'Keluar') {
           setTujuanSuratList(prev => prev.map(item => {
-            if (item.name === masterDataModalOldValue && 
-                item.type === (masterDataModalType === 'internal' ? 'Internal' : 'Eksternal')) {
+            if (item.name === masterDataModalOldValue &&
+              item.type === (masterDataModalType === 'internal' ? 'Internal' : 'Eksternal')) {
               return { ...item, name };
             }
             return item;
           }));
-          
+
           // Update editableItems set
           const oldKey = `${masterDataModalType}:${masterDataModalOldValue}`;
           const newKey = `${masterDataModalType}:${name}`;
@@ -583,7 +576,7 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
             return updated;
           });
         }
-        
+
         showNotification('Berhasil', `Unit ${masterDataModalType === 'internal' ? 'Internal' : 'Eksternal'} berhasil diubah`, 'success');
       }
     } catch (error: any) {
@@ -595,20 +588,20 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
   useEffect(() => {
     const checkEditableItems = async () => {
       const editable = new Set<string>();
-      
+
       for (const unit of unitInternalList) {
         const canEdit = await canDeleteMasterData('master_unit_internal', unit);
         if (canEdit) editable.add(`internal:${unit}`);
       }
-      
+
       for (const unit of unitEksternalList) {
         const canEdit = await canDeleteMasterData('master_unit_eksternal', unit);
         if (canEdit) editable.add(`eksternal:${unit}`);
       }
-      
+
       setEditableItems(editable);
     };
-    
+
     if (jenisSurat === 'Keluar' && isOpen) {
       checkEditableItems();
     }
@@ -652,16 +645,14 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
               <button
                 type="button"
                 onClick={() => setJenisSurat('Masuk')}
-                className={`p-4 rounded-lg border-2 transition-all ${
-                  jenisSurat === 'Masuk'
-                    ? 'border-green-500 bg-green-50 shadow-md'
-                    : 'border-slate-300 bg-white hover:border-green-300'
-                }`}
+                className={`p-4 rounded-lg border-2 transition-all ${jenisSurat === 'Masuk'
+                  ? 'border-green-500 bg-green-50 shadow-md'
+                  : 'border-slate-300 bg-white hover:border-green-300'
+                  }`}
               >
                 <div className="flex items-center justify-center gap-2 mb-2">
-                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                    jenisSurat === 'Masuk' ? 'border-green-600 bg-green-600' : 'border-slate-300'
-                  }`}>
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${jenisSurat === 'Masuk' ? 'border-green-600 bg-green-600' : 'border-slate-300'
+                    }`}>
                     {jenisSurat === 'Masuk' && <Check size={14} className="text-white" />}
                   </div>
                   <span className={`text-base font-bold ${jenisSurat === 'Masuk' ? 'text-green-700' : 'text-slate-600'}`}>
@@ -673,16 +664,14 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
               <button
                 type="button"
                 onClick={() => setJenisSurat('Keluar')}
-                className={`p-4 rounded-lg border-2 transition-all ${
-                  jenisSurat === 'Keluar'
-                    ? 'border-blue-500 bg-blue-50 shadow-md'
-                    : 'border-slate-300 bg-white hover:border-blue-300'
-                }`}
+                className={`p-4 rounded-lg border-2 transition-all ${jenisSurat === 'Keluar'
+                  ? 'border-blue-500 bg-blue-50 shadow-md'
+                  : 'border-slate-300 bg-white hover:border-blue-300'
+                  }`}
               >
                 <div className="flex items-center justify-center gap-2 mb-2">
-                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                    jenisSurat === 'Keluar' ? 'border-blue-600 bg-blue-600' : 'border-slate-300'
-                  }`}>
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${jenisSurat === 'Keluar' ? 'border-blue-600 bg-blue-600' : 'border-slate-300'
+                    }`}>
                     {jenisSurat === 'Keluar' && <Check size={14} className="text-white" />}
                   </div>
                   <span className={`text-base font-bold ${jenisSurat === 'Keluar' ? 'text-blue-700' : 'text-slate-600'}`}>
@@ -700,75 +689,75 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
               Informasi Dasar
             </h4>
 
-          {/* Nomor Surat & Tanggal */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">
-                Nomor Surat <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={nomorSurat}
-                onChange={(e) => setNomorSurat(e.target.value)}
-                className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 focus:border-gov-400 outline-none"
-                placeholder={jenisSurat === 'Masuk' ? 'Nomor surat dari pengirim' : 'Nomor surat yang diterbitkan'}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">
-                Tanggal Surat <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="date"
-                value={tanggalSurat}
-                onChange={(e) => setTanggalSurat(e.target.value)}
-                className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 focus:border-gov-400 outline-none"
-              />
-            </div>
-          </div>
-
-          {/* Tanggal Diterima/Dikirim */}
-          <div className="grid grid-cols-2 gap-4">
-            {jenisSurat === 'Masuk' ? (
+            {/* Nomor Surat & Tanggal */}
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  Tanggal Diterima
+                  Nomor Surat <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={nomorSurat}
+                  onChange={(e) => setNomorSurat(e.target.value)}
+                  className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 focus:border-gov-400 outline-none"
+                  placeholder={jenisSurat === 'Masuk' ? 'Nomor surat dari pengirim' : 'Nomor surat yang diterbitkan'}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  Tanggal Surat <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="date"
-                  value={tanggalDiterima}
-                  onChange={(e) => setTanggalDiterima(e.target.value)}
+                  value={tanggalSurat}
+                  onChange={(e) => setTanggalSurat(e.target.value)}
                   className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 focus:border-gov-400 outline-none"
                 />
-                <p className="text-xs text-slate-500 mt-1">Tanggal surat diterima oleh instansi</p>
               </div>
-            ) : (
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  Tanggal Dikirim
-                </label>
-                <input
-                  type="date"
-                  value={tanggalDikirim}
-                  onChange={(e) => setTanggalDikirim(e.target.value)}
-                  className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-2 focus:ring-gov-400 focus:border-gov-400 outline-none"
-                />
-                <p className="text-xs text-slate-500 mt-1">Tanggal surat dikirim ke tujuan</p>
-              </div>
-            )}
-            
-            {/* Sifat Surat */}
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Sifat Surat</label>
-              <SearchableSelect
-                options={sifatSuratList.map(s => ({ value: s, label: s }))}
-                value={sifatSurat}
-                onChange={setSifatSurat}
-                placeholder="Cari sifat surat..."
-                emptyOption="Pilih Sifat"
-              />
             </div>
-          </div>
+
+            {/* Tanggal Diterima/Dikirim */}
+            <div className="grid grid-cols-2 gap-4">
+              {jenisSurat === 'Masuk' ? (
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    Tanggal Diterima
+                  </label>
+                  <input
+                    type="date"
+                    value={tanggalDiterima}
+                    onChange={(e) => setTanggalDiterima(e.target.value)}
+                    className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 focus:border-gov-400 outline-none"
+                  />
+                  <p className="text-xs text-slate-500 mt-1">Tanggal surat diterima oleh instansi</p>
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    Tanggal Dikirim
+                  </label>
+                  <input
+                    type="date"
+                    value={tanggalDikirim}
+                    onChange={(e) => setTanggalDikirim(e.target.value)}
+                    className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-2 focus:ring-gov-400 focus:border-gov-400 outline-none"
+                  />
+                  <p className="text-xs text-slate-500 mt-1">Tanggal surat dikirim ke tujuan</p>
+                </div>
+              )}
+
+              {/* Sifat Surat */}
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Sifat Surat</label>
+                <SearchableSelect
+                  options={sifatSuratList.map(s => ({ value: s, label: s }))}
+                  value={sifatSurat}
+                  onChange={setSifatSurat}
+                  placeholder="Cari sifat surat..."
+                  emptyOption="Pilih Sifat"
+                />
+              </div>
+            </div>
           </div>
 
           {/* Asal/Tujuan & Klasifikasi */}
@@ -777,192 +766,190 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
               {jenisSurat === 'Masuk' ? 'Informasi Pengirim' : 'Informasi Penerima'}
             </h4>
 
-          {/* Hal/Perihal */}
-          <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Hal/Perihal</label>
-            <input
-              type="text"
-              value={hal}
-              onChange={(e) => setHal(e.target.value)}
-              className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 focus:border-gov-400 outline-none"
-              placeholder="Perihal surat"
-            />
-          </div>
-
-          {/* Asal/Tujuan Surat & Jenis Naskah */}
-          {/* Asal/Tujuan Surat & Jenis Naskah */}
-          <div className="grid grid-cols-2 gap-4">
+            {/* Hal/Perihal */}
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">
-                {jenisSurat === 'Masuk' ? 'Dari (Pengirim)' : 'Kepada (Penerima)'}
-              </label>
-              {jenisSurat === 'Masuk' ? (
-                <div className="space-y-3">
-                  {/* Pilihan Internal/Eksternal */}
-                  <div className="flex gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setAsalSuratType('Internal')}
-                      className={`flex-1 px-4 py-2.5 rounded-lg border-2 text-sm font-medium transition-all ${
-                        asalSuratType === 'Internal'
-                          ? 'border-gov-500 bg-gov-50 text-gov-700'
-                          : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400'
-                      }`}
-                    >
-                      Internal
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setAsalSuratType('Eksternal')}
-                      className={`flex-1 px-4 py-2.5 rounded-lg border-2 text-sm font-medium transition-all ${
-                        asalSuratType === 'Eksternal'
-                          ? 'border-gov-500 bg-gov-50 text-gov-700'
-                          : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400'
-                      }`}
-                    >
-                      Eksternal
-                    </button>
-                  </div>
-                  
-                  {/* Input berdasarkan pilihan */}
-                  {asalSuratType === 'Internal' ? (
-                    <SearchableSelectWithActions
-                      options={unitInternalList.map(u => ({ value: u, label: u }))}
-                      value={asalSuratInternal}
-                      onChange={setAsalSuratInternal}
-                      placeholder="Cari unit internal..."
-                      emptyOption="Pilih Unit Internal"
-                      tableName="Unit Internal"
-                      onAdd={(name) => addMasterData('master_unit_internal', name)}
-                      onEdit={(oldName, newName) => editMasterData('master_unit_internal', oldName, newName)}
-                      onDelete={(name) => deleteMasterData('master_unit_internal', name)}
-                      canDelete={(name) => canDeleteMasterData('master_unit_internal', name)}
-                    />
-                  ) : (
-                    <SearchableSelectWithActions
-                      options={unitEksternalList.map(u => ({ value: u, label: u }))}
-                      value={asalSuratEksternal}
-                      onChange={setAsalSuratEksternal}
-                      placeholder="Cari unit eksternal..."
-                      emptyOption="Pilih Unit Eksternal"
-                      tableName="Unit Eksternal"
-                      onAdd={(name) => addMasterData('master_unit_eksternal', name)}
-                      onEdit={(oldName, newName) => editMasterData('master_unit_eksternal', oldName, newName)}
-                      onDelete={(name) => deleteMasterData('master_unit_eksternal', name)}
-                      canDelete={(name) => canDeleteMasterData('master_unit_eksternal', name)}
-                    />
-                  )}
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs text-slate-500">Pilih dari Internal atau Eksternal</span>
-                    <div className="flex gap-2">
+              <label className="block text-sm font-semibold text-slate-700 mb-2">Hal/Perihal</label>
+              <input
+                type="text"
+                value={hal}
+                onChange={(e) => setHal(e.target.value)}
+                className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 focus:border-gov-400 outline-none"
+                placeholder="Perihal surat"
+              />
+            </div>
+
+            {/* Asal/Tujuan Surat & Jenis Naskah */}
+            {/* Asal/Tujuan Surat & Jenis Naskah */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  {jenisSurat === 'Masuk' ? 'Dari (Pengirim)' : 'Kepada (Penerima)'}
+                </label>
+                {jenisSurat === 'Masuk' ? (
+                  <div className="space-y-3">
+                    {/* Pilihan Internal/Eksternal */}
+                    <div className="flex gap-3">
                       <button
                         type="button"
-                        onClick={() => handleOpenAddModal('internal')}
-                        className="text-xs text-gov-600 hover:text-gov-700 font-medium flex items-center gap-1"
+                        onClick={() => setAsalSuratType('Internal')}
+                        className={`flex-1 px-4 py-2.5 rounded-lg border-2 text-sm font-medium transition-all ${asalSuratType === 'Internal'
+                          ? 'border-gov-500 bg-gov-50 text-gov-700'
+                          : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400'
+                          }`}
                       >
-                        <Plus size={12} />
                         Internal
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleOpenAddModal('eksternal')}
-                        className="text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+                        onClick={() => setAsalSuratType('Eksternal')}
+                        className={`flex-1 px-4 py-2.5 rounded-lg border-2 text-sm font-medium transition-all ${asalSuratType === 'Eksternal'
+                          ? 'border-gov-500 bg-gov-50 text-gov-700'
+                          : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400'
+                          }`}
                       >
-                        <Plus size={12} />
                         Eksternal
                       </button>
                     </div>
-                  </div>
-                  
-                  <MultiSelectChip
-                    key={dropdownKey}
-                    options={[
-                      ...unitInternalList.map(u => ({ value: `internal:${u}`, label: `${u} (Internal)` })),
-                      ...unitEksternalList.map(u => ({ value: `eksternal:${u}`, label: `${u} (Eksternal)` }))
-                    ]}
-                    value={tujuanSuratList.map(t => `${t.type.toLowerCase()}:${t.name}`)}
-                    onChange={(selected) => {
-                      const parsed = selected.map(val => {
-                        const [type, ...nameParts] = val.split(':');
-                        return {
-                          name: nameParts.join(':'),
-                          type: (type === 'internal' ? 'Internal' : 'Eksternal') as 'Internal' | 'Eksternal'
-                        };
-                      });
-                      setTujuanSuratList(parsed);
-                    }}
-                    placeholder="Pilih penerima (Internal/Eksternal)..."
-                    maxVisibleChips={0}
-                    onEdit={(value, label) => {
-                      const [type, ...nameParts] = value.split(':');
-                      const oldName = nameParts.join(':');
-                      handleOpenEditModal(type as 'internal' | 'eksternal', oldName);
-                    }}
-                    canEdit={(value) => editableItems.has(value)}
-                  />
-                  
-                  {/* Selected recipients in one line */}
-                  {tujuanSuratList.length > 0 && (
-                    <div className="text-xs text-slate-600 bg-slate-50 px-3 py-2 rounded border border-slate-200">
-                      <span className="font-semibold">Terpilih: </span>
-                      {tujuanSuratList.map((r, i) => (
-                        <span key={i}>
-                          {r.name} ({r.type}){i < tujuanSuratList.length - 1 ? ', ' : ''}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Jenis Naskah</label>
-              <SearchableSelect
-                options={jenisNaskahList.map(j => ({ value: j, label: j }))}
-                value={jenisNaskah}
-                onChange={setJenisNaskah}
-                placeholder="Cari jenis naskah..."
-                emptyOption="Pilih Jenis Naskah"
-              />
-            </div>
-          </div>
 
-          {/* Klasifikasi & Bidang Tugas */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Klasifikasi Surat</label>
-              <SearchableSelectWithActions
-                options={klasifikasiSuratList.map(k => ({ value: k, label: k }))}
-                value={klasifikasiSurat}
-                onChange={setKlasifikasiSurat}
-                placeholder="Cari klasifikasi..."
-                emptyOption="Pilih Klasifikasi"
-                tableName="Klasifikasi Surat"
-                onAdd={(name) => addMasterData('master_klasifikasi_surat', name)}
-                onEdit={(oldName, newName) => editMasterData('master_klasifikasi_surat', oldName, newName)}
-                onDelete={(name) => deleteMasterData('master_klasifikasi_surat', name)}
-                canDelete={(name) => canDeleteMasterData('master_klasifikasi_surat', name)}
-              />
+                    {/* Input berdasarkan pilihan */}
+                    {asalSuratType === 'Internal' ? (
+                      <SearchableSelectWithActions
+                        options={unitInternalList.map(u => ({ value: u, label: u }))}
+                        value={asalSuratInternal}
+                        onChange={setAsalSuratInternal}
+                        placeholder="Cari unit internal..."
+                        emptyOption="Pilih Unit Internal"
+                        tableName="Unit Internal"
+                        onAdd={(name) => addMasterData('master_unit_internal', name)}
+                        onEdit={(oldName, newName) => editMasterData('master_unit_internal', oldName, newName)}
+                        onDelete={(name) => deleteMasterData('master_unit_internal', name)}
+                        canDelete={(name) => canDeleteMasterData('master_unit_internal', name)}
+                      />
+                    ) : (
+                      <SearchableSelectWithActions
+                        options={unitEksternalList.map(u => ({ value: u, label: u }))}
+                        value={asalSuratEksternal}
+                        onChange={setAsalSuratEksternal}
+                        placeholder="Cari unit eksternal..."
+                        emptyOption="Pilih Unit Eksternal"
+                        tableName="Unit Eksternal"
+                        onAdd={(name) => addMasterData('master_unit_eksternal', name)}
+                        onEdit={(oldName, newName) => editMasterData('master_unit_eksternal', oldName, newName)}
+                        onDelete={(name) => deleteMasterData('master_unit_eksternal', name)}
+                        canDelete={(name) => canDeleteMasterData('master_unit_eksternal', name)}
+                      />
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs text-slate-500">Pilih dari Internal atau Eksternal</span>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenAddModal('internal')}
+                          className="text-xs text-gov-600 hover:text-gov-700 font-medium flex items-center gap-1"
+                        >
+                          <Plus size={12} />
+                          Internal
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenAddModal('eksternal')}
+                          className="text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+                        >
+                          <Plus size={12} />
+                          Eksternal
+                        </button>
+                      </div>
+                    </div>
+
+                    <MultiSelectChip
+                      key={dropdownKey}
+                      options={[
+                        ...unitInternalList.map(u => ({ value: `internal:${u}`, label: `${u} (Internal)` })),
+                        ...unitEksternalList.map(u => ({ value: `eksternal:${u}`, label: `${u} (Eksternal)` }))
+                      ]}
+                      value={tujuanSuratList.map(t => `${t.type.toLowerCase()}:${t.name}`)}
+                      onChange={(selected) => {
+                        const parsed = selected.map(val => {
+                          const [type, ...nameParts] = val.split(':');
+                          return {
+                            name: nameParts.join(':'),
+                            type: (type === 'internal' ? 'Internal' : 'Eksternal') as 'Internal' | 'Eksternal'
+                          };
+                        });
+                        setTujuanSuratList(parsed);
+                      }}
+                      placeholder="Pilih penerima (Internal/Eksternal)..."
+                      maxVisibleChips={0}
+                      onEdit={(value, label) => {
+                        const [type, ...nameParts] = value.split(':');
+                        const oldName = nameParts.join(':');
+                        handleOpenEditModal(type as 'internal' | 'eksternal', oldName);
+                      }}
+                      canEdit={(value) => editableItems.has(value)}
+                    />
+
+                    {/* Selected recipients in one line */}
+                    {tujuanSuratList.length > 0 && (
+                      <div className="text-xs text-slate-600 bg-slate-50 px-3 py-2 rounded border border-slate-200">
+                        <span className="font-semibold">Terpilih: </span>
+                        {tujuanSuratList.map((r, i) => (
+                          <span key={i}>
+                            {r.name} ({r.type}){i < tujuanSuratList.length - 1 ? ', ' : ''}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Jenis Naskah</label>
+                <SearchableSelect
+                  options={jenisNaskahList.map(j => ({ value: j, label: j }))}
+                  value={jenisNaskah}
+                  onChange={setJenisNaskah}
+                  placeholder="Cari jenis naskah..."
+                  emptyOption="Pilih Jenis Naskah"
+                />
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Bidang Tugas/Kerja</label>
-              <SearchableSelectWithActions
-                options={bidangTugasList.map(b => ({ value: b, label: b }))}
-                value={bidangTugas}
-                onChange={setBidangTugas}
-                placeholder="Cari bidang tugas..."
-                emptyOption="Pilih Bidang Tugas"
-                tableName="Bidang Tugas"
-                onAdd={(name) => addMasterData('master_bidang_tugas', name)}
-                onEdit={(oldName, newName) => editMasterData('master_bidang_tugas', oldName, newName)}
-                onDelete={(name) => deleteMasterData('master_bidang_tugas', name)}
-                canDelete={(name) => canDeleteMasterData('master_bidang_tugas', name)}
-              />
+
+            {/* Klasifikasi & Bidang Tugas */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Klasifikasi Surat</label>
+                <SearchableSelectWithActions
+                  options={klasifikasiSuratList.map(k => ({ value: k, label: k }))}
+                  value={klasifikasiSurat}
+                  onChange={setKlasifikasiSurat}
+                  placeholder="Cari klasifikasi..."
+                  emptyOption="Pilih Klasifikasi"
+                  tableName="Klasifikasi Surat"
+                  onAdd={(name) => addMasterData('master_klasifikasi_surat', name)}
+                  onEdit={(oldName, newName) => editMasterData('master_klasifikasi_surat', oldName, newName)}
+                  onDelete={(name) => deleteMasterData('master_klasifikasi_surat', name)}
+                  canDelete={(name) => canDeleteMasterData('master_klasifikasi_surat', name)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Bidang Tugas/Kerja</label>
+                <SearchableSelectWithActions
+                  options={bidangTugasList.map(b => ({ value: b, label: b }))}
+                  value={bidangTugas}
+                  onChange={setBidangTugas}
+                  placeholder="Cari bidang tugas..."
+                  emptyOption="Pilih Bidang Tugas"
+                  tableName="Bidang Tugas"
+                  onAdd={(name) => addMasterData('master_bidang_tugas', name)}
+                  onEdit={(oldName, newName) => editMasterData('master_bidang_tugas', oldName, newName)}
+                  onDelete={(name) => deleteMasterData('master_bidang_tugas', name)}
+                  canDelete={(name) => canDeleteMasterData('master_bidang_tugas', name)}
+                />
+              </div>
             </div>
-          </div>
           </div>
 
           {/* Link to Kegiatan */}
@@ -975,7 +962,7 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
 
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
               <p className="text-xs text-blue-800">
-                <strong>Info:</strong> Hubungkan surat dengan Kegiatan (existing atau buat baru). 
+                <strong>Info:</strong> Hubungkan surat dengan Kegiatan (existing atau buat baru).
                 Jika dihubungkan, Anda wajib mengisi Disposisi. User yang didisposisi akan otomatis menjadi PIC.
               </p>
             </div>
@@ -1024,11 +1011,10 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
                       setNewKegiatanDate('');
                       setNewKegiatanLocation('');
                     }}
-                    className={`p-3 rounded-lg border-2 text-left transition-all ${
-                      kegiatanMode === 'existing'
-                        ? 'border-gov-500 bg-gov-50'
-                        : 'border-slate-200 hover:border-slate-300'
-                    }`}
+                    className={`p-3 rounded-lg border-2 text-left transition-all ${kegiatanMode === 'existing'
+                      ? 'border-gov-500 bg-gov-50'
+                      : 'border-slate-200 hover:border-slate-300'
+                      }`}
                   >
                     <div className="text-sm font-semibold text-slate-700">Link ke Kegiatan Existing</div>
                     <div className="text-xs text-slate-500 mt-1">Pilih dari kegiatan yang sudah ada</div>
@@ -1040,11 +1026,10 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
                       setSelectedKegiatan(null);
                       setKegiatanSearch('');
                     }}
-                    className={`p-3 rounded-lg border-2 text-left transition-all ${
-                      kegiatanMode === 'new'
-                        ? 'border-green-500 bg-green-50'
-                        : 'border-slate-200 hover:border-slate-300'
-                    }`}
+                    className={`p-3 rounded-lg border-2 text-left transition-all ${kegiatanMode === 'new'
+                      ? 'border-green-500 bg-green-50'
+                      : 'border-slate-200 hover:border-slate-300'
+                      }`}
                   >
                     <div className="text-sm font-semibold text-slate-700">Buat Kegiatan Baru</div>
                     <div className="text-xs text-slate-500 mt-1">Buat kegiatan baru sekaligus</div>
@@ -1053,212 +1038,212 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
 
                 {/* Existing Kegiatan Mode */}
                 {kegiatanMode === 'existing' && (
-              <div className="space-y-4 p-4 border border-slate-200 rounded-lg bg-slate-50">
-                <div className="relative">
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Cari Kegiatan <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                    <input
-                      type="text"
-                      value={kegiatanSearch}
-                      onChange={(e) => {
-                        setKegiatanSearch(e.target.value);
-                        setShowKegiatanDropdown(true);
-                      }}
-                      onFocus={() => setShowKegiatanDropdown(true)}
-                      placeholder="Cari berdasarkan judul, nomor surat, atau perihal..."
-                      className="w-full pl-10 pr-10 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 focus:border-gov-400 outline-none"
-                    />
-                    {selectedKegiatan && (
-                      <button
-                        onClick={handleClearKegiatan}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                      >
-                        <X size={18} />
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Kegiatan Dropdown */}
-                  {showKegiatanDropdown && !selectedKegiatan && filteredKegiatan.length > 0 && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border border-slate-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                      {filteredKegiatan.slice(0, 10).map((meeting) => (
-                        <button
-                          key={meeting.id}
-                          onClick={() => handleSelectKegiatan(meeting)}
-                          className="w-full px-4 py-3 text-left hover:bg-slate-50 border-b border-slate-100 last:border-b-0"
-                        >
-                          <div className="font-medium text-slate-800">{meeting.title}</div>
-                          <div className="text-xs text-slate-500 mt-1">
-                            {meeting.date} • {meeting.type}
-                            {meeting.nomorSurat && ` • ${meeting.nomorSurat}`}
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Selected Kegiatan Display */}
-                {selectedKegiatan && (
-                  <div className="p-3 bg-white border border-gov-300 rounded-lg">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="font-medium text-slate-800">{selectedKegiatan.title}</div>
-                        <div className="text-xs text-slate-500 mt-1">
-                          {selectedKegiatan.date} • {selectedKegiatan.startTime} - {selectedKegiatan.endTime}
-                        </div>
-                        {selectedKegiatan.nomorSurat && (
-                          <div className="text-xs text-slate-500 mt-1">
-                            Nomor: {selectedKegiatan.nomorSurat}
-                          </div>
+                  <div className="space-y-4 p-4 border border-slate-200 rounded-lg bg-slate-50">
+                    <div className="relative">
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">
+                        Cari Kegiatan <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                        <input
+                          type="text"
+                          value={kegiatanSearch}
+                          onChange={(e) => {
+                            setKegiatanSearch(e.target.value);
+                            setShowKegiatanDropdown(true);
+                          }}
+                          onFocus={() => setShowKegiatanDropdown(true)}
+                          placeholder="Cari berdasarkan judul, nomor surat, atau perihal..."
+                          className="w-full pl-10 pr-10 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 focus:border-gov-400 outline-none"
+                        />
+                        {selectedKegiatan && (
+                          <button
+                            onClick={handleClearKegiatan}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                          >
+                            <X size={18} />
+                          </button>
                         )}
                       </div>
-                      <button
-                        onClick={handleClearKegiatan}
-                        className="p-1 hover:bg-red-100 rounded text-red-600"
-                      >
-                        <X size={16} />
-                      </button>
-                    </div>
-                  </div>
-                )}
 
-                {/* Disposisi Form (Required when linking) */}
-                {selectedKegiatan && (
-                  <div className="space-y-4 pt-4 border-t border-slate-300">
-                    <h5 className="text-sm font-bold text-slate-700">
-                      Disposisi <span className="text-red-500">*</span>
-                    </h5>
-
-                    {/* Disposisi Text */}
-                    <div>
-                      <label className="block text-sm font-semibold text-slate-700 mb-2">
-                        Isi Disposisi <span className="text-red-500">*</span>
-                      </label>
-                      <textarea
-                        value={disposisiText}
-                        onChange={(e) => setDisposisiText(e.target.value)}
-                        rows={3}
-                        className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 focus:border-gov-400 outline-none resize-none"
-                        placeholder="Instruksi atau arahan terkait surat dan kegiatan ini..."
-                      />
-                    </div>
-
-                    {/* Assignees Selection */}
-                    <div>
-                      <label className="block text-sm font-semibold text-slate-700 mb-2">
-                        Ditugaskan Kepada <span className="text-red-500">*</span>
-                      </label>
-                      <div className="relative" ref={assigneeDropdownRef}>
-                        <div className="flex items-center gap-2 px-3 py-2 border border-slate-300 rounded-lg bg-white">
-                          <Users size={18} className="text-slate-400" />
-                          <input
-                            type="text"
-                            value={assigneeSearch}
-                            onChange={(e) => setAssigneeSearch(e.target.value)}
-                            onFocus={() => setShowAssigneeDropdown(true)}
-                            placeholder="Cari dan pilih assignee..."
-                            className="flex-1 outline-none text-sm"
-                          />
-                          {showAssigneeDropdown && (
+                      {/* Kegiatan Dropdown */}
+                      {showKegiatanDropdown && !selectedKegiatan && filteredKegiatan.length > 0 && (
+                        <div className="absolute z-10 w-full mt-1 bg-white border border-slate-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                          {filteredKegiatan.slice(0, 10).map((meeting) => (
                             <button
-                              type="button"
-                              onClick={() => setShowAssigneeDropdown(false)}
-                              className="text-xs text-gov-600 hover:text-gov-700 font-medium"
+                              key={meeting.id}
+                              onClick={() => handleSelectKegiatan(meeting)}
+                              className="w-full px-4 py-3 text-left hover:bg-slate-50 border-b border-slate-100 last:border-b-0"
                             >
-                              Done
+                              <div className="font-medium text-slate-800">{meeting.title}</div>
+                              <div className="text-xs text-slate-500 mt-1">
+                                {meeting.date} • {meeting.type}
+                                {meeting.nomorSurat && ` • ${meeting.nomorSurat}`}
+                              </div>
                             </button>
-                          )}
-                        </div>
-
-                        {/* Assignee Dropdown */}
-                        {showAssigneeDropdown && (
-                          <div className="absolute z-10 w-full mt-1 bg-white border border-slate-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                            {filteredAssignees.length > 0 ? (
-                              <>
-                                {filteredAssignees.map((user) => (
-                                  <button
-                                    key={user.id}
-                                    type="button"
-                                    onClick={() => {
-                                      toggleAssignee(user.id);
-                                      setAssigneeSearch('');
-                                    }}
-                                    className="w-full px-4 py-2 text-left hover:bg-slate-50 border-b border-slate-100 last:border-b-0 flex items-center justify-between"
-                                  >
-                                    <div>
-                                      <div className="font-medium text-slate-800 text-sm">{user.name}</div>
-                                      <div className="text-xs text-slate-500">{user.email}</div>
-                                    </div>
-                                    {selectedAssignees.includes(user.id) && (
-                                      <Check size={16} className="text-gov-600" />
-                                    )}
-                                  </button>
-                                ))}
-                                <div className="sticky bottom-0 bg-slate-50 border-t border-slate-200 p-2">
-                                  <button
-                                    type="button"
-                                    onClick={() => setShowAssigneeDropdown(false)}
-                                    className="w-full py-1.5 text-sm font-medium text-gov-600 hover:text-gov-700"
-                                  >
-                                    Done ({selectedAssignees.length} selected)
-                                  </button>
-                                </div>
-                              </>
-                            ) : (
-                              <div className="px-4 py-3 text-sm text-slate-500 text-center">
-                                Tidak ada user ditemukan
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Selected Assignees */}
-                      {selectedAssignees.length > 0 && (
-                        <div className="flex flex-wrap gap-2 mt-2">
-                          {selectedAssignees.map((userId) => {
-                            const user = allUsers.find(u => u.id === userId);
-                            if (!user) return null;
-                            return (
-                              <div
-                                key={userId}
-                                className="flex items-center gap-2 px-3 py-1.5 bg-gov-100 text-gov-800 rounded-full text-sm"
-                              >
-                                <span>{user.name}</span>
-                                <button
-                                  type="button"
-                                  onClick={() => toggleAssignee(userId)}
-                                  className="hover:bg-gov-200 rounded-full p-0.5"
-                                >
-                                  <X size={14} />
-                                </button>
-                              </div>
-                            );
-                          })}
+                          ))}
                         </div>
                       )}
                     </div>
 
-                    {/* Deadline */}
-                    <div>
-                      <label className="block text-sm font-semibold text-slate-700 mb-2">
-                        Deadline (Opsional)
-                      </label>
-                      <input
-                        type="date"
-                        value={disposisiDeadline}
-                        onChange={(e) => setDisposisiDeadline(e.target.value)}
-                        className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 focus:border-gov-400 outline-none"
-                      />
-                    </div>
+                    {/* Selected Kegiatan Display */}
+                    {selectedKegiatan && (
+                      <div className="p-3 bg-white border border-gov-300 rounded-lg">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="font-medium text-slate-800">{selectedKegiatan.title}</div>
+                            <div className="text-xs text-slate-500 mt-1">
+                              {selectedKegiatan.date} • {selectedKegiatan.startTime} - {selectedKegiatan.endTime}
+                            </div>
+                            {selectedKegiatan.nomorSurat && (
+                              <div className="text-xs text-slate-500 mt-1">
+                                Nomor: {selectedKegiatan.nomorSurat}
+                              </div>
+                            )}
+                          </div>
+                          <button
+                            onClick={handleClearKegiatan}
+                            className="p-1 hover:bg-red-100 rounded text-red-600"
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Disposisi Form (Required when linking) */}
+                    {selectedKegiatan && (
+                      <div className="space-y-4 pt-4 border-t border-slate-300">
+                        <h5 className="text-sm font-bold text-slate-700">
+                          Disposisi <span className="text-red-500">*</span>
+                        </h5>
+
+                        {/* Disposisi Text */}
+                        <div>
+                          <label className="block text-sm font-semibold text-slate-700 mb-2">
+                            Isi Disposisi <span className="text-red-500">*</span>
+                          </label>
+                          <textarea
+                            value={disposisiText}
+                            onChange={(e) => setDisposisiText(e.target.value)}
+                            rows={3}
+                            className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 focus:border-gov-400 outline-none resize-none"
+                            placeholder="Instruksi atau arahan terkait surat dan kegiatan ini..."
+                          />
+                        </div>
+
+                        {/* Assignees Selection */}
+                        <div>
+                          <label className="block text-sm font-semibold text-slate-700 mb-2">
+                            Ditugaskan Kepada <span className="text-red-500">*</span>
+                          </label>
+                          <div className="relative" ref={assigneeDropdownRef}>
+                            <div className="flex items-center gap-2 px-3 py-2 border border-slate-300 rounded-lg bg-white">
+                              <Users size={18} className="text-slate-400" />
+                              <input
+                                type="text"
+                                value={assigneeSearch}
+                                onChange={(e) => setAssigneeSearch(e.target.value)}
+                                onFocus={() => setShowAssigneeDropdown(true)}
+                                placeholder="Cari dan pilih assignee..."
+                                className="flex-1 outline-none text-sm"
+                              />
+                              {showAssigneeDropdown && (
+                                <button
+                                  type="button"
+                                  onClick={() => setShowAssigneeDropdown(false)}
+                                  className="text-xs text-gov-600 hover:text-gov-700 font-medium"
+                                >
+                                  Done
+                                </button>
+                              )}
+                            </div>
+
+                            {/* Assignee Dropdown */}
+                            {showAssigneeDropdown && (
+                              <div className="absolute z-10 w-full mt-1 bg-white border border-slate-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                                {filteredAssignees.length > 0 ? (
+                                  <>
+                                    {filteredAssignees.map((user) => (
+                                      <button
+                                        key={user.id}
+                                        type="button"
+                                        onClick={() => {
+                                          toggleAssignee(user.id);
+                                          setAssigneeSearch('');
+                                        }}
+                                        className="w-full px-4 py-2 text-left hover:bg-slate-50 border-b border-slate-100 last:border-b-0 flex items-center justify-between"
+                                      >
+                                        <div>
+                                          <div className="font-medium text-slate-800 text-sm">{user.name}</div>
+                                          <div className="text-xs text-slate-500">{user.email}</div>
+                                        </div>
+                                        {selectedAssignees.includes(user.id) && (
+                                          <Check size={16} className="text-gov-600" />
+                                        )}
+                                      </button>
+                                    ))}
+                                    <div className="sticky bottom-0 bg-slate-50 border-t border-slate-200 p-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => setShowAssigneeDropdown(false)}
+                                        className="w-full py-1.5 text-sm font-medium text-gov-600 hover:text-gov-700"
+                                      >
+                                        Done ({selectedAssignees.length} selected)
+                                      </button>
+                                    </div>
+                                  </>
+                                ) : (
+                                  <div className="px-4 py-3 text-sm text-slate-500 text-center">
+                                    Tidak ada user ditemukan
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Selected Assignees */}
+                          {selectedAssignees.length > 0 && (
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              {selectedAssignees.map((userId) => {
+                                const user = allUsers.find(u => u.id === userId);
+                                if (!user) return null;
+                                return (
+                                  <div
+                                    key={userId}
+                                    className="flex items-center gap-2 px-3 py-1.5 bg-gov-100 text-gov-800 rounded-full text-sm"
+                                  >
+                                    <span>{user.name}</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleAssignee(userId)}
+                                      className="hover:bg-gov-200 rounded-full p-0.5"
+                                    >
+                                      <X size={14} />
+                                    </button>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Deadline */}
+                        <div>
+                          <label className="block text-sm font-semibold text-slate-700 mb-2">
+                            Deadline (Opsional)
+                          </label>
+                          <input
+                            type="date"
+                            value={disposisiDeadline}
+                            onChange={(e) => setDisposisiDeadline(e.target.value)}
+                            className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 focus:border-gov-400 outline-none"
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
-              </div>
-            )}
 
                 {/* New Kegiatan Mode */}
                 {kegiatanMode === 'new' && (
@@ -1294,7 +1279,7 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
                         <option value="internal">Internal</option>
                         <option value="external">External</option>
                         <option value="bimtek">Bimtek</option>
-                        <option value="other">Other</option>
+                        <option value="audiensi">Audiensi</option>
                       </select>
                     </div>
 
@@ -1521,7 +1506,7 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
             <label className="block text-sm font-semibold text-slate-700 mb-2">
               File Surat <span className="text-red-500">*</span>
             </label>
-            
+
             {!suratFile && !showLinkInput && (
               <div className="flex gap-3">
                 <label className="flex-1 flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-slate-300 rounded-lg hover:border-gov-400 hover:bg-gov-50 transition-colors cursor-pointer">
@@ -1621,7 +1606,7 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
           </button>
         </div>
       </div>
-      
+
       {/* Master Data Modal */}
       <MasterDataModal
         isOpen={showMasterDataModal}

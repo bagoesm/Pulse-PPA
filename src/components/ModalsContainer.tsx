@@ -143,7 +143,7 @@ interface ModalsContainerProps {
     setEditingMeeting: (meeting: Meeting | null) => void;
     isMeetingFromTask: boolean;
     setIsMeetingFromTask: (fromTask: boolean) => void;
-    handleSaveMeeting: (meeting: any) => Promise<void>;
+    handleSaveMeeting: (meeting: any) => Promise<string | undefined>;
     handleDeleteMeeting: (meetingId: string) => Promise<void>;
     meetingInviters: MeetingInviter[];
     meetings: Meeting[]; // All meetings for surat selection
@@ -348,7 +348,7 @@ const ModalsContainer: React.FC<ModalsContainerProps> = (props) => {
                 <AddMeetingModal
                     isOpen={isMeetingModalOpen}
                     onClose={() => { setIsMeetingModalOpen(false); setEditingMeeting(null); setIsMeetingFromTask(false); }}
-                    onSave={async (data) => { await handleSaveMeeting(data); setIsMeetingFromTask(false); }}
+                    onSave={async (data) => { const id = await handleSaveMeeting(data); setIsMeetingFromTask(false); return id; }}
                     onDelete={handleDeleteMeeting}
                     initialData={editingMeeting}
                     currentUser={currentUser}

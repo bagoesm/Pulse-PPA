@@ -225,8 +225,8 @@ export const useTaskHandlers = ({
 
         const payload = {
             title: newTaskData.title,
-            category: newTaskData.category,
-            sub_category: newTaskData.subCategory,
+            category_id: newTaskData.categoryId || null,
+            sub_category_id: newTaskData.subCategoryId || null,
             start_date: newTaskData.startDate,
             deadline: newTaskData.deadline,
             pic: newTaskData.pic,

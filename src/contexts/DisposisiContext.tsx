@@ -74,15 +74,15 @@ export const DisposisiProvider: React.FC<DisposisiProviderProps> = ({ children, 
 
       if (data) {
         const mapped = data.map(mapDisposisiFromDB);
-        
+
         // Show all disposisi without filtering
         setDisposisi(mapped);
-        
+
         // Also populate myDisposisi and teamDisposisi for other views
         if (currentUser) {
           const myDisp = mapped.filter(d => d.assignedTo === currentUser.id);
           setMyDisposisi(myDisp);
-          
+
           // Get team user IDs for teamDisposisi
           const teamUserIds = await getTeamUserIds(supabase, currentUser);
           if (teamUserIds.length > 0) {
@@ -171,6 +171,7 @@ export const DisposisiProvider: React.FC<DisposisiProviderProps> = ({ children, 
         attachments: data.attachments || [],
         notes: data.notes,
         created_by: data.createdBy,
+        created_by_id: currentUser?.id || null,
         updated_at: data.updatedAt,
         completed_at: data.completedAt,
         completed_by: data.completedBy,
@@ -187,7 +188,7 @@ export const DisposisiProvider: React.FC<DisposisiProviderProps> = ({ children, 
 
       const newDisposisi = mapDisposisiFromDB(inserted);
       setDisposisi(prev => [newDisposisi, ...prev]);
-      
+
       return newDisposisi;
     } catch (error) {
       console.error('Error creating disposisi:', error);
@@ -252,7 +253,7 @@ export const DisposisiProvider: React.FC<DisposisiProviderProps> = ({ children, 
       const oldAssignee = parentDisposisi.assignedTo;
       const oldDisposisiText = parentDisposisi.disposisiText;
       const oldDeadline = parentDisposisi.deadline;
-      
+
       // Create audit trail for reassignment (disposisi lanjutan)
       await supabase
         .from('disposisi_history')
@@ -262,6 +263,7 @@ export const DisposisiProvider: React.FC<DisposisiProviderProps> = ({ children, 
           old_value: oldAssignee,
           new_value: data.assignedTo,
           performed_by: currentUser.id || currentUser.name,
+          performed_by_id: currentUser.id || null,
           performed_at: new Date().toISOString(),
         });
 
@@ -275,6 +277,7 @@ export const DisposisiProvider: React.FC<DisposisiProviderProps> = ({ children, 
             old_value: oldDisposisiText,
             new_value: data.disposisiText,
             performed_by: currentUser.id || currentUser.name,
+            performed_by_id: currentUser.id || null,
             performed_at: new Date().toISOString(),
           });
       }
@@ -289,6 +292,7 @@ export const DisposisiProvider: React.FC<DisposisiProviderProps> = ({ children, 
             old_value: oldDeadline || 'No deadline',
             new_value: data.deadline || 'No deadline',
             performed_by: currentUser.id || currentUser.name,
+            performed_by_id: currentUser.id || null,
             performed_at: new Date().toISOString(),
           });
       }
@@ -312,7 +316,7 @@ export const DisposisiProvider: React.FC<DisposisiProviderProps> = ({ children, 
       if (updateError) throw updateError;
 
       const updatedDisposisi = mapDisposisiFromDB(updated);
-      
+
       // Update local state
       setDisposisi(prev => prev.map(d => d.id === parentId ? updatedDisposisi : d));
 
@@ -355,7 +359,7 @@ export const DisposisiProvider: React.FC<DisposisiProviderProps> = ({ children, 
         throw new Error('You must be logged in to update Disposisi');
       }
 
-      const canUpdate = 
+      const canUpdate =
         currentUser.role === 'Super Admin' ||
         currentUser.id === currentDisposisi.createdBy ||
         currentUser.name === currentDisposisi.createdBy ||
@@ -366,7 +370,7 @@ export const DisposisiProvider: React.FC<DisposisiProviderProps> = ({ children, 
       }
 
       const updateData: any = {};
-      
+
       if (data.suratId !== undefined) updateData.surat_id = data.suratId;
       if (data.kegiatanId !== undefined) updateData.kegiatan_id = data.kegiatanId;
       if (data.assignedTo !== undefined) updateData.assigned_to = data.assignedTo;
@@ -388,13 +392,13 @@ export const DisposisiProvider: React.FC<DisposisiProviderProps> = ({ children, 
       if (error) throw error;
 
       // Update local state
-      setDisposisi(prev => prev.map(d => 
+      setDisposisi(prev => prev.map(d =>
         d.id === id ? { ...d, ...data } : d
       ));
-      setMyDisposisi(prev => prev.map(d => 
+      setMyDisposisi(prev => prev.map(d =>
         d.id === id ? { ...d, ...data } : d
       ));
-      setTeamDisposisi(prev => prev.map(d => 
+      setTeamDisposisi(prev => prev.map(d =>
         d.id === id ? { ...d, ...data } : d
       ));
     } catch (error) {
@@ -422,7 +426,7 @@ export const DisposisiProvider: React.FC<DisposisiProviderProps> = ({ children, 
         throw new Error('You must be logged in to delete Disposisi');
       }
 
-      const canDelete = 
+      const canDelete =
         currentUser.role === 'Super Admin' ||
         currentUser.id === currentDisposisi.createdBy ||
         currentUser.name === currentDisposisi.createdBy;
@@ -498,7 +502,7 @@ export const DisposisiProvider: React.FC<DisposisiProviderProps> = ({ children, 
       uploadedFilePath = filePath;
 
       const { error: uploadError } = await supabase.storage
-        .from('attachments')
+        .from('attachment')
         .upload(filePath, file);
 
       if (uploadError) {
@@ -510,7 +514,7 @@ export const DisposisiProvider: React.FC<DisposisiProviderProps> = ({ children, 
 
       // Get public URL
       const { data: urlData } = supabase.storage
-        .from('attachments')
+        .from('attachment')
         .getPublicUrl(filePath);
 
       // Create attachment object
@@ -531,7 +535,7 @@ export const DisposisiProvider: React.FC<DisposisiProviderProps> = ({ children, 
             .select('laporan')
             .eq('id', disposisiId)
             .single();
-          
+
           if (result.error) throw result.error;
           return result;
         },
@@ -546,12 +550,12 @@ export const DisposisiProvider: React.FC<DisposisiProviderProps> = ({ children, 
         async () => {
           const result = await supabase
             .from('disposisi')
-            .update({ 
+            .update({
               laporan: updatedLaporan,
               updated_at: new Date().toISOString()
             })
             .eq('id', disposisiId);
-          
+
           if (result.error) throw result.error;
           return result;
         },
@@ -566,33 +570,34 @@ export const DisposisiProvider: React.FC<DisposisiProviderProps> = ({ children, 
           action: 'laporan_uploaded',
           new_value: file.name,
           performed_by: currentUser.id || currentUser.name,
+          performed_by_id: currentUser.id || null,
           performed_at: new Date().toISOString(),
         });
 
       // Update local state
-      setDisposisi(prev => prev.map(d => 
+      setDisposisi(prev => prev.map(d =>
         d.id === disposisiId ? { ...d, laporan: updatedLaporan } : d
       ));
-      setMyDisposisi(prev => prev.map(d => 
+      setMyDisposisi(prev => prev.map(d =>
         d.id === disposisiId ? { ...d, laporan: updatedLaporan } : d
       ));
-      setTeamDisposisi(prev => prev.map(d => 
+      setTeamDisposisi(prev => prev.map(d =>
         d.id === disposisiId ? { ...d, laporan: updatedLaporan } : d
       ));
     } catch (error) {
       console.error('Error uploading laporan:', error);
-      
+
       // Cleanup uploaded file on error
       if (uploadedFilePath) {
         await handleFileUploadError(
           error,
           uploadedFilePath,
           async (path) => {
-            await supabase.storage.from('attachments').remove([path]);
+            await supabase.storage.from('attachment').remove([path]);
           }
         );
       }
-      
+
       throw error;
     }
   }, [currentUser]);
@@ -619,7 +624,7 @@ export const DisposisiProvider: React.FC<DisposisiProviderProps> = ({ children, 
       if (attachmentToDelete) {
         // Delete file from storage
         const { error: deleteError } = await supabase.storage
-          .from('attachments')
+          .from('attachment')
           .remove([attachmentToDelete.path]);
 
         if (deleteError) throw deleteError;
@@ -629,7 +634,7 @@ export const DisposisiProvider: React.FC<DisposisiProviderProps> = ({ children, 
       const updatedLaporan = currentLaporan.filter((a: Attachment) => a.id !== attachmentId);
       const { error: updateError } = await supabase
         .from('disposisi')
-        .update({ 
+        .update({
           laporan: updatedLaporan,
           updated_at: new Date().toISOString()
         })
@@ -645,17 +650,18 @@ export const DisposisiProvider: React.FC<DisposisiProviderProps> = ({ children, 
           action: 'laporan_deleted',
           old_value: attachmentToDelete?.name,
           performed_by: currentUser.id || currentUser.name,
+          performed_by_id: currentUser.id || null,
           performed_at: new Date().toISOString(),
         });
 
       // Update local state
-      setDisposisi(prev => prev.map(d => 
+      setDisposisi(prev => prev.map(d =>
         d.id === disposisiId ? { ...d, laporan: updatedLaporan } : d
       ));
-      setMyDisposisi(prev => prev.map(d => 
+      setMyDisposisi(prev => prev.map(d =>
         d.id === disposisiId ? { ...d, laporan: updatedLaporan } : d
       ));
-      setTeamDisposisi(prev => prev.map(d => 
+      setTeamDisposisi(prev => prev.map(d =>
         d.id === disposisiId ? { ...d, laporan: updatedLaporan } : d
       ));
     } catch (error) {

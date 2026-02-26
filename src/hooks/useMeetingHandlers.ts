@@ -132,8 +132,13 @@ export const useMeetingHandlers = ({
     }, [viewingMeeting, setEditingMeeting, setIsMeetingViewModalOpen, setIsMeetingModalOpen]);
 
     // Save meeting (create or update)
-    const handleSaveMeeting = useCallback(async (meetingData: Omit<Meeting, 'id' | 'createdAt'>) => {
+    // Returns the meeting ID on success (for callers that need to reference it)
+    const handleSaveMeeting = useCallback(async (meetingData: Omit<Meeting, 'id' | 'createdAt'>): Promise<string | undefined> => {
         try {
+            // Get session for created_by_id
+            const { data: { session: authSession } } = await supabase.auth.getSession();
+            const authUserId = authSession?.user?.id || null;
+
             const payload = {
                 title: meetingData.title,
                 type: meetingData.type,
@@ -157,6 +162,7 @@ export const useMeetingHandlers = ({
                 notes: meetingData.notes,
                 status: meetingData.status,
                 created_by: meetingData.createdBy,
+                created_by_id: authUserId,
                 updated_at: new Date().toISOString(),
                 // Linked surat (relasi ke tabel surats)
                 linked_surat_id: meetingData.linkedSuratId || null,
@@ -182,13 +188,13 @@ export const useMeetingHandlers = ({
                 if (updateError) {
                     console.error('DEBUG: updateError:', updateError);
                     showNotification('Gagal Update Jadwal', updateError.message, 'error');
-                    return;
+                    return undefined;
                 }
 
                 if (count === 0) {
                     console.error('DEBUG: Update affected 0 rows. Likely RLS policy blocking or ID mismatch.');
                     showNotification('Gagal Simpan', 'Data tidak terupdate. Anda mungkin tidak memiliki izin untuk mengedit jadwal ini.', 'error');
-                    return;
+                    return undefined;
                 }
                 console.log('DEBUG: Update call finished');
 
@@ -301,6 +307,8 @@ export const useMeetingHandlers = ({
 
                 // Log to activity_logs for admin view
                 await logToActivityLogs('update', editingMeeting.id, meetingData.title, meetingData.projectId);
+
+                return editingMeeting.id;
             } else {
                 const { data, error } = await supabase
                     .from('meetings')
@@ -310,7 +318,7 @@ export const useMeetingHandlers = ({
 
                 if (error) {
                     showNotification('Gagal Tambah Jadwal', error.message, 'error');
-                    return;
+                    return undefined;
                 }
 
                 if (data) {
@@ -371,15 +379,19 @@ export const useMeetingHandlers = ({
 
                     // Log to activity_logs for admin view
                     await logToActivityLogs('create', data.id, meetingData.title, meetingData.projectId);
+
+                    return data.id;
                 }
             }
 
-            setIsMeetingModalOpen(false);
+            // Note: setIsMeetingModalOpen(false) is already called in both update (line 265) and create (line 324) paths
             setEditingMeeting(null);
+            return undefined;
         } catch (error: any) {
             showNotification('Kesalahan', `Terjadi kesalahan: ${error.message}`, 'error');
+            return undefined;
         }
-    }, [editingMeeting, setMeetings, setMeetingInviters, setIsMeetingModalOpen, setEditingMeeting, showNotification, allUsers, createMentionNotification, createMeetingNotification, currentUser, logToActivityLogs]);
+    }, [editingMeeting, viewingMeeting, setMeetings, setMeetingInviters, setIsMeetingModalOpen, setEditingMeeting, setViewingMeeting, showNotification, allUsers, createMentionNotification, createMeetingNotification, currentUser, logToActivityLogs, fetchMeetings]);
 
     const handleDeleteMeeting = useCallback(async (meetingId: string, onConfirm?: (message: string, title: string) => Promise<boolean>) => {
         try {
@@ -422,7 +434,7 @@ export const useMeetingHandlers = ({
         } catch (error: any) {
             showNotification('Kesalahan', `Terjadi kesalahan: ${error.message}`, 'error');
         }
-    }, [meetings, setMeetings, setIsMeetingViewModalOpen, setViewingMeeting, showNotification, logToActivityLogs]);
+    }, [meetings, setMeetings, setIsMeetingModalOpen, setIsMeetingViewModalOpen, setViewingMeeting, showNotification, logToActivityLogs]);
 
     const handleDeleteMeetingFromView = useCallback(() => {
         if (viewingMeeting) {

@@ -141,7 +141,9 @@ export const TasksProvider: React.FC<TasksProviderProps> = ({ children, session 
     const fetchTasks = useCallback(async (usersData?: any[]) => {
         setIsTasksLoading(true);
         try {
-            const { data: tasksData, error: tasksErr } = await supabase.from('tasks').select('*');
+            const { data: tasksData, error: tasksErr } = await supabase
+                .from('tasks')
+                .select('*, master_categories:category_id(name), master_sub_categories:sub_category_id(name)');
             if (tasksErr) console.error('Error fetch tasks:', tasksErr);
 
             // If usersData is not provided, fetch profiles to map createdBy names
@@ -197,7 +199,10 @@ export const TasksProvider: React.FC<TasksProviderProps> = ({ children, session 
 
                         return {
                             ...t,
-                            subCategory: safe(t.sub_category) || safe(t.subCategory) || '',
+                            category: t.master_categories?.name || t.category || '',
+                            categoryId: t.category_id || null,
+                            subCategory: t.master_sub_categories?.name || safe(t.sub_category) || safe(t.subCategory) || '',
+                            subCategoryId: t.sub_category_id || null,
                             startDate: t.start_date || t.startDate || new Date().toISOString().split('T')[0],
                             projectId: t.project_id || t.projectId || null,
                             epicId: t.epic_id || t.epicId || null,

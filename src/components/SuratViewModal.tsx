@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Edit2, Trash2, FileText, Calendar, Building2, Link2, ExternalLink, Save, Upload, Users, Eye, Unlink, Search, Plus } from 'lucide-react';
 import { Surat, Meeting, Disposisi, User } from '../../types';
 import { supabase } from '../lib/supabaseClient';
+import { LinkingService } from '../services/LinkingService';
 import { getAttachmentUrl } from '../utils/storageUtils';
 import { useLinkedKegiatanDisposisi } from '../hooks/useLinkedKegiatanDisposisi';
 import { useMasterData } from '../contexts/MasterDataContext';
@@ -47,22 +48,22 @@ const SuratViewModal: React.FC<SuratViewModalProps> = ({
   const [showLinkInput, setShowLinkInput] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
   const [linkTitle, setLinkTitle] = useState('');
-  
+
   // Get master data from context
-  const { 
+  const {
     unitInternalList,
     unitEksternalList,
-    sifatSuratList, 
-    jenisNaskahList, 
-    klasifikasiSuratList, 
-    bidangTugasList 
+    sifatSuratList,
+    jenisNaskahList,
+    klasifikasiSuratList,
+    bidangTugasList
   } = useMasterData();
-  
+
   const { addMasterData, editMasterData, deleteMasterData, canDeleteMasterData } = useMasterDataCRUD();
-  
+
   // Edit form state - MUST BE BEFORE HOOK
   const [editData, setEditData] = useState<Partial<Surat>>({});
-  
+
   // Use optimized hook for linked data - SOLVES N+1 QUERY PROBLEM
   const {
     kegiatan: linkedKegiatan,
@@ -74,12 +75,12 @@ const SuratViewModal: React.FC<SuratViewModalProps> = ({
     surat?.meetingId || editData.meetingId,
     isOpen && !!(surat?.meetingId || editData.meetingId)
   );
-  
+
   const [selectedDisposisi, setSelectedDisposisi] = useState<Disposisi | null>(null);
   const [showDisposisiModal, setShowDisposisiModal] = useState(false);
   const [showMeetingModal, setShowMeetingModal] = useState(false);
   const [showCreateDisposisiModal, setShowCreateDisposisiModal] = useState(false);
-  
+
   // Confirm modal states
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmModalConfig, setConfirmModalConfig] = useState<{
@@ -91,15 +92,19 @@ const SuratViewModal: React.FC<SuratViewModalProps> = ({
     title: '',
     message: '',
     type: 'info',
-    onConfirm: () => {}
+    onConfirm: () => { }
   });
-  
+
   // Edit linking state
   const [showLinkingSection, setShowLinkingSection] = useState(false);
   const [availableMeetings, setAvailableMeetings] = useState<Meeting[]>([]);
   const [selectedMeetingForLink, setSelectedMeetingForLink] = useState<string>('');
   const [isLinking, setIsLinking] = useState(false);
   const [meetingSearch, setMeetingSearch] = useState('');
+  // Disposisi fields for linking
+  const [linkDisposisiText, setLinkDisposisiText] = useState('');
+  const [linkDisposisiAssignees, setLinkDisposisiAssignees] = useState<string[]>([]);
+  const [linkDisposisiDeadline, setLinkDisposisiDeadline] = useState('');
 
   // Fetch available meetings for linking
   const fetchAvailableMeetings = async () => {
@@ -151,14 +156,14 @@ const SuratViewModal: React.FC<SuratViewModalProps> = ({
   useEffect(() => {
     if (surat) {
       setEditData(surat);
-      
+
       // Refresh file URL
       if (surat.fileSurat && !surat.fileSurat.isLink) {
         getAttachmentUrl(surat.fileSurat).then(url => setFileUrl(url));
       } else if (surat.fileSurat?.isLink) {
         setFileUrl(surat.fileSurat.url || '');
       }
-      
+
       // Note: Linked data is now handled by useLinkedKegiatanDisposisi hook
       // No need for manual fetchLinkedKegiatanAndDisposisi call
     }
@@ -180,41 +185,49 @@ const SuratViewModal: React.FC<SuratViewModalProps> = ({
       return;
     }
 
+    // Validate disposisi fields
+    if (!linkDisposisiText.trim()) {
+      showNotification('Disposisi Wajib Diisi', 'Disposisi harus diisi saat menghubungkan Surat dengan Kegiatan', 'warning');
+      return;
+    }
+    if (linkDisposisiAssignees.length === 0) {
+      showNotification('Assignee Belum Dipilih', 'Pilih minimal satu assignee untuk Disposisi', 'warning');
+      return;
+    }
+
     setIsLinking(true);
     try {
-      // Update surat with meetingId
-      const { error } = await supabase
-        .from('surats')
-        .update({ meeting_id: selectedMeetingForLink })
-        .eq('id', surat.id);
+      // Use LinkingService for proper validation, audit trail, and notifications
+      const linkingService = new LinkingService();
+      await linkingService.linkSuratToKegiatan(
+        surat.id,
+        selectedMeetingForLink,
+        {
+          assignees: linkDisposisiAssignees,
+          disposisiText: linkDisposisiText,
+          deadline: linkDisposisiDeadline || undefined,
+          createdBy: currentUser?.id || currentUserName,
+          currentUser: currentUser || undefined,
+        }
+      );
 
-      if (error) throw error;
-
-      showNotification('Berhasil', 'Surat berhasil di-link ke Kegiatan', 'success');
+      showNotification('Berhasil', 'Surat berhasil di-link ke Kegiatan dengan Disposisi', 'success');
       setShowLinkingSection(false);
       setSelectedMeetingForLink('');
       setMeetingSearch('');
-      
+      setLinkDisposisiText('');
+      setLinkDisposisiAssignees([]);
+      setLinkDisposisiDeadline('');
+
       // Exit edit mode to show linked kegiatan
       setIsEditing(false);
-      
+
       // Refresh parent component (this will re-fetch all surats)
       onUpdate();
-      
-      // Fetch the updated surat data to update the modal
-      const { data: updatedSurat, error: fetchError } = await supabase
-        .from('surats')
-        .select('*')
-        .eq('id', surat.id)
-        .single();
 
-      if (fetchError) {
-        console.error('Error fetching updated surat:', fetchError);
-      } else if (updatedSurat) {
-        // Update editData with the new meetingId
-        setEditData(prev => ({ ...prev, meetingId: selectedMeetingForLink }));
-      }
-      
+      // Update editData with the new meetingId
+      setEditData(prev => ({ ...prev, meetingId: selectedMeetingForLink }));
+
       // Refresh linked data using hook
       await refetchLinkedData();
     } catch (error: any) {
@@ -309,6 +322,7 @@ const SuratViewModal: React.FC<SuratViewModalProps> = ({
         attachments: disposisiData.attachments || [],
         notes: disposisiData.notes,
         created_by: disposisiData.createdBy,
+        created_by_id: currentUser?.id || null,
       };
 
       const { error } = await supabase
@@ -333,7 +347,7 @@ const SuratViewModal: React.FC<SuratViewModalProps> = ({
 
   const handleRemoveAssignee = async (disposisi: Disposisi) => {
     const assigneeName = getUserName(disposisi.assignedTo);
-    
+
     setConfirmModalConfig({
       title: 'Hapus Disposisi',
       message: `Apakah Anda yakin ingin menghapus disposisi untuk ${assigneeName}?\n\nDisposisi untuk assignee lain akan tetap dipertahankan.\n\nTindakan ini tidak dapat dibatalkan.`,
@@ -345,7 +359,7 @@ const SuratViewModal: React.FC<SuratViewModalProps> = ({
             throw new Error('You must be logged in to remove assignee');
           }
 
-          const canDelete = 
+          const canDelete =
             currentUser.role === 'Super Admin' ||
             currentUser.id === disposisi.createdBy ||
             currentUser.name === disposisi.createdBy;
@@ -371,6 +385,7 @@ const SuratViewModal: React.FC<SuratViewModalProps> = ({
               old_value: assigneeName,
               new_value: 'Disposisi deleted',
               performed_by: currentUser.id || currentUser.name,
+              performed_by_id: currentUser.id || null,
               performed_at: new Date().toISOString(),
             });
 
@@ -466,7 +481,7 @@ const SuratViewModal: React.FC<SuratViewModalProps> = ({
 
     setIsSaving(true);
     let uploadedFilePath: string | null = null;
-    
+
     try {
       let fileSurat = editData.fileSurat;
 
@@ -542,7 +557,7 @@ const SuratViewModal: React.FC<SuratViewModalProps> = ({
       if (surat.meetingId || editData.meetingId) {
         try {
           const meetingId = editData.meetingId || surat.meetingId;
-          
+
           // Prepare meeting update payload with surat details
           const meetingPayload: any = {
             jenis_surat: editData.jenisSurat,
@@ -620,14 +635,14 @@ const SuratViewModal: React.FC<SuratViewModalProps> = ({
     try {
       // Import cleanup utilities dynamically
       const { getDisposisiForSurat, formatDisposisiWarning, deleteSuratWithCleanup } = await import('../utils/disposisiCleanup');
-      
+
       // Get related Disposisi to show warning
       const relatedDisposisi = await getDisposisiForSurat(surat.id);
       const warning = formatDisposisiWarning(relatedDisposisi);
-      
+
       // Show confirmation dialog with Disposisi warning
       const confirmMessage = `Hapus surat ${surat.nomorSurat}? Tindakan ini tidak dapat dibatalkan.${warning}`;
-      
+
       setConfirmModalConfig({
         title: 'Hapus Surat',
         message: confirmMessage,
@@ -636,7 +651,7 @@ const SuratViewModal: React.FC<SuratViewModalProps> = ({
           try {
             // Delete with cleanup
             await deleteSuratWithCleanup(surat.id);
-            
+
             onDelete(surat.id);
             onClose();
           } catch (error: any) {
@@ -721,22 +736,20 @@ const SuratViewModal: React.FC<SuratViewModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setEditData(prev => ({ ...prev, jenisSurat: 'Masuk' }))}
-                    className={`p-3 rounded-lg border-2 text-left transition-all ${
-                      editData.jenisSurat === 'Masuk'
-                        ? 'border-green-500 bg-green-50'
-                        : 'border-slate-200 hover:border-slate-300'
-                    }`}
+                    className={`p-3 rounded-lg border-2 text-left transition-all ${editData.jenisSurat === 'Masuk'
+                      ? 'border-green-500 bg-green-50'
+                      : 'border-slate-200 hover:border-slate-300'
+                      }`}
                   >
                     <div className="text-sm font-semibold text-slate-700">Surat Masuk</div>
                   </button>
                   <button
                     type="button"
                     onClick={() => setEditData(prev => ({ ...prev, jenisSurat: 'Keluar' }))}
-                    className={`p-3 rounded-lg border-2 text-left transition-all ${
-                      editData.jenisSurat === 'Keluar'
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-slate-200 hover:border-slate-300'
-                    }`}
+                    className={`p-3 rounded-lg border-2 text-left transition-all ${editData.jenisSurat === 'Keluar'
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-slate-200 hover:border-slate-300'
+                      }`}
                   >
                     <div className="text-sm font-semibold text-slate-700">Surat Keluar</div>
                   </button>
@@ -744,11 +757,10 @@ const SuratViewModal: React.FC<SuratViewModalProps> = ({
               </div>
             ) : (
               <div className="flex items-center gap-3">
-                <span className={`inline-flex items-center text-sm font-semibold px-4 py-2 rounded-full ${
-                  surat.jenisSurat === 'Masuk' 
-                    ? 'bg-green-100 text-green-700' 
-                    : 'bg-blue-100 text-blue-700'
-                }`}>
+                <span className={`inline-flex items-center text-sm font-semibold px-4 py-2 rounded-full ${surat.jenisSurat === 'Masuk'
+                  ? 'bg-green-100 text-green-700'
+                  : 'bg-blue-100 text-blue-700'
+                  }`}>
                   {surat.jenisSurat}
                 </span>
                 {surat.jenisNaskah && (
@@ -794,7 +806,7 @@ const SuratViewModal: React.FC<SuratViewModalProps> = ({
             {isEditing ? (
               <div className="bg-gov-50 border border-gov-200 rounded-lg p-4">
                 <p className="text-xs font-semibold text-gov-700 uppercase mb-3">Dokumen Surat</p>
-                
+
                 {/* Current File */}
                 {editData.fileSurat && !newFile && (
                   <div className="mb-3 flex items-center justify-between bg-white p-3 rounded-lg border border-slate-200">
@@ -955,11 +967,10 @@ const SuratViewModal: React.FC<SuratViewModalProps> = ({
                       {surat.tujuanSuratList.map((recipient, index) => (
                         <span
                           key={index}
-                          className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${
-                            recipient.type === 'Internal'
-                              ? 'bg-gov-100 text-gov-700 border border-gov-200'
-                              : 'bg-blue-100 text-blue-700 border border-blue-200'
-                          }`}
+                          className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${recipient.type === 'Internal'
+                            ? 'bg-gov-100 text-gov-700 border border-gov-200'
+                            : 'bg-blue-100 text-blue-700 border border-blue-200'
+                            }`}
                         >
                           <span className="opacity-60 text-[10px]">{recipient.type}:</span>
                           {recipient.name}
@@ -1042,7 +1053,7 @@ const SuratViewModal: React.FC<SuratViewModalProps> = ({
                       <label className="block text-sm font-semibold text-slate-700 mb-2">
                         Pilih Kegiatan
                       </label>
-                      
+
                       {/* Search Input */}
                       <div className="relative mb-2">
                         <input
@@ -1058,7 +1069,7 @@ const SuratViewModal: React.FC<SuratViewModalProps> = ({
                       {/* Filtered Meetings List */}
                       <div className="max-h-60 overflow-y-auto border border-slate-300 rounded-lg">
                         {availableMeetings
-                          .filter(meeting => 
+                          .filter(meeting =>
                             meeting.title.toLowerCase().includes(meetingSearch.toLowerCase()) ||
                             meeting.location.toLowerCase().includes(meetingSearch.toLowerCase()) ||
                             new Date(meeting.date).toLocaleDateString('id-ID').includes(meetingSearch)
@@ -1068,9 +1079,8 @@ const SuratViewModal: React.FC<SuratViewModalProps> = ({
                               key={meeting.id}
                               type="button"
                               onClick={() => setSelectedMeetingForLink(meeting.id)}
-                              className={`w-full px-4 py-3 text-left hover:bg-blue-50 transition-colors border-b border-slate-200 last:border-b-0 ${
-                                selectedMeetingForLink === meeting.id ? 'bg-blue-100' : ''
-                              }`}
+                              className={`w-full px-4 py-3 text-left hover:bg-blue-50 transition-colors border-b border-slate-200 last:border-b-0 ${selectedMeetingForLink === meeting.id ? 'bg-blue-100' : ''
+                                }`}
                             >
                               <div className="flex items-start justify-between gap-3">
                                 <div className="flex-1 min-w-0">
@@ -1096,21 +1106,62 @@ const SuratViewModal: React.FC<SuratViewModalProps> = ({
                               </div>
                             </button>
                           ))}
-                        {availableMeetings.filter(meeting => 
+                        {availableMeetings.filter(meeting =>
                           meeting.title.toLowerCase().includes(meetingSearch.toLowerCase()) ||
                           meeting.location.toLowerCase().includes(meetingSearch.toLowerCase()) ||
                           new Date(meeting.date).toLocaleDateString('id-ID').includes(meetingSearch)
                         ).length === 0 && (
-                          <div className="px-4 py-8 text-center text-slate-500 text-sm">
-                            Tidak ada kegiatan ditemukan
-                          </div>
-                        )}
+                            <div className="px-4 py-8 text-center text-slate-500 text-sm">
+                              Tidak ada kegiatan ditemukan
+                            </div>
+                          )}
                       </div>
-                      
+
                       <p className="text-xs text-slate-500 mt-1.5">
                         Pilih kegiatan yang terkait dengan surat ini
                       </p>
                     </div>
+
+                    {/* Disposisi Fields (mandatory when linking) */}
+                    {selectedMeetingForLink && (
+                      <div className="space-y-3 border-t border-blue-200 pt-3">
+                        <p className="text-sm font-semibold text-blue-800">Disposisi (Wajib)</p>
+
+                        {/* Disposisi Text */}
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-600 mb-1">Isi Disposisi <span className="text-red-500">*</span></label>
+                          <textarea
+                            value={linkDisposisiText}
+                            onChange={(e) => setLinkDisposisiText(e.target.value)}
+                            placeholder="Isi disposisi..."
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-400 outline-none text-sm resize-none"
+                            rows={2}
+                          />
+                        </div>
+
+                        {/* Assignees */}
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-600 mb-1">Assignee <span className="text-red-500">*</span></label>
+                          <MultiSelectChip
+                            options={users.map(u => ({ value: u.id, label: u.name }))}
+                            value={linkDisposisiAssignees}
+                            onChange={setLinkDisposisiAssignees}
+                            placeholder="Pilih assignee..."
+                          />
+                        </div>
+
+                        {/* Deadline */}
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-600 mb-1">Deadline (Opsional)</label>
+                          <input
+                            type="date"
+                            value={linkDisposisiDeadline}
+                            onChange={(e) => setLinkDisposisiDeadline(e.target.value)}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-400 outline-none text-sm"
+                          />
+                        </div>
+                      </div>
+                    )}
 
                     <div className="flex gap-3">
                       <button
@@ -1190,17 +1241,16 @@ const SuratViewModal: React.FC<SuratViewModalProps> = ({
                         <h5 className="text-base font-bold text-slate-800">{linkedKegiatan.title}</h5>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
-                          linkedKegiatan.type === 'internal' ? 'bg-blue-100 text-blue-700' :
+                        <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${linkedKegiatan.type === 'internal' ? 'bg-blue-100 text-blue-700' :
                           linkedKegiatan.type === 'external' ? 'bg-green-100 text-green-700' :
-                          linkedKegiatan.type === 'bimtek' ? 'bg-orange-100 text-orange-700' :
-                          'bg-purple-100 text-purple-700'
-                        }`}>
+                            linkedKegiatan.type === 'bimtek' ? 'bg-orange-100 text-orange-700' :
+                              'bg-purple-100 text-purple-700'
+                          }`}>
                           {linkedKegiatan.type === 'internal' ? 'Internal' :
-                           linkedKegiatan.type === 'external' ? 'Eksternal' :
-                           linkedKegiatan.type === 'bimtek' ? 'Bimtek' :
-                           linkedKegiatan.type === 'audiensi' ? 'Audiensi' :
-                           linkedKegiatan.type}
+                            linkedKegiatan.type === 'external' ? 'Eksternal' :
+                              linkedKegiatan.type === 'bimtek' ? 'Bimtek' :
+                                linkedKegiatan.type === 'audiensi' ? 'Audiensi' :
+                                  linkedKegiatan.type}
                         </span>
                         <Eye size={16} className="text-purple-600" />
                       </div>
@@ -1261,7 +1311,7 @@ const SuratViewModal: React.FC<SuratViewModalProps> = ({
                         </button>
                       )}
                     </div>
-                    
+
                     <div className="space-y-2">
                       {disposisiList.map((disposisi) => (
                         <div
@@ -1303,14 +1353,14 @@ const SuratViewModal: React.FC<SuratViewModalProps> = ({
                               )}
                             </div>
                           </div>
-                          
+
                           {disposisi.deadline && (
                             <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-2">
                               <Calendar size={12} />
                               <span>Deadline: {new Date(disposisi.deadline).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
                             </div>
                           )}
-                          
+
                           {disposisi.laporan && disposisi.laporan.length > 0 && (
                             <div className="flex items-center gap-1.5 text-xs text-green-600 mt-1">
                               <FileText size={12} />
@@ -1354,10 +1404,10 @@ const SuratViewModal: React.FC<SuratViewModalProps> = ({
                 <div>
                   <span className="text-slate-500">Tanggal dibuat:</span>
                   <span className="ml-2 font-medium text-slate-700">
-                    {new Date(surat.createdAt).toLocaleDateString('id-ID', { 
-                      day: 'numeric', 
-                      month: 'long', 
-                      year: 'numeric' 
+                    {new Date(surat.createdAt).toLocaleDateString('id-ID', {
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric'
                     })}
                   </span>
                 </div>
@@ -1375,7 +1425,7 @@ const SuratViewModal: React.FC<SuratViewModalProps> = ({
             <Trash2 size={16} />
             Hapus
           </button>
-          
+
           <div className="flex gap-3">
             {isEditing ? (
               <>
@@ -1449,10 +1499,10 @@ const SuratViewModal: React.FC<SuratViewModalProps> = ({
           projects={[]} // Empty array since we don't need project context here
           canEdit={false} // View only from surat modal
           canDelete={false} // Cannot delete from surat modal
-          onEdit={() => {}} // No-op
-          onDelete={() => {}} // No-op
-          onAddComment={async () => {}} // No-op
-          onDeleteComment={async () => {}} // No-op
+          onEdit={() => { }} // No-op
+          onDelete={() => { }} // No-op
+          onAddComment={async () => { }} // No-op
+          onDeleteComment={async () => { }} // No-op
           currentUser={currentUser}
           allUsers={users}
         />

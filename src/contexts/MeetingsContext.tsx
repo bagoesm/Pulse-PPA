@@ -80,7 +80,6 @@ export const MeetingsProvider: React.FC<MeetingsProviderProps> = ({ children, se
                     }
                     commentsByMeetingId.get(meetingId)!.push({
                         id: c.id,
-                        taskId: '', // Not used for meeting comments
                         userId: c.user_id,
                         userName: c.user_name,
                         content: c.content,

@@ -172,7 +172,9 @@ export interface Task {
   id: string;
   title: string;
   category: Category; // WAJIB - Task harus memiliki kategori
+  categoryId?: string; // FK to master_categories (used for writes)
   subCategory: string;
+  subCategoryId?: string; // FK to master_sub_categories (used for writes)
   startDate: string; // ISO Date string - Tanggal mulai
   deadline: string; // ISO Date string - Tanggal selesai
   pic: string[]; // Array of PIC names - Multiple PIC support
@@ -203,7 +205,7 @@ export interface FilterState {
 
 export interface Comment {
   id: string;
-  taskId: string;
+  taskId?: string;
   userId: string;
   userName: string;
   content: string;
@@ -315,11 +317,11 @@ export interface Meeting {
   createdBy: string;
   createdAt: string;
   updatedAt?: string;
-  
+
   // Enhanced Surat linking - GUNAKAN INI untuk akses detail surat
   linkedSuratId?: string;             // ID of linked Surat
   linkedSurat?: Surat;                // Populated Surat data (join dari tabel surats)
-  
+
   // Surat fields (denormalized for easier access)
   jenisSurat?: 'Masuk' | 'Keluar';
   nomorSurat?: string;
@@ -332,7 +334,7 @@ export interface Meeting {
   tujuanSurat?: string; // Untuk surat keluar
   disposisi?: string; // Untuk surat masuk
   hasilTindakLanjut?: string; // Hasil tindak lanjut
-  
+
   // Disposisi integration
   hasDisposisi?: boolean;             // Flag indicating if Disposisi exists
   disposisiCount?: number;            // Number of Disposisi assignments
@@ -344,8 +346,8 @@ export const SIDEBAR_ITEMS = [
   { name: 'Semua Task', icon: 'ListTodo' },
   { name: 'Project', icon: 'Briefcase' },
   { name: 'Pengembangan Aplikasi', icon: 'Code' },
-  { 
-    name: 'Surat & Kegiatan', 
+  {
+    name: 'Surat & Kegiatan',
     icon: 'FileText',
     submenu: [
       { name: 'Jadwal Kegiatan', icon: 'CalendarDays' },
@@ -366,10 +368,10 @@ export const SIDEBAR_ITEMS = [
 // Disposisi - Disposition workflow for Surat-Kegiatan integration
 export type DisposisiStatus = 'Pending' | 'In Progress' | 'Completed' | 'Cancelled';
 
-export type DisposisiAction = 
-  | 'created' 
-  | 'status_changed' 
-  | 'assignee_added' 
+export type DisposisiAction =
+  | 'created'
+  | 'status_changed'
+  | 'assignee_added'
   | 'assignee_removed'
   | 'reassigned'
   | 'text_updated'
@@ -417,7 +419,7 @@ export interface Surat {
   hal?: string;
   asalSurat?: string; // Untuk surat masuk
   tujuanSurat?: string; // Untuk surat keluar (display string)
-  tujuanSuratList?: Array<{name: string, type: 'Internal' | 'Eksternal'}>; // Structured list with types
+  tujuanSuratList?: Array<{ name: string, type: 'Internal' | 'Eksternal' }>; // Structured list with types
   klasifikasiSurat?: string;
   jenisNaskah?: string;
   sifatSurat?: string; // Biasa, Segera, Sangat Segera, Rahasia
@@ -427,18 +429,18 @@ export interface Surat {
   disposisi?: string; // Untuk surat masuk
   hasilTindakLanjut?: string;
   fileSurat?: Attachment;
-  
+
   // Relasi ke meeting (opsional)
   meetingId?: string;
   tanggalKegiatan?: string; // ISO Date
   waktuMulai?: string; // HH:mm
   waktuSelesai?: string; // HH:mm
-  
+
   // New fields for Disposisi integration
   hasDisposisi?: boolean;             // Flag indicating if Disposisi exists
   disposisiCount?: number;            // Number of Disposisi assignments
   disposisiStatus?: 'Pending' | 'In Progress' | 'Completed' | 'Mixed';
-  
+
   // Metadata
   createdBy: string;
   createdAt: string;

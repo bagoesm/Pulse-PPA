@@ -34,7 +34,7 @@ export async function cleanupLaporanFiles(disposisi: Disposisi[]): Promise<void>
     // Delete files from storage if there are any
     if (filesToDelete.length > 0) {
       const { error } = await supabase.storage
-        .from('attachments')
+        .from('attachment')
         .remove(filesToDelete);
 
       if (error) {
@@ -139,7 +139,7 @@ export async function deleteSuratWithCleanup(suratId: string): Promise<void> {
     .eq('id', suratId);
 
   if (fetchError) throw fetchError;
-  
+
   const surat = suratData?.[0];
 
   // Get all related Disposisi before deletion
@@ -180,22 +180,23 @@ export async function deleteSuratWithCleanup(suratId: string): Promise<void> {
     }
   }
 
-  // Delete linked Kegiatan if exists
+  // Unlink from Kegiatan if exists (preserve the meeting, only clear the reference)
   if (surat?.meeting_id) {
     try {
-      const { error: meetingError } = await supabase
+      // Clear linked_surat_id on the meeting so it's no longer linked
+      const { error: unlinkError } = await supabase
         .from('meetings')
-        .delete()
+        .update({ linked_surat_id: null, updated_at: new Date().toISOString() })
         .eq('id', surat.meeting_id);
 
-      if (meetingError) {
-        console.error('Error deleting linked kegiatan:', meetingError);
+      if (unlinkError) {
+        console.error('Error unlinking kegiatan from surat:', unlinkError);
         // Don't throw - we still want to proceed with surat deletion
       } else {
-        console.log(`Successfully deleted linked kegiatan: ${surat.meeting_id}`);
+        console.log(`Successfully unlinked kegiatan: ${surat.meeting_id}`);
       }
     } catch (error) {
-      console.error('Error in kegiatan deletion:', error);
+      console.error('Error in kegiatan unlink:', error);
       // Don't throw - we still want to proceed with surat deletion
     }
   }

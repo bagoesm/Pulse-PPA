@@ -59,6 +59,10 @@ export const useProjectLinks = (
     // Add a new link
     const addProjectLink = useCallback(async (link: Omit<ProjectLink, 'id' | 'createdAt' | 'updatedAt'>): Promise<boolean> => {
         try {
+            // Get auth user ID for created_by_id
+            const { data: { session: authSession } } = await supabase.auth.getSession();
+            const authUserId = authSession?.user?.id || null;
+
             const { data, error } = await supabase
                 .from('project_links')
                 .insert([{
@@ -70,6 +74,7 @@ export const useProjectLinks = (
                     type: link.type,
                     description: link.description || null,
                     created_by: link.createdBy,
+                    created_by_id: authUserId,
                     created_at: new Date().toISOString()
                 }])
                 .select()
