@@ -260,18 +260,63 @@ const ImportSuratModal: React.FC<ImportSuratModalProps> = ({
                         if (!assigneesRaw) {
                             errors.push('Assignee Disposisi kosong meskipun teks Disposisi diisi');
                         } else {
-                            const assigneeList = String(assigneesRaw).split(';').map(s => s.trim()).filter(Boolean);
-                            assigneeList.forEach(nameOrEmail => {
-                                assigneesOriginal.push(nameOrEmail);
-                                const matchedUser = allUsers.find(u =>
-                                    u.name.toLowerCase() === nameOrEmail.toLowerCase() ||
-                                    u.email.toLowerCase() === nameOrEmail.toLowerCase()
-                                );
-                                if (matchedUser) assigneesMatched.push(matchedUser.id);
-                                else errors.push(`Assignee "${nameOrEmail}" tidak ditemukan di sistem`);
-                            });
+                            // Smarter parsing for Assignee text, checking for academic strings like ", S.Si."
+                            const rawString = String(assigneesRaw).trim();
 
-                            if (assigneesMatched.length === 0) {
+                            // Strategy 1: If it contains semicolons, we safely assume it's the strict separator.
+                            if (rawString.includes(';')) {
+                                const assigneeList = rawString.split(';').map(s => s.trim()).filter(Boolean);
+                                assigneeList.forEach(nameOrEmail => {
+                                    assigneesOriginal.push(nameOrEmail);
+                                    const searchStr = nameOrEmail.toLowerCase();
+                                    const matchedUser = allUsers.find(u =>
+                                        (u.name && u.name.trim().toLowerCase() === searchStr) ||
+                                        (u.email && u.email.trim().toLowerCase() === searchStr)
+                                    );
+                                    if (matchedUser) {
+                                        assigneesMatched.push(matchedUser.id);
+                                    } else {
+                                        errors.push(`Assignee "${nameOrEmail}" tidak ditemukan di sistem`);
+                                    }
+                                });
+                            } else {
+                                // Strategy 2: Commas might be separators OR part of academic titles (e.g., "Anita, S.Si., Budi").
+                                // Attempt a heuristic approach: Iterate all system users and see if their exact name exists in the raw string.
+                                // Sort by longest name first to prevent partial matches (e.g. matching "Budi" inside "Budi Santoso").
+                                const sortedUsers = [...allUsers].sort((a, b) => (b.name?.length || 0) - (a.name?.length || 0));
+                                let remainingString = rawString.toLowerCase();
+
+                                sortedUsers.forEach(u => {
+                                    if (!u.name) return;
+                                    const lowerName = u.name.trim().toLowerCase();
+                                    if (lowerName && remainingString.includes(lowerName)) {
+                                        assigneesMatched.push(u.id);
+                                        assigneesOriginal.push(u.name);
+                                        // Remove matched name to prevent double counting
+                                        remainingString = remainingString.replace(lowerName, '');
+                                    }
+                                });
+
+                                // Clean remaining string of common punctuation/titles to check if any unmatched chunks remain
+                                const checkString = remainingString
+                                    .replace(/s\.si\./g, '')
+                                    .replace(/s\.stat\./g, '')
+                                    .replace(/a\.md\.ak\./g, '')
+                                    .replace(/s\.a\.p\./g, '')
+                                    .replace(/s\.kom\./g, '')
+                                    .replace(/s\.e\./g, '')
+                                    .replace(/m\.si\./g, '')
+                                    .replace(/,/g, '')
+                                    .replace(/\./g, '')
+                                    .trim();
+
+                                // If significant text remains, it implies an assignee couldn't be matched
+                                if (checkString.length > 5) {
+                                    errors.push(`Beberapa assignee dalam "${rawString}" tidak dapat dicocokkan dengan data user di sistem. Coba gunakan pemisah titik koma (;)`);
+                                }
+                            }
+
+                            if (assigneesMatched.length === 0 && errors.length === 0) {
                                 errors.push('Tidak ada Assignee Disposisi yang valid ditemukan di sistem');
                             }
                         }
