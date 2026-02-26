@@ -383,13 +383,11 @@ export const useNotifications = ({ currentUser, tasks, onTaskNavigation, onMeeti
       await markAsRead(notification.id);
     }
 
-    // Check if it's a disposisi notification
-    const isDisposisiNotification = notification.type === 'disposisi_assignment' ||
-      notification.type === 'disposisi_updated' ||
-      notification.type === 'disposisi_deadline';
+    // Check if it's a disposisi notification (using disposisiId since types are shared now)
+    const isDisposisiNotification = !!notification.disposisiId;
 
-    if (isDisposisiNotification && notification.disposisiId && onDisposisiNavigation) {
-      onDisposisiNavigation(notification.disposisiId);
+    if (isDisposisiNotification && onDisposisiNavigation) {
+      onDisposisiNavigation(notification.disposisiId!);
       return;
     }
 

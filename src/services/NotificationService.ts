@@ -21,8 +21,8 @@ export class NotificationService {
     disposisiText?: string
   ): Promise<any> {
     try {
-      // Check for duplicate notifications based on type
-      if (type === 'disposisi_assignment' && disposisiId) {
+      // Check for duplicate notifications based on type (using 'assignment' for disposisi)
+      if (type === 'assignment' && disposisiId) {
         const { data: existing } = await supabase
           .from('notifications')
           .select('id')
@@ -36,7 +36,7 @@ export class NotificationService {
         }
       }
 
-      if (type === 'disposisi_deadline' && disposisiId) {
+      if (type === 'deadline' && disposisiId) {
         const today = new Date().toISOString().split('T')[0];
         const { data: existing } = await supabase
           .from('notifications')
@@ -110,7 +110,7 @@ export class NotificationService {
 
       await this.createNotification(
         user.id,
-        'disposisi_assignment',
+        'assignment',
         '📋 Disposisi Baru',
         message,
         undefined, // No task ID
@@ -158,7 +158,7 @@ export class NotificationService {
 
       await this.createNotification(
         user.id,
-        'disposisi_updated',
+        'comment',
         '🔄 Disposisi Diperbarui',
         message,
         undefined, // No task ID
@@ -211,7 +211,7 @@ export class NotificationService {
 
       await this.createNotification(
         user.id,
-        'disposisi_deadline',
+        'deadline',
         '⏰ Deadline Disposisi Mendekat',
         message,
         undefined, // No task ID
