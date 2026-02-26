@@ -433,7 +433,12 @@ const ImportSuratModal: React.FC<ImportSuratModalProps> = ({
                     .select()
                     .single();
 
-                if (suratError) throw suratError;
+                if (suratError) {
+                    if (suratError.code === '23505' || suratError.message?.includes('ux_surats_nomor_surat')) {
+                        throw new Error(`Baris ${row.rowNum}: Nomor Surat "${row.data.nomorSurat}" sudah terdaftar di sistem. Mohon revisi nomor surat atau abaikan baris ini.`);
+                    }
+                    throw suratError;
+                }
 
                 let meetingId: string | undefined;
 
