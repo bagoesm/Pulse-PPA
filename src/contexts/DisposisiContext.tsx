@@ -156,10 +156,6 @@ export const DisposisiProvider: React.FC<DisposisiProviderProps> = ({ children, 
         throw new Error('You must be logged in to create Disposisi');
       }
 
-      if (currentUser.role !== 'Atasan' && currentUser.role !== 'Super Admin') {
-        throw new Error('You do not have permission to create Disposisi. Only Atasan or Super Admin can create Disposisi.');
-      }
-
       const insertData = {
         surat_id: data.suratId,
         kegiatan_id: data.kegiatanId,

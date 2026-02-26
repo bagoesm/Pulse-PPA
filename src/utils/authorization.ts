@@ -18,7 +18,7 @@ export class AuthorizationError extends Error {
  */
 export function canCreateDisposisi(user: User | null): boolean {
   if (!user) return false;
-  return user.role === 'Atasan' || user.role === 'Super Admin';
+  return true;
 }
 
 /**
@@ -44,7 +44,7 @@ export function canUpdateDisposisi(
   disposisiCreatedBy: string
 ): boolean {
   if (!user) return false;
-  if (user.role === 'Super Admin') return true;
+  if (user.role === 'Super Admin' || user.role === 'Atasan') return true;
   if (user.id === disposisiCreatedBy || user.name === disposisiCreatedBy) return true;
   return user.id === disposisiAssignedTo;
 }
@@ -83,7 +83,7 @@ export function filterDisposisiByRole<T extends { assignedTo: string }>(
 export function requireCreateDisposisiPermission(user: User | null): void {
   if (!canCreateDisposisi(user)) {
     throw new AuthorizationError(
-      'You do not have permission to create Disposisi. Only Atasan or Super Admin can create Disposisi.'
+      'You must be logged in to create Disposisi.'
     );
   }
 }
@@ -131,7 +131,7 @@ export async function getTeamUserIds(
     const { data, error } = await supabase
       .from('profiles')
       .select('id');
-    
+
     if (error) throw error;
     return data ? data.map((u: any) => u.id) : [];
   }
@@ -142,7 +142,7 @@ export async function getTeamUserIds(
       .from('profiles')
       .select('id')
       .in('role', ['Staff', 'Atasan']);
-    
+
     if (error) throw error;
     return data ? data.map((u: any) => u.id) : [];
   }
