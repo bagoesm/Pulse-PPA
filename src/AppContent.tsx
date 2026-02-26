@@ -1,6 +1,6 @@
 // src/AppContent.tsx - UI rendering and handler functions
 // State comes from contexts (Auth, Data, UI)
-import React, { useState, useEffect, useMemo, useCallback, lazy, Suspense, useTransition } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, lazy, Suspense, useTransition, useRef } from 'react';
 import { supabase } from './lib/supabaseClient';
 import { Plus, Search, Layout, CalendarRange, Briefcase, FileText, ListTodo, Loader2 } from 'lucide-react';
 import { Task, Status, Category, Priority, FilterState, User, ProjectDefinition, ViewMode, Feedback, FeedbackCategory, FeedbackStatus, DocumentTemplate, UserStatus, Attachment, Comment, ChristmasDecorationSettings, Announcement, DataInventoryItem, TaskActivity, Meeting, MeetingInviter } from '../types';
@@ -215,6 +215,23 @@ const AppContent: React.FC = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
+
+  // Set default PIC filter based on user role when currentUser changes
+  const previousUserId = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (currentUser && currentUser.id !== previousUserId.current) {
+      previousUserId.current = currentUser.id;
+
+      // Jika Staff, set filter PIC default ke nama user tersebut
+      // Jika Atasan/Super Admin, set filter PIC default ke 'All' (Semua)
+      if (currentUser.role === 'Staff') {
+        setFilters(prev => ({ ...prev, pic: currentUser.name }));
+      } else {
+        setFilters(prev => ({ ...prev, pic: 'All' }));
+      }
+    }
+  }, [currentUser, setFilters]);
 
   // ===== HOOKS - imported handler functions =====
   // Navigation helpers (needed for useNotifications)
