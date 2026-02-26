@@ -136,6 +136,7 @@ const MeetingViewModal: React.FC<MeetingViewModalProps> = ({
     jenisNaskah?: string;
     bidangTugas?: string;
     disposisi?: string;
+    catatan?: string;
   }>({});
 
   // Fetch surat details if linkedSuratId exists
@@ -146,7 +147,7 @@ const MeetingViewModal: React.FC<MeetingViewModalProps> = ({
       try {
         const { data, error } = await supabase
           .from('surats')
-          .select('jenis_surat, nomor_surat, tanggal_surat, hal, asal_surat, tujuan_surat, klasifikasi_surat, jenis_naskah, bidang_tugas')
+          .select('jenis_surat, nomor_surat, tanggal_surat, hal, asal_surat, tujuan_surat, klasifikasi_surat, jenis_naskah, bidang_tugas, catatan')
           .eq('id', meeting.linkedSuratId)
           .single();
 
@@ -163,6 +164,7 @@ const MeetingViewModal: React.FC<MeetingViewModalProps> = ({
             klasifikasiSurat: data.klasifikasi_surat,
             jenisNaskah: data.jenis_naskah,
             bidangTugas: data.bidang_tugas,
+            catatan: data.catatan,
           });
 
           // Fetch disposisi text
@@ -192,7 +194,7 @@ const MeetingViewModal: React.FC<MeetingViewModalProps> = ({
 
     const refreshUrls = async () => {
       const urls: typeof refreshedAttachments = {};
-      
+
       if (meeting.suratUndangan) {
         urls.suratUndangan = await getAttachmentUrl(meeting.suratUndangan);
       }
@@ -232,7 +234,7 @@ const MeetingViewModal: React.FC<MeetingViewModalProps> = ({
     if (!attachment) return null;
     const isLink = attachment.isLink;
     const displayUrl = refreshedUrl || attachment.url;
-    
+
     return (
       <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
         <div className="flex items-center gap-3 min-w-0">
@@ -474,139 +476,150 @@ const MeetingViewModal: React.FC<MeetingViewModalProps> = ({
               )}
 
               {/* Detail Surat - Read-only display with better design */}
-              {((suratDetails.nomorSurat || meeting.nomorSurat) || 
-                (suratDetails.hal || meeting.hal) || 
-                (suratDetails.asalSurat || meeting.asalSurat) || 
-                (suratDetails.tujuanSurat || meeting.tujuanSurat) || 
-                (suratDetails.klasifikasiSurat || meeting.klasifikasiSurat) || 
-                (suratDetails.jenisNaskah || meeting.jenisNaskah) || 
-                (suratDetails.tanggalSurat || meeting.tanggalSurat) || 
-                (suratDetails.bidangTugas || meeting.bidangTugas) || 
-                (suratDetails.disposisi || meeting.disposisi) || 
+              {((suratDetails.nomorSurat || meeting.nomorSurat) ||
+                (suratDetails.hal || meeting.hal) ||
+                (suratDetails.asalSurat || meeting.asalSurat) ||
+                (suratDetails.tujuanSurat || meeting.tujuanSurat) ||
+                (suratDetails.klasifikasiSurat || meeting.klasifikasiSurat) ||
+                (suratDetails.jenisNaskah || meeting.jenisNaskah) ||
+                (suratDetails.tanggalSurat || meeting.tanggalSurat) ||
+                (suratDetails.bidangTugas || meeting.bidangTugas) ||
+                (suratDetails.disposisi || meeting.disposisi) ||
+                suratDetails.catatan ||
                 (suratDetails.jenisSurat || meeting.jenisSurat)) && (
-                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-5 space-y-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <FileText className="text-blue-600" size={20} />
-                    <h3 className="text-sm font-bold text-blue-900 uppercase tracking-wider">Detail Surat</h3>
-                    <span className="ml-auto text-xs bg-blue-200 text-blue-800 px-2 py-1 rounded-full font-semibold">
-                      Read-only
-                    </span>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {/* Jenis Surat */}
-                    {(suratDetails.jenisSurat || meeting.jenisSurat) && (
-                      <div className="bg-white rounded-lg p-3 border border-blue-100">
-                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
-                          Jenis Surat
-                        </label>
-                        <div className="flex items-center gap-2">
-                          <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                            (suratDetails.jenisSurat || meeting.jenisSurat) === 'Masuk' 
-                              ? 'bg-green-100 text-green-700' 
-                              : 'bg-blue-100 text-blue-700'
-                          }`}>
-                            {(suratDetails.jenisSurat || meeting.jenisSurat) === 'Masuk' ? '📥 Surat Masuk' : '📤 Surat Keluar'}
-                          </span>
+                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-5 space-y-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <FileText className="text-blue-600" size={20} />
+                      <h3 className="text-sm font-bold text-blue-900 uppercase tracking-wider">Detail Surat</h3>
+                      <span className="ml-auto text-xs bg-blue-200 text-blue-800 px-2 py-1 rounded-full font-semibold">
+                        Read-only
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {/* Jenis Surat */}
+                      {(suratDetails.jenisSurat || meeting.jenisSurat) && (
+                        <div className="bg-white rounded-lg p-3 border border-blue-100">
+                          <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
+                            Jenis Surat
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <span className={`px-3 py-1 rounded-full text-sm font-semibold ${(suratDetails.jenisSurat || meeting.jenisSurat) === 'Masuk'
+                                ? 'bg-green-100 text-green-700'
+                                : 'bg-blue-100 text-blue-700'
+                              }`}>
+                              {(suratDetails.jenisSurat || meeting.jenisSurat) === 'Masuk' ? '📥 Surat Masuk' : '📤 Surat Keluar'}
+                            </span>
+                          </div>
                         </div>
+                      )}
+
+                      {/* Nomor Surat */}
+                      {(suratDetails.nomorSurat || meeting.nomorSurat) && (
+                        <div className="bg-white rounded-lg p-3 border border-blue-100">
+                          <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
+                            Nomor Surat
+                          </label>
+                          <p className="text-sm font-semibold text-slate-800">{suratDetails.nomorSurat || meeting.nomorSurat}</p>
+                        </div>
+                      )}
+
+                      {/* Tanggal Surat */}
+                      {(suratDetails.tanggalSurat || meeting.tanggalSurat) && (
+                        <div className="bg-white rounded-lg p-3 border border-blue-100">
+                          <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
+                            Tanggal Surat
+                          </label>
+                          <p className="text-sm font-semibold text-slate-800">
+                            {new Date(suratDetails.tanggalSurat || meeting.tanggalSurat!).toLocaleDateString('id-ID', {
+                              day: 'numeric',
+                              month: 'long',
+                              year: 'numeric'
+                            })}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Jenis Naskah */}
+                      {(suratDetails.jenisNaskah || meeting.jenisNaskah) && (
+                        <div className="bg-white rounded-lg p-3 border border-blue-100">
+                          <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
+                            Jenis Naskah
+                          </label>
+                          <p className="text-sm font-semibold text-slate-800">{suratDetails.jenisNaskah || meeting.jenisNaskah}</p>
+                        </div>
+                      )}
+
+                      {/* Klasifikasi Surat */}
+                      {(suratDetails.klasifikasiSurat || meeting.klasifikasiSurat) && (
+                        <div className="bg-white rounded-lg p-3 border border-blue-100">
+                          <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
+                            Klasifikasi
+                          </label>
+                          <p className="text-sm font-semibold text-slate-800">{suratDetails.klasifikasiSurat || meeting.klasifikasiSurat}</p>
+                        </div>
+                      )}
+
+                      {/* Bidang Tugas */}
+                      {(suratDetails.bidangTugas || meeting.bidangTugas) && (
+                        <div className="bg-white rounded-lg p-3 border border-blue-100">
+                          <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
+                            Bidang Tugas
+                          </label>
+                          <p className="text-sm font-semibold text-slate-800">{suratDetails.bidangTugas || meeting.bidangTugas}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Hal/Perihal - Full width */}
+                    {(suratDetails.hal || meeting.hal) && (
+                      <div className="bg-white rounded-lg p-3 border border-blue-100">
+                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
+                          Hal / Perihal
+                        </label>
+                        <p className="text-sm text-slate-800">{suratDetails.hal || meeting.hal}</p>
                       </div>
                     )}
 
-                    {/* Nomor Surat */}
-                    {(suratDetails.nomorSurat || meeting.nomorSurat) && (
-                      <div className="bg-white rounded-lg p-3 border border-blue-100">
-                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
-                          Nomor Surat
+                    {/* Catatan - Full width */}
+                    {suratDetails.catatan && (
+                      <div className="bg-yellow-50 rounded-lg p-3 border border-yellow-100 mt-2">
+                        <label className="block text-xs font-semibold text-yellow-800 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                          <FileText size={14} className="text-yellow-600" />
+                          Catatan Tambahan
                         </label>
-                        <p className="text-sm font-semibold text-slate-800">{suratDetails.nomorSurat || meeting.nomorSurat}</p>
+                        <p className="text-sm text-yellow-900 whitespace-pre-wrap leading-relaxed">{suratDetails.catatan}</p>
                       </div>
                     )}
 
-                    {/* Tanggal Surat */}
-                    {(suratDetails.tanggalSurat || meeting.tanggalSurat) && (
+                    {/* Asal/Tujuan Surat */}
+                    {((suratDetails.asalSurat || meeting.asalSurat) || (suratDetails.tujuanSurat || meeting.tujuanSurat)) && (
                       <div className="bg-white rounded-lg p-3 border border-blue-100">
                         <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
-                          Tanggal Surat
+                          {(suratDetails.jenisSurat || meeting.jenisSurat) === 'Keluar' ? '📤 Kepada (Penerima)' : '📥 Dari (Pengirim)'}
                         </label>
-                        <p className="text-sm font-semibold text-slate-800">
-                          {new Date(suratDetails.tanggalSurat || meeting.tanggalSurat!).toLocaleDateString('id-ID', { 
-                            day: 'numeric', 
-                            month: 'long', 
-                            year: 'numeric' 
-                          })}
+                        <p className="text-sm text-slate-800">
+                          {(suratDetails.jenisSurat || meeting.jenisSurat) === 'Keluar'
+                            ? (suratDetails.tujuanSurat || meeting.tujuanSurat)
+                            : (suratDetails.asalSurat || meeting.asalSurat)}
                         </p>
                       </div>
                     )}
 
-                    {/* Jenis Naskah */}
-                    {(suratDetails.jenisNaskah || meeting.jenisNaskah) && (
-                      <div className="bg-white rounded-lg p-3 border border-blue-100">
-                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
-                          Jenis Naskah
+                    {/* Teks Disposisi - Only for Surat Masuk */}
+                    {(suratDetails.jenisSurat || meeting.jenisSurat) === 'Masuk' && (suratDetails.disposisi || meeting.disposisi) && (
+                      <div className="bg-amber-50 rounded-lg p-4 border-2 border-amber-200">
+                        <label className="block text-xs font-semibold text-amber-800 uppercase tracking-wider mb-2 flex items-center gap-2">
+                          <span className="text-lg">📋</span>
+                          Teks Disposisi
                         </label>
-                        <p className="text-sm font-semibold text-slate-800">{suratDetails.jenisNaskah || meeting.jenisNaskah}</p>
-                      </div>
-                    )}
-
-                    {/* Klasifikasi Surat */}
-                    {(suratDetails.klasifikasiSurat || meeting.klasifikasiSurat) && (
-                      <div className="bg-white rounded-lg p-3 border border-blue-100">
-                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
-                          Klasifikasi
-                        </label>
-                        <p className="text-sm font-semibold text-slate-800">{suratDetails.klasifikasiSurat || meeting.klasifikasiSurat}</p>
-                      </div>
-                    )}
-
-                    {/* Bidang Tugas */}
-                    {(suratDetails.bidangTugas || meeting.bidangTugas) && (
-                      <div className="bg-white rounded-lg p-3 border border-blue-100">
-                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
-                          Bidang Tugas
-                        </label>
-                        <p className="text-sm font-semibold text-slate-800">{suratDetails.bidangTugas || meeting.bidangTugas}</p>
+                        <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">
+                          {suratDetails.disposisi || meeting.disposisi}
+                        </p>
                       </div>
                     )}
                   </div>
-
-                  {/* Hal/Perihal - Full width */}
-                  {(suratDetails.hal || meeting.hal) && (
-                    <div className="bg-white rounded-lg p-3 border border-blue-100">
-                      <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
-                        Hal / Perihal
-                      </label>
-                      <p className="text-sm text-slate-800">{suratDetails.hal || meeting.hal}</p>
-                    </div>
-                  )}
-
-                  {/* Asal/Tujuan Surat */}
-                  {((suratDetails.asalSurat || meeting.asalSurat) || (suratDetails.tujuanSurat || meeting.tujuanSurat)) && (
-                    <div className="bg-white rounded-lg p-3 border border-blue-100">
-                      <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
-                        {(suratDetails.jenisSurat || meeting.jenisSurat) === 'Keluar' ? '📤 Kepada (Penerima)' : '📥 Dari (Pengirim)'}
-                      </label>
-                      <p className="text-sm text-slate-800">
-                        {(suratDetails.jenisSurat || meeting.jenisSurat) === 'Keluar' 
-                          ? (suratDetails.tujuanSurat || meeting.tujuanSurat) 
-                          : (suratDetails.asalSurat || meeting.asalSurat)}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Teks Disposisi - Only for Surat Masuk */}
-                  {(suratDetails.jenisSurat || meeting.jenisSurat) === 'Masuk' && (suratDetails.disposisi || meeting.disposisi) && (
-                    <div className="bg-amber-50 rounded-lg p-4 border-2 border-amber-200">
-                      <label className="block text-xs font-semibold text-amber-800 uppercase tracking-wider mb-2 flex items-center gap-2">
-                        <span className="text-lg">📋</span>
-                        Teks Disposisi
-                      </label>
-                      <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">
-                        {suratDetails.disposisi || meeting.disposisi}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
+                )}
 
               {/* Additional Attachments */}
               {meeting.attachments && meeting.attachments.length > 0 && (

@@ -538,6 +538,7 @@ const SuratViewModal: React.FC<SuratViewModalProps> = ({
         tanggal_diterima: editData.jenisSurat === 'Masuk' ? (editData.tanggalDiterima || null) : null,
         tanggal_dikirim: editData.jenisSurat === 'Keluar' ? (editData.tanggalDikirim || null) : null,
         disposisi: editData.jenisSurat === 'Masuk' ? (editData.disposisi || null) : null,
+        catatan: editData.catatan || null,
         hasil_tindak_lanjut: editData.hasilTindakLanjut || null,
         file_surat: fileSurat,
         tanggal_kegiatan: editData.tanggalKegiatan || null,
@@ -569,6 +570,7 @@ const SuratViewModal: React.FC<SuratViewModalProps> = ({
             klasifikasi_surat: editData.klasifikasiSurat || null,
             jenis_naskah: editData.jenisNaskah || null,
             bidang_tugas: editData.bidangTugas || null,
+            catatan: editData.catatan || null,
             updated_at: new Date().toISOString()
           };
 
@@ -937,6 +939,34 @@ const SuratViewModal: React.FC<SuratViewModalProps> = ({
             </div>
 
             {renderField('Hal / Perihal', surat.hal, 'hal')}
+
+            {/* Catatan Tambahan (View & Edit Mode) */}
+            <div className="col-span-1 md:col-span-2 mt-2">
+              {isEditing ? (
+                <div className="bg-white p-3 rounded-lg border border-slate-200">
+                  <label className="block text-xs font-semibold text-slate-500 uppercase mb-1.5">
+                    Catatan
+                  </label>
+                  <textarea
+                    value={editData.catatan || ''}
+                    onChange={(e) => setEditData(prev => ({ ...prev, catatan: e.target.value }))}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm resize-y min-h-[80px]"
+                    placeholder="Tambahkan catatan khusus untuk surat ini..."
+                    rows={3}
+                  />
+                </div>
+              ) : surat.catatan ? (
+                <div className="bg-blue-50/50 p-4 rounded-lg border border-blue-100">
+                  <p className="text-xs font-semibold text-blue-800 uppercase mb-2 flex items-center gap-1.5">
+                    <FileText size={14} />
+                    Catatan
+                  </p>
+                  <p className="text-slate-700 whitespace-pre-wrap text-sm leading-relaxed">
+                    {surat.catatan}
+                  </p>
+                </div>
+              ) : null}
+            </div>
 
             {/* Pengirim/Penerima */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

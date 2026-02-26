@@ -441,6 +441,9 @@ export interface Surat {
   disposisiCount?: number;            // Number of Disposisi assignments
   disposisiStatus?: 'Pending' | 'In Progress' | 'Completed' | 'Mixed';
 
+  // Additional Fields
+  catatan?: string | null;
+
   // Metadata
   createdBy: string;
   createdAt: string;

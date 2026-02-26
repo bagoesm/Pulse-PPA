@@ -61,6 +61,7 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
   const [asalSuratType, setAsalSuratType] = useState<'Internal' | 'Eksternal'>('Eksternal');
   const [asalSuratInternal, setAsalSuratInternal] = useState('');
   const [asalSuratEksternal, setAsalSuratEksternal] = useState('');
+  const [catatan, setCatatan] = useState('');
 
   // Tujuan surat (Surat Keluar) - Support mix Internal & Eksternal
   const [tujuanSuratList, setTujuanSuratList] = useState<Array<{ name: string, type: 'Internal' | 'Eksternal' }>>([]);
@@ -332,6 +333,7 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
         jenis_naskah: jenisNaskah || null,
         sifat_surat: sifatSurat || null,
         bidang_tugas: bidangTugas || null,
+        catatan: catatan || null,
         tanggal_diterima: jenisSurat === 'Masuk' ? (tanggalDiterima || null) : null,
         tanggal_dikirim: jenisSurat === 'Keluar' ? (tanggalDikirim || null) : null,
         file_surat: suratFile,
@@ -498,6 +500,7 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
     setKlasifikasiSurat('');
     setJenisNaskah('');
     setBidangTugas('');
+    setCatatan('');
     setSifatSurat('');
     setTanggalDiterima('');
     setTanggalDikirim('');
@@ -949,6 +952,22 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
                   canDelete={(name) => canDeleteMasterData('master_bidang_tugas', name)}
                 />
               </div>
+            </div>
+          </div>
+
+          {/* Catatan Tambahan */}
+          <div className="space-y-4 pt-4 border-t">
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">
+                Catatan (Opsional)
+              </label>
+              <textarea
+                value={catatan}
+                onChange={(e) => setCatatan(e.target.value)}
+                className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 focus:border-gov-400 outline-none resize-y min-h-[80px]"
+                placeholder="Tambahkan catatan khusus untuk surat ini..."
+                rows={3}
+              />
             </div>
           </div>
 
