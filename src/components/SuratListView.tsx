@@ -1,6 +1,6 @@
 // src/components/SuratListView.tsx
 import React, { useState, useMemo } from 'react';
-import { 
+import {
   FileText, Calendar, Building2,
   X, Search, FileDown, Link2, Eye, Plus,
   ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown,
@@ -9,6 +9,7 @@ import {
 import { Surat, User } from '../../types';
 import AddSuratModal from './AddSuratModal';
 import SuratViewModal from './SuratViewModal';
+import ImportSuratModal from './surat/ImportSuratModal';
 import SearchableSelect from './SearchableSelect';
 import MultiSelectChip from './MultiSelectChip';
 import ConfirmModal from './ConfirmModal';
@@ -40,25 +41,26 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
   const [filterDisposisiStatus, setFilterDisposisiStatus] = useState<'All' | 'Pending' | 'In Progress' | 'Completed' | 'Mixed'>('All');
   const [filterHasDisposisi, setFilterHasDisposisi] = useState<boolean | null>(null);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [showAddSuratModal, setShowAddSuratModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedSurat, setSelectedSurat] = useState<Surat | null>(null);
-  
+
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
-  
+
   // Sort states
   const [sortColumn, setSortColumn] = useState<'tanggalSurat' | 'nomorSurat' | 'jenisSurat' | 'jenisNaskah' | 'hal' | 'asalTujuan' | 'tanggalKegiatan'>('tanggalSurat');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
-  
+
   // Export modal states
   const [exportStartDate, setExportStartDate] = useState('');
   const [exportEndDate, setExportEndDate] = useState('');
   const [exportJenisSurat, setExportJenisSurat] = useState<'All' | 'Masuk' | 'Keluar'>('All');
   const [exportJenisNaskah, setExportJenisNaskah] = useState<string>('All');
   const [exportBidangTugas, setExportBidangTugas] = useState<string[]>([]);
-  
+
   // Confirm modal states
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmModalConfig, setConfirmModalConfig] = useState<{
@@ -70,7 +72,7 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
     title: '',
     message: '',
     type: 'info',
-    onConfirm: () => {}
+    onConfirm: () => { }
   });
 
   // Helper function to get meeting date from linked meeting
@@ -92,7 +94,7 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
     const filtered = surats.filter(surat => {
       // Search filter
       const searchLower = searchQuery.toLowerCase();
-      const matchesSearch = !searchQuery || 
+      const matchesSearch = !searchQuery ||
         surat.nomorSurat.toLowerCase().includes(searchLower) ||
         surat.hal?.toLowerCase().includes(searchLower) ||
         surat.asalSurat?.toLowerCase().includes(searchLower) ||
@@ -195,13 +197,13 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
   // Prepare URLs for display - use existing URLs without refresh to avoid 404 errors
   const displayUrls = useMemo(() => {
     const urls: Record<string, string> = {};
-    
+
     surats.forEach(surat => {
       if (surat.fileSurat?.url) {
         urls[surat.id] = surat.fileSurat.url;
       }
     });
-    
+
     return urls;
   }, [surats]);
 
@@ -220,12 +222,12 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
 
   // Helper function to generate export title based on filters
   const getExportTitle = () => {
-    const jenisSuratText = exportJenisSurat === 'All' 
-      ? 'Naskah Masuk / Naskah Keluar' 
-      : exportJenisSurat === 'Masuk' 
-        ? 'Naskah Masuk' 
+    const jenisSuratText = exportJenisSurat === 'All'
+      ? 'Naskah Masuk / Naskah Keluar'
+      : exportJenisSurat === 'Masuk'
+        ? 'Naskah Masuk'
         : 'Naskah Keluar';
-    
+
     let dateRangeText = '';
     if (exportStartDate && exportEndDate) {
       const startDate = new Date(exportStartDate);
@@ -238,7 +240,7 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
       const endDate = new Date(exportEndDate);
       dateRangeText = ` sampai ${endDate.getDate()} ${endDate.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}`;
     }
-    
+
     return `Monitoring ${jenisSuratText}${dateRangeText}`;
   };
 
@@ -258,7 +260,7 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
 
     // Filter by bidang tugas (multi-select)
     if (exportBidangTugas.length > 0) {
-      dataToExport = dataToExport.filter(s => 
+      dataToExport = dataToExport.filter(s =>
         s.bidangTugas && exportBidangTugas.includes(s.bidangTugas)
       );
     }
@@ -296,20 +298,20 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
         const status = d.status;
         const deadline = d.deadline ? new Date(d.deadline).toLocaleDateString('id-ID') : '-';
         const completedAt = d.completedAt ? new Date(d.completedAt).toLocaleDateString('id-ID') : '-';
-        
+
         // Format laporan files with URLs for easy access
         const laporanFiles = d.laporan && d.laporan.length > 0
           ? d.laporan.map(l => {
-              if (l.isLink) {
-                return `${l.name} (${l.url})`;
-              } else if (l.url) {
-                return `${l.name} (${l.url})`;
-              } else {
-                return l.name;
-              }
-            }).join('; ')
+            if (l.isLink) {
+              return `${l.name} (${l.url})`;
+            } else if (l.url) {
+              return `${l.name} (${l.url})`;
+            } else {
+              return l.name;
+            }
+          }).join('; ')
           : '-';
-        
+
         return `[${idx + 1}] Assignee: ${assignee?.name || 'Unknown'} | Status: ${status} | Deadline: ${deadline} | Selesai: ${completedAt} | Laporan: ${laporanFiles}`;
       }).join('\n');
 
@@ -404,12 +406,12 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
 
     // Create PDF
     const doc = new jsPDF('landscape');
-    
+
     // Add title
     doc.setFontSize(16);
     doc.setFont(undefined, 'bold');
     doc.text(exportTitle, 14, 15);
-    
+
     // Add export info
     doc.setFontSize(10);
     doc.setFont(undefined, 'normal');
@@ -469,22 +471,22 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
         'Detail Disposisi'
       ]],
       body: tableData,
-      styles: { 
-        fontSize: 6, 
-        cellPadding: 1.5, 
-        lineColor: [200, 200, 200], 
-        lineWidth: 0.1, 
-        overflow: 'linebreak', 
+      styles: {
+        fontSize: 6,
+        cellPadding: 1.5,
+        lineColor: [200, 200, 200],
+        lineWidth: 0.1,
+        overflow: 'linebreak',
         cellWidth: 'wrap',
         valign: 'top'
       },
-      headStyles: { 
-        fillColor: [41, 128, 185], 
-        textColor: 255, 
-        fontStyle: 'bold', 
-        fontSize: 6, 
-        halign: 'center', 
-        valign: 'middle' 
+      headStyles: {
+        fillColor: [41, 128, 185],
+        textColor: 255,
+        fontStyle: 'bold',
+        fontSize: 6,
+        halign: 'center',
+        valign: 'middle'
       },
       alternateRowStyles: { fillColor: [245, 245, 245] },
       columnStyles: {
@@ -556,7 +558,7 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
     if (sortColumn !== column) {
       return <ArrowUpDown size={14} className="text-slate-400" />;
     }
-    return sortDirection === 'asc' 
+    return sortDirection === 'asc'
       ? <ArrowUp size={14} className="text-gov-600" />
       : <ArrowDown size={14} className="text-gov-600" />;
   };
@@ -570,18 +572,18 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
     try {
       // Import cleanup utilities dynamically
       const { getDisposisiForSurat, formatDisposisiWarning, deleteSuratWithCleanup } = await import('../utils/disposisiCleanup');
-      
+
       // Get related Disposisi to show warning
       const relatedDisposisi = await getDisposisiForSurat(id);
       const warning = formatDisposisiWarning(relatedDisposisi);
-      
+
       // Find the surat to get its number for the confirmation message
       const surat = surats.find(s => s.id === id);
       const suratNumber = surat?.nomorSurat || 'ini';
-      
+
       // Show confirmation dialog with Disposisi warning
       const confirmMessage = `Hapus surat ${suratNumber}? Tindakan ini tidak dapat dibatalkan.${warning}`;
-      
+
       setConfirmModalConfig({
         title: 'Hapus Surat',
         message: confirmMessage,
@@ -590,7 +592,7 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
           try {
             // Delete with cleanup
             await deleteSuratWithCleanup(id);
-            
+
             showNotification('Surat Dihapus', 'Surat dan disposisi terkait berhasil dihapus', 'success');
             fetchSurats();
           } catch (error: any) {
@@ -621,6 +623,13 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
           >
             <Plus size={18} />
             Tambah Surat
+          </button>
+          <button
+            onClick={() => setShowImportModal(true)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-gov-600 text-white rounded-lg hover:bg-gov-700 transition-colors font-medium text-sm shadow-sm"
+          >
+            <FileDown size={18} className="rotate-180" />
+            Import CSV
           </button>
           <button
             onClick={handleExportClick}
@@ -745,21 +754,19 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
             <div className="flex gap-2">
               <button
                 onClick={() => setFilterHasDisposisi(filterHasDisposisi === true ? null : true)}
-                className={`flex-1 px-3 py-2.5 border rounded-lg transition-colors text-sm font-medium ${
-                  filterHasDisposisi === true
-                    ? 'bg-gov-600 text-white border-gov-600'
-                    : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
-                }`}
+                className={`flex-1 px-3 py-2.5 border rounded-lg transition-colors text-sm font-medium ${filterHasDisposisi === true
+                  ? 'bg-gov-600 text-white border-gov-600'
+                  : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+                  }`}
               >
                 Ada Disposisi
               </button>
               <button
                 onClick={() => setFilterHasDisposisi(filterHasDisposisi === false ? null : false)}
-                className={`flex-1 px-3 py-2.5 border rounded-lg transition-colors text-sm font-medium ${
-                  filterHasDisposisi === false
-                    ? 'bg-gov-600 text-white border-gov-600'
-                    : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
-                }`}
+                className={`flex-1 px-3 py-2.5 border rounded-lg transition-colors text-sm font-medium ${filterHasDisposisi === false
+                  ? 'bg-gov-600 text-white border-gov-600'
+                  : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+                  }`}
               >
                 Tanpa Disposisi
               </button>
@@ -875,162 +882,160 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
                     <tr key={surat.id} className="hover:bg-slate-50 transition-colors">
                       {/* Jenis Surat */}
                       <td className="px-4 py-4">
-                          <span className={`inline-flex items-center text-xs font-semibold px-3 py-1.5 rounded-full ${
-                            surat.jenisSurat === 'Masuk' 
-                              ? 'bg-green-100 text-green-700' 
-                              : 'bg-blue-100 text-blue-700'
+                        <span className={`inline-flex items-center text-xs font-semibold px-3 py-1.5 rounded-full ${surat.jenisSurat === 'Masuk'
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-blue-100 text-blue-700'
                           }`}>
-                            {surat.jenisSurat}
+                          {surat.jenisSurat}
+                        </span>
+                      </td>
+
+                      {/* Nomor Surat */}
+                      <td className="px-4 py-4">
+                        <span className="text-sm font-semibold text-slate-800">
+                          {surat.nomorSurat}
+                        </span>
+                      </td>
+
+                      {/* Jenis Naskah */}
+                      <td className="px-4 py-4">
+                        {surat.jenisNaskah ? (
+                          <span className="text-xs text-slate-700 bg-slate-100 px-2.5 py-1 rounded inline-block">
+                            {surat.jenisNaskah}
                           </span>
-                        </td>
+                        ) : (
+                          <span className="text-xs text-slate-400">-</span>
+                        )}
+                      </td>
 
-                        {/* Nomor Surat */}
-                        <td className="px-4 py-4">
-                          <span className="text-sm font-semibold text-slate-800">
-                            {surat.nomorSurat}
+                      {/* Tanggal Surat */}
+                      <td className="px-4 py-4">
+                        <div className="flex items-center gap-2">
+                          <Calendar size={14} className="text-slate-400" />
+                          <span className="text-sm text-slate-700">
+                            {new Date(surat.tanggalSurat).toLocaleDateString('id-ID', {
+                              day: 'numeric',
+                              month: 'short',
+                              year: 'numeric'
+                            })}
                           </span>
-                        </td>
+                        </div>
+                      </td>
 
-                        {/* Jenis Naskah */}
-                        <td className="px-4 py-4">
-                          {surat.jenisNaskah ? (
-                            <span className="text-xs text-slate-700 bg-slate-100 px-2.5 py-1 rounded inline-block">
-                              {surat.jenisNaskah}
-                            </span>
-                          ) : (
-                            <span className="text-xs text-slate-400">-</span>
-                          )}
-                        </td>
+                      {/* Hal/Perihal */}
+                      <td className="px-4 py-4">
+                        <span
+                          className="text-sm text-slate-700 block truncate max-w-xs cursor-help"
+                          title={surat.hal || '-'}
+                        >
+                          {surat.hal || '-'}
+                        </span>
+                      </td>
 
-                        {/* Tanggal Surat */}
-                        <td className="px-4 py-4">
-                          <div className="flex items-center gap-2">
-                            <Calendar size={14} className="text-slate-400" />
-                            <span className="text-sm text-slate-700">
-                              {new Date(surat.tanggalSurat).toLocaleDateString('id-ID', { 
-                                day: 'numeric', 
-                                month: 'short', 
-                                year: 'numeric' 
+                      {/* Asal/Tujuan Surat */}
+                      <td className="px-4 py-4">
+                        <div className="flex items-start gap-2">
+                          <Building2 size={14} className="text-slate-400 mt-0.5 shrink-0" />
+                          <span className="text-sm text-slate-700 line-clamp-2">
+                            {surat.jenisSurat === 'Keluar'
+                              ? (surat.tujuanSurat || '-')
+                              : (surat.asalSurat || '-')
+                            }
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* Kegiatan */}
+                      <td className="px-4 py-4">
+                        {getKegiatanDate(surat) ? (
+                          <div className="flex flex-col gap-1">
+                            <span className="text-sm font-medium text-slate-700">
+                              {new Date(getKegiatanDate(surat)!).toLocaleDateString('id-ID', {
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric'
                               })}
                             </span>
-                          </div>
-                        </td>
-
-                        {/* Hal/Perihal */}
-                        <td className="px-4 py-4">
-                          <span 
-                            className="text-sm text-slate-700 block truncate max-w-xs cursor-help" 
-                            title={surat.hal || '-'}
-                          >
-                            {surat.hal || '-'}
-                          </span>
-                        </td>
-
-                        {/* Asal/Tujuan Surat */}
-                        <td className="px-4 py-4">
-                          <div className="flex items-start gap-2">
-                            <Building2 size={14} className="text-slate-400 mt-0.5 shrink-0" />
-                            <span className="text-sm text-slate-700 line-clamp-2">
-                              {surat.jenisSurat === 'Keluar' 
-                                ? (surat.tujuanSurat || '-')
-                                : (surat.asalSurat || '-')
-                              }
-                            </span>
-                          </div>
-                        </td>
-
-                        {/* Kegiatan */}
-                        <td className="px-4 py-4">
-                          {getKegiatanDate(surat) ? (
-                            <div className="flex flex-col gap-1">
-                              <span className="text-sm font-medium text-slate-700">
-                                {new Date(getKegiatanDate(surat)!).toLocaleDateString('id-ID', { 
-                                  day: 'numeric', 
-                                  month: 'short',
-                                  year: 'numeric'
-                                })}
+                            {getKegiatanTitle(surat) && (
+                              <span className="text-xs text-slate-500 truncate max-w-[150px]" title={getKegiatanTitle(surat)!}>
+                                {getKegiatanTitle(surat)}
                               </span>
-                              {getKegiatanTitle(surat) && (
-                                <span className="text-xs text-slate-500 truncate max-w-[150px]" title={getKegiatanTitle(surat)!}>
-                                  {getKegiatanTitle(surat)}
-                                </span>
-                              )}
-                            </div>
-                          ) : (
-                            <span className="text-xs text-slate-400 italic">Tidak ada</span>
-                          )}
-                        </td>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-slate-400 italic">Tidak ada</span>
+                        )}
+                      </td>
 
-                        {/* Disposisi */}
-                        <td className="px-4 py-4">
-                          {surat.hasDisposisi ? (
-                            <div className="flex items-center justify-center gap-2">
-                              {/* Disposisi Count Badge */}
-                              <div className="flex items-center gap-1.5 bg-purple-100 text-purple-700 px-2.5 py-1 rounded-full">
-                                <Users size={14} />
-                                <span className="text-xs font-semibold">{surat.disposisiCount || 0}</span>
-                              </div>
-                              
-                              {/* Disposisi Status Badge */}
-                              {surat.disposisiStatus && (
-                                <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full ${
-                                  surat.disposisiStatus === 'Completed' 
-                                    ? 'bg-green-100 text-green-700' 
-                                    : surat.disposisiStatus === 'In Progress'
-                                    ? 'bg-blue-100 text-blue-700'
-                                    : surat.disposisiStatus === 'Pending'
+                      {/* Disposisi */}
+                      <td className="px-4 py-4">
+                        {surat.hasDisposisi ? (
+                          <div className="flex items-center justify-center gap-2">
+                            {/* Disposisi Count Badge */}
+                            <div className="flex items-center gap-1.5 bg-purple-100 text-purple-700 px-2.5 py-1 rounded-full">
+                              <Users size={14} />
+                              <span className="text-xs font-semibold">{surat.disposisiCount || 0}</span>
+                            </div>
+
+                            {/* Disposisi Status Badge */}
+                            {surat.disposisiStatus && (
+                              <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full ${surat.disposisiStatus === 'Completed'
+                                ? 'bg-green-100 text-green-700'
+                                : surat.disposisiStatus === 'In Progress'
+                                  ? 'bg-blue-100 text-blue-700'
+                                  : surat.disposisiStatus === 'Pending'
                                     ? 'bg-yellow-100 text-yellow-700'
                                     : 'bg-slate-100 text-slate-700'
                                 }`}>
-                                  {surat.disposisiStatus === 'Completed' && <CheckCircle2 size={12} />}
-                                  {surat.disposisiStatus === 'In Progress' && <Clock size={12} />}
-                                  {surat.disposisiStatus === 'Pending' && <AlertCircle size={12} />}
-                                  {surat.disposisiStatus === 'Mixed' && <Users size={12} />}
-                                  {surat.disposisiStatus}
-                                </span>
-                              )}
-                            </div>
-                          ) : (
-                            <span className="text-xs text-slate-400 italic">-</span>
-                          )}
-                        </td>
-
-                        {/* Dokumen */}
-                        <td className="px-4 py-4">
-                          <div className="flex items-center justify-center gap-1.5">
-                            {surat.fileSurat && (
-                              <a
-                                href={displayUrls[surat.id] || surat.fileSurat.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="p-2 hover:bg-gov-50 rounded-lg text-gov-600 transition-colors"
-                                title="File Surat"
-                              >
-                                {surat.fileSurat.isLink ? <Link2 size={16} /> : <FileText size={16} />}
-                              </a>
-                            )}
-                            {!surat.fileSurat && (
-                              <span className="text-sm text-slate-400">-</span>
+                                {surat.disposisiStatus === 'Completed' && <CheckCircle2 size={12} />}
+                                {surat.disposisiStatus === 'In Progress' && <Clock size={12} />}
+                                {surat.disposisiStatus === 'Pending' && <AlertCircle size={12} />}
+                                {surat.disposisiStatus === 'Mixed' && <Users size={12} />}
+                                {surat.disposisiStatus}
+                              </span>
                             )}
                           </div>
-                        </td>
+                        ) : (
+                          <span className="text-xs text-slate-400 italic">-</span>
+                        )}
+                      </td>
 
-                        {/* Aksi */}
-                        <td className="px-4 py-4">
-                          <div className="flex justify-center">
-                            <button
-                              onClick={() => handleViewSurat(surat)}
+                      {/* Dokumen */}
+                      <td className="px-4 py-4">
+                        <div className="flex items-center justify-center gap-1.5">
+                          {surat.fileSurat && (
+                            <a
+                              href={displayUrls[surat.id] || surat.fileSurat.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
                               className="p-2 hover:bg-gov-50 rounded-lg text-gov-600 transition-colors"
-                              title="Lihat Detail"
+                              title="File Surat"
                             >
-                              <Eye size={18} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
+                              {surat.fileSurat.isLink ? <Link2 size={16} /> : <FileText size={16} />}
+                            </a>
+                          )}
+                          {!surat.fileSurat && (
+                            <span className="text-sm text-slate-400">-</span>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* Aksi */}
+                      <td className="px-4 py-4">
+                        <div className="flex justify-center">
+                          <button
+                            onClick={() => handleViewSurat(surat)}
+                            className="p-2 hover:bg-gov-50 rounded-lg text-gov-600 transition-colors"
+                            title="Lihat Detail"
+                          >
+                            <Eye size={18} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
@@ -1282,6 +1287,18 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
         confirmText="Ya, Lanjutkan"
         cancelText="Batal"
       />
+
+      {/* Import Surat Modal */}
+      {showImportModal && (
+        <ImportSuratModal
+          isOpen={showImportModal}
+          onClose={() => setShowImportModal(false)}
+          onSuccess={() => fetchSurats()}
+          currentUser={currentUser}
+          currentUserName={currentUser?.name || 'Sistem'}
+          showNotification={showNotification}
+        />
+      )}
     </div>
   );
 };
