@@ -34,7 +34,7 @@ const MotivationCard: React.FC<MotivationCardProps> = ({ className = '' }) => {
       'linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)',
       'linear-gradient(135deg, #fad0c4 0%, #ffd1ff 100%)'
     ];
-    
+
     return gradients[Math.floor(Math.random() * gradients.length)];
   };
 
@@ -72,7 +72,7 @@ const MotivationCard: React.FC<MotivationCardProps> = ({ className = '' }) => {
       { text: "I am not a product of my circumstances. I am a product of my decisions.", author: "Stephen Covey" },
       { text: "Every child is an artist. The problem is how to remain an artist once he grows up.", author: "Pablo Picasso" }
     ];
-    
+
     // Gunakan hari dalam tahun untuk konsistensi quote harian
     const today = new Date();
     const dayOfYear = Math.floor((today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) / (1000 * 60 * 60 * 24));
@@ -83,22 +83,22 @@ const MotivationCard: React.FC<MotivationCardProps> = ({ className = '' }) => {
   const translateQuote = async (text: string) => {
     try {
       setIsTranslating(true);
-      
+
       // Menggunakan MyMemory API untuk translate
       const response = await fetch(
         `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|id`
       );
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+
       const data = await response.json();
-      
+
       if (data.responseData && data.responseData.translatedText) {
         return data.responseData.translatedText;
       }
-      
+
       return null;
     } catch (error) {
       return null;
@@ -110,49 +110,49 @@ const MotivationCard: React.FC<MotivationCardProps> = ({ className = '' }) => {
   // Fungsi untuk mendapatkan quote motivasi
   const fetchQuote = async () => {
     try {
-      // Menggunakan well300/quotes-api
-      const response = await fetch('https://quotes-api-self.vercel.app/quote');
-      
+      // Menggunakan dummyjson api (karena vercel app error)
+      const response = await fetch('https://dummyjson.com/quotes/random');
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+
       const data = await response.json();
-      
-      // Handle well300 quotes-api format
+
+      // Handle dummyjson quotes-api format
       if (data.quote && data.author) {
         const newQuote: Quote = {
           text: data.quote,
           author: data.author
         };
-        
+
         // Auto-translate quote ke bahasa Indonesia
         const translatedText = await translateQuote(data.quote);
         if (translatedText) {
           newQuote.translatedText = translatedText;
         }
-        
+
         setQuote(newQuote);
         return;
       }
-      
+
       // Jika API gagal, gunakan quote lokal berkualitas tinggi
       const localQuote = getLocalQuotes();
       const quoteWithTranslation: Quote = { ...localQuote };
-      
+
       // Auto-translate local quote jika belum ada terjemahan
       const translatedText = await translateQuote(localQuote.text);
       if (translatedText) {
         quoteWithTranslation.translatedText = translatedText;
       }
-      
+
       setQuote(quoteWithTranslation);
-      
+
     } catch (error) {
       // Fallback ke quote lokal
       const localQuote = getLocalQuotes();
       const quoteWithTranslation: Quote = { ...localQuote };
-      
+
       // Auto-translate local quote jika belum ada terjemahan
       try {
         const translatedText = await translateQuote(localQuote.text);
@@ -162,7 +162,7 @@ const MotivationCard: React.FC<MotivationCardProps> = ({ className = '' }) => {
       } catch (translateError) {
         // Jika translate gagal, tetap gunakan quote tanpa terjemahan
       }
-      
+
       setQuote(quoteWithTranslation);
     }
   };
@@ -172,10 +172,10 @@ const MotivationCard: React.FC<MotivationCardProps> = ({ className = '' }) => {
     try {
       // Generate seed random untuk variasi setiap refresh
       const seed = Math.floor(Math.random() * 10000);
-      
+
       // Coba Picsum Photos terlebih dahulu
       const picsumUrl = `https://picsum.photos/seed/motivation${seed}/800/400`;
-      
+
       // Test load image dengan timeout
       const testImage = (url: string): Promise<boolean> => {
         return new Promise((resolve) => {
@@ -183,7 +183,7 @@ const MotivationCard: React.FC<MotivationCardProps> = ({ className = '' }) => {
           const timeout = setTimeout(() => {
             resolve(false);
           }, 5000); // 5 detik timeout
-          
+
           img.onload = () => {
             clearTimeout(timeout);
             resolve(true);
@@ -195,7 +195,7 @@ const MotivationCard: React.FC<MotivationCardProps> = ({ className = '' }) => {
           img.src = url;
         });
       };
-      
+
       const isLoaded = await testImage(picsumUrl);
       if (isLoaded) {
         setBackgroundImage(picsumUrl);
@@ -203,7 +203,7 @@ const MotivationCard: React.FC<MotivationCardProps> = ({ className = '' }) => {
         // Jika Picsum gagal, gunakan gradient (tidak set backgroundImage)
         setBackgroundImage('');
       }
-      
+
     } catch (error) {
       console.error('Error fetching background image:', error);
       setBackgroundImage('');
@@ -224,10 +224,10 @@ const MotivationCard: React.FC<MotivationCardProps> = ({ className = '' }) => {
   const shouldUpdateDaily = (timestamp?: number) => {
     const checkTimestamp = timestamp || lastUpdate;
     if (!checkTimestamp) return true;
-    
+
     const lastUpdateDate = new Date(checkTimestamp);
     const today = new Date();
-    
+
     // Cek apakah tanggal berbeda
     return lastUpdateDate.toDateString() !== today.toDateString();
   };
@@ -237,7 +237,7 @@ const MotivationCard: React.FC<MotivationCardProps> = ({ className = '' }) => {
     const loadContent = async () => {
       // Inisialisasi gradient
       setCurrentGradient(getRandomGradient());
-      
+
       const savedQuote = localStorage.getItem('motivationQuote');
       const savedImage = localStorage.getItem('motivationImage');
       const savedTimestamp = localStorage.getItem('motivationTimestamp');
@@ -245,9 +245,9 @@ const MotivationCard: React.FC<MotivationCardProps> = ({ className = '' }) => {
       if (savedQuote && savedTimestamp) {
         const timestamp = parseInt(savedTimestamp);
         setLastUpdate(timestamp);
-        
+
         const shouldUpdate = shouldUpdateDaily(timestamp);
-        
+
         if (!shouldUpdate) {
           // Gunakan data yang tersimpan jika masih hari yang sama
           setQuote(JSON.parse(savedQuote));
@@ -294,16 +294,16 @@ const MotivationCard: React.FC<MotivationCardProps> = ({ className = '' }) => {
   return (
     <div className={`relative overflow-hidden rounded-xl shadow-sm border border-slate-200 ${className}`}>
       {/* Background Image atau Gradient dengan Overlay */}
-      <div 
+      <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
         style={{
-          backgroundImage: backgroundImage 
-            ? `url(${backgroundImage})` 
+          backgroundImage: backgroundImage
+            ? `url(${backgroundImage})`
             : currentGradient || getRandomGradient()
         }}
       />
       <div className="absolute inset-0 bg-black/40" />
-      
+
       {/* Content */}
       <div className="relative p-6 text-white min-h-[300px] flex flex-col justify-between">
         {/* Header */}
@@ -318,17 +318,16 @@ const MotivationCard: React.FC<MotivationCardProps> = ({ className = '' }) => {
               <button
                 onClick={() => setShowTranslation(!showTranslation)}
                 disabled={isTranslating}
-                className={`p-2 rounded-lg transition-colors disabled:opacity-50 ${
-                  showTranslation 
-                    ? 'bg-white/30 text-white' 
+                className={`p-2 rounded-lg transition-colors disabled:opacity-50 ${showTranslation
+                    ? 'bg-white/30 text-white'
                     : 'bg-white/20 hover:bg-white/30 text-white/90'
-                }`}
+                  }`}
                 title={showTranslation ? "Tampilkan bahasa Inggris" : "Tampilkan terjemahan Indonesia"}
               >
                 <Languages size={16} />
               </button>
             )}
-            
+
             {/* Refresh Button */}
             <button
               onClick={refreshContent}
@@ -359,7 +358,7 @@ const MotivationCard: React.FC<MotivationCardProps> = ({ className = '' }) => {
               <cite className="text-sm text-white/80 text-center font-medium">
                 — {quote.author}
               </cite>
-              
+
               {/* Translation Status */}
               {isTranslating && (
                 <div className="text-center mt-2">
@@ -369,7 +368,7 @@ const MotivationCard: React.FC<MotivationCardProps> = ({ className = '' }) => {
                   </span>
                 </div>
               )}
-              
+
               {/* Language Indicator */}
               {quote.translatedText && (
                 <div className="text-center mt-2">
