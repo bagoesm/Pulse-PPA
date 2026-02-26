@@ -355,14 +355,26 @@ const ImportSuratModal: React.FC<ImportSuratModalProps> = ({
                     }
 
                     // Store extra metadata gracefully
-                    if (linkSurat || linkLaporan || hasilTindakLanjut) {
+                    if (linkLaporan || hasilTindakLanjut) {
                         const extraKeterangan = [
-                            linkSurat ? `Link Surat: ${linkSurat}` : null,
                             linkLaporan ? `Link Laporan Disposisi: ${linkLaporan}` : null,
                             hasilTindakLanjut ? `Hasil Tindak Lanjut: ${hasilTindakLanjut}` : null
                         ].filter(Boolean).join('\n');
 
                         suratData.hal = suratData.hal ? `${suratData.hal}\n\n${extraKeterangan}` : extraKeterangan;
+                    }
+
+                    // Store linkSurat as an Attachment object representing a link
+                    if (linkSurat) {
+                        suratData.fileSurat = {
+                            id: `lk_${Date.now()}`,
+                            name: 'Dokumen Surat (Link)',
+                            size: 0,
+                            type: 'link',
+                            path: '',
+                            url: String(linkSurat).trim(),
+                            isLink: true
+                        };
                     }
 
                     parsedRows.push({
@@ -459,6 +471,7 @@ const ImportSuratModal: React.FC<ImportSuratModalProps> = ({
                     bidang_tugas: row.data.bidangTugas || null,
                     tanggal_diterima: row.data.tanggalDiterima || null,
                     tanggal_dikirim: row.data.tanggalDikirim || null,
+                    file_surat: row.data.fileSurat || null,
                     created_by: currentUserName,
                     created_by_id: currentUser?.id || null,
                     updated_at: new Date().toISOString()
