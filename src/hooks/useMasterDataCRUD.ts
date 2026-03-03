@@ -29,10 +29,17 @@ export const useMasterDataCRUD = () => {
 
         const newOrder = (maxOrder?.display_order || 0) + 1;
 
+        // Get current user for RLS policy
+        const { data: { user } } = await supabase.auth.getUser();
+
         // Insert
         const { error } = await supabase
             .from(tableName)
-            .insert([{ name, display_order: newOrder }]);
+            .insert([{
+                name,
+                display_order: newOrder,
+                created_by_id: user?.id || null
+            }]);
 
         if (error) throw error;
 
@@ -123,7 +130,7 @@ export const useMasterDataCRUD = () => {
     // Check if can delete (check if used in surats)
     const canDeleteMasterData = async (tableName: string, name: string): Promise<boolean> => {
         let query;
-        
+
         if (tableName === 'master_unit_internal' || tableName === 'master_unit_eksternal') {
             const { data: asalCount } = await supabase
                 .from('surats')
