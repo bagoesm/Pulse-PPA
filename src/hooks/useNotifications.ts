@@ -134,7 +134,9 @@ export const useNotifications = ({ currentUser, tasks, onTaskNavigation, onMeeti
         p_task_id: taskId && taskId.length > 0 ? taskId : null,
         p_task_title: taskTitle || null,
         p_meeting_id: meetingId || null,
-        p_meeting_title: meetingTitle || null
+        p_meeting_title: meetingTitle || null,
+        p_disposisi_id: null,
+        p_disposisi_text: null
       });
 
       if (error) {

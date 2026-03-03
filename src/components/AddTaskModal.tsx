@@ -365,10 +365,33 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
       return;
     }
 
+    let categoryId = formData.categoryId;
+    let subCategoryId = formData.subCategoryId;
+
+    // Resolve IDs from master data
+    if (formData.category) {
+      const currentCategory = masterCategories.find(cat => cat.name === formData.category);
+      if (currentCategory) {
+        categoryId = currentCategory.id;
+
+        if (formData.subCategory) {
+          const relatedSubIds = categorySubcategoryRelations
+            .filter(rel => rel.category_id === currentCategory.id)
+            .map(rel => rel.subcategory_id);
+          const subCat = masterSubCategories.find(sub => sub.name === formData.subCategory && relatedSubIds.includes(sub.id));
+          if (subCat) {
+            subCategoryId = subCat.id;
+          }
+        }
+      }
+    }
+
     const payload: Omit<Task, 'id'> = {
       title: (formData.title || '').trim(),
       category: (formData.category as Category) || Category.PengembanganAplikasi, // Default ke kategori pertama
+      categoryId: categoryId || undefined,
       subCategory: (formData.subCategory as string) || '',
+      subCategoryId: subCategoryId || undefined,
       startDate: formData.startDate || new Date().toISOString().split('T')[0],
       deadline: formData.deadline || new Date().toISOString().split('T')[0],
       pic: Array.isArray(formData.pic) ? formData.pic : (formData.pic ? [formData.pic as any] : [defaultPic]),

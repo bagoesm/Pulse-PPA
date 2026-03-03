@@ -23,6 +23,7 @@ export const mapSuratFromDB = (dbSurat: any): Surat => {
     tanggalDiterima: dbSurat.tanggal_diterima,
     tanggalDikirim: dbSurat.tanggal_dikirim,
     disposisi: dbSurat.disposisi,
+    catatan: dbSurat.catatan,
     hasilTindakLanjut: dbSurat.hasil_tindak_lanjut,
     fileSurat: dbSurat.file_surat,
     meetingId: dbSurat.meeting_id,
