@@ -148,6 +148,11 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
       // Ensure attachments array exists and handle backward compatibility for pic
       setFormData({
         ...initialData,
+        category: initialData.category || Category.PengembanganAplikasi,
+        priority: initialData.priority || Priority.Medium,
+        status: initialData.status || Status.ToDo,
+        startDate: initialData.startDate || new Date().toISOString().split('T')[0],
+        deadline: initialData.deadline || new Date().toISOString().split('T')[0],
         attachments: initialData.attachments || [],
         links: initialData.links || [],
         blockedBy: initialData.blockedBy || [],
@@ -486,7 +491,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
                         ? masterCategories.map(cat => ({ value: cat.name, label: cat.name }))
                         : Object.values(Category).map(cat => ({ value: cat, label: cat }))
                     )}
-                    value={formData.category || (masterCategories.length > 0 ? masterCategories[0].name : Category.PengembanganAplikasi)}
+                    value={formData.category || ''}
                     onChange={(val) => handleChange('category', val as Category)}
                     placeholder="Cari kategori..."
                     emptyOption="-- Pilih Kategori --"
@@ -648,7 +653,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
                   type="date"
                   required
                   disabled={isReadOnly}
-                  value={formData.startDate || new Date().toISOString().split('T')[0]}
+                  value={formData.startDate || ''}
                   onChange={(e) => handleChange('startDate', e.target.value)}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm text-slate-700 disabled:bg-slate-50 disabled:text-slate-500"
                 />
@@ -661,7 +666,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
                   type="date"
                   required
                   disabled={isReadOnly}
-                  value={formData.deadline || new Date().toISOString().split('T')[0]}
+                  value={formData.deadline || ''}
                   onChange={(e) => handleChange('deadline', e.target.value)}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm text-slate-700 disabled:bg-slate-50 disabled:text-slate-500"
                 />
@@ -674,10 +679,11 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
                 <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Prioritas</label>
                 <select
                   disabled={isReadOnly}
-                  value={formData.priority || Priority.Medium}
+                  value={formData.priority || ''}
                   onChange={(e) => handleChange('priority', e.target.value as Priority)}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm text-slate-700 bg-white disabled:bg-slate-50 disabled:text-slate-500"
                 >
+                  <option value="" disabled hidden>-- Pilih Prioritas --</option>
                   {Object.values(Priority).map(p => <option key={p} value={p}>{p}</option>)}
                 </select>
               </div>
@@ -687,10 +693,11 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
                 <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Status</label>
                 <select
                   disabled={isReadOnly}
-                  value={formData.status || Status.ToDo}
+                  value={formData.status || ''}
                   onChange={(e) => handleChange('status', e.target.value as Status)}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm text-slate-700 bg-white disabled:bg-slate-50 disabled:text-slate-500"
                 >
+                  <option value="" disabled hidden>-- Pilih Status --</option>
                   {Object.values(Status).map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
