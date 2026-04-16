@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Plus, Search, Link2, ExternalLink, Trash2, Edit2, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { DataInventoryItem, DataInventoryLink, User } from '../../types';
+import { useDivision } from '../contexts/DivisionContext';
+import DivisionFilter from './DivisionFilter';
 
 interface DataInventoryProps {
   items: DataInventoryItem[];
@@ -17,6 +19,7 @@ const DataInventory: React.FC<DataInventoryProps> = ({
   onUpdateItem,
   onDeleteItem
 }) => {
+  const { shouldShowByDivisi, selectedDivisi } = useDivision();
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<DataInventoryItem | null>(null);
@@ -27,10 +30,13 @@ const DataInventory: React.FC<DataInventoryProps> = ({
   const [formDescription, setFormDescription] = useState('');
   const [formLinks, setFormLinks] = useState<DataInventoryLink[]>([]);
 
-  const filteredItems = items.filter(item =>
-    item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.description.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredItems = items.filter(item => {
+    // First apply division filter
+    if (selectedDivisi !== 'All' && !shouldShowByDivisi(item.createdBy)) return false;
+    // Then search filter
+    return item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.description.toLowerCase().includes(searchQuery.toLowerCase());
+  });
 
   const openAddModal = () => {
     setEditingItem(null);
@@ -119,13 +125,16 @@ const DataInventory: React.FC<DataInventoryProps> = ({
             Kumpulan informasi umum seperti link pelaporan, akun Zoom, dan lainnya
           </p>
         </div>
-        <button
-          onClick={openAddModal}
-          className="flex items-center gap-2 px-4 py-2 bg-gov-600 text-white rounded-lg hover:bg-gov-700 transition-colors font-medium text-sm"
-        >
-          <Plus size={18} />
-          Tambah Data
-        </button>
+        <div className="flex gap-2">
+          <DivisionFilter compact />
+          <button
+            onClick={openAddModal}
+            className="flex items-center gap-2 px-4 py-2 bg-gov-600 text-white rounded-lg hover:bg-gov-700 transition-colors font-medium text-sm"
+          >
+            <Plus size={18} />
+            Tambah Data
+          </button>
+        </div>
       </div>
 
       {/* Search */}

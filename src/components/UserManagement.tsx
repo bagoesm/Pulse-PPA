@@ -5,6 +5,7 @@ import MultiSelectChip from './MultiSelectChip';
 import { useNotificationModal, useConfirmModal } from '../hooks/useModal';
 import NotificationModal from './NotificationModal';
 import ConfirmModal from './ConfirmModal';
+import { useDivision } from '../contexts/DivisionContext';
 
 // Master Category Management Component
 interface MasterCategoryManagementProps {
@@ -513,7 +514,7 @@ interface UserManagementProps {
   onDeleteMasterSubCategory: (id: string) => void;
 }
 
-type Tab = 'Users' | 'Jabatan' | 'Kategori';
+type Tab = 'Users' | 'Jabatan' | 'Kategori' | 'Satuan Kerja';
 
 const UserManagement: React.FC<UserManagementProps> = ({ 
     users, onAddUser, onEditUser, onDeleteUser, currentUser,
@@ -529,12 +530,13 @@ const UserManagement: React.FC<UserManagementProps> = ({
   // Modal hooks
   const { modal: notificationModal, showNotification, hideNotification } = useNotificationModal();
   const { modal: confirmModal, showConfirm, hideConfirm } = useConfirmModal();
+  const { divisiList, addDivisi, removeDivisi } = useDivision();
   
   // User Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [userFormData, setUserFormData] = useState<Partial<User>>({
-      name: '', email: '', role: 'Staff', jabatan: '', password: '', sakuraAnimationEnabled: false, snowAnimationEnabled: false, moneyAnimationEnabled: false,
+      name: '', email: '', role: 'Staff', jabatan: '', divisi: '', password: '', sakuraAnimationEnabled: false, snowAnimationEnabled: false, moneyAnimationEnabled: false,
   });
 
   // Simple Input State for Jabatan/Kategori
@@ -566,6 +568,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
               email: '',
               role: 'Staff',
               jabatan: defaultJabatan,
+              divisi: '',
               password: '',
               sakuraAnimationEnabled: false,
               snowAnimationEnabled: false,
@@ -647,14 +650,21 @@ const UserManagement: React.FC<UserManagementProps> = ({
 
   // --- Simple List Logic (Jabatan / Kategori) ---
 
-  const handleAddItem = () => {
+  const handleAddItem = async () => {
       if (!newItemInput.trim()) return;
       if (activeTab === 'Jabatan') onAddJabatan(newItemInput);
       if (activeTab === 'Kategori') onAddSubCategory(newItemInput);
+      if (activeTab === 'Satuan Kerja') {
+          const res = await addDivisi(newItemInput);
+          if (!res.success) {
+              showNotification('Gagal', res.error || 'Terjadi kesalahan saat menambah Satuan Kerja', 'error');
+              return;
+          }
+      }
       setNewItemInput('');
   };
 
-  const currentList = activeTab === 'Jabatan' ? jabatanList : subCategories;
+  const currentList = activeTab === 'Jabatan' ? jabatanList : activeTab === 'Satuan Kerja' ? divisiList : subCategories;
   const filteredList = currentList.filter(item => item.toLowerCase().includes(searchTerm.toLowerCase()));
 
 
@@ -691,6 +701,12 @@ const UserManagement: React.FC<UserManagementProps> = ({
                     className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium flex items-center justify-center gap-1.5 sm:gap-2 transition-all whitespace-nowrap ${activeTab === 'Kategori' ? 'bg-gov-50 text-gov-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                 >
                     <Tag size={14} className="sm:w-4 sm:h-4" /> Kategori
+                </button>
+                <button 
+                    onClick={() => { setActiveTab('Satuan Kerja'); setSearchTerm(''); }}
+                    className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium flex items-center justify-center gap-1.5 sm:gap-2 transition-all whitespace-nowrap ${activeTab === 'Satuan Kerja' ? 'bg-gov-50 text-gov-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                    <Briefcase size={14} className="sm:w-4 sm:h-4" /> Satuan Kerja
                 </button>
             </div>
         </div>
@@ -883,7 +899,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                                         <td className="px-6 py-4 text-right">
                                             <button 
                                                 onClick={() => {
-                                                    const handler = activeTab === 'Jabatan' ? onDeleteJabatan : onDeleteSubCategory;
+                                                    const handler = activeTab === 'Jabatan' ? onDeleteJabatan : activeTab === 'Satuan Kerja' ? removeDivisi : onDeleteSubCategory;
                                                     showConfirm(
                                                         `Hapus ${activeTab}`,
                                                         `Apakah Anda yakin ingin menghapus "${item}"?`,
@@ -1003,6 +1019,19 @@ const UserManagement: React.FC<UserManagementProps> = ({
                                 <option value="">-- Pilih Jabatan --</option>
                                 {jabatanList.map(j => (
                                     <option key={j} value={j}>{j}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Satuan Kerja</label>
+                            <select 
+                                value={userFormData.divisi || ''}
+                                onChange={e => setUserFormData({...userFormData, divisi: e.target.value})}
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm bg-white"
+                            >
+                                <option value="">-- Pilih Satuan Kerja --</option>
+                                {divisiList.map(d => (
+                                    <option key={d} value={d}>{d}</option>
                                 ))}
                             </select>
                         </div>

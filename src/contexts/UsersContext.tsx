@@ -62,7 +62,8 @@ export const UsersProvider: React.FC<UsersProviderProps> = ({ children, session 
                     snowAnimationEnabled: user.snow_animation_enabled || false,
                     moneyAnimationEnabled: user.money_animation_enabled || false,
                     profilePhoto: user.profile_photo || undefined,
-                    profilePhotoPath: user.profile_photo_path || undefined
+                    profilePhotoPath: user.profile_photo_path || undefined,
+                    divisi: user.divisi || undefined
                 })) as User[];
                 setAllUsers(mappedUsers);
                 return mappedUsers;

@@ -68,7 +68,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, onShowNoti
                     snowAnimationEnabled: data.snow_animation_enabled || false,
                     moneyAnimationEnabled: data.money_animation_enabled || false,
                     profilePhoto: data.profile_photo || undefined,
-                    profilePhotoPath: data.profile_photo_path || undefined
+                    profilePhotoPath: data.profile_photo_path || undefined,
+                    divisi: data.divisi || undefined
                 } as User;
                 setCurrentUser(mappedUser);
             }

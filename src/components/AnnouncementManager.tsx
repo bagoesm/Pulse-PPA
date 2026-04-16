@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Plus, Edit, Trash2, Eye, EyeOff, Calendar, User } from 'lucide-react';
 import { Announcement } from '../../types';
 import AnnouncementBanner from './AnnouncementBanner';
+import DivisionFilter from './DivisionFilter';
 
 interface AnnouncementManagerProps {
   announcements: Announcement[];
@@ -68,16 +69,20 @@ const AnnouncementManager: React.FC<AnnouncementManagerProps> = ({
           <p className="text-xs sm:text-sm text-slate-600 mt-0.5 sm:mt-1">Buat dan kelola pengumuman untuk semua pengguna</p>
         </div>
         
-        {/* Tombol Buat Pengumuman - Hanya untuk Super Admin */}
-        {currentUser?.role === 'Super Admin' && (
-          <button
-            onClick={onCreateAnnouncement}
-            className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-gov-600 text-white rounded-lg font-medium hover:bg-gov-700 shadow-md hover:shadow-lg transition-all text-sm w-full sm:w-auto justify-center"
-          >
-            <Plus size={18} />
-            Buat Pengumuman
-          </button>
-        )}
+        {/* Buttons */}
+        <div className="flex gap-2 w-full sm:w-auto">
+          <DivisionFilter compact />
+          {/* Tombol Buat Pengumuman - Hanya untuk Super Admin */}
+          {currentUser?.role === 'Super Admin' && (
+            <button
+              onClick={onCreateAnnouncement}
+              className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-gov-600 text-white rounded-lg font-medium hover:bg-gov-700 shadow-md hover:shadow-lg transition-all text-sm w-full sm:w-auto justify-center"
+            >
+              <Plus size={18} />
+              Buat Pengumuman
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Filters */}

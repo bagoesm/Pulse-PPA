@@ -12,6 +12,8 @@ import { useMeetings } from '../contexts/MeetingsContext';
 import DisposisiModal from './DisposisiModal';
 import SearchableSelect from './SearchableSelect';
 import ConfirmModal from './ConfirmModal';
+import { useDivision } from '../contexts/DivisionContext';
+import DivisionFilter from './DivisionFilter';
 
 interface DisposisiListViewProps {
   currentUser: User | null;
@@ -23,6 +25,7 @@ const DisposisiListView: React.FC<DisposisiListViewProps> = ({ currentUser, show
   const { allUsers } = useUsers();
   const { surats } = useSurats();
   const { meetings } = useMeetings();
+  const { isUserIdInSelectedDivisi, selectedDivisi } = useDivision();
 
   // Search and filter states
   const [searchQuery, setSearchQuery] = useState('');
@@ -77,7 +80,12 @@ const DisposisiListView: React.FC<DisposisiListViewProps> = ({ currentUser, show
 
   // Apply filters and search
   const filteredDisposisi = useMemo(() => {
-    const filtered = disposisi.filter(d => {
+    // First apply division filter
+    const divisionFiltered = selectedDivisi === 'All'
+      ? disposisi
+      : disposisi.filter(d => isUserIdInSelectedDivisi(d.assignedTo) || isUserIdInSelectedDivisi(d.createdBy));
+
+    const filtered = divisionFiltered.filter(d => {
       // Search filter - multi-field search
       const searchLower = searchQuery.toLowerCase();
       const suratNumber = getSuratNumber(d.suratId).toLowerCase();
@@ -145,7 +153,7 @@ const DisposisiListView: React.FC<DisposisiListViewProps> = ({ currentUser, show
       if (compareA > compareB) return sortDirection === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [disposisi, searchQuery, filterStatus, filterAssignedUser, filterStartDate, filterEndDate, sortColumn, sortDirection, surats, meetings, allUsers]);
+  }, [disposisi, searchQuery, filterStatus, filterAssignedUser, filterStartDate, filterEndDate, sortColumn, sortDirection, surats, meetings, allUsers, selectedDivisi, isUserIdInSelectedDivisi]);
 
   // Pagination logic
   const totalPages = Math.ceil(filteredDisposisi.length / itemsPerPage);
@@ -231,6 +239,9 @@ const DisposisiListView: React.FC<DisposisiListViewProps> = ({ currentUser, show
           <p className="text-xs text-slate-400 mt-1">
             Disposisi dibuat dari Surat yang di-link ke Kegiatan
           </p>
+        </div>
+        <div className="flex gap-3">
+          <DivisionFilter />
         </div>
       </div>
 

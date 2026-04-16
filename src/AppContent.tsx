@@ -26,6 +26,8 @@ import { useAppContent } from './contexts/AppContentContext';
 import { useUI } from './contexts/UIContext';
 import { useEpics } from './contexts/EpicsContext';
 import { useUserHandlers } from './hooks/useUserHandlers';
+import { useDivision } from './contexts/DivisionContext';
+import DivisionFilter from './components/DivisionFilter';
 import { useTaskHandlers } from './hooks/useTaskHandlers';
 import { useProjectHandlers } from './hooks/useProjectHandlers';
 import { useEpicHandlers } from './hooks/useEpicHandlers';
@@ -167,6 +169,26 @@ const AppContent: React.FC = () => {
     confirmModal, showConfirm, hideConfirm
   } = useUI();
 
+  // ===== DIVISION CONTEXT =====
+  const {
+    shouldShowByDivisi,
+    selectedDivisi,
+    divisiUserNames,
+    isInSelectedDivisi,
+  } = useDivision();
+
+  // Filter users by Satuan Kerja
+  const divisionFilteredUsers = useMemo(() => {
+    if (selectedDivisi === 'All') return taskAssignableUsers;
+    return taskAssignableUsers.filter(u => isInSelectedDivisi(u.name));
+  }, [taskAssignableUsers, selectedDivisi, isInSelectedDivisi]);
+
+  // Filter announcements by Satuan Kerja
+  const divisionFilteredAnnouncements = useMemo(() => {
+    if (selectedDivisi === 'All') return announcements;
+    return announcements.filter(a => shouldShowByDivisi(a.createdBy));
+  }, [announcements, selectedDivisi, shouldShowByDivisi]);
+
   // ===== COMPUTED DATA =====
   // Compute meetingsAsTasks
   const meetingsAsTasks = useMemo(() =>
@@ -180,10 +202,19 @@ const AppContent: React.FC = () => {
     [tasks, meetingsAsTasks]
   );
 
-  // Compute filteredTasks
+  // Apply division filter to all tasks
+  const divisionFilteredTasks = useMemo(() => {
+    if (selectedDivisi === 'All') return allTasksWithMeetings;
+    return allTasksWithMeetings.filter(task => {
+      // Check by PIC (task.pic is string[] of names) and createdBy (string name)
+      return shouldShowByDivisi(task.createdBy, task.pic);
+    });
+  }, [allTasksWithMeetings, selectedDivisi, shouldShowByDivisi]);
+
+  // Compute filteredTasks (applies search and other filters on top of division filter)
   const filteredTasks = useMemo(() =>
     getFilteredTasks(
-      allTasksWithMeetings,
+      divisionFilteredTasks,
       debouncedSearch,
       {
         category: filters.category,
@@ -195,7 +226,7 @@ const AppContent: React.FC = () => {
       },
       activeTab
     ),
-    [getFilteredTasks, allTasksWithMeetings, debouncedSearch, filters, activeTab]
+    [getFilteredTasks, divisionFilteredTasks, debouncedSearch, filters, activeTab]
   );
 
   // Alias for hooks that expect setProjectRefreshTrigger
@@ -661,6 +692,9 @@ const AppContent: React.FC = () => {
               {/* Buttons Row - All buttons in horizontal alignment */}
               <div className="flex items-center justify-between gap-2 sm:gap-4">
                 <div className="flex items-center gap-2 sm:gap-3">
+                  {/* Division Filter */}
+                  <DivisionFilter compact />
+
                   {/* View Switcher */}
                   {!(activeTab === 'Surat & Dokumen' && suratSubTab === 'Templates') && (
                     <div className="flex bg-slate-100 p-0.5 sm:p-1 rounded-lg">
@@ -764,7 +798,9 @@ const AppContent: React.FC = () => {
                   )}
 
                   <SearchableSelect
-                    options={allUniquePics.map(pic => ({ value: pic, label: pic }))}
+                    options={allUniquePics
+                      .filter(pic => selectedDivisi === 'All' || isInSelectedDivisi(pic))
+                      .map(pic => ({ value: pic, label: pic }))}
                     value={filters.pic === 'All' ? '' : filters.pic}
                     onChange={(val) => setFilters(prev => ({ ...prev, pic: val || 'All' }))}
                     placeholder="PIC"
@@ -788,8 +824,8 @@ const AppContent: React.FC = () => {
         {/* Content Area */}
         {activeTab === 'Dashboard' ? (
           <Dashboard
-            tasks={allTasksWithMeetings}
-            users={taskAssignableUsers}
+            tasks={divisionFilteredTasks}
+            users={divisionFilteredUsers}
             userStatuses={userStatuses}
             onCreateStatus={handleCreateStatus}
             onDeleteStatus={handleDeleteStatus}
@@ -802,7 +838,7 @@ const AppContent: React.FC = () => {
             onNotificationClick={handleNotificationClick}
             onDeleteNotification={deleteNotification}
             onDismissAll={dismissAllNotifications}
-            announcements={announcements}
+            announcements={divisionFilteredAnnouncements}
           />
         ) : activeTab === 'Project' ? (
           <ProjectOverview
@@ -890,7 +926,7 @@ const AppContent: React.FC = () => {
         ) : activeTab === 'Pengumuman' ? (
           <div className="p-6 h-full overflow-y-auto bg-slate-50">
             <AnnouncementManager
-              announcements={announcements}
+              announcements={divisionFilteredAnnouncements}
               onCreateAnnouncement={handleCreateAnnouncement}
               onEditAnnouncement={handleEditAnnouncement}
               onDeleteAnnouncement={handleDeleteAnnouncement}

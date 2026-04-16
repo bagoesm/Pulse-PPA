@@ -27,6 +27,7 @@ import { SuratsProvider } from './SuratsContext';
 import { DisposisiProvider } from './DisposisiContext';
 import { MasterDataProvider } from './MasterDataContext';
 import { AppContentProvider } from './AppContentContext';
+import { DivisionProvider } from './DivisionContext';
 
 interface DataProviderProps {
     children: ReactNode;
@@ -40,23 +41,25 @@ interface DataProviderProps {
 export const DataProvider: React.FC<DataProviderProps> = ({ children, session }) => {
     return (
         <UsersProvider session={session}>
-            <MasterDataProvider session={session}>
-                <ProjectsProvider session={session}>
-                    <EpicsProvider session={session}>
-                        <MeetingsProvider session={session}>
-                            <SuratsProvider session={session}>
-                                <DisposisiProvider session={session}>
-                                    <TasksProvider session={session}>
-                                        <AppContentProvider session={session}>
-                                            {children}
-                                        </AppContentProvider>
-                                    </TasksProvider>
-                                </DisposisiProvider>
-                            </SuratsProvider>
-                        </MeetingsProvider>
-                    </EpicsProvider>
-                </ProjectsProvider>
-            </MasterDataProvider>
+            <DivisionProvider session={session}>
+                <MasterDataProvider session={session}>
+                    <ProjectsProvider session={session}>
+                        <EpicsProvider session={session}>
+                            <MeetingsProvider session={session}>
+                                <SuratsProvider session={session}>
+                                    <DisposisiProvider session={session}>
+                                        <TasksProvider session={session}>
+                                            <AppContentProvider session={session}>
+                                                {children}
+                                            </AppContentProvider>
+                                        </TasksProvider>
+                                    </DisposisiProvider>
+                                </SuratsProvider>
+                            </MeetingsProvider>
+                        </EpicsProvider>
+                    </ProjectsProvider>
+                </MasterDataProvider>
+            </DivisionProvider>
         </UsersProvider>
     );
 };

@@ -23,6 +23,8 @@ import {
   ClipboardList
 } from 'lucide-react';
 import { Meeting, MeetingType, User, ProjectDefinition } from '../../types';
+import { useDivision } from '../contexts/DivisionContext';
+import DivisionFilter from './DivisionFilter';
 
 interface MeetingCalendarProps {
   meetings: Meeting[];
@@ -88,6 +90,8 @@ const MeetingCalendar: React.FC<MeetingCalendarProps> = ({
   onAddMeeting,
   onViewMeeting,
 }) => {
+  const { shouldShowByDivisi, selectedDivisi } = useDivision();
+
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
@@ -128,7 +132,10 @@ const MeetingCalendar: React.FC<MeetingCalendarProps> = ({
 
   // Filter meetings
   const filteredMeetings = useMemo(() => {
-    let filtered = meetings;
+    // First apply division filter
+    let filtered = selectedDivisi === 'All'
+      ? meetings
+      : meetings.filter(m => shouldShowByDivisi(m.createdBy, m.pic || []));
 
     if (filterType !== 'all') {
       filtered = filtered.filter(m => m.type === filterType);
@@ -161,7 +168,7 @@ const MeetingCalendar: React.FC<MeetingCalendarProps> = ({
     }
 
     return filtered;
-  }, [meetings, filterType, filterStatus, filterPic, filterDisposisi, searchQuery]);
+  }, [meetings, filterType, filterStatus, filterPic, filterDisposisi, searchQuery, selectedDivisi, shouldShowByDivisi]);
 
   // Get calendar data
   const calendarData = useMemo(() => {
@@ -432,6 +439,7 @@ const MeetingCalendar: React.FC<MeetingCalendarProps> = ({
           </div>
 
           <div className="flex items-center gap-1.5 sm:gap-3">
+            <DivisionFilter compact />
             <div className="flex bg-slate-100 p-0.5 sm:p-1 rounded-lg">
               <button onClick={() => setViewMode('calendar')} className={`p-1.5 sm:p-2 rounded-md transition-all ${viewMode === 'calendar' ? 'bg-white shadow-sm text-gov-600' : 'text-slate-500 hover:text-slate-700'}`}>
                 <Grid3X3 size={16} className="sm:w-[18px] sm:h-[18px]" />

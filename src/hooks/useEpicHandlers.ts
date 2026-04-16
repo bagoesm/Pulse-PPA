@@ -26,27 +26,12 @@ export const useEpicHandlers = ({
     showNotification
 }: UseEpicHandlersProps) => {
 
-    // Permission check: PIC, Atasan, or Super Admin can edit/delete
+    // Permission check: Allow all authenticated users (Staff) to edit/delete
     const checkEpicEditPermission = useCallback((epic: Epic): boolean => {
         if (!currentUser) return false;
 
-        // Super Admin or Atasan can always edit
-        if (currentUser.role === 'Super Admin' || currentUser.role === 'Atasan') {
-            return true;
-        }
-
-        // PIC of the epic can edit
-        const epicPics = Array.isArray(epic.pic) ? epic.pic : [epic.pic];
-        if (epicPics.includes(currentUser.name)) {
-            return true;
-        }
-
-        // Creator can edit
-        if (epic.createdBy === currentUser.name) {
-            return true;
-        }
-
-        return false;
+        // Everyone (including Staff) can edit
+        return true;
     }, [currentUser]);
 
     const checkEpicDeletePermission = useCallback((epic: Epic): boolean => {

@@ -411,7 +411,7 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
               onEditEpic={onEditEpic}
               onDeleteEpic={onDeleteEpic}
               onCreateEpic={() => onCreateEpic && onCreateEpic(selectedProject.id)}
-              canManage={canManageProjects || currentUserName === selectedProject.manager}
+              canManage={true} // Changed to allow all users (including staff) to manage epics
             />
 
             <ProjectDocumentsSection

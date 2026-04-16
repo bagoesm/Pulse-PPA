@@ -64,6 +64,7 @@ export interface User {
   email: string;
   initials: string;
   jabatan?: string; // e.g. "Pranata Komputer Ahli Muda"
+  divisi?: string; // Satuan Kerja user, e.g. "Biro Data Dan Informasi"
   password?: string; // For mock auth
   sakuraAnimationEnabled?: boolean; // Setting untuk animasi bunga sakura
   snowAnimationEnabled?: boolean; // Setting untuk animasi salju
@@ -201,6 +202,7 @@ export interface FilterState {
   status: Status | 'All';
   projectId: string | 'All';
   epicId: string | 'All';
+  divisi: string | 'All'; // Filter by division
 }
 
 export interface Comment {

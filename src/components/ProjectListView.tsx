@@ -11,6 +11,8 @@ import {
     Zap, Target, Rocket, Star, Heart, Lightbulb, Settings, Users, FileText, BarChart3, Layers
 } from 'lucide-react';
 import SearchableSelect from './SearchableSelect';
+import DivisionFilter from './DivisionFilter';
+import { useDivision } from '../contexts/DivisionContext';
 
 interface ProjectStats {
     total: number;
@@ -85,6 +87,13 @@ const ProjectListView: React.FC<ProjectListViewProps> = ({
     onSelectProject, onCreateProject, onEditProject, onDeleteProject, onRefresh,
     canManageProjects, currentUserName, users
 }) => {
+    const { isInSelectedDivisi, selectedDivisi } = useDivision();
+
+    // Filter projects by Satuan Kerja (based on manager)
+    const filteredByDivisi = selectedDivisi === 'All'
+        ? (projects || [])
+        : (projects || []).filter(p => isInSelectedDivisi(p.manager));
+
     return (
         <div className="p-4 sm:p-8 h-full overflow-y-auto bg-slate-50">
             {/* Header */}
@@ -95,6 +104,7 @@ const ProjectListView: React.FC<ProjectListViewProps> = ({
                 </div>
 
                 <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+                    <DivisionFilter compact />
                     <button
                         onClick={onRefresh}
                         disabled={projectsLoading}
@@ -170,7 +180,7 @@ const ProjectListView: React.FC<ProjectListViewProps> = ({
                 <div className="mt-3 pt-3 border-t border-slate-100">
                     <div className="flex items-center justify-between">
                         <p className="text-xs sm:text-sm text-slate-500">
-                            <span className="font-semibold text-slate-700">{(projects || []).length}</span>/{projectsTotalCount} project
+                            <span className="font-semibold text-slate-700">{filteredByDivisi.length}</span>/{projectsTotalCount} project
                             {debouncedSearch && (
                                 <span className="hidden sm:inline"> untuk "<span className="font-semibold text-slate-700">{debouncedSearch}</span>"</span>
                             )}
@@ -197,7 +207,7 @@ const ProjectListView: React.FC<ProjectListViewProps> = ({
 
             {/* Project Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
-                {!projectsLoading && (projects || []).map(project => {
+                {!projectsLoading && filteredByDivisi.map(project => {
                     const ProjectIcon = iconMap[project.icon || 'Briefcase'] || Briefcase;
                     const colorClasses = getColorClasses(project.color);
                     const stats = projectStatsCache[project.id] || { total: 0, completed: 0, progress: 0, team: [], documents: 0 };
@@ -325,7 +335,7 @@ const ProjectListView: React.FC<ProjectListViewProps> = ({
                 })}
 
                 {/* Empty State */}
-                {!projectsLoading && (projects || []).length === 0 && (
+                {!projectsLoading && filteredByDivisi.length === 0 && (
                     <div className="col-span-full">
                         <div className="text-center py-8 sm:py-12">
                             <div className="w-12 h-12 sm:w-16 sm:h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">

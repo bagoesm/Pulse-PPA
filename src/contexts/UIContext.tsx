@@ -129,6 +129,7 @@ const defaultFilters: FilterState = {
     status: 'All',
     projectId: 'All',
     epicId: 'All',
+    divisi: 'All',
 };
 
 export const UIProvider: React.FC<UIProviderProps> = ({ children }) => {

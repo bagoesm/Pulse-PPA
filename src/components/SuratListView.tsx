@@ -18,6 +18,8 @@ import { useUsers } from '../contexts/UsersContext';
 import { useMeetings } from '../contexts/MeetingsContext';
 import { useDisposisi } from '../contexts/DisposisiContext';
 import { useMasterData } from '../contexts/MasterDataContext';
+import { useDivision } from '../contexts/DivisionContext';
+import DivisionFilter from './DivisionFilter';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -33,6 +35,7 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
   const { meetings } = useMeetings();
   const { disposisi } = useDisposisi();
   const { bidangTugasList } = useMasterData();
+  const { shouldShowByDivisi, selectedDivisi } = useDivision();
   const [searchQuery, setSearchQuery] = useState('');
   const [filterJenisSurat, setFilterJenisSurat] = useState<'All' | 'Masuk' | 'Keluar'>('All');
   const [filterJenisNaskah, setFilterJenisNaskah] = useState<string>('All');
@@ -92,7 +95,12 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
 
   // Apply filters and sort
   const filteredSurats = useMemo(() => {
-    const filtered = surats.filter(surat => {
+    // First apply division filter
+    const divisionFiltered = selectedDivisi === 'All' 
+      ? surats 
+      : surats.filter(surat => shouldShowByDivisi(surat.createdBy));
+
+    const filtered = divisionFiltered.filter(surat => {
       // Search filter
       const searchLower = searchQuery.toLowerCase();
       const matchesSearch = !searchQuery ||
@@ -185,7 +193,7 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
       if (compareA > compareB) return sortDirection === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [surats, searchQuery, filterJenisSurat, filterJenisNaskah, filterBidangTugas, filterStartDate, filterEndDate, filterDisposisiStatus, filterHasDisposisi, sortColumn, sortDirection]);
+  }, [surats, searchQuery, filterJenisSurat, filterJenisNaskah, filterBidangTugas, filterStartDate, filterEndDate, filterDisposisiStatus, filterHasDisposisi, sortColumn, sortDirection, selectedDivisi, shouldShowByDivisi]);
 
   // Pagination logic
   const totalPages = Math.ceil(filteredSurats.length / itemsPerPage);
@@ -621,6 +629,7 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
           </p>
         </div>
         <div className="flex gap-3">
+          <DivisionFilter />
           <button
             onClick={() => setShowAddSuratModal(true)}
             className="flex items-center gap-2 px-4 py-2.5 bg-gov-600 text-white rounded-lg hover:bg-gov-700 transition-colors font-medium text-sm shadow-sm"

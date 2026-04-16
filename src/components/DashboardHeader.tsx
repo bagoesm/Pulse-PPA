@@ -4,6 +4,7 @@
 import React from 'react';
 import { User } from '../../types';
 import NotificationIcon from './NotificationIcon';
+import DivisionFilter from './DivisionFilter';
 import { MessageCircle, Gift } from 'lucide-react';
 
 interface DashboardHeaderProps {
@@ -36,6 +37,9 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
             </div>
 
             <div className="flex items-center gap-2 md:gap-3 w-full sm:w-auto">
+                {/* Satuan Kerja Filter */}
+                <DivisionFilter compact />
+
                 {/* Notification Icon */}
                 {onNotificationClick && onMarkAllAsRead && onDeleteNotification && onDismissAll && (
                     <NotificationIcon

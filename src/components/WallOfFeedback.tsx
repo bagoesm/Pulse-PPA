@@ -4,6 +4,8 @@ import {
     MessageSquarePlus, ChevronUp, ChevronDown, Search, Plus, Send, X, 
     MessageCircle, Trash2, Edit, Lock, CheckCircle2, Clock, MapPin, Save
 } from 'lucide-react';
+import { useDivision } from '../contexts/DivisionContext';
+import DivisionFilter from './DivisionFilter';
 
 interface WallOfFeedbackProps {
   feedbacks: Feedback[];
@@ -19,6 +21,7 @@ const CATEGORIES: FeedbackCategory[] = ['Fitur Baru', 'Bug', 'Peningkatan', 'Lai
 const WallOfFeedback: React.FC<WallOfFeedbackProps> = ({ 
     feedbacks, currentUser, onAddFeedback, onVote, onDeleteFeedback, onUpdateStatus 
 }) => {
+  const { shouldShowByDivisi, selectedDivisi } = useDivision();
   const [activeTab, setActiveTab] = useState<'Voting' | 'Roadmap'>('Voting');
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<FeedbackCategory | 'All'>('All');
@@ -82,6 +85,8 @@ const WallOfFeedback: React.FC<WallOfFeedbackProps> = ({
   };
 
   const filteredFeedbacks = feedbacks.filter(f => {
+      // Division filter
+      if (selectedDivisi !== 'All' && !shouldShowByDivisi(f.createdBy)) return false;
       const matchSearch = f.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           f.description.toLowerCase().includes(searchTerm.toLowerCase());
       const matchCategory = categoryFilter === 'All' || f.category === categoryFilter;
@@ -116,12 +121,15 @@ const WallOfFeedback: React.FC<WallOfFeedbackProps> = ({
                 <p className="text-sm text-slate-500 mt-1">Sampaikan ide, kritik, dan saran untuk kemajuan sistem kerja kita.</p>
             </div>
             
-            <button 
-                onClick={() => setIsAddModalOpen(true)}
-                className="bg-gov-600 text-white px-5 py-2.5 rounded-lg font-bold shadow-lg shadow-gov-200 hover:bg-gov-700 hover:shadow-xl transition-all flex items-center gap-2"
-            >
-                <Plus size={18} /> Buat Feedback
-            </button>
+            <div className="flex gap-2">
+                <DivisionFilter compact />
+                <button 
+                    onClick={() => setIsAddModalOpen(true)}
+                    className="bg-gov-600 text-white px-5 py-2.5 rounded-lg font-bold shadow-lg shadow-gov-200 hover:bg-gov-700 hover:shadow-xl transition-all flex items-center gap-2"
+                >
+                    <Plus size={18} /> Buat Feedback
+                </button>
+            </div>
         </div>
 
         {/* Tab Switcher */}
