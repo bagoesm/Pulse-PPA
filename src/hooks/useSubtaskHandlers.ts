@@ -59,7 +59,7 @@ export const useSubtaskHandlers = ({
     }, [currentUser]);
 
     // Create subtask
-    const handleCreateSubtask = useCallback(async (subtaskData: Omit<Subtask, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const handleCreateSubtask = useCallback(async (subtaskData: Omit<Subtask, 'id' | 'createdAt' | 'updatedAt' | 'createdBy' | 'sortOrder'>) => {
         if (!currentUser) return;
 
         // Check max limit

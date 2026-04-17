@@ -11,7 +11,7 @@ interface SubtaskSectionProps {
     subtasks: Subtask[];
     users: User[];
     canManage: boolean;
-    onCreateSubtask: (data: Omit<Subtask, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+    onCreateSubtask: (data: Omit<Subtask, 'id' | 'createdAt' | 'updatedAt' | 'createdBy' | 'sortOrder'>) => Promise<void>;
     onUpdateSubtask: (subtaskId: string, updates: Partial<Subtask>) => Promise<void>;
     onToggleStatus: (subtaskId: string) => Promise<void>;
     onDeleteSubtask: (subtaskId: string) => Promise<void>;
@@ -71,7 +71,6 @@ const SubtaskSection: React.FC<SubtaskSectionProps> = ({
                 status: Status.ToDo,
                 startDate: parentTask.startDate,
                 deadline: parentTask.deadline,
-                sortOrder: total,
             });
             setNewTitle('');
             setNewPriority(parentTask.priority);
