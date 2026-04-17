@@ -1,7 +1,7 @@
 // src/components/ModalsContainer.tsx
 // All application modals in one container to reduce AppContent size
 import React, { lazy, Suspense } from 'react';
-import { Task, User, ProjectDefinition, Comment, TaskActivity, Announcement, Meeting, MeetingInviter, Epic } from '../../types';
+import { Task, User, ProjectDefinition, Comment, TaskActivity, Announcement, Meeting, MeetingInviter, Epic, Subtask } from '../../types';
 import AddEpicModal from './AddEpicModal';
 
 // Small modals - regular imports (keep synchronous for fast feedback)
@@ -10,6 +10,8 @@ import StatusModal from './StatusModal';
 import ProfilePhotoModal from './ProfilePhotoModal';
 import NotificationModal from './NotificationModal';
 import ConfirmModal from './ConfirmModal';
+import SimpleToast from './SimpleToast';
+import { useUI } from '../contexts/UIContext';
 
 // Heavy modals - lazy loaded for better initial load performance
 const TaskViewModal = lazy(() => import('./TaskViewModal'));
@@ -18,6 +20,7 @@ const TaskShareModal = lazy(() => import('./TaskShareModal'));
 const AnnouncementModal = lazy(() => import('./AnnouncementModal'));
 const MeetingViewModal = lazy(() => import('./MeetingViewModal'));
 const AddMeetingModal = lazy(() => import('./AddMeetingModal'));
+const EpicViewModal = lazy(() => import('./EpicViewModal'));
 
 interface ModalsContainerProps {
     // Current User
@@ -40,6 +43,9 @@ interface ModalsContainerProps {
     handleToggleChecklistItem: (taskId: string, checklistId: string) => Promise<void>;
     handleRemoveChecklistItem: (taskId: string, checklistId: string) => Promise<void>;
     handleUpdateChecklistItem: (taskId: string, checklistId: string, text: string) => Promise<void>;
+    // Subtask handlers
+    subtasks: Subtask[];
+    subtaskHandlers: any; // Using any or specific type from useSubtaskHandlers
 
     // Add Task Modal
     isModalOpen: boolean;
@@ -70,6 +76,12 @@ interface ModalsContainerProps {
     handleSaveEpic: (epic: Omit<Epic, 'id'> | Epic) => Promise<void>;
     handleDeleteEpic: (epicId: string) => Promise<void>;
     defaultEpicProjectId: string | null;
+
+    isEpicViewModalOpen: boolean;
+    setIsEpicViewModalOpen: (open: boolean) => void;
+    viewingEpic: Epic | null;
+    setViewingEpic: (epic: Epic | null) => void;
+    onViewKanbanForEpic: () => void;
 
     // Add Project Modal
     isProjectModalOpen: boolean;
@@ -151,6 +163,7 @@ interface ModalsContainerProps {
 }
 
 const ModalsContainer: React.FC<ModalsContainerProps> = (props) => {
+    const { toast, hideToast } = useUI();
     const {
         currentUser,
         // Task View Modal
@@ -158,6 +171,8 @@ const ModalsContainer: React.FC<ModalsContainerProps> = (props) => {
         checkEditPermission, handleEditFromView, comments, taskActivities,
         handleAddComment, handleDeleteComment, handleStatusChangeFromView,
         handleAddChecklistItem, handleToggleChecklistItem, handleRemoveChecklistItem, handleUpdateChecklistItem,
+        // Subtasks
+        subtasks, subtaskHandlers,
         // Add Task Modal
         isModalOpen, setIsModalOpen, editingTask, setEditingTask,
         handleSaveTask, handleDeleteTask, checkDeletePermission, handleAddMeeting,
@@ -188,7 +203,8 @@ const ModalsContainer: React.FC<ModalsContainerProps> = (props) => {
         meetingInviters, meetings, handleBackToTask,
         // Epics
         epics, isEpicModalOpen, setIsEpicModalOpen, editingEpic, setEditingEpic,
-        handleSaveEpic, handleDeleteEpic, defaultEpicProjectId
+        handleSaveEpic, handleDeleteEpic, defaultEpicProjectId,
+        isEpicViewModalOpen, setIsEpicViewModalOpen, viewingEpic, setViewingEpic, onViewKanbanForEpic
     } = props;
 
     return (
@@ -221,6 +237,8 @@ const ModalsContainer: React.FC<ModalsContainerProps> = (props) => {
                     onToggleChecklistItem={handleToggleChecklistItem}
                     onRemoveChecklistItem={handleRemoveChecklistItem}
                     onUpdateChecklistItem={handleUpdateChecklistItem}
+                    subtasks={subtasks.filter(s => s.parentTaskId === viewingTask?.id)}
+                    subtaskHandlers={subtaskHandlers}
                 />
             </Suspense>
 
@@ -373,6 +391,25 @@ const ModalsContainer: React.FC<ModalsContainerProps> = (props) => {
                 projects={projects}
                 users={allUsers}
                 defaultProjectId={defaultEpicProjectId}
+            />
+
+            {/* Epic View Modal */}
+            <Suspense fallback={null}>
+                <EpicViewModal
+                    isOpen={isEpicViewModalOpen}
+                    onClose={() => { setIsEpicViewModalOpen(false); setViewingEpic(null); }}
+                    epic={viewingEpic}
+                    tasks={viewingEpic ? allTasks.filter(t => t.epicId === viewingEpic.id) : []}
+                    onViewKanban={onViewKanbanForEpic}
+                />
+            </Suspense>
+
+            {/* Simple Toast */}
+            <SimpleToast
+                isOpen={toast.isOpen}
+                message={toast.message}
+                type={toast.type}
+                onClose={hideToast}
             />
         </>
     );

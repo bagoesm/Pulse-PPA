@@ -25,12 +25,14 @@ import { useMasterData } from './contexts/MasterDataContext';
 import { useAppContent } from './contexts/AppContentContext';
 import { useUI } from './contexts/UIContext';
 import { useEpics } from './contexts/EpicsContext';
+import { useSubtasks } from './contexts/SubtasksContext';
 import { useUserHandlers } from './hooks/useUserHandlers';
 import { useDivision } from './contexts/DivisionContext';
 import DivisionFilter from './components/DivisionFilter';
 import { useTaskHandlers } from './hooks/useTaskHandlers';
 import { useProjectHandlers } from './hooks/useProjectHandlers';
 import { useEpicHandlers } from './hooks/useEpicHandlers';
+import { useSubtaskHandlers } from './hooks/useSubtaskHandlers';
 import { useMeetingHandlers } from './hooks/useMeetingHandlers';
 import { useMasterDataHandlers } from './hooks/useMasterDataHandlers';
 import { useTemplateHandlers } from './hooks/useTemplateHandlers';
@@ -93,6 +95,7 @@ const AppContent: React.FC = () => {
 
   const { projects, setProjects } = useProjects();
   const { epics, setEpics, getEpicsByProject, getEpicProgress } = useEpics();
+  const { subtasks, setSubtasks } = useSubtasks();
 
   const {
     meetings, setMeetings,
@@ -162,11 +165,14 @@ const AppContent: React.FC = () => {
     projectRefreshTrigger, triggerProjectRefresh,
     // Epic Modal States
     isEpicModalOpen, setIsEpicModalOpen,
+    isEpicViewModalOpen, setIsEpicViewModalOpen,
     editingEpic, setEditingEpic,
+    viewingEpic, setViewingEpic,
     defaultEpicProjectId, setDefaultEpicProjectId,
     // Notification & Confirm Modals
     notificationModal, showNotification, hideNotification,
-    confirmModal, showConfirm, hideConfirm
+    confirmModal, showConfirm, hideConfirm,
+    showToast, hideToast
   } = useUI();
 
   // ===== DIVISION CONTEXT =====
@@ -414,6 +420,18 @@ const AppContent: React.FC = () => {
     setIsEpicModalOpen,
     setProjectRefreshTrigger,
     showNotification
+  });
+
+  // Subtask handlers
+  const subtaskHandlers = useSubtaskHandlers({
+    currentUser,
+    subtasks,
+    setSubtasks,
+    tasks,
+    setTasks,
+    showNotification,
+    showConfirm,
+    showToast
   });
 
   // Meeting handlers
@@ -905,7 +923,8 @@ const AppContent: React.FC = () => {
             getEpicsByProject={getEpicsByProject}
             getEpicProgress={getEpicProgress}
             onEpicClick={(epic) => {
-              // Handle opening epic details or filtering by epic
+              setViewingEpic(epic);
+              setIsEpicViewModalOpen(true);
             }}
             onCreateEpic={(projectId) => {
               setDefaultEpicProjectId(projectId || null);
@@ -1064,6 +1083,9 @@ const AppContent: React.FC = () => {
         handleToggleChecklistItem={handleToggleChecklistItem}
         handleRemoveChecklistItem={handleRemoveChecklistItem}
         handleUpdateChecklistItem={handleUpdateChecklistItem}
+        // Subtasks
+        subtasks={subtasks}
+        subtaskHandlers={subtaskHandlers}
         // Add Task Modal
         isModalOpen={isModalOpen}
         setIsModalOpen={setIsModalOpen}
@@ -1091,6 +1113,27 @@ const AppContent: React.FC = () => {
         defaultEpicProjectId={defaultEpicProjectId}
         handleSaveEpic={epicHandlers.handleSaveEpic}
         handleDeleteEpic={epicHandlers.handleDeleteEpic}
+        // Epic View Modal
+        isEpicViewModalOpen={isEpicViewModalOpen}
+        setIsEpicViewModalOpen={setIsEpicViewModalOpen}
+        viewingEpic={viewingEpic}
+        setViewingEpic={setViewingEpic}
+        onViewKanbanForEpic={() => {
+          if (viewingEpic) {
+            setIsEpicViewModalOpen(false);
+            startTransition(() => {
+              setActiveTab('Semua Task');
+              setFilters(prev => ({
+                ...prev,
+                projectId: viewingEpic.projectId,
+                epicId: viewingEpic.id,
+                category: 'All',
+                pic: 'All',
+                priority: 'All'
+              }));
+            });
+          }
+        }}
         // Project Modal
         isProjectModalOpen={isProjectModalOpen}
         setIsProjectModalOpen={setIsProjectModalOpen}

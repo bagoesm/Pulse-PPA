@@ -14,6 +14,7 @@ interface KanbanColumnProps {
   onTaskShare?: (task: Task) => void;
   checkEditPermission: (task: Task) => boolean;
   users?: any[];
+  subtasks?: any[]; // Allow subtasks to be passed down
 }
 
 const TASKS_PER_PAGE = 20;
@@ -30,7 +31,8 @@ const KanbanColumn: React.FC<KanbanColumnProps> = React.memo(({
   onDragStart,
   onTaskClick,
   onTaskShare,
-  checkEditPermission
+  checkEditPermission,
+  subtasks = []
 }) => {
   const [visibleTasks, setVisibleTasks] = useState<Task[]>([]);
   const [currentPage, setCurrentPage] = useState(0);
@@ -139,6 +141,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = React.memo(({
                 onClick={onTaskClick}
                 onShare={onTaskShare}
                 canEdit={checkEditPermission(task)}
+                subtasks={subtasks.filter(s => s.parentTaskId === task.id)}
               />
             ))}
 

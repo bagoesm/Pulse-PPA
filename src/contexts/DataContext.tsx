@@ -27,6 +27,7 @@ import { SuratsProvider } from './SuratsContext';
 import { DisposisiProvider } from './DisposisiContext';
 import { MasterDataProvider } from './MasterDataContext';
 import { AppContentProvider } from './AppContentContext';
+import { SubtasksProvider } from './SubtasksContext';
 import { DivisionProvider } from './DivisionContext';
 
 interface DataProviderProps {
@@ -49,9 +50,11 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, session })
                                 <SuratsProvider session={session}>
                                     <DisposisiProvider session={session}>
                                         <TasksProvider session={session}>
-                                            <AppContentProvider session={session}>
-                                                {children}
-                                            </AppContentProvider>
+                                            <SubtasksProvider session={session}>
+                                                <AppContentProvider session={session}>
+                                                    {children}
+                                                </AppContentProvider>
+                                            </SubtasksProvider>
                                         </TasksProvider>
                                     </DisposisiProvider>
                                 </SuratsProvider>

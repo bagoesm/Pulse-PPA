@@ -52,10 +52,10 @@ const MasterDataModal: React.FC<MasterDataModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4">
+    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
         {/* Header */}
-        <div className="bg-gradient-to-r from-gov-600 to-gov-700 text-white px-6 py-4 rounded-t-xl">
+        <div className="bg-gradient-to-r from-gov-600 to-gov-700 text-white px-6 py-4">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-bold">{title}</h3>
             <button
@@ -84,7 +84,7 @@ const MasterDataModal: React.FC<MasterDataModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="bg-slate-50 px-6 py-4 rounded-b-xl flex gap-3">
+        <div className="bg-slate-50 px-6 py-4 flex gap-3">
           <button
             onClick={onClose}
             className="flex-1 px-4 py-2.5 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-100 transition-colors font-medium"

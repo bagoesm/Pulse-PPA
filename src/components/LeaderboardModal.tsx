@@ -34,12 +34,9 @@ const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
     const totalCompleted = leaderboardData.reduce((sum, u) => sum + u.completedCount, 0);
 
     return (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 sm:p-4">
-            <div className="bg-white w-full sm:rounded-xl rounded-t-2xl shadow-2xl sm:max-w-4xl max-h-[90vh] sm:max-h-[90vh] overflow-y-auto">
-                {/* Mobile handle bar */}
-                <div className="sm:hidden flex justify-center pt-3 pb-1">
-                    <div className="w-10 h-1 bg-slate-300 rounded-full"></div>
-                </div>
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white w-full rounded-2xl shadow-2xl sm:max-w-4xl max-h-[90vh] overflow-y-auto">
+
 
                 <div className="p-4 sm:p-6">
                     <div className="flex items-center justify-between mb-4 sm:mb-6">
@@ -228,7 +225,7 @@ const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                         </details>
                     </div>
 
-                    <div className="mt-4 sm:mt-6 text-center pb-safe">
+                    <div className="mt-4 sm:mt-6 text-center">
                         <button
                             onClick={onClose}
                             className="w-full sm:w-auto px-6 py-2.5 sm:py-2 bg-gradient-to-r from-purple-600 to-yellow-600 text-white rounded-lg font-medium hover:from-purple-700 hover:to-yellow-700 transition-all"

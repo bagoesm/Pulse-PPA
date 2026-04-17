@@ -13,6 +13,7 @@ interface TaskCardProps {
   onClick: (task: Task) => void;
   onShare?: (task: Task) => void;
   canEdit: boolean;
+  subtasks?: any[];
 }
 
 const getPriorityColor = (priority: Priority) => {
@@ -35,7 +36,7 @@ const getCategoryColor = (category: Category) => {
   return 'bg-teal-50 text-teal-700 border-teal-100';
 };
 
-const TaskCard: React.FC<TaskCardProps> = React.memo(({ task, projects, users = [], allTasks = [], onDragStart, onClick, onShare, canEdit }) => {
+const TaskCard: React.FC<TaskCardProps> = React.memo(({ task, projects, users = [], allTasks = [], onDragStart, onClick, onShare, canEdit, subtasks = [] }) => {
   const project = task.projectId ? projects.find(p => p.id === task.projectId) : null;
   const hasAttachments = task.attachments && task.attachments.length > 0;
 
@@ -52,6 +53,10 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({ task, projects, users = 
   const checklistCount = task.checklists?.length || 0;
   const completedChecklistCount = task.checklists?.filter(c => c.isCompleted).length || 0;
   const hasChecklists = checklistCount > 0;
+  // Check subtasks
+  const totalSubtasks = subtasks.length;
+  const doneSubtasks = subtasks.filter(s => s.status === Status.Done).length;
+  const hasSubtasks = totalSubtasks > 0;
 
   return (
     <div
@@ -142,6 +147,18 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({ task, projects, users = 
             >
               <CheckSquare size={10} />
               <span className="text-[9px] sm:text-[10px] font-medium">{completedChecklistCount}/{checklistCount}</span>
+            </div>
+          )}
+          {hasSubtasks && (
+            <div
+              className={`flex items-center gap-1 ${doneSubtasks === totalSubtasks ? 'text-emerald-500' : 'text-slate-400'}`}
+              title={`${doneSubtasks}/${totalSubtasks} subtask selesai`}
+            >
+              <div className="flex items-end space-x-0.5">
+                <div className="w-[3px] h-2 bg-current rounded-sm"></div>
+                <div className="w-[3px] h-3 bg-current rounded-sm"></div>
+              </div>
+              <span className="text-[9px] sm:text-[10px] font-medium">{doneSubtasks}/{totalSubtasks}</span>
             </div>
           )}
         </div>

@@ -136,8 +136,8 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ isOpen, onClose, onSa
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/40 backdrop-blur-sm">
-      <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl w-full sm:max-w-2xl overflow-hidden max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-xl w-full sm:max-w-2xl overflow-hidden max-h-[90vh] flex flex-col">
         <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-gov-50 to-blue-50 flex-shrink-0">
           <div className="flex items-center gap-2 sm:gap-3">
             {selectedIconData && selectedColorData && (
@@ -309,7 +309,7 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ isOpen, onClose, onSa
             </div>
           </div>
 
-          <div className="mt-4 sm:mt-6 flex justify-end gap-2 sm:gap-3 pt-4 border-t border-slate-100 safe-area-bottom">
+          <div className="mt-4 sm:mt-6 flex justify-end gap-2 sm:gap-3 pt-4 border-t border-slate-100">
             <button
               type="button"
               onClick={onClose}

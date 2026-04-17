@@ -130,12 +130,9 @@ const AnnouncementModal: React.FC<AnnouncementModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/50 backdrop-blur-sm">
-      <div className="bg-white w-full sm:rounded-2xl rounded-t-2xl shadow-2xl sm:max-w-4xl max-h-[90vh] sm:max-h-[90vh] overflow-hidden sm:m-4">
-        {/* Mobile handle bar */}
-        <div className="sm:hidden flex justify-center pt-3 pb-1">
-          <div className="w-10 h-1 bg-slate-300 rounded-full"></div>
-        </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+      <div className="bg-white w-full rounded-2xl shadow-2xl sm:max-w-4xl max-h-[90vh] overflow-hidden">
+
         
         {/* Header */}
         <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-200 bg-gradient-to-r from-gov-50 to-blue-50">
@@ -376,7 +373,7 @@ const AnnouncementModal: React.FC<AnnouncementModalProps> = ({
               </div>
 
               {/* Submit Buttons */}
-              <div className="flex gap-3 pt-2 sm:pt-4 pb-safe">
+              <div className="flex gap-3 pt-2 sm:pt-4">
                 <button
                   type="button"
                   onClick={onClose}

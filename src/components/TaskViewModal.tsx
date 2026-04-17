@@ -8,6 +8,8 @@ import UserAvatar from './UserAvatar';
 import MentionInput, { renderMentionText, renderRichText } from './MentionInput';
 import { formatFileSize, ensureHttps } from '../utils/formatters';
 import ChecklistSection from './ChecklistSection';
+import SubtaskSection from './SubtaskSection';
+import { Subtask } from '../../types';
 
 interface TaskViewModalProps {
   isOpen: boolean;
@@ -30,6 +32,9 @@ interface TaskViewModalProps {
   onToggleChecklistItem?: (taskId: string, checklistId: string) => void;
   onRemoveChecklistItem?: (taskId: string, checklistId: string) => void;
   onUpdateChecklistItem?: (taskId: string, checklistId: string, text: string) => void;
+  // Subtasks
+  subtasks?: Subtask[];
+  subtaskHandlers?: any;
 }
 
 const getPriorityConfig = (priority: Priority) => {
@@ -84,7 +89,9 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
   onAddChecklistItem,
   onToggleChecklistItem,
   onRemoveChecklistItem,
-  onUpdateChecklistItem
+  onUpdateChecklistItem,
+  subtasks = [],
+  subtaskHandlers
 }) => {
   const [newComment, setNewComment] = useState('');
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
@@ -219,8 +226,8 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/20 backdrop-blur-sm">
-      <div className="bg-white rounded-t-2xl sm:rounded-lg shadow-2xl w-full sm:max-w-3xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full sm:max-w-3xl overflow-hidden flex flex-col max-h-[90vh]">
 
         {/* Header */}
         <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
@@ -565,6 +572,20 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                   onToggle={(id) => onToggleChecklistItem?.(task.id, id)}
                   onRemove={(id) => onRemoveChecklistItem?.(task.id, id)}
                   onUpdate={(id, text) => onUpdateChecklistItem?.(task.id, id, text)}
+                />
+              )}
+
+              {/* Subtask Section */}
+              {subtaskHandlers && (subtasks.length > 0 || subtaskHandlers.checkSubtaskPermission(task)) && (
+                <SubtaskSection
+                  parentTask={task}
+                  subtasks={subtasks}
+                  users={users}
+                  canManage={subtaskHandlers.checkSubtaskPermission(task)}
+                  onCreateSubtask={subtaskHandlers.handleCreateSubtask}
+                  onUpdateSubtask={subtaskHandlers.handleUpdateSubtask}
+                  onToggleStatus={subtaskHandlers.handleToggleSubtaskStatus}
+                  onDeleteSubtask={subtaskHandlers.handleDeleteSubtask}
                 />
               )}
 

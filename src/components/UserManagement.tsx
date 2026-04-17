@@ -931,12 +931,9 @@ const UserManagement: React.FC<UserManagementProps> = ({
 
         {/* User Modal */}
         {isModalOpen && (
-            <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/40 backdrop-blur-sm">
-                <div className="bg-white w-full sm:rounded-2xl rounded-t-2xl shadow-xl sm:max-w-lg max-h-[90vh] overflow-hidden sm:m-4">
-                    {/* Mobile handle bar */}
-                    <div className="sm:hidden flex justify-center pt-3 pb-1">
-                        <div className="w-10 h-1 bg-slate-300 rounded-full"></div>
-                    </div>
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+                <div className="bg-white w-full rounded-2xl shadow-xl sm:max-w-lg max-h-[90vh] overflow-hidden">
+
                     
                     <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                         <h3 className="font-bold text-slate-800 text-sm sm:text-base">{editingUser ? 'Edit User' : 'Tambah User Baru'}</h3>
@@ -1084,7 +1081,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                             </div>
                         </div>
                         
-                        <div className="pt-4 flex gap-3 pb-safe">
+                        <div className="pt-4 flex gap-3">
                              <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 px-4 py-2.5 text-slate-600 font-medium text-sm hover:bg-slate-100 rounded-lg border border-slate-200">Batal</button>
                              <button type="submit" className="flex-1 px-4 py-2.5 bg-gov-600 text-white font-bold text-sm rounded-lg hover:bg-gov-700 flex items-center justify-center gap-2">
                                 <Save size={16} /> Simpan

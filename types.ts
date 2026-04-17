@@ -192,7 +192,30 @@ export interface Task {
   meetingId?: string; // ID meeting jika task berasal dari meeting
   blockedBy?: string[]; // Task IDs yang harus selesai sebelum task ini bisa dimulai
   checklists?: ChecklistItem[]; // Daftar checklist items
+  subtaskCount?: number; // Jumlah subtask (denormalized for display)
+  subtaskDoneCount?: number; // Jumlah subtask yang Done (denormalized for display)
 }
+
+// Subtask - Mini-task di bawah Task (1 level saja, tidak bisa nested)
+export interface Subtask {
+  id: string;
+  parentTaskId: string;        // FK ke Task - WAJIB
+  title: string;               // WAJIB
+  description?: string;        // Opsional
+  pic: string[];               // PIC subtask - bisa berbeda dari parent
+  priority: Priority;          // Default inherit dari parent, bisa diubah
+  status: Status;              // To Do | In Progress | Pending | Review | Done
+  startDate?: string;          // ISO Date - default parent startDate
+  deadline?: string;           // ISO Date - default parent deadline
+  attachments?: Attachment[];  // Opsional
+  checklists?: ChecklistItem[];// Opsional
+  sortOrder: number;           // Urutan tampilan
+  createdBy: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export const MAX_SUBTASKS_PER_TASK = 20;
 
 export interface FilterState {
   search: string;

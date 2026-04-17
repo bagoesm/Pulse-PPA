@@ -677,8 +677,8 @@ const ImportSuratModal: React.FC<ImportSuratModalProps> = ({
     const invalidCount = parsedData.filter(d => !d.isValid).length;
 
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden">
                 {/* Header */}
                 <div className="bg-gradient-to-r from-gov-600 to-gov-700 text-white px-6 py-4 flex items-center justify-between shrink-0">
                     <div className="flex items-center gap-3">

@@ -19,6 +19,12 @@ interface ConfirmModalState {
     cancelText: string;
 }
 
+interface ToastState {
+    isOpen: boolean;
+    message: string;
+    type: 'success' | 'error' | 'warning' | 'info';
+}
+
 interface UIContextType {
     // Navigation
     activeTab: string;
@@ -62,6 +68,8 @@ interface UIContextType {
     // Epic Modal States
     isEpicModalOpen: boolean;
     setIsEpicModalOpen: (open: boolean) => void;
+    isEpicViewModalOpen: boolean;
+    setIsEpicViewModalOpen: (open: boolean) => void;
 
     // Editing States
     editingTask: Task | null;
@@ -78,6 +86,8 @@ interface UIContextType {
     setViewingMeeting: (meeting: Meeting | null) => void;
     editingEpic: Epic | null;
     setEditingEpic: (epic: Epic | null) => void;
+    viewingEpic: Epic | null;
+    setViewingEpic: (epic: Epic | null) => void;
     defaultEpicProjectId: string | null;
     setDefaultEpicProjectId: (id: string | null) => void;
 
@@ -105,6 +115,11 @@ interface UIContextType {
         cancelText?: string
     ) => void;
     hideConfirm: () => void;
+
+    // Toasts
+    toast: ToastState;
+    showToast: (message: string, type?: 'success' | 'error' | 'warning' | 'info') => void;
+    hideToast: () => void;
 }
 
 const UIContext = createContext<UIContextType | undefined>(undefined);
@@ -171,6 +186,7 @@ export const UIProvider: React.FC<UIProviderProps> = ({ children }) => {
 
     // Epic Modal States
     const [isEpicModalOpen, setIsEpicModalOpen] = useState(false);
+    const [isEpicViewModalOpen, setIsEpicViewModalOpen] = useState(false);
 
     // Editing States
     const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -180,6 +196,7 @@ export const UIProvider: React.FC<UIProviderProps> = ({ children }) => {
     const [editingMeeting, setEditingMeeting] = useState<Meeting | null>(null);
     const [viewingMeeting, setViewingMeeting] = useState<Meeting | null>(null);
     const [editingEpic, setEditingEpic] = useState<Epic | null>(null);
+    const [viewingEpic, setViewingEpic] = useState<Epic | null>(null);
     const [defaultEpicProjectId, setDefaultEpicProjectId] = useState<string | null>(null);
 
     // Drag State
@@ -237,6 +254,24 @@ export const UIProvider: React.FC<UIProviderProps> = ({ children }) => {
         setConfirmModal(prev => ({ ...prev, isOpen: false }));
     }, []);
 
+    // Toasts
+    const [toast, setToast] = useState<ToastState>({
+        isOpen: false,
+        message: '',
+        type: 'success'
+    });
+
+    const showToast = useCallback((
+        message: string,
+        type: 'success' | 'error' | 'warning' | 'info' = 'success'
+    ) => {
+        setToast({ isOpen: true, message, type });
+    }, []);
+
+    const hideToast = useCallback(() => {
+        setToast(prev => ({ ...prev, isOpen: false }));
+    }, []);
+
     const value: UIContextType = {
         // Navigation
         activeTab, setActiveTab,
@@ -260,6 +295,7 @@ export const UIProvider: React.FC<UIProviderProps> = ({ children }) => {
         isMeetingViewModalOpen, setIsMeetingViewModalOpen,
         isMeetingFromTask, setIsMeetingFromTask,
         isEpicModalOpen, setIsEpicModalOpen,
+        isEpicViewModalOpen, setIsEpicViewModalOpen,
 
         // Editing States
         editingTask, setEditingTask,
@@ -269,6 +305,7 @@ export const UIProvider: React.FC<UIProviderProps> = ({ children }) => {
         editingMeeting, setEditingMeeting,
         viewingMeeting, setViewingMeeting,
         editingEpic, setEditingEpic,
+        viewingEpic, setViewingEpic,
         defaultEpicProjectId, setDefaultEpicProjectId,
 
         // Drag State
@@ -281,7 +318,10 @@ export const UIProvider: React.FC<UIProviderProps> = ({ children }) => {
         notificationModal, showNotification, hideNotification,
 
         // Confirm Modal
-        confirmModal, showConfirm, hideConfirm
+        confirmModal, showConfirm, hideConfirm,
+
+        // Toasts
+        toast, showToast, hideToast
     };
 
     return (

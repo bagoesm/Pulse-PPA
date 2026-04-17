@@ -104,8 +104,8 @@ const StatusModal: React.FC<StatusModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/40 backdrop-blur-sm">
-      <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl w-full sm:max-w-lg overflow-hidden max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-xl w-full sm:max-w-lg overflow-hidden max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-gov-50 to-blue-50">
           <div>
@@ -204,7 +204,7 @@ const StatusModal: React.FC<StatusModalProps> = ({
           )}
 
           {/* Footer */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 safe-area-bottom">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
             <div className="text-[10px] sm:text-xs text-slate-500">
               Status akan otomatis hilang dalam 24 jam
             </div>
