@@ -637,7 +637,7 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
           </div>
         </div>
 
-        <div className="p-6 space-y-5">
+        <div className="p-6 space-y-5 flex-1 overflow-y-auto scrollbar-hide">
           {/* Jenis Surat - Prominent */}
           <div className="bg-gradient-to-r from-slate-50 to-blue-50 p-4 rounded-lg border-2 border-slate-200">
             <label className="block text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
