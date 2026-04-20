@@ -246,13 +246,13 @@ const ProjectListView: React.FC<ProjectListViewProps> = ({
                                 </div>
                             )}
 
-                            <div onClick={() => onSelectProject(project.id)} className="cursor-pointer">
+                            <div onClick={() => onSelectProject(project.id)} className="cursor-pointer overflow-hidden">
                                 <div className="flex items-start justify-between mb-3 sm:mb-4">
-                                    <div className="flex items-center gap-2 sm:gap-3">
-                                        <div className={`p-2 sm:p-3 rounded-lg ${colorClasses.bg} ${colorClasses.text} group-hover:scale-105 transition-transform shadow-sm`}>
+                                    <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                                        <div className={`p-2 sm:p-3 rounded-lg ${colorClasses.bg} ${colorClasses.text} group-hover:scale-105 transition-transform shadow-sm flex-shrink-0`}>
                                             <ProjectIcon size={20} />
                                         </div>
-                                        <div className="min-w-0 flex-1">
+                                        <div className="min-w-0 flex-1 overflow-hidden">
                                             <h3 className="text-sm sm:text-lg font-bold text-slate-800 group-hover:text-slate-900 transition-colors leading-tight truncate">
                                                 {project.name}
                                             </h3>

@@ -11,6 +11,7 @@ import { useProjectStats } from '../hooks/useProjectStats';
 import { useProjectFilters } from '../hooks/useProjectFilters';
 import { useProjectLinks } from '../hooks/useProjectLinks';
 import { useNotificationModal } from '../hooks/useModal';
+import { useDivision } from '../contexts/DivisionContext';
 
 // Components
 import ProjectListView from './ProjectListView';
@@ -117,6 +118,9 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
   // Notification Modal
   const { showNotification } = useNotificationModal();
 
+  // Division filter
+  const { selectedDivisi } = useDivision();
+
   // Project Links (standalone)
   const projectLinksHook = useProjectLinks(showNotification);
   const [isAddLinkModalOpen, setIsAddLinkModalOpen] = useState(false);
@@ -131,11 +135,12 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
         search: filters.debouncedSearch,
         status: filters.projectStatusFilter,
         manager: filters.managerFilter,
+        divisi: selectedDivisi,
         page: filters.projectPage,
         limit: PROJECTS_PER_PAGE
       });
     }
-  }, [filters.debouncedSearch, filters.projectStatusFilter, filters.managerFilter, filters.projectPage, filters.selectedProjectId, projectData.loadProjects]);
+  }, [filters.debouncedSearch, filters.projectStatusFilter, filters.managerFilter, filters.projectPage, filters.selectedProjectId, selectedDivisi, projectData.loadProjects]);
 
   // Load tasks when project selected
   useEffect(() => {
@@ -192,6 +197,7 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
           search: filters.debouncedSearch,
           status: filters.projectStatusFilter,
           manager: filters.managerFilter,
+          divisi: selectedDivisi,
           page: filters.projectPage,
           limit: PROJECTS_PER_PAGE
         });
@@ -243,6 +249,7 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
             search: filters.debouncedSearch,
             status: filters.projectStatusFilter,
             manager: filters.managerFilter,
+            divisi: selectedDivisi,
             page: filters.projectPage,
             limit: PROJECTS_PER_PAGE
           });

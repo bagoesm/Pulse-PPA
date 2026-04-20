@@ -16,6 +16,7 @@ interface ProjectFilters {
     search: string;
     status: string;
     manager: string;
+    divisi?: string | 'All';
     page: number;
     limit: number;
 }

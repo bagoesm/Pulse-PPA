@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Status, Priority, ProjectStatus } from '../../types';
+import { useDivision } from '../contexts/DivisionContext';
 
 export interface UseProjectFiltersResult {
     // Project filters
@@ -44,6 +45,9 @@ export interface UseProjectFiltersResult {
 const DEBOUNCE_MS = 300;
 
 export function useProjectFilters(): UseProjectFiltersResult {
+    // Division filter
+    const { selectedDivisi } = useDivision();
+
     // Project filters
     const [projectSearch, setProjectSearch] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -75,7 +79,7 @@ export function useProjectFilters(): UseProjectFiltersResult {
     // Reset project page when filters change
     useEffect(() => {
         setProjectPage(1);
-    }, [debouncedSearch, projectStatusFilter, managerFilter]);
+    }, [selectedDivisi, debouncedSearch, projectStatusFilter, managerFilter]);
 
     // Reset task page when filters change
     useEffect(() => {

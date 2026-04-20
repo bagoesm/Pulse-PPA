@@ -8,6 +8,7 @@ interface ProjectFilters {
     search?: string;
     status?: string;
     manager?: string;
+    divisi?: string | 'All';
     page?: number;
     limit?: number;
 }
@@ -26,7 +27,22 @@ export const useProjectHelpers = () => {
 
     // Fetch projects from database with filters and pagination
     const fetchProjects = useCallback(async (filters: ProjectFilters = {}) => {
-        const { search = '', status = 'All', manager = 'All', page = 1, limit = 12 } = filters;
+        const { search = '', status = 'All', manager = 'All', divisi = 'All', page = 1, limit = 12 } = filters;
+
+        // If divisi is specified (not 'All'), get users in that divisi and filter by manager
+        let managerNames: string[] | null = null;
+        if (divisi && divisi !== 'All') {
+            const { data: divisiUsers } = await supabase
+                .from('profiles')
+                .select('name')
+                .eq('divisi', divisi);
+            if (divisiUsers && divisiUsers.length > 0) {
+                managerNames = divisiUsers.map(u => u.name).filter(Boolean);
+            } else {
+                // No users in this divisi, return empty result
+                return { projects: [], totalCount: 0, totalPages: 0 };
+            }
+        }
 
         // Build the base query with all filters
         let countQuery = supabase.from('projects').select('*', { count: 'exact', head: true });
@@ -44,6 +60,10 @@ export const useProjectHelpers = () => {
         if (manager && manager !== 'All') {
             countQuery = countQuery.eq('manager', manager);
             dataQuery = dataQuery.eq('manager', manager);
+        }
+        if (managerNames && managerNames.length > 0) {
+            countQuery = countQuery.in('manager', managerNames);
+            dataQuery = dataQuery.in('manager', managerNames);
         }
 
         // Get total count with filters applied
