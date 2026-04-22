@@ -54,9 +54,7 @@ export const useLazyDataFetch = ({ activeTab, session }: UseLazyDataFetchProps) 
                             tasks.fetchTaskActivities()
                         ]);
                     }
-                    if (!meetings.isMeetingsFetched) {
-                        await meetings.fetchMeetings();
-                    }
+                    await meetings.fetchMeetings();
                     break;
 
                 case 'Semua Task':
@@ -69,22 +67,14 @@ export const useLazyDataFetch = ({ activeTab, session }: UseLazyDataFetchProps) 
                             tasks.fetchTaskActivities()
                         ]);
                     }
-                    if (!projects.isProjectsFetched) {
-                        await projects.fetchProjects();
-                    }
-                    if (!epics.isEpicsFetched) {
-                        await epics.fetchEpics();
-                    }
-                    if (!subtasks.isSubtasksFetched) {
-                        await subtasks.fetchSubtasks();
-                    }
+                    await projects.fetchProjects();
+                    await epics.fetchEpics();
+                    await subtasks.fetchAllSubtasks();
                     break;
 
                 case 'Project':
                     // Project view needs: projects, tasks, epics, meetings
-                    if (!projects.isProjectsFetched) {
-                        await projects.fetchProjects();
-                    }
+                    await projects.fetchProjects();
                     if (!tasks.isTasksFetched) {
                         await Promise.all([
                             tasks.fetchTasks(),
@@ -92,57 +82,39 @@ export const useLazyDataFetch = ({ activeTab, session }: UseLazyDataFetchProps) 
                             tasks.fetchTaskActivities()
                         ]);
                     }
-                    if (!epics.isEpicsFetched) {
-                        await epics.fetchEpics();
-                    }
-                    if (!meetings.isMeetingsFetched) {
-                        await meetings.fetchMeetings();
-                    }
+                    await epics.fetchEpics();
+                    await meetings.fetchMeetings();
                     break;
 
                 case 'Jadwal Kegiatan':
                     // Meeting calendar needs: meetings, projects
-                    if (!meetings.isMeetingsFetched) {
-                        await meetings.fetchMeetings();
-                    }
-                    if (!projects.isProjectsFetched) {
-                        await projects.fetchProjects();
-                    }
+                    await meetings.fetchMeetings();
+                    await projects.fetchProjects();
                     break;
 
                 case 'Saran Masukan':
                     // Feedback wall needs: feedbacks only
-                    if (!appContent.isFeedbacksFetched) {
-                        await appContent.fetchFeedbacks();
-                    }
+                    await appContent.fetchFeedbacks();
                     break;
 
                 case 'Pengumuman':
                     // Announcements need: announcements only
-                    if (!appContent.isAnnouncementsFetched) {
-                        await appContent.fetchAnnouncements();
-                    }
+                    await appContent.fetchAnnouncements();
                     break;
 
                 case 'Dokumen':
                     // Documents need: templates only
-                    if (!appContent.isTemplatesFetched) {
-                        await appContent.fetchDocumentTemplates();
-                    }
+                    await appContent.fetchDocumentTemplates();
                     break;
 
                 case 'Inventori Data':
                     // Data inventory needs: inventory only
-                    if (!appContent.isInventoryFetched) {
-                        await appContent.fetchDataInventory();
-                    }
+                    await appContent.fetchDataInventory();
                     break;
 
                 case 'Master Data':
                     // Master data management needs: all master data
-                    if (!masterData.isMasterDataFetched) {
-                        await masterData.fetchMasterData();
-                    }
+                    await masterData.fetchMasterData();
                     break;
 
                 case 'Daftar Surat':

@@ -20,6 +20,7 @@ interface MultiSelectChipProps {
   searchPlaceholder?: string;          // placeholder for search input
   onEdit?: (value: string, label: string) => void;  // callback for edit action
   canEdit?: (value: string) => boolean; // check if item can be edited
+  disabled?: boolean;                  // disable the component
 }
 
 const MultiSelectChip: React.FC<MultiSelectChipProps> = ({
@@ -34,7 +35,8 @@ const MultiSelectChip: React.FC<MultiSelectChipProps> = ({
   searchable = true,
   searchPlaceholder = 'Cari nama...',
   onEdit,
-  canEdit
+  canEdit,
+  disabled = false
 }) => {
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
