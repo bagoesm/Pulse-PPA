@@ -17,6 +17,28 @@ export default defineConfig(({ mode }) => {
       react(),
       VitePWA({
         registerType: 'autoUpdate',
+        workbox: {
+          // Aggressive cache cleanup
+          cleanupOutdatedCaches: true,
+          // Skip waiting and claim clients immediately
+          skipWaiting: true,
+          clientsClaim: true,
+          // Runtime caching strategies
+          runtimeCaching: [
+            {
+              urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
+              handler: 'NetworkFirst',
+              options: {
+                cacheName: 'supabase-cache',
+                expiration: {
+                  maxEntries: 50,
+                  maxAgeSeconds: 60 * 60 // 1 hour
+                },
+                networkTimeoutSeconds: 10
+              }
+            }
+          ]
+        },
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'favicon.svg'],
         manifest: {
           name: 'Pulse PPA',
@@ -55,6 +77,10 @@ export default defineConfig(({ mode }) => {
     build: {
       rollupOptions: {
         output: {
+          // Add hash to filenames for cache busting
+          entryFileNames: 'assets/[name].[hash].js',
+          chunkFileNames: 'assets/[name].[hash].js',
+          assetFileNames: 'assets/[name].[hash].[ext]',
           manualChunks: {
             // Vendor chunks
             'vendor-react': ['react', 'react-dom'],

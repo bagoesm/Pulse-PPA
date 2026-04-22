@@ -26,6 +26,7 @@ interface TasksContextType {
     fetchTaskActivities: () => Promise<void>;
     clearTasks: () => void;
     isTasksLoading: boolean;
+    isTasksFetched: boolean; // NEW: Track if data has been fetched
 
     // Helper: Convert meetings to tasks (for unified view)
     getMeetingsAsTasks: (meetings: Meeting[]) => Task[];
@@ -54,6 +55,7 @@ interface TasksProviderProps {
 
 export const TasksProvider: React.FC<TasksProviderProps> = ({ children, session }) => {
     const [isTasksLoading, setIsTasksLoading] = useState(false);
+    const [isTasksFetched, setIsTasksFetched] = useState(false); // NEW: Track fetch status
     const [tasks, setTasks] = useState<Task[]>([]);
     const [comments, setComments] = useState<Comment[]>([]);
     const [taskActivities, setTaskActivities] = useState<TaskActivity[]>([]);
@@ -216,6 +218,7 @@ export const TasksProvider: React.FC<TasksProviderProps> = ({ children, session 
                     })
                 );
                 setTasks(tasksWithFiles);
+                setIsTasksFetched(true); // NEW: Mark as fetched
             }
         } finally {
             setIsTasksLoading(false);
@@ -264,15 +267,16 @@ export const TasksProvider: React.FC<TasksProviderProps> = ({ children, session 
         setTaskActivities([]);
     }, []);
 
-    useEffect(() => {
-        if (session) {
-            fetchTasks();
-            fetchComments();
-            fetchTaskActivities();
-        } else {
-            clearTasks();
-        }
-    }, [session, fetchTasks, fetchComments, fetchTaskActivities, clearTasks]);
+    // REMOVED: Auto-fetch on session change - now using lazy loading
+    // useEffect(() => {
+    //     if (session) {
+    //         fetchTasks();
+    //         fetchComments();
+    //         fetchTaskActivities();
+    //     } else {
+    //         clearTasks();
+    //     }
+    // }, [session, fetchTasks, fetchComments, fetchTaskActivities, clearTasks]);
 
     const value: TasksContextType = {
         tasks,
@@ -287,6 +291,7 @@ export const TasksProvider: React.FC<TasksProviderProps> = ({ children, session 
         fetchTaskActivities,
         clearTasks,
         isTasksLoading,
+        isTasksFetched, // NEW: Expose fetch status
         getMeetingsAsTasks,
         getFilteredTasks
     };

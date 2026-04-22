@@ -1,11 +1,14 @@
 // src/App.tsx - Entry point with proper provider hierarchy
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import ErrorBoundary from './components/ErrorBoundary';
 import { UIProvider } from './contexts/UIContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { DataProvider } from './contexts/DataContext';
+import { SidebarProvider } from './contexts/SidebarContext';
 import AppContent from './AppContent';
+import { UpdateNotification } from './components/UpdateNotification';
+import { setupChunkErrorHandler } from './utils/versionCheck';
 
 // Loading fallback
 const PageLoader: React.FC = () => (
@@ -32,18 +35,29 @@ const AppWithData: React.FC = () => {
  * Main App - Provider hierarchy:
  * 1. ErrorBoundary - Catches errors
  * 2. UIProvider - Modal states, filters, notifications
- * 3. AuthProvider - Session, login/logout
- * 4. DataProvider - All data (depends on session from AuthProvider)
- * 5. AppContent - UI rendering (consumes all contexts)
+ * 3. SidebarProvider - Sidebar collapse state
+ * 4. AuthProvider - Session, login/logout
+ * 5. DataProvider - All data (depends on session from AuthProvider)
+ * 6. AppContent - UI rendering (consumes all contexts)
  */
-const App: React.FC = () => (
-  <ErrorBoundary>
-    <UIProvider>
-      <AuthProvider>
-        <AppWithData />
-      </AuthProvider>
-    </UIProvider>
-  </ErrorBoundary>
-);
+const App: React.FC = () => {
+  useEffect(() => {
+    // Setup global chunk error handler
+    setupChunkErrorHandler();
+  }, []);
+
+  return (
+    <ErrorBoundary>
+      <UIProvider>
+        <SidebarProvider>
+          <AuthProvider>
+            <AppWithData />
+            <UpdateNotification />
+          </AuthProvider>
+        </SidebarProvider>
+      </UIProvider>
+    </ErrorBoundary>
+  );
+};
 
 export default App; 

@@ -25,6 +25,7 @@ import {
 import { Meeting, MeetingType, User, ProjectDefinition } from '../../types';
 import { useDivision } from '../contexts/DivisionContext';
 import DivisionFilter from './DivisionFilter';
+import SearchableSelect from './SearchableSelect';
 
 interface MeetingCalendarProps {
   meetings: Meeting[];
@@ -425,6 +426,7 @@ const MeetingCalendar: React.FC<MeetingCalendarProps> = ({
     <div className="h-full flex flex-col bg-slate-50 overflow-hidden">
       {/* Header */}
       <div className="bg-white border-b border-slate-200 px-3 sm:px-6 py-3 sm:py-4">
+        {/* Top Row - Title and Actions */}
         <div className="flex items-center justify-between gap-2 sm:gap-4">
           <div className="hidden sm:block">
             <h1 className="text-xl sm:text-2xl font-bold text-slate-800 flex items-center gap-2">
@@ -454,44 +456,93 @@ const MeetingCalendar: React.FC<MeetingCalendarProps> = ({
               {activeFilterCount > 0 && <span className="absolute -top-1 -right-1 w-4 h-4 bg-gov-600 text-white text-[10px] rounded-full flex items-center justify-center">{activeFilterCount}</span>}
             </button>
 
-            <div className="hidden sm:flex relative">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Cari jadwal..." className="pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-600 focus:border-gov-400 focus:ring-1 focus:ring-gov-400 outline-none w-[180px]" />
-              {searchQuery && <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 hover:bg-slate-100 rounded"><X size={14} className="text-slate-400" /></button>}
-            </div>
-
-            <select value={filterType} onChange={(e) => setFilterType(e.target.value as MeetingType | 'all')} className="hidden sm:block px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-600 focus:border-gov-400 focus:ring-1 focus:ring-gov-400 outline-none">
-              <option value="all">Semua Jenis</option>
-              <option value="internal">Internal</option>
-              <option value="external">Eksternal</option>
-              <option value="audiensi">Audiensi</option>
-              <option value="bimtek">Bimtek</option>
-            </select>
-
-            <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value as MeetingStatus | 'all')} className="hidden sm:block px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-600 focus:border-gov-400 focus:ring-1 focus:ring-gov-400 outline-none">
-              <option value="all">Semua Status</option>
-              <option value="scheduled">Terjadwal</option>
-              <option value="ongoing">Berlangsung</option>
-              <option value="completed">Selesai</option>
-              <option value="cancelled">Dibatalkan</option>
-            </select>
-
-            <select value={filterPic} onChange={(e) => setFilterPic(e.target.value)} className="hidden sm:block px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-600 focus:border-gov-400 focus:ring-1 focus:ring-gov-400 outline-none max-w-[150px]">
-              <option value="all">Semua PIC</option>
-              {uniquePics.map(pic => <option key={pic} value={pic}>{pic}</option>)}
-            </select>
-
-            <select value={filterDisposisi} onChange={(e) => setFilterDisposisi(e.target.value as 'all' | 'with' | 'without')} className="hidden sm:block px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-600 focus:border-gov-400 focus:ring-1 focus:ring-gov-400 outline-none">
-              <option value="all">Semua Disposisi</option>
-              <option value="with">Dengan Disposisi</option>
-              <option value="without">Tanpa Disposisi</option>
-            </select>
-
             <button onClick={onAddMeeting} className="flex items-center gap-1.5 px-2.5 sm:px-4 py-2 bg-gov-600 text-white rounded-lg hover:bg-gov-700 transition-colors font-medium text-sm">
               <Plus size={16} className="sm:w-[18px] sm:h-[18px]" />
               <span className="hidden sm:inline">Tambah</span>
             </button>
           </div>
+        </div>
+
+        {/* Desktop Filter Row */}
+        <div className="hidden sm:flex items-center gap-3 mt-4 pt-4 border-t border-slate-100">
+          <div className="relative flex-1 max-w-xs">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input 
+              type="text" 
+              value={searchQuery} 
+              onChange={(e) => setSearchQuery(e.target.value)} 
+              placeholder="Cari jadwal..." 
+              className="w-full pl-9 pr-8 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-600 focus:border-gov-400 focus:ring-1 focus:ring-gov-400 outline-none" 
+            />
+            {searchQuery && (
+              <button 
+                onClick={() => setSearchQuery('')} 
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 hover:bg-slate-100 rounded"
+              >
+                <X size={14} className="text-slate-400" />
+              </button>
+            )}
+          </div>
+
+          <SearchableSelect
+            options={[
+              { value: 'all', label: 'Semua Jenis' },
+              { value: 'internal', label: 'Internal' },
+              { value: 'external', label: 'Eksternal' },
+              { value: 'audiensi', label: 'Audiensi' },
+              { value: 'bimtek', label: 'Bimtek' }
+            ]}
+            value={filterType}
+            onChange={(value) => setFilterType(value as MeetingType | 'all')}
+            placeholder="Pilih jenis..."
+            className="w-[160px]"
+          />
+
+          <SearchableSelect
+            options={[
+              { value: 'all', label: 'Semua Status' },
+              { value: 'scheduled', label: 'Terjadwal' },
+              { value: 'ongoing', label: 'Berlangsung' },
+              { value: 'completed', label: 'Selesai' },
+              { value: 'cancelled', label: 'Dibatalkan' }
+            ]}
+            value={filterStatus}
+            onChange={(value) => setFilterStatus(value as MeetingStatus | 'all')}
+            placeholder="Pilih status..."
+            className="w-[160px]"
+          />
+
+          <SearchableSelect
+            options={[
+              { value: 'all', label: 'Semua PIC' },
+              ...uniquePics.map(pic => ({ value: pic, label: pic }))
+            ]}
+            value={filterPic}
+            onChange={(value) => setFilterPic(value)}
+            placeholder="Cari PIC..."
+            className="w-[180px]"
+          />
+
+          <SearchableSelect
+            options={[
+              { value: 'all', label: 'Semua Disposisi' },
+              { value: 'with', label: 'Dengan Disposisi' },
+              { value: 'without', label: 'Tanpa Disposisi' }
+            ]}
+            value={filterDisposisi}
+            onChange={(value) => setFilterDisposisi(value as 'all' | 'with' | 'without')}
+            placeholder="Filter disposisi..."
+            className="w-[180px]"
+          />
+
+          {activeFilterCount > 0 && (
+            <button 
+              onClick={clearFilters} 
+              className="px-3 py-2 text-sm text-gov-600 hover:text-gov-700 font-medium whitespace-nowrap"
+            >
+              Reset ({activeFilterCount})
+            </button>
+          )}
         </div>
 
         {/* Mobile Filter Panel */}
@@ -506,30 +557,53 @@ const MeetingCalendar: React.FC<MeetingCalendarProps> = ({
               <span className="text-xs font-semibold text-slate-500 uppercase">Filter</span>
               {activeFilterCount > 0 && <button onClick={clearFilters} className="text-xs text-gov-600 font-medium">Reset</button>}
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <select value={filterType} onChange={(e) => setFilterType(e.target.value as MeetingType | 'all')} className="px-2 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-600">
-                <option value="all">Semua Jenis</option>
-                <option value="internal">Internal</option>
-                <option value="external">Eksternal</option>
-                <option value="audiensi">Audiensi</option>
-                <option value="bimtek">Bimtek</option>
-              </select>
-              <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value as MeetingStatus | 'all')} className="px-2 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-600">
-                <option value="all">Semua Status</option>
-                <option value="scheduled">Terjadwal</option>
-                <option value="ongoing">Berlangsung</option>
-                <option value="completed">Selesai</option>
-                <option value="cancelled">Dibatalkan</option>
-              </select>
-              <select value={filterPic} onChange={(e) => setFilterPic(e.target.value)} className="px-2 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-600">
-                <option value="all">Semua PIC</option>
-                {uniquePics.map(pic => <option key={pic} value={pic}>{pic}</option>)}
-              </select>
-              <select value={filterDisposisi} onChange={(e) => setFilterDisposisi(e.target.value as 'all' | 'with' | 'without')} className="px-2 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-600">
-                <option value="all">Semua Disposisi</option>
-                <option value="with">Dengan Disposisi</option>
-                <option value="without">Tanpa Disposisi</option>
-              </select>
+            <div className="grid grid-cols-1 gap-3">
+              <SearchableSelect
+                options={[
+                  { value: 'all', label: 'Semua Jenis' },
+                  { value: 'internal', label: 'Internal' },
+                  { value: 'external', label: 'Eksternal' },
+                  { value: 'audiensi', label: 'Audiensi' },
+                  { value: 'bimtek', label: 'Bimtek' }
+                ]}
+                value={filterType}
+                onChange={(value) => setFilterType(value as MeetingType | 'all')}
+                placeholder="Pilih jenis..."
+              />
+
+              <SearchableSelect
+                options={[
+                  { value: 'all', label: 'Semua Status' },
+                  { value: 'scheduled', label: 'Terjadwal' },
+                  { value: 'ongoing', label: 'Berlangsung' },
+                  { value: 'completed', label: 'Selesai' },
+                  { value: 'cancelled', label: 'Dibatalkan' }
+                ]}
+                value={filterStatus}
+                onChange={(value) => setFilterStatus(value as MeetingStatus | 'all')}
+                placeholder="Pilih status..."
+              />
+
+              <SearchableSelect
+                options={[
+                  { value: 'all', label: 'Semua PIC' },
+                  ...uniquePics.map(pic => ({ value: pic, label: pic }))
+                ]}
+                value={filterPic}
+                onChange={(value) => setFilterPic(value)}
+                placeholder="Cari PIC..."
+              />
+
+              <SearchableSelect
+                options={[
+                  { value: 'all', label: 'Semua Disposisi' },
+                  { value: 'with', label: 'Dengan Disposisi' },
+                  { value: 'without', label: 'Tanpa Disposisi' }
+                ]}
+                value={filterDisposisi}
+                onChange={(value) => setFilterDisposisi(value as 'all' | 'with' | 'without')}
+                placeholder="Filter disposisi..."
+              />
             </div>
           </div>
         )}

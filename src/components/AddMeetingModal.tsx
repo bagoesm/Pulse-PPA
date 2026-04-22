@@ -14,6 +14,7 @@ import { LinkingService } from '../services/LinkingService';
 import NotificationModal from './NotificationModal';
 import ConfirmModal from './ConfirmModal';
 import MultiSelectChip from './MultiSelectChip';
+import DivisionFilteredMultiSelect from './DivisionFilteredMultiSelect';
 import RichTextEditor from './RichTextEditor';
 import SearchableSelect from './SearchableSelect';
 import SearchableSelectWithActions from './SearchableSelectWithActions';
@@ -1028,8 +1029,9 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
                   ))}
                 </div>
               ) : (
-                <MultiSelectChip
-                  options={users.map(u => ({ value: u.name, label: u.name }))}
+                <DivisionFilteredMultiSelect
+                  users={users}
+                  currentUserDivisi={currentUser?.divisi}
                   value={formData.pic || []}
                   onChange={(selected) => handleChange('pic', selected)}
                   placeholder="Pilih PIC..."

@@ -1,10 +1,14 @@
 // src/contexts/DivisionContext.tsx
 // Central context for Satuan Kerja-based data isolation
+// Integrates VisibilityMiddleware for satker visibility filtering
+// Validates: Requirements 4.1, 4.3
 import React, { createContext, useContext, useState, useCallback, useEffect, useMemo, ReactNode } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { User } from '../../types';
 import { useAuth } from './AuthContext';
 import { useUsers } from './UsersContext';
+import { visibilityMiddleware } from '../services/VisibilityMiddleware';
+import { useVisibilityFilter } from '../hooks/useVisibilityFilter';
 
 interface DivisionContextType {
     // Master data
@@ -15,8 +19,8 @@ interface DivisionContextType {
     currentDivisi: string | null;
     
     // Selected divisi for filtering (default = currentDivisi)
-    selectedDivisi: string | 'All';
-    setSelectedDivisi: (divisi: string | 'All') => void;
+    selectedDivisi: string;
+    setSelectedDivisi: (divisi: string) => void;
     resetToMyDivisi: () => void;
     
     // Whether filtering is active (viewing another division)
@@ -61,8 +65,12 @@ export const DivisionProvider: React.FC<DivisionProviderProps> = ({ children, se
     const { currentUser } = useAuth();
     const { allUsers } = useUsers();
     
+    // Use visibility filter hook to get accessible satker IDs
+    // Validates: Requirements 4.1, 4.3
+    const { accessibleSatkerIds, loading: visibilityLoading } = useVisibilityFilter(currentUser?.id);
+    
     const [divisiList, setDivisiList] = useState<string[]>([]);
-    const [selectedDivisi, setSelectedDivisiState] = useState<string | 'All'>('All');
+    const [selectedDivisi, setSelectedDivisiState] = useState<string>('');
 
     // Current user's divisi
     const currentDivisi = currentUser?.divisi || null;
@@ -70,22 +78,22 @@ export const DivisionProvider: React.FC<DivisionProviderProps> = ({ children, se
     // Initialize selectedDivisi when currentUser changes
     useEffect(() => {
         if (currentUser) {
-            if (currentUser.role === 'Super Admin') {
-                // Super Admin sees all by default
-                setSelectedDivisiState('All');
-            } else if (currentUser.divisi) {
-                // Regular users see their own divisi by default
+            if (currentUser.divisi) {
+                // All users (including Super Admin) default to their own divisi
                 setSelectedDivisiState(currentUser.divisi);
             } else {
-                // Users without divisi see all (fallback)
-                setSelectedDivisiState('All');
+                // Users without divisi: set to first accessible divisi or empty
+                // This will be handled by the component
+                setSelectedDivisiState('');
             }
         }
-    }, [currentUser?.id, currentUser?.role, currentUser?.divisi]);
+    }, [currentUser?.id, currentUser?.divisi]);
 
-    // Fetch divisi list from master_divisi table
+    // Fetch divisi list from master_divisi table with visibility filtering
+    // Validates: Requirements 4.1, 4.3
     const fetchDivisiList = useCallback(async () => {
         try {
+            // First, get all active divisi from master_divisi
             const { data, error } = await supabase
                 .from('master_divisi')
                 .select('name')
@@ -97,13 +105,46 @@ export const DivisionProvider: React.FC<DivisionProviderProps> = ({ children, se
                 return;
             }
 
-            if (data) {
+            if (!data) {
+                setDivisiList([]);
+                return;
+            }
+
+            // Super Admin sees all divisi
+            if (currentUser?.role === 'Super Admin') {
+                setDivisiList(data.map((d: any) => d.name));
+                return;
+            }
+
+            // For non-admin users, filter divisi based on accessible satkers
+            // Get divisi data to map names to IDs
+            const { data: satkersData } = await supabase
+                .from('master_divisi')
+                .select('id, name');
+
+            if (satkersData && accessibleSatkerIds.length > 0) {
+                // Filter divisi that the user can access
+                const accessibleSatkerNames = satkersData
+                    .filter((s: any) => accessibleSatkerIds.includes(s.id))
+                    .map((s: any) => s.name);
+                
+                // Filter divisi list to only show accessible divisi
+                const filteredDivisi = data
+                    .map((d: any) => d.name)
+                    .filter((name: string) => accessibleSatkerNames.includes(name));
+                
+                setDivisiList(filteredDivisi);
+            } else if (accessibleSatkerIds.length === 0 && (currentUser?.role === 'Atasan' || currentUser?.role === 'Staff')) {
+                // User has no accessible divisi - show empty list
+                setDivisiList([]);
+            } else {
+                // Fallback: show all (shouldn't happen normally)
                 setDivisiList(data.map((d: any) => d.name));
             }
         } catch (err) {
             console.error('Error fetching divisi list:', err);
         }
-    }, []);
+    }, [currentUser?.role, accessibleSatkerIds]);
 
     // Fetch on mount when session exists
     useEffect(() => {
@@ -156,8 +197,8 @@ export const DivisionProvider: React.FC<DivisionProviderProps> = ({ children, se
 
     // Compute user names in selected divisi
     const divisiUserNames = useMemo(() => {
-        if (selectedDivisi === 'All') {
-            return allUsers.map(u => u.name);
+        if (!selectedDivisi) {
+            return [];
         }
         return allUsers
             .filter(u => u.divisi === selectedDivisi)
@@ -166,8 +207,8 @@ export const DivisionProvider: React.FC<DivisionProviderProps> = ({ children, se
 
     // Map user IDs in selected divisi
     const divisiUserIds = useMemo(() => {
-        if (selectedDivisi === 'All') {
-            return new Set(allUsers.map(u => u.id));
+        if (!selectedDivisi) {
+            return new Set<string>();
         }
         return new Set(
             allUsers
@@ -183,32 +224,25 @@ export const DivisionProvider: React.FC<DivisionProviderProps> = ({ children, se
 
     // Whether the filter is active (viewing a different divisi)
     const isDivisiFilterActive = useMemo(() => {
-        if (selectedDivisi === 'All') {
-            // For Super Admin, 'All' is the default, so not "actively filtering"
-            if (currentUser?.role === 'Super Admin') return false;
-            // For non-Super Admin without divisi, 'All' is fallback
-            if (!currentDivisi) return false;
-            // For regular users, 'All' means they expanded their view
-            return true;
-        }
+        if (!selectedDivisi || !currentDivisi) return false;
         return selectedDivisi !== currentDivisi;
-    }, [selectedDivisi, currentDivisi, currentUser?.role]);
+    }, [selectedDivisi, currentDivisi]);
 
     // Helper: check by user name
     const isInSelectedDivisi = useCallback((userName: string) => {
-        if (selectedDivisi === 'All') return true;
+        if (!selectedDivisi) return false;
         return divisiUserNamesSet.has(userName);
     }, [selectedDivisi, divisiUserNamesSet]);
 
     // Helper: check by user ID
     const isUserIdInSelectedDivisi = useCallback((userId: string) => {
-        if (selectedDivisi === 'All') return true;
+        if (!selectedDivisi) return false;
         return divisiUserIds.has(userId);
     }, [selectedDivisi, divisiUserIds]);
 
-    // Helper: combined check for createdBy + PIC (Opsi C)
+    // Helper: combined check for createdBy + PIC
     const shouldShowByDivisi = useCallback((createdByName?: string, picNames?: string[]) => {
-        if (selectedDivisi === 'All') return true;
+        if (!selectedDivisi) return false;
 
         // Check if creator is in selected divisi
         if (createdByName && divisiUserNamesSet.has(createdByName)) {
@@ -224,20 +258,16 @@ export const DivisionProvider: React.FC<DivisionProviderProps> = ({ children, se
     }, [selectedDivisi, divisiUserNamesSet]);
 
     // Set selected divisi
-    const setSelectedDivisi = useCallback((divisi: string | 'All') => {
+    const setSelectedDivisi = useCallback((divisi: string) => {
         setSelectedDivisiState(divisi);
     }, []);
 
     // Reset to own divisi
     const resetToMyDivisi = useCallback(() => {
-        if (currentUser?.role === 'Super Admin') {
-            setSelectedDivisiState('All');
-        } else if (currentDivisi) {
+        if (currentDivisi) {
             setSelectedDivisiState(currentDivisi);
-        } else {
-            setSelectedDivisiState('All');
         }
-    }, [currentDivisi, currentUser?.role]);
+    }, [currentDivisi]);
 
     const value: DivisionContextType = {
         divisiList,

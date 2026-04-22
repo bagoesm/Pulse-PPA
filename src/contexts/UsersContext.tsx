@@ -1,8 +1,12 @@
 // src/contexts/UsersContext.tsx
 // Domain context for Users and UserStatuses
+// Integrates VisibilityMiddleware for satker-based data filtering
+// Validates: Requirements 4.1, 4.2, 4.3
 import React, { createContext, useContext, useState, useMemo, useCallback, useEffect, ReactNode } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { User, UserStatus } from '../../types';
+import { useAuth } from './AuthContext';
+import { visibilityMiddleware } from '../services/VisibilityMiddleware';
 
 interface UsersContextType {
     // Users
@@ -37,6 +41,7 @@ interface UsersProviderProps {
 }
 
 export const UsersProvider: React.FC<UsersProviderProps> = ({ children, session }) => {
+    const { currentUser } = useAuth();
     const [isUsersLoading, setIsUsersLoading] = useState(false);
     const [allUsers, setAllUsers] = useState<User[]>([]);
     const [userStatuses, setUserStatuses] = useState<UserStatus[]>([]);
@@ -50,7 +55,40 @@ export const UsersProvider: React.FC<UsersProviderProps> = ({ children, session 
     const fetchUsers = useCallback(async (): Promise<User[]> => {
         setIsUsersLoading(true);
         try {
-            const { data: usersData, error: usersErr } = await supabase.from('profiles').select('*');
+            // Build base query
+            let query = supabase.from('profiles').select('*');
+            
+            // Apply visibility filter based on satker access
+            // Property 6: Data Filter Excludes Unauthorized Satkers
+            // Validates: Requirements 4.1, 4.2
+            if (currentUser?.id) {
+                // Get accessible satker IDs for the current user
+                const accessibleSatkerIds = await visibilityMiddleware.getAccessibleSatkerIds(currentUser.id);
+                
+                // Get all divisi to map names to IDs
+                const { data: satkersData } = await supabase.from('master_divisi').select('id, name');
+                
+                if (satkersData && accessibleSatkerIds.length > 0) {
+                    // Filter satker names that the user can access
+                    const accessibleSatkerNames = satkersData
+                        .filter((s: any) => accessibleSatkerIds.includes(s.id))
+                        .map((s: any) => s.name);
+                    
+                    // Apply filter: show users from accessible satkers or users without divisi
+                    // Admins see all users (handled by VisibilityMiddleware returning empty filter)
+                    if (accessibleSatkerNames.length > 0 && currentUser.role !== 'Super Admin') {
+                        // For non-admins: filter by accessible satker names
+                        // Users without divisi (null/empty) are always visible
+                        query = query.or(`divisi.is.null,divisi.eq.,divisi.in.(${accessibleSatkerNames.map((n: string) => `"${n}"`).join(',')})`);
+                    }
+                } else if (currentUser.role !== 'Super Admin') {
+                    // User has no accessible satkers and is not admin
+                    // Show only users without divisi
+                    query = query.or('divisi.is.null,divisi.eq.');
+                }
+            }
+            
+            const { data: usersData, error: usersErr } = await query;
             if (usersErr) {
                 console.error('Error fetch profiles:', usersErr);
                 return [];
@@ -72,7 +110,7 @@ export const UsersProvider: React.FC<UsersProviderProps> = ({ children, session 
         } finally {
             setIsUsersLoading(false);
         }
-    }, []);
+    }, [currentUser]);
 
     const fetchUserStatuses = useCallback(async () => {
         const { data: statusesData } = await supabase.from('user_statuses').select('*');

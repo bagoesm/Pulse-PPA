@@ -1,5 +1,5 @@
 // src/components/DisposisiListView.tsx
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   FileText, Calendar, User as UserIcon, Search, X,
   ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, Eye, Trash2
@@ -14,6 +14,8 @@ import SearchableSelect from './SearchableSelect';
 import ConfirmModal from './ConfirmModal';
 import { useDivision } from '../contexts/DivisionContext';
 import DivisionFilter from './DivisionFilter';
+import { useVisibilityFilter } from '../hooks/useVisibilityFilter';
+import { supabase } from '../lib/supabaseClient';
 
 interface DisposisiListViewProps {
   currentUser: User | null;
@@ -26,6 +28,17 @@ const DisposisiListView: React.FC<DisposisiListViewProps> = ({ currentUser, show
   const { surats } = useSurats();
   const { meetings } = useMeetings();
   const { isUserIdInSelectedDivisi, selectedDivisi } = useDivision();
+
+  // Satker visibility filter - filter data based on accessible satkers
+  // Validates: Requirements 4.1, 4.3
+  const { accessibleSatkerIds, loading: satkerLoading, error: satkerError } = useVisibilityFilter(currentUser?.id);
+
+  // Handle visibility filter errors
+  useEffect(() => {
+    if (satkerError) {
+      showNotification('Gagal Memuat Filter', satkerError, 'error');
+    }
+  }, [satkerError, showNotification]);
 
   // Search and filter states
   const [searchQuery, setSearchQuery] = useState('');
@@ -78,12 +91,42 @@ const DisposisiListView: React.FC<DisposisiListViewProps> = ({ currentUser, show
     return kegiatan?.title || '-';
   };
 
+  // Apply satker visibility filter
+  // Validates: Requirements 4.1, 4.3
+  // Note: accessibleSatkerIds being empty means Super Admin sees all data
+  const satkerFilteredDisposisi = useMemo(() => {
+    // If accessibleSatkerIds is empty (Super Admin), show all data
+    if (accessibleSatkerIds.length === 0) {
+      return disposisi;
+    }
+
+    // For non-admin users, filter based on their divisi
+    // Get users whose divisi matches the current user's divisi
+    const currentUserDivisi = currentUser?.divisi;
+    if (!currentUserDivisi) {
+      return []; // No divisi means no access
+    }
+
+    // Get users in the same satker (divisi)
+    const usersInSameSatker = allUsers
+      .filter(u => u.divisi === currentUserDivisi)
+      .map(u => u.id);
+    
+    return disposisi.filter(d => 
+      usersInSameSatker.includes(d.createdBy) || usersInSameSatker.includes(d.assignedTo)
+    );
+  }, [disposisi, accessibleSatkerIds, allUsers, currentUser]);
+
   // Apply filters and search
   const filteredDisposisi = useMemo(() => {
-    // First apply division filter
+    // First apply satker visibility filter
+    // Validates: Requirements 4.1, 4.3
+    const satkerFiltered = satkerFilteredDisposisi;
+
+    // Then apply division filter
     const divisionFiltered = selectedDivisi === 'All'
-      ? disposisi
-      : disposisi.filter(d => isUserIdInSelectedDivisi(d.assignedTo) || isUserIdInSelectedDivisi(d.createdBy));
+      ? satkerFiltered
+      : satkerFiltered.filter(d => isUserIdInSelectedDivisi(d.assignedTo) || isUserIdInSelectedDivisi(d.createdBy));
 
     const filtered = divisionFiltered.filter(d => {
       // Search filter - multi-field search
@@ -153,7 +196,7 @@ const DisposisiListView: React.FC<DisposisiListViewProps> = ({ currentUser, show
       if (compareA > compareB) return sortDirection === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [disposisi, searchQuery, filterStatus, filterAssignedUser, filterStartDate, filterEndDate, sortColumn, sortDirection, surats, meetings, allUsers, selectedDivisi, isUserIdInSelectedDivisi]);
+  }, [satkerFilteredDisposisi, searchQuery, filterStatus, filterAssignedUser, filterStartDate, filterEndDate, sortColumn, sortDirection, surats, meetings, allUsers, selectedDivisi, isUserIdInSelectedDivisi]);
 
   // Pagination logic
   const totalPages = Math.ceil(filteredDisposisi.length / itemsPerPage);
@@ -398,7 +441,7 @@ const DisposisiListView: React.FC<DisposisiListViewProps> = ({ currentUser, show
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {isLoading ? (
+              {isLoading || satkerLoading ? (
                 <tr>
                   <td colSpan={8} className="px-4 py-12 text-center">
                     <div className="flex items-center justify-center gap-2">

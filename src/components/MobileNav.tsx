@@ -50,9 +50,11 @@ const MobileNav: React.FC<MobileNavProps> = ({
     { name: 'Saran Masukan', icon: MessageSquarePlus, color: 'text-emerald-600', bg: 'bg-emerald-50' },
     { name: 'Pengumuman', icon: Megaphone, color: 'text-blue-600', bg: 'bg-blue-50' },
     { name: 'Inventori Data', icon: Database, color: 'text-purple-600', bg: 'bg-purple-50' },
-    // Master Data only for Super Admin
+    // Master Data and Satker Visibility only for Super Admin
     ...(currentUser.role === 'Super Admin' ? [
       { name: 'Master Data', icon: Settings, color: 'text-orange-600', bg: 'bg-orange-50' },
+      { name: 'Manajemen Visibility', icon: Settings, color: 'text-red-600', bg: 'bg-red-50' },
+      { name: 'Riwayat Perubahan', icon: Database, color: 'text-amber-600', bg: 'bg-amber-50' },
     ] : []),
   ];
 

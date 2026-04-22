@@ -36,11 +36,9 @@ const DivisionFilter: React.FC<DivisionFilterProps> = ({ className = '', compact
     // Don't render if no divisi list available
     if (divisiList.length === 0) return null;
 
-    const displayLabel = selectedDivisi === 'All' 
-        ? 'Semua Satuan Kerja' 
-        : selectedDivisi;
+    const displayLabel = selectedDivisi || 'Pilih Satuan Kerja';
 
-    const handleSelect = (divisi: string | 'All') => {
+    const handleSelect = (divisi: string) => {
         setSelectedDivisi(divisi);
         setIsOpen(false);
     };
@@ -58,7 +56,7 @@ const DivisionFilter: React.FC<DivisionFilterProps> = ({ className = '', compact
             >
                 <Building2 size={14} className={isDivisiFilterActive ? 'text-amber-600' : 'text-slate-400'} />
                 <span className={compact ? 'hidden sm:inline' : ''}>
-                    {compact ? (selectedDivisi === 'All' ? 'Satker' : displayLabel) : displayLabel}
+                    {compact ? (selectedDivisi || 'Satker') : displayLabel}
                 </span>
                 <ChevronDown size={14} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
                 {isDivisiFilterActive && (
@@ -95,24 +93,6 @@ const DivisionFilter: React.FC<DivisionFilterProps> = ({ className = '', compact
 
                     {/* Options */}
                     <div className="max-h-52 overflow-y-auto py-1">
-                        {/* "Semua Satuan Kerja" option */}
-                        <button
-                            onClick={() => handleSelect('All')}
-                            className={`w-full flex items-center justify-between px-3 py-2 text-sm transition-colors ${
-                                selectedDivisi === 'All' 
-                                    ? 'bg-gov-50 text-gov-700 font-semibold' 
-                                    : 'text-slate-700 hover:bg-slate-50'
-                            }`}
-                        >
-                            <span className="flex items-center gap-2">
-                                <Building2 size={14} className="text-slate-400" />
-                                Semua Satuan Kerja
-                            </span>
-                            {selectedDivisi === 'All' && <Check size={14} className="text-gov-600" />}
-                        </button>
-
-                        <div className="h-px bg-slate-100 my-1" />
-
                         {/* Satuan Kerja options */}
                         {divisiList.map(divisi => (
                             <button

@@ -47,6 +47,13 @@ export class ForeignKeyError extends Error {
   }
 }
 
+export class ChunkLoadError extends Error {
+  constructor(message: string, public chunkName?: string) {
+    super(message);
+    this.name = 'ChunkLoadError';
+  }
+}
+
 /**
  * Error messages for user-friendly display
  */
@@ -94,6 +101,10 @@ export const ERROR_MESSAGES = {
   // Notification errors
   NOTIFICATION_FAILED: 'Gagal membuat notifikasi',
   NOTIFICATION_DELIVERY_FAILED: 'Gagal mengirim notifikasi',
+  
+  // Chunk loading errors
+  CHUNK_LOAD_ERROR: 'Aplikasi telah diperbarui. Halaman akan dimuat ulang.',
+  APP_UPDATE_AVAILABLE: 'Versi baru aplikasi tersedia. Silakan muat ulang halaman.',
   
   // Generic errors
   UNKNOWN_ERROR: 'Terjadi kesalahan yang tidak diketahui',
@@ -159,6 +170,10 @@ export function formatErrorForUser(error: any): string {
     return error.message;
   }
   
+  if (error instanceof ChunkLoadError) {
+    return ERROR_MESSAGES.CHUNK_LOAD_ERROR;
+  }
+  
   if (error instanceof DatabaseError) {
     // Don't expose internal database errors to users
     return ERROR_MESSAGES.DATABASE_CONNECTION_FAILED;
@@ -167,6 +182,15 @@ export function formatErrorForUser(error: any): string {
   if (error instanceof NotificationError) {
     // Notification errors shouldn't block main operations
     return ERROR_MESSAGES.NOTIFICATION_FAILED;
+  }
+  
+  // Handle chunk loading errors
+  if (
+    error?.message?.includes('Loading chunk') ||
+    error?.message?.includes('Failed to fetch dynamically imported module') ||
+    error?.message?.includes('Loading CSS chunk')
+  ) {
+    return ERROR_MESSAGES.CHUNK_LOAD_ERROR;
   }
   
   // Handle Supabase errors

@@ -83,7 +83,11 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, error }) => {
 
                 {/* Subtle Grid Overlay */}
                 <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff0a_1px,transparent_1px),linear-gradient(to_bottom,#ffffff0a_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)]"></div>
-                <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.25] mix-blend-overlay"></div>
+                {/* Noise texture using CSS instead of external SVG */}
+                <div className="absolute inset-0 opacity-[0.15] mix-blend-overlay" style={{
+                    backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
+                    backgroundRepeat: 'repeat'
+                }}></div>
 
                 {/* Top Header */}
                 <motion.div
@@ -94,10 +98,14 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, error }) => {
                 >
                     <div className="w-12 h-12 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl flex items-center justify-center shadow-2xl relative overflow-hidden group">
                         <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/20 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-2xl"></div>
-                        <span className="text-white font-bold text-2xl relative z-10">P</span>
+                        <img 
+                            src="/Logo.svg" 
+                            alt="Logo" 
+                            className="w-8 h-8 relative z-10"
+                        />
                     </div>
                     <div>
-                        <h2 className="text-white font-semibold text-xl tracking-tight leading-none mb-1">Pulse PPA</h2>
+                        <h2 className="text-white font-semibold text-xl tracking-tight leading-none mb-1">Pulse</h2>
                         <p className="text-gov-300 text-[10px] font-bold uppercase tracking-[0.2em] leading-none flex items-center gap-1.5">
                             Dashboard Sistem
                             <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
@@ -106,7 +114,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, error }) => {
                 </motion.div>
 
                 {/* Center Content */}
-                <div className="relative z-10 max-w-lg mt-auto mb-20 xl:mb-32">
+                <div className="relative z-10 max-w-lg my-auto">
                     <motion.div
                         initial={{ opacity: 0, y: 30 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -156,182 +164,151 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, error }) => {
                     </motion.div>
                 </div>
 
-                {/* Floating Mockup Cards (Decorative) */}
-                <div className="absolute top-[10%] xl:top-[5%] right-[0%] xl:right-[5%] z-0 hidden lg:flex flex-col gap-8 pointer-events-none opacity-80 xl:opacity-100 w-full max-w-[500px] h-[700px] perspective-1000 transform scale-[0.8] xl:scale-[0.9] origin-right">
-
-                    {/* Card 1: Agenda Kegiatan (Meetings) */}
+                {/* Scrolling Mockup Cards - Before Footer */}
+                <div className="relative z-10 overflow-hidden h-48 pointer-events-none mt-12 mb-8">
+                    {/* Gradient Overlays for fade effect */}
+                    <div className="absolute left-0 top-0 bottom-0 w-32 bg-gradient-to-r from-gov-900 to-transparent z-10"></div>
+                    <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-gov-900 to-transparent z-10"></div>
+                    
+                    {/* Scrolling Container */}
                     <motion.div
-                        initial={{ opacity: 0, x: -50, y: 20 }}
-                        animate={{ opacity: 1, x: 0, y: 0 }}
-                        transition={{ duration: 1, delay: 0.5, ease: "easeOut" }}
-                        className="absolute top-0 left-[-10%]"
+                        animate={{ x: [0, -1920] }}
+                        transition={{ 
+                            duration: 40, 
+                            repeat: Infinity, 
+                            ease: "linear" 
+                        }}
+                        className="flex gap-6 absolute"
                     >
-                        <motion.div
-                            animate={{ y: [0, -12, 0] }}
-                            transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
-                            className="bg-white/10 backdrop-blur-xl border border-white/20 p-5 rounded-3xl w-72 shadow-2xl rotate-[-4deg] transform-gpu transition-transform duration-500"
-                        >
-                            <div className="flex items-center gap-3 mb-4">
-                                <div className="w-10 h-10 rounded-xl bg-orange-500/20 flex items-center justify-center text-orange-400 shrink-0">
-                                    <Calendar size={20} />
-                                </div>
-                                <div className="flex-1">
-                                    <p className="text-white text-sm font-bold">Rapat Koordinasi</p>
-                                    <p className="text-gov-300 text-[10px] mt-0.5 flex items-center gap-1"><Clock size={10} /> 09:00 - 11:00 WIB</p>
-                                </div>
-                            </div>
-                            <div className="bg-white/5 rounded-xl p-3 border border-white/10">
-                                <p className="text-white/80 text-xs line-clamp-2">Pembahasan evaluasi kinerja triwulan I dan persiapan rakor nasional.</p>
-                            </div>
-                            <div className="mt-3 flex items-center justify-between">
-                                <div className="flex -space-x-2">
-                                    <div className="w-6 h-6 rounded-full bg-slate-600 border-2 border-slate-800"></div>
-                                    <div className="w-6 h-6 rounded-full bg-slate-500 border-2 border-slate-800"></div>
-                                    <div className="w-6 h-6 rounded-full bg-slate-400 border-2 border-slate-800 flex items-center justify-center text-[8px] font-bold text-white">+5</div>
-                                </div>
-                                <span className="px-2 py-1 rounded-md bg-orange-500/20 text-orange-300 text-[9px] font-bold uppercase tracking-wider">Online</span>
-                            </div>
-                        </motion.div>
-                    </motion.div>
-
-                    {/* Card 2: Disposisi Masuk (Inbox/Delegation) */}
-                    <motion.div
-                        initial={{ opacity: 0, x: 50, y: 30 }}
-                        animate={{ opacity: 1, x: 0, y: 0 }}
-                        transition={{ duration: 1, delay: 0.7, ease: "easeOut" }}
-                        className="absolute top-[15%] right-[-10%]"
-                    >
-                        <motion.div
-                            animate={{ y: [0, 10, 0] }}
-                            transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
-                            className="bg-white/10 backdrop-blur-xl border border-white/20 p-5 rounded-3xl w-80 shadow-2xl rotate-[3deg]"
-                        >
-                            <div className="flex items-center justify-between mb-4">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center text-indigo-400 shrink-0">
-                                        <Inbox size={20} />
-                                    </div>
-                                    <div>
-                                        <p className="text-white text-sm font-bold">Disposisi Masuk</p>
-                                        <p className="text-gov-300 text-[10px] mt-0.5">Dari: Pimpinan</p>
+                        {/* Duplicate cards twice for seamless loop */}
+                        {[...Array(2)].map((_, setIndex) => (
+                            <React.Fragment key={setIndex}>
+                                {/* Card 1: Agenda Kegiatan (Meetings) */}
+                                <div className="flex-shrink-0 w-72">
+                                    <div className="bg-white/10 backdrop-blur-xl border border-white/20 p-5 rounded-3xl shadow-2xl h-full">
+                                        <div className="flex items-center gap-3 mb-4">
+                                            <div className="w-10 h-10 rounded-xl bg-orange-500/20 flex items-center justify-center text-orange-400 shrink-0">
+                                                <Calendar size={20} />
+                                            </div>
+                                            <div className="flex-1">
+                                                <p className="text-white text-sm font-bold">Rapat Koordinasi</p>
+                                                <p className="text-gov-300 text-[10px] mt-0.5 flex items-center gap-1"><Clock size={10} /> 09:00 - 11:00 WIB</p>
+                                            </div>
+                                        </div>
+                                        <div className="bg-white/5 rounded-xl p-3 border border-white/10">
+                                            <p className="text-white/80 text-xs line-clamp-2">Pembahasan evaluasi kinerja triwulan I dan persiapan rakor nasional.</p>
+                                        </div>
+                                        <div className="mt-3 flex items-center justify-between">
+                                            <div className="flex -space-x-2">
+                                                <div className="w-6 h-6 rounded-full bg-slate-600 border-2 border-slate-800"></div>
+                                                <div className="w-6 h-6 rounded-full bg-slate-500 border-2 border-slate-800"></div>
+                                                <div className="w-6 h-6 rounded-full bg-slate-400 border-2 border-slate-800 flex items-center justify-center text-[8px] font-bold text-white">+5</div>
+                                            </div>
+                                            <span className="px-2 py-1 rounded-md bg-orange-500/20 text-orange-300 text-[9px] font-bold uppercase tracking-wider">Online</span>
+                                        </div>
                                     </div>
                                 </div>
-                                <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse"></span>
-                            </div>
-                            <div className="space-y-2">
-                                <div className="h-2 w-full bg-white/10 rounded-full"></div>
-                                <div className="h-2 w-4/5 bg-white/10 rounded-full"></div>
-                                <div className="h-2 w-2/3 bg-white/10 rounded-full"></div>
-                            </div>
-                            <div className="mt-4 flex justify-end">
-                                <span className="px-3 py-1.5 rounded-lg bg-indigo-500 text-white text-[10px] font-bold shadow-lg shadow-indigo-500/30">Tindak Lanjut</span>
-                            </div>
-                        </motion.div>
-                    </motion.div>
 
-                    {/* Card 3: Task Progress (Main Center) */}
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ duration: 1, delay: 0.9, ease: "easeOut" }}
-                        className="absolute top-[35%] left-[5%]"
-                    >
-                        <motion.div
-                            animate={{ y: [0, -8, 0] }}
-                            transition={{ duration: 5.5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-                            className="bg-white/10 backdrop-blur-xl border border-white/20 p-6 rounded-3xl w-[22rem] z-20 shadow-[-10px_20px_30px_rgba(0,0,0,0.2)] rotate-[-1deg]"
-                        >
-                            <div className="flex items-center justify-between mb-5">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center text-blue-400">
-                                        <CheckSquare size={24} />
-                                    </div>
-                                    <div>
-                                        <p className="text-white text-base font-bold">Progress Target</p>
-                                        <p className="text-gov-300 text-xs mt-0.5">Tugas Prioritas Tinggi</p>
+                                {/* Card 2: Disposisi Masuk (Inbox/Delegation) */}
+                                <div className="flex-shrink-0 w-80">
+                                    <div className="bg-white/10 backdrop-blur-xl border border-white/20 p-5 rounded-3xl shadow-2xl h-full">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center text-indigo-400 shrink-0">
+                                                    <Inbox size={20} />
+                                                </div>
+                                                <div>
+                                                    <p className="text-white text-sm font-bold">Disposisi Masuk</p>
+                                                    <p className="text-gov-300 text-[10px] mt-0.5">Dari: Pimpinan</p>
+                                                </div>
+                                            </div>
+                                            <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse"></span>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <div className="h-2 w-full bg-white/10 rounded-full"></div>
+                                            <div className="h-2 w-4/5 bg-white/10 rounded-full"></div>
+                                            <div className="h-2 w-2/3 bg-white/10 rounded-full"></div>
+                                        </div>
+                                        <div className="mt-4 flex justify-end">
+                                            <span className="px-3 py-1.5 rounded-lg bg-indigo-500 text-white text-[10px] font-bold shadow-lg shadow-indigo-500/30">Tindak Lanjut</span>
+                                        </div>
                                     </div>
                                 </div>
-                                <div className="text-right">
-                                    <span className="text-white font-bold text-2xl">24</span>
-                                    <span className="text-gov-400 text-sm font-normal">/30</span>
-                                </div>
-                            </div>
 
-                            <div className="w-full bg-white/10 rounded-full h-2 mb-3 overflow-hidden">
-                                <motion.div
-                                    initial={{ width: 0 }}
-                                    animate={{ width: '80%' }}
-                                    transition={{ duration: 2, delay: 1.5, ease: 'easeOut' }}
-                                    className="bg-gradient-to-r from-blue-400 to-cyan-400 h-full rounded-full"
-                                ></motion.div>
-                            </div>
+                                {/* Card 3: Task Progress */}
+                                <div className="flex-shrink-0 w-[22rem]">
+                                    <div className="bg-white/10 backdrop-blur-xl border border-white/20 p-6 rounded-3xl shadow-2xl h-full">
+                                        <div className="flex items-center justify-between mb-5">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center text-blue-400">
+                                                    <CheckSquare size={24} />
+                                                </div>
+                                                <div>
+                                                    <p className="text-white text-base font-bold">Progress Target</p>
+                                                    <p className="text-gov-300 text-xs mt-0.5">Tugas Prioritas Tinggi</p>
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <span className="text-white font-bold text-2xl">24</span>
+                                                <span className="text-gov-400 text-sm font-normal">/30</span>
+                                            </div>
+                                        </div>
 
-                            <div className="flex justify-between items-center mt-4 pt-4 border-t border-white/10">
-                                <div className="flex -space-x-3">
-                                    <div className="w-8 h-8 rounded-full bg-gov-600 border-2 border-gov-800 flex items-center justify-center text-[10px] text-white font-bold">AI</div>
-                                    <div className="w-8 h-8 rounded-full bg-cyan-600 border-2 border-gov-800 flex items-center justify-center text-[10px] text-white font-bold">BP</div>
-                                    <div className="w-8 h-8 rounded-full bg-indigo-600 border-2 border-gov-800 flex items-center justify-center text-[10px] text-white font-bold">CJ</div>
-                                </div>
-                                <p className="text-cyan-300 text-xs font-bold bg-cyan-500/10 px-3 py-1 rounded-full">80% Selesai</p>
-                            </div>
-                        </motion.div>
-                    </motion.div>
+                                        <div className="w-full bg-white/10 rounded-full h-2 mb-3 overflow-hidden">
+                                            <div className="bg-gradient-to-r from-blue-400 to-cyan-400 h-full rounded-full" style={{ width: '80%' }}></div>
+                                        </div>
 
-                    {/* Card 4: Dokumen & Laporan (Files) */}
-                    <motion.div
-                        initial={{ opacity: 0, x: -40, y: 30 }}
-                        animate={{ opacity: 1, x: 0, y: 0 }}
-                        transition={{ duration: 1, delay: 1.1, ease: "easeOut" }}
-                        className="absolute bottom-[20%] left-[-15%]"
-                    >
-                        <motion.div
-                            animate={{ y: [0, 12, 0] }}
-                            transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
-                            className="bg-white/10 backdrop-blur-xl border border-white/20 p-5 rounded-3xl w-64 shadow-2xl rotate-[2deg]"
-                        >
-                            <div className="flex items-center gap-3 mb-4">
-                                <div className="w-10 h-10 rounded-xl bg-rose-500/20 flex items-center justify-center text-rose-400 shrink-0">
-                                    <FileText size={20} />
+                                        <div className="flex justify-between items-center mt-4 pt-4 border-t border-white/10">
+                                            <div className="flex -space-x-3">
+                                                <div className="w-8 h-8 rounded-full bg-gov-600 border-2 border-gov-800 flex items-center justify-center text-[10px] text-white font-bold">AI</div>
+                                                <div className="w-8 h-8 rounded-full bg-cyan-600 border-2 border-gov-800 flex items-center justify-center text-[10px] text-white font-bold">BP</div>
+                                                <div className="w-8 h-8 rounded-full bg-indigo-600 border-2 border-gov-800 flex items-center justify-center text-[10px] text-white font-bold">CJ</div>
+                                            </div>
+                                            <p className="text-cyan-300 text-xs font-bold bg-cyan-500/10 px-3 py-1 rounded-full">80% Selesai</p>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div>
-                                    <p className="text-white text-sm font-bold leading-tight">Laporan Keuangan</p>
-                                    <p className="text-gov-300 text-[10px] mt-0.5">PDF • 2.4 MB</p>
-                                </div>
-                            </div>
-                            <div className="bg-white/5 rounded-xl h-12 border border-white/10 flex items-center justify-center gap-2 text-white/40">
-                                <FileText size={24} />
-                            </div>
-                        </motion.div>
-                    </motion.div>
 
-                    {/* Card 5: Kinerja / Performance (Stats) */}
-                    <motion.div
-                        initial={{ opacity: 0, x: 40, y: 40 }}
-                        animate={{ opacity: 1, x: 0, y: 0 }}
-                        transition={{ duration: 1, delay: 1.3, ease: "easeOut" }}
-                        className="absolute bottom-[10%] right-[0%]"
-                    >
-                        <motion.div
-                            animate={{ y: [0, -10, 0] }}
-                            transition={{ duration: 4.8, repeat: Infinity, ease: "easeInOut", delay: 2 }}
-                            className="bg-white/10 backdrop-blur-xl border border-white/20 p-5 rounded-3xl w-60 shadow-2xl rotate-[-3deg]"
-                        >
-                            <div className="flex items-center gap-3 mb-4">
-                                <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-400">
-                                    <TrendingUp size={20} />
+                                {/* Card 4: Dokumen & Laporan (Files) */}
+                                <div className="flex-shrink-0 w-64">
+                                    <div className="bg-white/10 backdrop-blur-xl border border-white/20 p-5 rounded-3xl shadow-2xl h-full">
+                                        <div className="flex items-center gap-3 mb-4">
+                                            <div className="w-10 h-10 rounded-xl bg-rose-500/20 flex items-center justify-center text-rose-400 shrink-0">
+                                                <FileText size={20} />
+                                            </div>
+                                            <div>
+                                                <p className="text-white text-sm font-bold leading-tight">Laporan Keuangan</p>
+                                                <p className="text-gov-300 text-[10px] mt-0.5">PDF • 2.4 MB</p>
+                                            </div>
+                                        </div>
+                                        <div className="bg-white/5 rounded-xl h-12 border border-white/10 flex items-center justify-center gap-2 text-white/40">
+                                            <FileText size={24} />
+                                        </div>
+                                    </div>
                                 </div>
-                                <div>
-                                    <p className="text-white text-sm font-bold leading-tight">Grafik Kinerja</p>
-                                    <p className="text-gov-300 text-[10px] mt-0.5">Bulan Ini</p>
+
+                                {/* Card 5: Kinerja / Performance (Stats) */}
+                                <div className="flex-shrink-0 w-60">
+                                    <div className="bg-white/10 backdrop-blur-xl border border-white/20 p-5 rounded-3xl shadow-2xl h-full">
+                                        <div className="flex items-center gap-3 mb-4">
+                                            <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-400">
+                                                <TrendingUp size={20} />
+                                            </div>
+                                            <div>
+                                                <p className="text-white text-sm font-bold leading-tight">Grafik Kinerja</p>
+                                                <p className="text-gov-300 text-[10px] mt-0.5">Bulan Ini</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-end gap-2 h-16 mt-2 border-b border-white/10 pb-1">
+                                            <div className="w-1/4 bg-white/20 rounded-t-md" style={{ height: '50%' }}></div>
+                                            <div className="w-1/4 bg-white/20 rounded-t-md" style={{ height: '70%' }}></div>
+                                            <div className="w-1/4 bg-white/30 rounded-t-md" style={{ height: '90%' }}></div>
+                                            <div className="w-1/4 bg-gradient-to-t from-emerald-500 to-emerald-300 rounded-t-md shadow-[0_0_15px_rgba(52,211,153,0.4)]" style={{ height: '100%' }}></div>
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
-                            <div className="flex items-end gap-2 h-16 mt-2 border-b border-white/10 pb-1">
-                                <motion.div initial={{ height: '30%' }} animate={{ height: '50%' }} transition={{ duration: 1, delay: 2 }} className="w-1/4 bg-white/20 rounded-t-md"></motion.div>
-                                <motion.div initial={{ height: '50%' }} animate={{ height: '70%' }} transition={{ duration: 1, delay: 2.1 }} className="w-1/4 bg-white/20 rounded-t-md"></motion.div>
-                                <motion.div initial={{ height: '70%' }} animate={{ height: '90%' }} transition={{ duration: 1, delay: 2.2 }} className="w-1/4 bg-white/30 rounded-t-md"></motion.div>
-                                <motion.div initial={{ height: '20%' }} animate={{ height: '100%' }} transition={{ duration: 1, delay: 2.3 }} className="w-1/4 bg-gradient-to-t from-emerald-500 to-emerald-300 rounded-t-md shadow-[0_0_15px_rgba(52,211,153,0.4)]"></motion.div>
-                            </div>
-                        </motion.div>
+                            </React.Fragment>
+                        ))}
                     </motion.div>
                 </div>
 
@@ -340,7 +317,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, error }) => {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ duration: 1, delay: 1 }}
-                    className="relative z-10 text-gov-400 font-medium text-xs xl:text-sm flex items-center justify-between mt-auto"
+                    className="relative z-20 text-gov-400 font-medium text-xs xl:text-sm flex items-center justify-between"
                 >
                     <p>&copy; {new Date().getFullYear()} Biro Data & Informasi KemenPPPA</p>
                     <p className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] tracking-wider uppercase text-gov-300 hover:bg-white/10 transition-colors cursor-default">v{APP_VERSION}</p>
@@ -359,12 +336,15 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, error }) => {
                     <motion.div variants={itemVariants} className="lg:hidden text-center mb-10 mt-10">
                         <div className="w-16 h-16 bg-gradient-to-br from-gov-600 to-gov-800 rounded-2xl mx-auto flex items-center justify-center mb-5 shadow-xl shadow-gov-200/50 relative overflow-hidden group">
                             <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/20 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                            <span className="text-white font-bold text-3xl relative z-10">P</span>
+                            <img 
+                                src="/Logo.svg" 
+                                alt="Logo" 
+                                className="w-10 h-10 relative z-10"
+                            />
                         </div>
-                        <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Pulse PPA</h2>
-                        <p className="text-[10px] text-slate-500 mt-2 font-bold uppercase tracking-widest flex items-center justify-center gap-1.5">
-                            KemenPPPA RI
-                            <span className="w-1.5 h-1.5 rounded-full bg-gov-500 animate-pulse"></span>
+                        <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Pulse</h2>
+                        <p className="text-xs text-slate-500 mt-2 font-medium">
+                            Manajemen Kerja Kemen PPPA
                         </p>
                     </motion.div>
 

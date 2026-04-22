@@ -10,6 +10,7 @@ import { useMasterData } from '../contexts/MasterDataContext';
 import SearchableSelect from './SearchableSelect';
 import SearchableSelectWithActions from './SearchableSelectWithActions';
 import MultiSelectChip from './MultiSelectChip';
+import DivisionFilteredMultiSelect from './DivisionFilteredMultiSelect';
 import MasterDataModal from './MasterDataModal';
 import { useMasterDataCRUD } from '../hooks/useMasterDataCRUD';
 
@@ -100,7 +101,7 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
   // Disposisi states (required when linking)
   const [disposisiText, setDisposisiText] = useState('');
   const [disposisiDeadline, setDisposisiDeadline] = useState('');
-  const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]);
+  const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]); // Array of user names
   const [showAssigneeDropdown, setShowAssigneeDropdown] = useState(false);
   const [assigneeSearch, setAssigneeSearch] = useState('');
 
@@ -402,11 +403,8 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
             ? { id: `inv_${Date.now()}`, name: finalAsalSurat || 'Tidak Diketahui', organization: finalAsalSurat }
             : { id: `inv_${Date.now()}`, name: currentUserName, organization: 'Internal' };
 
-          // Get assignee names for PIC
-          const picNames = selectedAssignees.map(assigneeId => {
-            const user = allUsers.find(u => u.id === assigneeId);
-            return user?.name || assigneeId;
-          });
+          // Get assignee names for PIC (selectedAssignees already contains names)
+          const picNames = selectedAssignees;
 
           // Create new meeting
           const meetingPayload = {
@@ -1153,98 +1151,15 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
 
                         {/* Assignees Selection */}
                         <div>
-                          <label className="block text-sm font-semibold text-slate-700 mb-2">
-                            Ditugaskan Kepada <span className="text-red-500">*</span>
-                          </label>
-                          <div className="relative" ref={assigneeDropdownRef}>
-                            <div className="flex items-center gap-2 px-3 py-2 border border-slate-300 rounded-lg bg-white">
-                              <Users size={18} className="text-slate-400" />
-                              <input
-                                type="text"
-                                value={assigneeSearch}
-                                onChange={(e) => setAssigneeSearch(e.target.value)}
-                                onFocus={() => setShowAssigneeDropdown(true)}
-                                placeholder="Cari dan pilih assignee..."
-                                className="flex-1 outline-none text-sm"
-                              />
-                              {showAssigneeDropdown && (
-                                <button
-                                  type="button"
-                                  onClick={() => setShowAssigneeDropdown(false)}
-                                  className="text-xs text-gov-600 hover:text-gov-700 font-medium"
-                                >
-                                  Done
-                                </button>
-                              )}
-                            </div>
-
-                            {/* Assignee Dropdown */}
-                            {showAssigneeDropdown && (
-                              <div className="absolute z-10 w-full mt-1 bg-white border border-slate-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                                {filteredAssignees.length > 0 ? (
-                                  <>
-                                    {filteredAssignees.map((user) => (
-                                      <button
-                                        key={user.id}
-                                        type="button"
-                                        onClick={() => {
-                                          toggleAssignee(user.id);
-                                          setAssigneeSearch('');
-                                        }}
-                                        className="w-full px-4 py-2 text-left hover:bg-slate-50 border-b border-slate-100 last:border-b-0 flex items-center justify-between"
-                                      >
-                                        <div>
-                                          <div className="font-medium text-slate-800 text-sm">{user.name}</div>
-                                          <div className="text-xs text-slate-500">{user.email}</div>
-                                        </div>
-                                        {selectedAssignees.includes(user.id) && (
-                                          <Check size={16} className="text-gov-600" />
-                                        )}
-                                      </button>
-                                    ))}
-                                    <div className="sticky bottom-0 bg-slate-50 border-t border-slate-200 p-2">
-                                      <button
-                                        type="button"
-                                        onClick={() => setShowAssigneeDropdown(false)}
-                                        className="w-full py-1.5 text-sm font-medium text-gov-600 hover:text-gov-700"
-                                      >
-                                        Done ({selectedAssignees.length} selected)
-                                      </button>
-                                    </div>
-                                  </>
-                                ) : (
-                                  <div className="px-4 py-3 text-sm text-slate-500 text-center">
-                                    Tidak ada user ditemukan
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Selected Assignees */}
-                          {selectedAssignees.length > 0 && (
-                            <div className="flex flex-wrap gap-2 mt-2">
-                              {selectedAssignees.map((userId) => {
-                                const user = allUsers.find(u => u.id === userId);
-                                if (!user) return null;
-                                return (
-                                  <div
-                                    key={userId}
-                                    className="flex items-center gap-2 px-3 py-1.5 bg-gov-100 text-gov-800 rounded-full text-sm"
-                                  >
-                                    <span>{user.name}</span>
-                                    <button
-                                      type="button"
-                                      onClick={() => toggleAssignee(userId)}
-                                      className="hover:bg-gov-200 rounded-full p-0.5"
-                                    >
-                                      <X size={14} />
-                                    </button>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
+                          <DivisionFilteredMultiSelect
+                            users={allUsers}
+                            currentUserDivisi={currentUser?.divisi}
+                            value={selectedAssignees}
+                            onChange={setSelectedAssignees}
+                            placeholder="Pilih assignee untuk disposisi..."
+                            label="Ditugaskan Kepada *"
+                            maxVisibleChips={5}
+                          />
                         </div>
 
                         {/* Deadline */}
@@ -1405,97 +1320,15 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
 
                       {/* Assignees Selection */}
                       <div>
-                        <label className="block text-sm font-semibold text-slate-700 mb-2">
-                          Ditugaskan Kepada (akan menjadi PIC) <span className="text-red-500">*</span>
-                        </label>
-                        <div className="relative" ref={assigneeDropdownRef}>
-                          <div className="flex items-center gap-2 px-3 py-2 border border-slate-300 rounded-lg bg-white">
-                            <Users size={18} className="text-slate-400" />
-                            <input
-                              type="text"
-                              value={assigneeSearch}
-                              onChange={(e) => setAssigneeSearch(e.target.value)}
-                              onFocus={() => setShowAssigneeDropdown(true)}
-                              placeholder="Cari dan pilih assignee..."
-                              className="flex-1 outline-none text-sm"
-                            />
-                            {showAssigneeDropdown && (
-                              <button
-                                type="button"
-                                onClick={() => setShowAssigneeDropdown(false)}
-                                className="text-xs text-gov-600 hover:text-gov-700 font-medium"
-                              >
-                                Done
-                              </button>
-                            )}
-                          </div>
-
-                          {/* Assignee Dropdown */}
-                          {showAssigneeDropdown && (
-                            <div className="absolute z-10 w-full mt-1 bg-white border border-slate-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                              {filteredAssignees.length > 0 ? (
-                                <>
-                                  {filteredAssignees.map((user) => (
-                                    <button
-                                      key={user.id}
-                                      type="button"
-                                      onClick={() => {
-                                        toggleAssignee(user.id);
-                                        setAssigneeSearch('');
-                                      }}
-                                      className="w-full px-4 py-2 text-left hover:bg-slate-50 border-b border-slate-100 last:border-b-0 flex items-center justify-between"
-                                    >
-                                      <div>
-                                        <div className="font-medium text-slate-800 text-sm">{user.name}</div>
-                                        <div className="text-xs text-slate-500">{user.email}</div>
-                                      </div>
-                                      {selectedAssignees.includes(user.id) && (
-                                        <Check size={16} className="text-gov-600" />
-                                      )}
-                                    </button>
-                                  ))}
-                                  <div className="sticky bottom-0 bg-slate-50 border-t border-slate-200 p-2">
-                                    <button
-                                      type="button"
-                                      onClick={() => setShowAssigneeDropdown(false)}
-                                      className="w-full py-1.5 text-sm font-medium text-gov-600 hover:text-gov-700"
-                                    >
-                                      Done ({selectedAssignees.length} selected)
-                                    </button>
-                                  </div>
-                                </>
-                              ) : (
-                                <div className="px-4 py-3 text-sm text-slate-500 text-center">
-                                  Tidak ada user ditemukan
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Selected Assignees */}
-                        {selectedAssignees.length > 0 && (
-                          <div className="flex flex-wrap gap-2 mt-2">
-                            {selectedAssignees.map((userId) => {
-                              const user = allUsers.find(u => u.id === userId);
-                              if (!user) return null;
-                              return (
-                                <div
-                                  key={userId}
-                                  className="flex items-center gap-2 px-3 py-1.5 bg-gov-100 text-gov-800 rounded-full text-sm"
-                                >
-                                  <span>{user.name}</span>
-                                  <button
-                                    onClick={() => toggleAssignee(userId)}
-                                    className="hover:bg-gov-200 rounded-full p-0.5"
-                                  >
-                                    <X size={14} />
-                                  </button>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
+                        <DivisionFilteredMultiSelect
+                          users={allUsers}
+                          currentUserDivisi={currentUser?.divisi}
+                          value={selectedAssignees}
+                          onChange={setSelectedAssignees}
+                          placeholder="Pilih assignee untuk disposisi..."
+                          label="Ditugaskan Kepada (akan menjadi PIC) *"
+                          maxVisibleChips={5}
+                        />
                       </div>
 
                       {/* Deadline */}

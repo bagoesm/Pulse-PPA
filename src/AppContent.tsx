@@ -16,6 +16,7 @@ import ModalsContainer from './components/ModalsContainer';
 import { useTaskShare } from './hooks/useTaskShare';
 import { useDebounce } from './hooks/useDebounce';
 import { useAuth } from './contexts/AuthContext';
+import { useSidebar } from './contexts/SidebarContext';
 // import { useData } from './contexts/DataContext'; // Deprecated
 import { useTasks } from './contexts/TasksContext';
 import { useProjects } from './contexts/ProjectsContext';
@@ -57,6 +58,8 @@ const AddMeetingModal = lazy(() => import('./components/AddMeetingModal'));
 const MeetingViewModal = lazy(() => import('./components/MeetingViewModal'));
 const ActivityLogPage = lazy(() => import('./components/ActivityLogPage'));
 const DisposisiListView = lazy(() => import('./components/DisposisiListView'));
+const SatkerVisibilityManagement = lazy(() => import('./components/SatkerVisibilityManagement'));
+const VisibilityAuditTrail = lazy(() => import('./components/VisibilityAuditTrail'));
 
 // Loading fallback
 const PageLoader: React.FC = () => (
@@ -72,6 +75,9 @@ const PageLoader: React.FC = () => (
 const AppContent: React.FC = () => {
   const [isPending, startTransition] = useTransition();
 
+  // ===== SIDEBAR STATE =====
+  const { isCollapsed } = useSidebar();
+
   // ===== FROM AUTH CONTEXT =====
   const {
     session,
@@ -84,14 +90,19 @@ const AppContent: React.FC = () => {
   } = useAuth();
 
   // ===== DATA HOOKS (Migrated from useData) =====
+  const tasksContext = useTasks();
   const {
     tasks, setTasks,
     comments, setComments,
     taskActivities, setTaskActivities,
     allUniquePics,
     getMeetingsAsTasks,
-    getFilteredTasks
-  } = useTasks();
+    getFilteredTasks,
+    fetchTasks,
+    fetchComments,
+    fetchTaskActivities,
+    isTasksFetched
+  } = tasksContext;
 
   const { projects, setProjects } = useProjects();
   const { epics, setEpics, getEpicsByProject, getEpicProgress } = useEpics();
@@ -244,6 +255,59 @@ const AppContent: React.FC = () => {
   const { shareState, openTaskShare, closeShare } = useTaskShare();
 
   const columns = Object.values(Status);
+
+  // ===== LAZY LOADING: Fetch data based on active tab =====
+  const visitedTabsRef = useRef<Set<string>>(new Set());
+  
+  useEffect(() => {
+    if (!session) return;
+    
+    // Skip if already visited
+    if (visitedTabsRef.current.has(activeTab)) return;
+    visitedTabsRef.current.add(activeTab);
+
+    console.log(`[LazyLoad] Fetching data for tab: ${activeTab}`);
+
+    const loadDataForTab = async () => {
+      try {
+        switch (activeTab) {
+          case 'Dashboard':
+            // Dashboard needs tasks and meetings for stats
+            if (!isTasksFetched) {
+              await Promise.all([
+                fetchTasks(),
+                fetchComments(),
+                fetchTaskActivities()
+              ]);
+            }
+            if (!meetings.length) {
+              await fetchMeetings();
+            }
+            break;
+
+          case 'Semua Task':
+          case 'Timeline':
+            // Task views need full task data
+            if (!isTasksFetched) {
+              await Promise.all([
+                fetchTasks(),
+                fetchComments(),
+                fetchTaskActivities()
+              ]);
+            }
+            break;
+
+          // Other tabs will load their data on-demand via their own contexts
+          default:
+            break;
+        }
+      } catch (error) {
+        console.error(`[LazyLoad] Error loading data for ${activeTab}:`, error);
+      }
+    };
+
+    loadDataForTab();
+  }, [activeTab, session, isTasksFetched, fetchTasks, fetchComments, fetchTaskActivities, fetchMeetings, meetings.length]);
 
   // Reset category filter ketika pindah tab yang bukan 'Semua Task'
   useEffect(() => {
@@ -641,7 +705,7 @@ const AppContent: React.FC = () => {
         activeTab={activeTab}
         setActiveTab={(tab) => {
           startTransition(() => setActiveTab(tab));
-          if (tab !== 'Surat & Dokumen') setSuratSubTab('Tasks');
+          if (tab !== 'Dokumen') setSuratSubTab('Tasks');
         }}
         currentUser={currentUser}
         onLogout={handleLogout}
@@ -653,7 +717,7 @@ const AppContent: React.FC = () => {
         activeTab={activeTab}
         setActiveTab={(tab) => {
           startTransition(() => setActiveTab(tab));
-          if (tab !== 'Surat & Dokumen') setSuratSubTab('Tasks');
+          if (tab !== 'Dokumen') setSuratSubTab('Tasks');
         }}
         currentUser={currentUser}
         users={allUsers}
@@ -662,7 +726,9 @@ const AppContent: React.FC = () => {
       />
 
       {/* Main Content */}
-      <main className="flex-1 ml-0 md:ml-64 flex flex-col h-screen overflow-hidden pt-14 pb-16 md:pt-0 md:pb-0 relative">
+      <main className={`flex-1 ml-0 flex flex-col h-screen overflow-hidden pt-14 pb-16 md:pt-0 md:pb-0 relative transition-all duration-300 ${
+        isCollapsed ? 'md:ml-20' : 'md:ml-64'
+      }`}>
         {/* Global Loading Overlay for Transitions */}
         {isPending && (
           <div className="absolute inset-0 z-50 bg-white/50 backdrop-blur-sm flex items-center justify-center">
@@ -674,7 +740,7 @@ const AppContent: React.FC = () => {
         )}
 
         {/* Top Header / Filter Bar - HIDDEN for special pages */}
-        {activeTab !== 'Dashboard' && activeTab !== 'Project' && activeTab !== 'Master Data' && activeTab !== 'Saran Masukan' && activeTab !== 'Pengumuman' && activeTab !== 'Inventori Data' && activeTab !== 'Jadwal Kegiatan' && activeTab !== 'Daftar Surat' && activeTab !== 'Activity Log' && activeTab !== 'Daftar Disposisi' && (
+        {activeTab !== 'Dashboard' && activeTab !== 'Project' && activeTab !== 'Master Data' && activeTab !== 'Saran Masukan' && activeTab !== 'Pengumuman' && activeTab !== 'Inventori Data' && activeTab !== 'Jadwal Kegiatan' && activeTab !== 'Daftar Surat' && activeTab !== 'Activity Log' && activeTab !== 'Daftar Disposisi' && activeTab !== 'Manajemen Visibility' && activeTab !== 'Riwayat Perubahan' && (
           <header className="bg-white border-b border-slate-200 px-3 sm:px-6 py-3 sm:py-4 z-20 relative">
             <div className="flex flex-col gap-3 sm:gap-4 mb-3 sm:mb-4">
               {/* Title Section */}
@@ -714,7 +780,7 @@ const AppContent: React.FC = () => {
                   <DivisionFilter compact />
 
                   {/* View Switcher */}
-                  {!(activeTab === 'Surat & Dokumen' && suratSubTab === 'Templates') && (
+                  {!(activeTab === 'Dokumen' && suratSubTab === 'Templates') && (
                     <div className="flex bg-slate-100 p-0.5 sm:p-1 rounded-lg">
                       <button
                         onClick={() => startTransition(() => setViewMode('Board'))}
@@ -731,8 +797,8 @@ const AppContent: React.FC = () => {
                     </div>
                   )}
 
-                  {/* Surat & Dokumen Sub-Nav */}
-                  {activeTab === 'Surat & Dokumen' && (
+                  {/* Dokumen Sub-Nav */}
+                  {activeTab === 'Dokumen' && (
                     <div className="flex bg-slate-100 p-0.5 sm:p-1 rounded-lg">
                       <button
                         onClick={() => startTransition(() => setSuratSubTab('Tasks'))}
@@ -751,7 +817,7 @@ const AppContent: React.FC = () => {
                 </div>
 
                 {/* Action Buttons - Only show "Tambah Task" for non-project tabs */}
-                {!(activeTab === 'Surat & Dokumen' && suratSubTab === 'Templates') && (
+                {!(activeTab === 'Dokumen' && suratSubTab === 'Templates') && (
                   <div className="flex gap-2">
                     <button
                       onClick={openNewTaskModal}
@@ -767,7 +833,7 @@ const AppContent: React.FC = () => {
             </div>
 
             {/* Filter Bar */}
-            {!(activeTab === 'Surat & Dokumen' && suratSubTab === 'Templates') && (
+            {!(activeTab === 'Dokumen' && suratSubTab === 'Templates') && (
               <div className="flex flex-col gap-2 sm:gap-3">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
@@ -841,25 +907,28 @@ const AppContent: React.FC = () => {
         )}
         {/* Content Area */}
         {activeTab === 'Dashboard' ? (
-          <Dashboard
-            tasks={divisionFilteredTasks}
-            users={divisionFilteredUsers}
-            userStatuses={userStatuses}
-            onCreateStatus={handleCreateStatus}
-            onDeleteStatus={handleDeleteStatus}
-            currentUser={currentUser}
-            onUserCardClick={handleUserCardClick}
-            christmasSettings={christmasSettings}
-            onUpdateChristmasSettings={handleUpdateChristmasSettings}
-            notifications={notifications}
-            onMarkAllAsRead={markAllAsRead}
-            onNotificationClick={handleNotificationClick}
-            onDeleteNotification={deleteNotification}
-            onDismissAll={dismissAllNotifications}
-            announcements={divisionFilteredAnnouncements}
-          />
+          <Suspense fallback={<PageLoader />}>
+            <Dashboard
+              tasks={divisionFilteredTasks}
+              users={divisionFilteredUsers}
+              userStatuses={userStatuses}
+              onCreateStatus={handleCreateStatus}
+              onDeleteStatus={handleDeleteStatus}
+              currentUser={currentUser}
+              onUserCardClick={handleUserCardClick}
+              christmasSettings={christmasSettings}
+              onUpdateChristmasSettings={handleUpdateChristmasSettings}
+              notifications={notifications}
+              onMarkAllAsRead={markAllAsRead}
+              onNotificationClick={handleNotificationClick}
+              onDeleteNotification={deleteNotification}
+              onDismissAll={dismissAllNotifications}
+              announcements={divisionFilteredAnnouncements}
+            />
+          </Suspense>
         ) : activeTab === 'Project' ? (
-          <ProjectOverview
+          <Suspense fallback={<PageLoader />}>
+            <ProjectOverview
             onTaskClick={handleTaskClick}
             onEditProject={(project) => {
               // Set editing project and open modal
@@ -933,8 +1002,10 @@ const AppContent: React.FC = () => {
             onEditEpic={epicHandlers.handleEditEpic}
             onDeleteEpic={epicHandlers.handleDeleteEpic}
           />
+          </Suspense>
         ) : activeTab === 'Saran Masukan' ? (
-          <WallOfFeedback
+          <Suspense fallback={<PageLoader />}>
+            <WallOfFeedback
             feedbacks={feedbacks || []}
             currentUser={currentUser}
             onAddFeedback={handleAddFeedback}
@@ -942,9 +1013,11 @@ const AppContent: React.FC = () => {
             onDeleteFeedback={handleDeleteFeedback}
             onUpdateStatus={handleUpdateFeedbackStatus}
           />
+          </Suspense>
         ) : activeTab === 'Pengumuman' ? (
           <div className="p-6 h-full overflow-y-auto bg-slate-50">
-            <AnnouncementManager
+            <Suspense fallback={<PageLoader />}>
+              <AnnouncementManager
               announcements={divisionFilteredAnnouncements}
               onCreateAnnouncement={handleCreateAnnouncement}
               onEditAnnouncement={handleEditAnnouncement}
@@ -952,9 +1025,11 @@ const AppContent: React.FC = () => {
               onToggleActive={handleToggleAnnouncementActive}
               currentUser={currentUser}
             />
+            </Suspense>
           </div>
         ) : activeTab === 'Jadwal Kegiatan' ? (
-          <MeetingCalendar
+          <Suspense fallback={<PageLoader />}>
+            <MeetingCalendar
             meetings={meetings}
             users={taskAssignableUsers}
             projects={projects}
@@ -962,11 +1037,14 @@ const AppContent: React.FC = () => {
             onAddMeeting={() => handleAddMeeting(false)}
             onViewMeeting={handleViewMeeting}
           />
+          </Suspense>
         ) : activeTab === 'Daftar Surat' ? (
-          <SuratListView
-            currentUser={currentUser}
-            showNotification={showNotification}
-          />
+          <Suspense fallback={<PageLoader />}>
+            <SuratListView
+              currentUser={currentUser}
+              showNotification={showNotification}
+            />
+          </Suspense>
         ) : activeTab === 'Daftar Disposisi' ? (
           <Suspense fallback={<PageLoader />}>
             <DisposisiListView
@@ -975,13 +1053,15 @@ const AppContent: React.FC = () => {
             />
           </Suspense>
         ) : activeTab === 'Inventori Data' ? (
-          <DataInventory
-            items={dataInventory}
-            currentUser={currentUser}
-            onAddItem={handleAddDataInventory}
-            onUpdateItem={handleUpdateDataInventory}
-            onDeleteItem={handleDeleteDataInventory}
-          />
+          <Suspense fallback={<PageLoader />}>
+            <DataInventory
+              items={dataInventory}
+              currentUser={currentUser}
+              onAddItem={handleAddDataInventory}
+              onUpdateItem={handleUpdateDataInventory}
+              onDeleteItem={handleDeleteDataInventory}
+            />
+          </Suspense>
         ) : activeTab === 'Activity Log' ? (
           <Suspense fallback={<PageLoader />}>
             <ActivityLogPage
@@ -990,8 +1070,17 @@ const AppContent: React.FC = () => {
               projects={projects}
             />
           </Suspense>
+        ) : activeTab === 'Manajemen Visibility' ? (
+          <Suspense fallback={<PageLoader />}>
+            <SatkerVisibilityManagement />
+          </Suspense>
+        ) : activeTab === 'Riwayat Perubahan' ? (
+          <Suspense fallback={<PageLoader />}>
+            <VisibilityAuditTrail />
+          </Suspense>
         ) : activeTab === 'Master Data' ? (
-          <UserManagement
+          <Suspense fallback={<PageLoader />}>
+            <UserManagement
             users={allUsers}
             currentUser={currentUser}
             onAddUser={handleAddUser}
@@ -1013,8 +1102,10 @@ const AppContent: React.FC = () => {
             onUpdateMasterSubCategory={handleUpdateMasterSubCategory}
             onDeleteMasterSubCategory={handleDeleteMasterSubCategory}
           />
-        ) : activeTab === 'Surat & Dokumen' && suratSubTab === 'Templates' ? (
-          <DocumentTemplates
+          </Suspense>
+        ) : activeTab === 'Dokumen' && suratSubTab === 'Templates' ? (
+          <Suspense fallback={<PageLoader />}>
+            <DocumentTemplates
             templates={documentTemplates}
             currentUser={currentUser}
             onAddTemplate={handleAddTemplate}
@@ -1022,6 +1113,7 @@ const AppContent: React.FC = () => {
             onDownloadTemplate={handleDownloadTemplate}
             onFixLegacyTemplates={fixLegacyTemplates}
           />
+          </Suspense>
         ) : (
           <div className="flex-1 overflow-x-auto overflow-y-hidden bg-slate-50 p-3 sm:p-6">
 
@@ -1064,7 +1156,7 @@ const AppContent: React.FC = () => {
       </main>
 
       {/* All Modals - extracted to ModalsContainer */}
-      < ModalsContainer
+      <ModalsContainer
         currentUser={currentUser}
         // Task View Modal
         isTaskViewModalOpen={isTaskViewModalOpen}

@@ -1,13 +1,15 @@
 // src/components/ActivityLogPage.tsx
 // Halaman Activity Log untuk Admin - menampilkan semua aktivitas user
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-    Activity, Calendar, User as UserIcon, Filter, Loader2,
-    Search, X, LogIn, LogOut, Plus, Edit, Trash2, Eye, RefreshCw, Download
+    Activity, User as UserIcon, Filter, Loader2,
+    Search, X, LogIn, LogOut, Plus, Edit, Trash2, Eye, RefreshCw, Download,
+    ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { User, ProjectDefinition } from '../../types';
+import SearchableSelect from './SearchableSelect';
 
 interface ActivityLog {
     id: string;
@@ -51,14 +53,13 @@ const ENTITY_TYPE_LABELS: Record<string, string> = {
     master_data: 'Master Data',
 };
 
-const ITEMS_PER_PAGE = 10;
+const ITEMS_PER_PAGE = 20;
 
 const ActivityLogPage: React.FC<ActivityLogPageProps> = ({ currentUser, users, projects }) => {
     const [logs, setLogs] = useState<ActivityLog[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [totalCount, setTotalCount] = useState(0);
-    const [hasMore, setHasMore] = useState(true);
+    const [currentPage, setCurrentPage] = useState(1);
 
     // Filters
     const [filterUser, setFilterUser] = useState<string>('');
@@ -70,18 +71,9 @@ const ActivityLogPage: React.FC<ActivityLogPageProps> = ({ currentUser, users, p
     const [searchQuery, setSearchQuery] = useState<string>('');
     const [showFilters, setShowFilters] = useState(false);
 
-    // Ref for infinite scroll
-    const loaderRef = useRef<HTMLDivElement>(null);
-
-    // Fetch logs - initial load or filter change
-    const fetchLogs = useCallback(async (reset: boolean = true) => {
-        if (reset) {
-            setIsLoading(true);
-            setLogs([]);
-        } else {
-            setIsLoadingMore(true);
-        }
-
+    // Fetch logs
+    const fetchLogs = async (page: number) => {
+        setIsLoading(true);
         try {
             let query = supabase
                 .from('activity_logs')
@@ -89,31 +81,16 @@ const ActivityLogPage: React.FC<ActivityLogPageProps> = ({ currentUser, users, p
                 .order('created_at', { ascending: false });
 
             // Apply filters
-            if (filterUser) {
-                query = query.eq('user_id', filterUser);
-            }
-            if (filterProject) {
-                query = query.eq('project_id', filterProject);
-            }
-            if (filterAction) {
-                query = query.eq('action', filterAction);
-            }
-            if (filterEntityType) {
-                query = query.eq('entity_type', filterEntityType);
-            }
-            if (filterDateFrom) {
-                query = query.gte('created_at', `${filterDateFrom}T00:00:00`);
-            }
-            if (filterDateTo) {
-                query = query.lte('created_at', `${filterDateTo}T23:59:59`);
-            }
-            if (searchQuery) {
-                query = query.or(`entity_title.ilike.%${searchQuery}%,user_name.ilike.%${searchQuery}%`);
-            }
+            if (filterUser) query = query.eq('user_id', filterUser);
+            if (filterProject) query = query.eq('project_id', filterProject);
+            if (filterAction) query = query.eq('action', filterAction);
+            if (filterEntityType) query = query.eq('entity_type', filterEntityType);
+            if (filterDateFrom) query = query.gte('created_at', `${filterDateFrom}T00:00:00`);
+            if (filterDateTo) query = query.lte('created_at', `${filterDateTo}T23:59:59`);
+            if (searchQuery) query = query.or(`entity_title.ilike.%${searchQuery}%,user_name.ilike.%${searchQuery}%`);
 
-            // Pagination - get next batch
-            const currentLength = reset ? 0 : logs.length;
-            const from = currentLength;
+            // Pagination
+            const from = (page - 1) * ITEMS_PER_PAGE;
             const to = from + ITEMS_PER_PAGE - 1;
             query = query.range(from, to);
 
@@ -121,53 +98,27 @@ const ActivityLogPage: React.FC<ActivityLogPageProps> = ({ currentUser, users, p
 
             if (error) {
                 console.error('Error fetching activity logs:', error);
-                if (reset) setLogs([]);
+                setLogs([]);
             } else {
-                const newLogs = data || [];
-                if (reset) {
-                    setLogs(newLogs);
-                } else {
-                    setLogs(prev => [...prev, ...newLogs]);
-                }
+                setLogs(data || []);
                 setTotalCount(count || 0);
-                setHasMore(newLogs.length === ITEMS_PER_PAGE && (currentLength + newLogs.length) < (count || 0));
             }
         } catch (err) {
             console.error('Error:', err);
         } finally {
             setIsLoading(false);
-            setIsLoadingMore(false);
         }
-    }, [filterUser, filterProject, filterAction, filterEntityType, filterDateFrom, filterDateTo, searchQuery, logs.length]);
+    };
 
-    // Initial fetch
+    // Fetch on mount and when filters/page change
     useEffect(() => {
-        fetchLogs(true);
+        fetchLogs(currentPage);
+    }, [currentPage, filterUser, filterProject, filterAction, filterEntityType, filterDateFrom, filterDateTo, searchQuery]);
+
+    // Reset to page 1 when filters change
+    useEffect(() => {
+        setCurrentPage(1);
     }, [filterUser, filterProject, filterAction, filterEntityType, filterDateFrom, filterDateTo, searchQuery]);
-
-    // Infinite scroll observer
-    useEffect(() => {
-        const observer = new IntersectionObserver(
-            (entries) => {
-                const first = entries[0];
-                if (first.isIntersecting && hasMore && !isLoading && !isLoadingMore) {
-                    fetchLogs(false);
-                }
-            },
-            { threshold: 0.1 }
-        );
-
-        const currentLoader = loaderRef.current;
-        if (currentLoader) {
-            observer.observe(currentLoader);
-        }
-
-        return () => {
-            if (currentLoader) {
-                observer.unobserve(currentLoader);
-            }
-        };
-    }, [hasMore, isLoading, isLoadingMore, fetchLogs]);
 
     const clearFilters = () => {
         setFilterUser('');
@@ -180,6 +131,8 @@ const ActivityLogPage: React.FC<ActivityLogPageProps> = ({ currentUser, users, p
     };
 
     const hasActiveFilters = filterUser || filterProject || filterAction || filterEntityType || filterDateFrom || filterDateTo || searchQuery;
+
+    const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
 
     const formatDate = (dateStr: string) => {
         const date = new Date(dateStr);
@@ -227,7 +180,7 @@ const ActivityLogPage: React.FC<ActivityLogPageProps> = ({ currentUser, users, p
     }
 
     return (
-        <div className="p-4 sm:p-6 max-w-7xl mx-auto">
+        <div className="p-4 sm:p-6 h-full overflow-y-auto bg-slate-50">
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                 <div>
@@ -241,15 +194,17 @@ const ActivityLogPage: React.FC<ActivityLogPageProps> = ({ currentUser, users, p
                 </div>
                 <div className="flex items-center gap-2">
                     <button
-                        onClick={() => fetchLogs(true)}
-                        className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                        onClick={() => fetchLogs(currentPage)}
+                        disabled={isLoading}
+                        className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors disabled:opacity-50"
                         title="Refresh"
                     >
-                        <RefreshCw size={18} />
+                        <RefreshCw size={18} className={isLoading ? 'animate-spin' : ''} />
                     </button>
                     <button
                         onClick={exportToCSV}
-                        className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                        disabled={logs.length === 0}
+                        className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors disabled:opacity-50"
                         title="Export CSV"
                     >
                         <Download size={18} />
@@ -303,69 +258,55 @@ const ActivityLogPage: React.FC<ActivityLogPageProps> = ({ currentUser, users, p
                         {/* User Filter */}
                         <div>
                             <label className="block text-xs font-medium text-slate-500 mb-1">User</label>
-                            <select
+                            <SearchableSelect
+                                options={users.map(user => ({ value: user.id, label: user.name }))}
                                 value={filterUser}
-                                onChange={(e) => setFilterUser(e.target.value)}
-                                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-gov-400 outline-none"
-                            >
-                                <option value="">Semua User</option>
-                                {users.map((user) => (
-                                    <option key={user.id} value={user.id}>
-                                        {user.name}
-                                    </option>
-                                ))}
-                            </select>
+                                onChange={setFilterUser}
+                                placeholder="Cari user..."
+                                emptyOption="Semua User"
+                            />
                         </div>
 
                         {/* Project Filter */}
                         <div>
                             <label className="block text-xs font-medium text-slate-500 mb-1">Project</label>
-                            <select
+                            <SearchableSelect
+                                options={projects.map(project => ({ value: project.id, label: project.name }))}
                                 value={filterProject}
-                                onChange={(e) => setFilterProject(e.target.value)}
-                                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-gov-400 outline-none"
-                            >
-                                <option value="">Semua Project</option>
-                                {projects.map((project) => (
-                                    <option key={project.id} value={project.id}>
-                                        {project.name}
-                                    </option>
-                                ))}
-                            </select>
+                                onChange={setFilterProject}
+                                placeholder="Cari project..."
+                                emptyOption="Semua Project"
+                            />
                         </div>
 
                         {/* Action Filter */}
                         <div>
                             <label className="block text-xs font-medium text-slate-500 mb-1">Aksi</label>
-                            <select
+                            <SearchableSelect
+                                options={Object.entries(ACTION_CONFIG).map(([key, config]) => ({ 
+                                    value: key, 
+                                    label: config.label 
+                                }))}
                                 value={filterAction}
-                                onChange={(e) => setFilterAction(e.target.value)}
-                                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-gov-400 outline-none"
-                            >
-                                <option value="">Semua Aksi</option>
-                                {Object.entries(ACTION_CONFIG).map(([key, config]) => (
-                                    <option key={key} value={key}>
-                                        {config.label}
-                                    </option>
-                                ))}
-                            </select>
+                                onChange={setFilterAction}
+                                placeholder="Cari aksi..."
+                                emptyOption="Semua Aksi"
+                            />
                         </div>
 
                         {/* Entity Type Filter */}
                         <div>
                             <label className="block text-xs font-medium text-slate-500 mb-1">Tipe</label>
-                            <select
+                            <SearchableSelect
+                                options={Object.entries(ENTITY_TYPE_LABELS).map(([key, label]) => ({ 
+                                    value: key, 
+                                    label: label 
+                                }))}
                                 value={filterEntityType}
-                                onChange={(e) => setFilterEntityType(e.target.value)}
-                                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-gov-400 outline-none"
-                            >
-                                <option value="">Semua Tipe</option>
-                                {Object.entries(ENTITY_TYPE_LABELS).map(([key, label]) => (
-                                    <option key={key} value={key}>
-                                        {label}
-                                    </option>
-                                ))}
-                            </select>
+                                onChange={setFilterEntityType}
+                                placeholder="Cari tipe..."
+                                emptyOption="Semua Tipe"
+                            />
                         </div>
 
                         {/* Date From */}
@@ -394,10 +335,13 @@ const ActivityLogPage: React.FC<ActivityLogPageProps> = ({ currentUser, users, p
             )}
 
             {/* Logs Table */}
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col max-h-[calc(100vh-300px)]">
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                 {isLoading ? (
                     <div className="flex items-center justify-center h-64">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gov-600"></div>
+                        <div className="flex flex-col items-center gap-2">
+                            <Loader2 className="animate-spin text-gov-600" size={32} />
+                            <span className="text-sm text-slate-500">Memuat data...</span>
+                        </div>
                     </div>
                 ) : logs.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-64 text-slate-500">
@@ -405,7 +349,7 @@ const ActivityLogPage: React.FC<ActivityLogPageProps> = ({ currentUser, users, p
                         <p>Tidak ada aktivitas ditemukan</p>
                     </div>
                 ) : (
-                    <div className="flex-1 overflow-y-auto">
+                    <>
                         {/* Desktop Table */}
                         <div className="hidden lg:block overflow-x-auto">
                             <table className="w-full">
@@ -528,22 +472,65 @@ const ActivityLogPage: React.FC<ActivityLogPageProps> = ({ currentUser, users, p
                                 );
                             })}
                         </div>
-                    </div>
+                    </>
                 )}
-
-                {/* Infinite Scroll Loader */}
-                <div ref={loaderRef} className="flex items-center justify-center py-4">
-                    {isLoadingMore && (
-                        <div className="flex items-center gap-2 text-slate-500">
-                            <Loader2 className="animate-spin" size={18} />
-                            <span className="text-sm">Memuat lebih banyak...</span>
-                        </div>
-                    )}
-                    {!hasMore && logs.length > 0 && (
-                        <p className="text-sm text-slate-400">Semua aktivitas telah ditampilkan</p>
-                    )}
-                </div>
             </div>
+
+            {/* Pagination */}
+            {!isLoading && logs.length > 0 && totalPages > 1 && (
+                <div className="flex items-center justify-between mt-6">
+                    <div className="text-sm text-slate-500">
+                        Halaman {currentPage} dari {totalPages} ({totalCount} total)
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                            disabled={currentPage === 1}
+                            className="p-2 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        >
+                            <ChevronLeft size={18} />
+                        </button>
+                        
+                        {/* Page numbers */}
+                        <div className="hidden sm:flex items-center gap-1">
+                            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                                let pageNum;
+                                if (totalPages <= 5) {
+                                    pageNum = i + 1;
+                                } else if (currentPage <= 3) {
+                                    pageNum = i + 1;
+                                } else if (currentPage >= totalPages - 2) {
+                                    pageNum = totalPages - 4 + i;
+                                } else {
+                                    pageNum = currentPage - 2 + i;
+                                }
+                                
+                                return (
+                                    <button
+                                        key={pageNum}
+                                        onClick={() => setCurrentPage(pageNum)}
+                                        className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${
+                                            currentPage === pageNum
+                                                ? 'bg-gov-600 text-white'
+                                                : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                                        }`}
+                                    >
+                                        {pageNum}
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                            disabled={currentPage === totalPages}
+                            className="p-2 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        >
+                            <ChevronRight size={18} />
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

@@ -9,6 +9,7 @@ import { useAttachmentHandlers } from '../hooks/useAttachmentHandlers';
 import NotificationModal from './NotificationModal';
 import ConfirmModal from './ConfirmModal';
 import MultiSelectChip from './MultiSelectChip';
+import DivisionFilteredMultiSelect from './DivisionFilteredMultiSelect';
 import RichTextEditor from './RichTextEditor';
 import SearchableSelect from './SearchableSelect';
 import TaskDependencySelector from './TaskDependencySelector';
@@ -630,8 +631,9 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
                   )}
                 </div>
               ) : (
-                <MultiSelectChip
-                  options={users && users.length > 0 ? users.map(u => ({ value: u.name, label: u.name })) : []}
+                <DivisionFilteredMultiSelect
+                  users={users}
+                  currentUserDivisi={currentUser?.divisi}
                   value={Array.isArray(formData.pic) ? formData.pic : (formData.pic ? [formData.pic as any] : [])}
                   onChange={(selected) => handleChange('pic', selected)}
                   placeholder="Pilih PIC untuk task ini..."

@@ -15,7 +15,7 @@ export enum Status {
 
 export enum Category {
   PengembanganAplikasi = 'Pengembangan Aplikasi',
-  SuratDokumen = 'Surat & Dokumen',
+  SuratDokumen = 'Dokumen',
   AudiensiRapat = 'Audiensi/Rapat',
   PermintaanSatker = 'Permintaan Satker',
   TindakLanjut = 'Tindak Lanjut',
@@ -373,20 +373,18 @@ export const SIDEBAR_ITEMS = [
   { name: 'Pengembangan Aplikasi', icon: 'Code' },
   {
     name: 'Surat & Kegiatan',
-    icon: 'FileText',
+    icon: 'FolderOpen',
     submenu: [
       { name: 'Jadwal Kegiatan', icon: 'CalendarDays' },
       { name: 'Daftar Surat', icon: 'FileSpreadsheet' },
       { name: 'Daftar Disposisi', icon: 'ClipboardList' },
     ]
   },
-  { name: 'Surat & Dokumen', icon: 'FileText' },
+  { name: 'Dokumen', icon: 'FileText' },
   { name: 'Permintaan Satker', icon: 'Inbox' },
   { name: 'Tindak Lanjut', icon: 'Forward' },
   { name: 'Administrasi', icon: 'FolderOpen' },
   { name: 'Monitoring', icon: 'Activity' },
-  { name: 'Lainnya', icon: 'MoreHorizontal' },
-  { name: 'Pengumuman', icon: 'Megaphone' },
   { name: 'Inventori Data', icon: 'Database' },
 ];
 
@@ -473,4 +471,64 @@ export interface Surat {
   createdBy: string;
   createdAt: string;
   updatedAt?: string;
+}
+
+// ============================================================================
+// Satker Visibility Control Types
+// ============================================================================
+
+/**
+ * Divisi (Satuan Kerja) - Organizational unit in the system
+ * Represents a work unit that can have members and related data
+ * Maps to master_divisi table in database
+ */
+export interface Satker {
+  id: string;
+  name: string;
+  isLocked: boolean;           // Whether visibility is restricted to admin and members
+  lockedAt: Date | null;       // Timestamp when divisi was locked
+  lockedBy: string | null;     // User ID of admin who locked the divisi
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/**
+ * Divisi with additional metadata for management UI
+ */
+export interface SatkerWithVisibility extends Satker {
+  memberCount: number;         // Number of members in this divisi
+}
+
+/**
+ * Audit log entry for divisi visibility changes
+ * Records all visibility toggle operations for compliance and tracking
+ */
+export interface VisibilityAuditLog {
+  id: string;
+  satkerId: string;            // ID of the divisi that was changed (kept as satkerId for backward compatibility)
+  satkerName: string;          // Name of the divisi at time of change (for historical accuracy)
+  oldStatus: boolean;          // Previous visibility status (true = locked, false = unlocked)
+  newStatus: boolean;          // New visibility status (true = locked, false = unlocked)
+  changedBy: string;           // User ID of admin who made the change
+  changedByName?: string;      // Name of admin who made the change (populated from join)
+  changedAt: Date;             // Timestamp when the change was made
+}
+
+/**
+ * Props for visibility toggle component
+ */
+export interface VisibilityToggleProps {
+  satkerId: string;
+  isLocked: boolean;
+  onToggle: (satkerId: string, newStatus: boolean) => Promise<void>;
+  disabled?: boolean;
+}
+
+/**
+ * Filter options for audit trail queries
+ */
+export interface AuditTrailFilters {
+  satkerId?: string;           // Filter by specific satker
+  limit?: number;              // Number of results to return
+  offset?: number;             // Offset for pagination
 }

@@ -523,9 +523,9 @@ const DisposisiModal: React.FC<DisposisiModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="sticky top-0 bg-gradient-to-r from-gov-600 to-gov-700 text-white px-6 py-4 z-10">
+        <div className="sticky top-0 bg-gradient-to-r from-gov-600 to-gov-700 text-white px-6 py-4 z-10 flex-shrink-0">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-3">
               <FileText size={24} />
@@ -589,7 +589,7 @@ const DisposisiModal: React.FC<DisposisiModalProps> = ({
 
         {/* Tabs for View Mode */}
         {initialData && (
-          <div className="border-b border-slate-200 bg-slate-50">
+          <div className="border-b border-slate-200 bg-slate-50 flex-shrink-0">
             <div className="flex gap-1 px-6">
               <button
                 type="button"
@@ -640,6 +640,7 @@ const DisposisiModal: React.FC<DisposisiModalProps> = ({
         )}
 
         {/* Body */}
+        <div className="overflow-y-auto flex-1">
         {activeTab === 'detail' && (
           <>
             {/* View Mode - Read Only Display */}
@@ -1713,10 +1714,12 @@ const DisposisiModal: React.FC<DisposisiModalProps> = ({
             )}
           </div>
         )}
+        </div>
+        {/* End of scrollable content wrapper */}
 
         {/* Footer Actions - Only show in edit/create mode on detail tab */}
         {activeTab === 'detail' && (isEditMode || isCreateMode) && (
-          <div className="sticky bottom-0 bg-slate-50 px-6 py-4 rounded-b-xl border-t border-slate-200">
+          <div className="sticky bottom-0 bg-slate-50 px-6 py-4 rounded-b-xl border-t border-slate-200 flex-shrink-0">
             {/* Warning message if trying to complete without laporan */}
             {status === 'Completed' && laporan.length === 0 && (
               <div className="mb-3 bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
@@ -1761,7 +1764,7 @@ const DisposisiModal: React.FC<DisposisiModalProps> = ({
         
         {/* Close button for view mode and other tabs */}
         {(activeTab !== 'detail' || isViewMode) && (
-          <div className="sticky bottom-0 bg-slate-50 px-6 py-4 rounded-b-xl border-t border-slate-200">
+          <div className="sticky bottom-0 bg-slate-50 px-6 py-4 rounded-b-xl border-t border-slate-200 flex-shrink-0">
             <button
               type="button"
               onClick={handleClose}

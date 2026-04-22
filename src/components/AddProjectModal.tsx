@@ -24,6 +24,8 @@ import {
   Layers
 } from 'lucide-react';
 import { ProjectDefinition, ProjectStatus, User } from '../../types';
+import DivisionFilteredUserSelect from './DivisionFilteredUserSelect';
+import { useAuth } from '../contexts/AuthContext';
 
 interface AddProjectModalProps {
   isOpen: boolean;
@@ -34,6 +36,8 @@ interface AddProjectModalProps {
 }
 
 const AddProjectModal: React.FC<AddProjectModalProps> = ({ isOpen, onClose, onSave, users, editingProject }) => {
+  const { currentUser } = useAuth();
+  
   // default manager: first user name if available
   const defaultManager = useMemo(() => (Array.isArray(users) && users.length > 0 ? users[0].name : ''), [users]);
 
@@ -171,20 +175,15 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ isOpen, onClose, onSa
                 />
               </div>
 
-              <div>
-                <label className="block text-[10px] sm:text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5 sm:mb-2">Project Manager (PIC)</label>
-                <select
-                  value={formData.manager}
-                  onChange={(e) => setFormData({...formData, manager: e.target.value})}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm bg-white"
-                >
-                  {Array.isArray(users) && users.length > 0 ? (
-                    users.map(u => <option key={u.id} value={u.name}>{u.name}</option>)
-                  ) : (
-                    <option value="">(Belum ada pengguna)</option>
-                  )}
-                </select>
-              </div>
+              <DivisionFilteredUserSelect
+                users={users}
+                currentUserDivisi={currentUser?.divisi}
+                value={formData.manager}
+                onChange={(value) => setFormData({...formData, manager: value})}
+                placeholder="Cari project manager..."
+                emptyOption="-- Pilih Project Manager --"
+                label="Project Manager (PIC)"
+              />
 
               <div>
                 <label className="block text-[10px] sm:text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5 sm:mb-2">Deskripsi Singkat</label>
