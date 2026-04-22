@@ -73,7 +73,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
 
   const [formData, setFormData] = useState<Partial<Task>>({
     title: '',
-    category: '', // Kosong - user harus memilih kategori
+    // category tidak diset - user harus memilih kategori (undefined di Partial<Task>)
     subCategory: '',
     startDate: new Date().toISOString().split('T')[0],
     deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Default 7 hari dari sekarang
@@ -149,7 +149,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
       // Ensure attachments array exists and handle backward compatibility for pic
       setFormData({
         ...initialData,
-        category: initialData.category || '', // Jika edit, gunakan kategori yang ada atau kosong
+        // Jika edit, gunakan kategori yang ada (tidak perlu fallback ke string kosong)
         priority: initialData.priority || Priority.Medium,
         status: initialData.status || Status.ToDo,
         startDate: initialData.startDate || new Date().toISOString().split('T')[0],
@@ -163,7 +163,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
     } else {
       setFormData({
         title: '',
-        category: '', // Kosong - user harus memilih kategori
+        // category tidak diset - user harus memilih kategori (undefined di Partial<Task>)
         subCategory: '',
         startDate: new Date().toISOString().split('T')[0],
         deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Default 7 hari dari sekarang
