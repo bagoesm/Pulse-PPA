@@ -42,8 +42,6 @@ export const useLazyDataFetch = ({ activeTab, session }: UseLazyDataFetchProps) 
 
         // Fetch data based on active tab
         const fetchDataForTab = async () => {
-            console.log(`[LazyFetch] Loading data for tab: ${activeTab}`);
-
             switch (activeTab) {
                 case 'Dashboard':
                     // Dashboard needs: users (already loaded), tasks, meetings for stats

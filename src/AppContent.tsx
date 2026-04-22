@@ -266,8 +266,6 @@ const AppContent: React.FC = () => {
     if (visitedTabsRef.current.has(activeTab)) return;
     visitedTabsRef.current.add(activeTab);
 
-    console.log(`[LazyLoad] Fetching data for tab: ${activeTab}`);
-
     const loadDataForTab = async () => {
       try {
         switch (activeTab) {

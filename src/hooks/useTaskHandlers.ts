@@ -253,7 +253,7 @@ export const useTaskHandlers = ({
                 .from('tasks')
                 .update(payload)
                 .eq('id', editingTask.id)
-                .select();
+                .select('*, master_categories:category_id(name), master_sub_categories:sub_category_id(name)');
 
             if (!error && updatedData && updatedData.length > 0) {
                 if (removedAttachments.length > 0) {
@@ -300,7 +300,21 @@ export const useTaskHandlers = ({
                     }
                 }
 
-                setTasks(prev => prev.map(t => t.id === editingTask.id ? { ...t, ...newTaskData, id: editingTask.id, createdBy: t.createdBy } : t));
+                // Map updated data with category names from JOIN
+                const updatedTask = updatedData[0];
+                const mappedUpdate = {
+                    ...updatedTask,
+                    category: updatedTask.master_categories?.name || newTaskData.category || '',
+                    categoryId: updatedTask.category_id || null,
+                    subCategory: updatedTask.master_sub_categories?.name || updatedTask.sub_category || newTaskData.subCategory || '',
+                    subCategoryId: updatedTask.sub_category_id || null,
+                    startDate: updatedTask.start_date,
+                    projectId: updatedTask.project_id,
+                    epicId: updatedTask.epic_id,
+                    createdBy: editingTask.createdBy,
+                };
+
+                setTasks(prev => prev.map(t => t.id === editingTask.id ? mappedUpdate : t));
                 setProjectRefreshTrigger(prev => prev + 1);
 
                 // Log to activity_logs for admin view
@@ -318,7 +332,7 @@ export const useTaskHandlers = ({
         const { data, error } = await supabase
             .from('tasks')
             .insert([payload])
-            .select()
+            .select('*, master_categories:category_id(name), master_sub_categories:sub_category_id(name)')
             .single();
 
         if (error) {
@@ -329,7 +343,10 @@ export const useTaskHandlers = ({
         const createdByName = allUsers.find(u => u.id === data.created_by_id)?.name || currentUser?.name || 'Unknown';
         const mapped = {
             ...data,
-            subCategory: data.sub_category,
+            category: data.master_categories?.name || newTaskData.category || '',
+            categoryId: data.category_id || null,
+            subCategory: data.master_sub_categories?.name || data.sub_category || newTaskData.subCategory || '',
+            subCategoryId: data.sub_category_id || null,
             startDate: data.start_date,
             projectId: data.project_id,
             epicId: data.epic_id,

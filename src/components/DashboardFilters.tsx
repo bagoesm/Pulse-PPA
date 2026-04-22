@@ -77,6 +77,8 @@ const DashboardFilters: React.FC<DashboardFiltersProps> = ({
                             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                             <input
                                 type="text"
+                                id="dashboard-search"
+                                name="search"
                                 placeholder="Cari nama..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -88,6 +90,8 @@ const DashboardFilters: React.FC<DashboardFiltersProps> = ({
                         <div className="relative">
                             <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                             <select
+                                id="dashboard-date-filter"
+                                name="dateFilter"
                                 value={dateFilter}
                                 onChange={(e) => setDateFilter(e.target.value as DateFilter)}
                                 className="pl-9 pr-6 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm bg-white appearance-none cursor-pointer w-full sm:w-auto"
@@ -132,6 +136,8 @@ const DashboardFilters: React.FC<DashboardFiltersProps> = ({
                         <div className="relative flex-1 sm:flex-none">
                             <Filter size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                             <select
+                                id="dashboard-workload-filter"
+                                name="workloadFilter"
                                 value={workloadFilter}
                                 onChange={(e) => setWorkloadFilter(e.target.value as WorkloadFilter)}
                                 className="pl-9 pr-6 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm bg-white appearance-none cursor-pointer w-full"
@@ -149,6 +155,8 @@ const DashboardFilters: React.FC<DashboardFiltersProps> = ({
                         <div className="relative flex-1 sm:flex-none">
                             <BarChart3 size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                             <select
+                                id="dashboard-sort"
+                                name="sortBy"
                                 value={sortBy}
                                 onChange={(e) => setSortBy(e.target.value as SortOption)}
                                 className="pl-9 pr-6 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm bg-white appearance-none cursor-pointer w-full"

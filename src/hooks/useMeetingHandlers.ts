@@ -168,9 +168,6 @@ export const useMeetingHandlers = ({
                 linked_surat_id: meetingData.linkedSuratId || null,
             };
 
-            console.log('DEBUG: handleSaveMeeting payload:', payload);
-            console.log('DEBUG: editingMeeting:', editingMeeting);
-
             if (editingMeeting) {
                 // First, update the meeting
                 const updateResponse = await supabase
@@ -181,22 +178,17 @@ export const useMeetingHandlers = ({
 
                 const { data: updatedData, error: updateError, status, statusText, count } = updateResponse;
 
-                console.log('DEBUG: Update status:', status, statusText);
-                console.log('DEBUG: Rows affected (count):', count);
-                console.log('DEBUG: Update returned data:', updatedData);
-
                 if (updateError) {
-                    console.error('DEBUG: updateError:', updateError);
+                    console.error('Update meeting error:', updateError);
                     showNotification('Gagal Update Jadwal', updateError.message, 'error');
                     return undefined;
                 }
 
                 if (count === 0) {
-                    console.error('DEBUG: Update affected 0 rows. Likely RLS policy blocking or ID mismatch.');
+                    console.error('Update affected 0 rows. Likely RLS policy blocking or ID mismatch.');
                     showNotification('Gagal Simpan', 'Data tidak terupdate. Anda mungkin tidak memiliki izin untuk mengedit jadwal ini.', 'error');
                     return undefined;
                 }
-                console.log('DEBUG: Update call finished');
 
                 // Sync to linked surat if exists
                 if (editingMeeting.linkedSuratId) {
@@ -239,8 +231,7 @@ export const useMeetingHandlers = ({
                     .eq('id', editingMeeting.id)
                     .maybeSingle();
 
-                console.log('DEBUG: Fetched after update data:', data);
-                if (fetchError) console.error('DEBUG: fetchError:', fetchError);
+                if (fetchError) console.error('Fetch after update error:', fetchError);
 
                 // Use fetched data if available, or construct from input
                 // Merge with editingMeeting to preserve comments and view fields (has_disposisi, etc.)

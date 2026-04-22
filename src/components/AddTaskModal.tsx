@@ -73,7 +73,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
 
   const [formData, setFormData] = useState<Partial<Task>>({
     title: '',
-    category: Category.PengembanganAplikasi, // Default ke kategori pertama
+    category: '', // Kosong - user harus memilih kategori
     subCategory: '',
     startDate: new Date().toISOString().split('T')[0],
     deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Default 7 hari dari sekarang
@@ -149,7 +149,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
       // Ensure attachments array exists and handle backward compatibility for pic
       setFormData({
         ...initialData,
-        category: initialData.category || Category.PengembanganAplikasi,
+        category: initialData.category || '', // Jika edit, gunakan kategori yang ada atau kosong
         priority: initialData.priority || Priority.Medium,
         status: initialData.status || Status.ToDo,
         startDate: initialData.startDate || new Date().toISOString().split('T')[0],
@@ -163,7 +163,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
     } else {
       setFormData({
         title: '',
-        category: Category.PengembanganAplikasi, // Default ke kategori pertama
+        category: '', // Kosong - user harus memilih kategori
         subCategory: '',
         startDate: new Date().toISOString().split('T')[0],
         deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Default 7 hari dari sekarang
@@ -389,12 +389,22 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
             subCategoryId = subCat.id;
           }
         }
+      } else {
+        // Kategori tidak ditemukan di master data
+        showNotification('Kategori Tidak Valid', 'Kategori yang dipilih tidak ditemukan. Silakan pilih kategori lain.', 'error');
+        return;
       }
+    }
+
+    // Validasi categoryId harus ada
+    if (!categoryId) {
+      showNotification('Kategori Tidak Valid', 'ID kategori tidak ditemukan. Silakan pilih kategori yang valid.', 'error');
+      return;
     }
 
     const payload: Omit<Task, 'id'> = {
       title: (formData.title || '').trim(),
-      category: (formData.category as Category) || Category.PengembanganAplikasi, // Default ke kategori pertama
+      category: (formData.category as Category) || '' as any, // Kategori wajib diisi, validasi sudah dilakukan
       categoryId: categoryId || undefined,
       subCategory: (formData.subCategory as string) || '',
       subCategoryId: subCategoryId || undefined,

@@ -145,6 +145,8 @@ const MentionInput: React.FC<MentionInputProps> = ({
     <div className="relative">
       <textarea
         ref={textareaRef}
+        id="mention-input-comment"
+        name="comment"
         value={value}
         onChange={handleChange}
         onKeyDown={handleKeyDown}
