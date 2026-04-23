@@ -237,8 +237,19 @@ export const DivisionProvider: React.FC<DivisionProviderProps> = ({ children, se
     // Helper: check by user ID
     const isUserIdInSelectedDivisi = useCallback((userId: string) => {
         if (!selectedDivisi) return false;
-        return divisiUserIds.has(userId);
-    }, [selectedDivisi, divisiUserIds]);
+        
+        // First check: UUID-based lookup (new data)
+        if (divisiUserIds.has(userId)) {
+            return true;
+        }
+        
+        // Fallback: Name-based lookup (legacy data)
+        if (divisiUserNamesSet.has(userId)) {
+            return true;
+        }
+        
+        return false;
+    }, [selectedDivisi, divisiUserIds, divisiUserNamesSet]);
 
     // Helper: combined check for createdBy + PIC
     const shouldShowByDivisi = useCallback((createdByName?: string, picNames?: string[]) => {

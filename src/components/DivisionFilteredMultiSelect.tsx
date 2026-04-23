@@ -47,7 +47,7 @@ const DivisionFilteredMultiSelect: React.FC<DivisionFilteredMultiSelectProps> = 
   // Convert to options format
   const options = useMemo(() => {
     return filteredUsers.map(user => ({
-      value: user.name,
+      value: user.id,  // FIXED: Use UUID instead of name
       label: user.divisi 
         ? `${user.name} (${user.divisi})`
         : user.name
