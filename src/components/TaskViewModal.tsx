@@ -460,7 +460,8 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                         <button
                           key={blockingTask.id}
                           onClick={() => onBlockingTaskClick?.(blockingTask.id)}
-                          className="w-full flex items-center gap-3 p-2.5 rounded-lg border border-gray-200 bg-gray-50 hover:bg-gray-100 hover:border-gray-300 transition-colors text-left group"
+                          className="w-full flex items-center gap-3 p-2.5 rounded-lg border border-gray-200 bg-gray-50 hover:bg-gray-100 hover:border-gray-300 transition-colors text-left group relative"
+                          title={blockingTask.title}
                         >
                           <div className={`shrink-0 ${blockingTask.status === Status.Done ? 'text-green-600' : 'text-gray-400'}`}>
                             {blockingTask.status === Status.Done ? (
@@ -470,7 +471,7 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                             )}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className="text-sm font-medium text-gray-700 truncate group-hover:text-blue-600">
+                            <div className="text-sm font-medium text-gray-700 truncate group-hover:text-blue-600" title={blockingTask.title}>
                               {blockingTask.title}
                             </div>
                             <div className="text-xs text-gray-500">
@@ -502,7 +503,8 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                         <button
                           key={blockedTask.id}
                           onClick={() => onBlockingTaskClick?.(blockedTask.id)}
-                          className="w-full flex items-center gap-3 p-2.5 rounded-lg border border-orange-200 bg-orange-50 hover:bg-orange-100 hover:border-orange-300 transition-colors text-left group"
+                          className="w-full flex items-center gap-3 p-2.5 rounded-lg border border-orange-200 bg-orange-50 hover:bg-orange-100 hover:border-orange-300 transition-colors text-left group relative"
+                          title={blockedTask.title}
                         >
                           <div className={`shrink-0 ${blockedTask.status === Status.Done ? 'text-green-600' : 'text-orange-500'}`}>
                             {blockedTask.status === Status.Done ? (
@@ -512,7 +514,7 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                             )}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className="text-sm font-medium text-gray-700 truncate group-hover:text-orange-600">
+                            <div className="text-sm font-medium text-gray-700 truncate group-hover:text-orange-600" title={blockedTask.title}>
                               {blockedTask.title}
                             </div>
                             <div className="text-xs text-gray-500">
