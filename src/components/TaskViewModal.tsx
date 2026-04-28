@@ -450,17 +450,17 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
               {/* Blocking Tasks (Dependencies) */}
               {blockingTasks.length > 0 && (
                 <div className="flex items-start gap-4">
-                  <div className="flex items-center gap-3 w-28 text-gray-500">
+                  <div className="flex items-center gap-3 w-28 shrink-0 text-gray-500">
                     <Link2 size={16} />
                     <span className="text-sm">Diblokir oleh</span>
                   </div>
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <div className="space-y-2">
                       {blockingTasks.map(blockingTask => (
                         <button
                           key={blockingTask.id}
                           onClick={() => onBlockingTaskClick?.(blockingTask.id)}
-                          className="w-full flex items-center gap-3 p-2.5 rounded-lg border border-gray-200 bg-gray-50 hover:bg-gray-100 hover:border-gray-300 transition-colors text-left group relative"
+                          className="w-full flex items-center gap-3 p-2.5 rounded-lg border border-gray-200 bg-gray-50 hover:bg-gray-100 hover:border-gray-300 transition-colors text-left group"
                           title={blockingTask.title}
                         >
                           <div className={`shrink-0 ${blockingTask.status === Status.Done ? 'text-green-600' : 'text-gray-400'}`}>
@@ -470,11 +470,11 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                               <Circle size={16} />
                             )}
                           </div>
-                          <div className="flex-1 min-w-0">
+                          <div className="flex-1 min-w-0 overflow-hidden">
                             <div className="text-sm font-medium text-gray-700 truncate group-hover:text-blue-600" title={blockingTask.title}>
                               {blockingTask.title}
                             </div>
-                            <div className="text-xs text-gray-500">
+                            <div className="text-xs text-gray-500 truncate">
                               {blockingTask.status === Status.Done ? (
                                 <span className="text-green-600">✓ Selesai</span>
                               ) : (
@@ -493,17 +493,17 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
               {/* Tasks that THIS task blocks */}
               {blockedTasks.length > 0 && (
                 <div className="flex items-start gap-4">
-                  <div className="flex items-center gap-3 w-28 text-gray-500">
+                  <div className="flex items-center gap-3 w-28 shrink-0 text-gray-500">
                     <Link2 size={16} className="rotate-90" />
                     <span className="text-sm">Memblokir</span>
                   </div>
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <div className="space-y-2">
                       {blockedTasks.map(blockedTask => (
                         <button
                           key={blockedTask.id}
                           onClick={() => onBlockingTaskClick?.(blockedTask.id)}
-                          className="w-full flex items-center gap-3 p-2.5 rounded-lg border border-orange-200 bg-orange-50 hover:bg-orange-100 hover:border-orange-300 transition-colors text-left group relative"
+                          className="w-full flex items-center gap-3 p-2.5 rounded-lg border border-orange-200 bg-orange-50 hover:bg-orange-100 hover:border-orange-300 transition-colors text-left group"
                           title={blockedTask.title}
                         >
                           <div className={`shrink-0 ${blockedTask.status === Status.Done ? 'text-green-600' : 'text-orange-500'}`}>
@@ -513,11 +513,11 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                               <Circle size={16} />
                             )}
                           </div>
-                          <div className="flex-1 min-w-0">
+                          <div className="flex-1 min-w-0 overflow-hidden">
                             <div className="text-sm font-medium text-gray-700 truncate group-hover:text-orange-600" title={blockedTask.title}>
                               {blockedTask.title}
                             </div>
-                            <div className="text-xs text-gray-500">
+                            <div className="text-xs text-gray-500 truncate">
                               {blockedTask.status === Status.Done ? (
                                 <span className="text-green-600">✓ Selesai</span>
                               ) : (

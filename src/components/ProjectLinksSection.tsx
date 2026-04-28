@@ -142,10 +142,14 @@ const ProjectLinksSection: React.FC<ProjectLinksSectionProps> = ({
                                                     </div>
                                                 </td>
                                                 <td className="px-4 py-3 text-slate-500 text-xs">
-                                                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full ${link.sourceType === 'meeting' ? 'bg-purple-100 text-purple-700' :
+                                                    <span 
+                                                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full max-w-[200px] truncate ${
+                                                            link.sourceType === 'meeting' ? 'bg-purple-100 text-purple-700' :
                                                             link.sourceType === 'project' ? 'bg-green-100 text-green-700' :
-                                                                'bg-blue-100 text-blue-700'
-                                                        }`}>
+                                                            'bg-blue-100 text-blue-700'
+                                                        }`}
+                                                        title={link.sourceTitle}
+                                                    >
                                                         {link.sourceType === 'meeting' ? '📅' : link.sourceType === 'project' ? '📌' : '📋'} {link.sourceTitle}
                                                     </span>
                                                 </td>

@@ -119,10 +119,14 @@ const ProjectDocumentsSection: React.FC<ProjectDocumentsSectionProps> = ({
                                         </td>
                                         <td className="px-4 py-3 text-slate-500">{d.type || 'FILE'}</td>
                                         <td className="px-4 py-3 text-slate-500">
-                                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs ${d.sourceType === 'meeting' ? 'bg-purple-100 text-purple-700' :
+                                            <span 
+                                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs max-w-[200px] truncate ${
+                                                    d.sourceType === 'meeting' ? 'bg-purple-100 text-purple-700' :
                                                     d.sourceType === 'project' ? 'bg-green-100 text-green-700' :
-                                                        'bg-blue-100 text-blue-700'
-                                                }`}>
+                                                    'bg-blue-100 text-blue-700'
+                                                }`}
+                                                title={d.source}
+                                            >
                                                 {d.sourceType === 'meeting' ? '📅' : d.sourceType === 'project' ? '📌' : '📋'} {d.source}
                                             </span>
                                         </td>
