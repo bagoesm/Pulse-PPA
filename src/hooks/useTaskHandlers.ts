@@ -302,6 +302,31 @@ export const useTaskHandlers = ({
 
                 // Map updated data with category names from JOIN
                 const updatedTask = updatedData[0];
+                
+                // Map PIC from UUID to names
+                let picNames: string[] = [];
+                if (Array.isArray(updatedTask.pic)) {
+                    picNames = updatedTask.pic.map((picItem: any) => {
+                        // If picItem is already a name (string without UUID format), use it
+                        if (typeof picItem === 'string' && !picItem.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+                            return picItem;
+                        }
+                        // If picItem is a UUID, map it to name
+                        const user = allUsers.find(u => u.id === picItem);
+                        return user ? user.name : picItem; // Fallback to original value if not found
+                    });
+                } else if (typeof updatedTask.pic === 'string') {
+                    // Handle legacy single PIC
+                    if (updatedTask.pic.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+                        // It's a UUID, map to name
+                        const user = allUsers.find(u => u.id === updatedTask.pic);
+                        picNames = user ? [user.name] : [updatedTask.pic];
+                    } else {
+                        // It's already a name
+                        picNames = [updatedTask.pic];
+                    }
+                }
+                
                 const mappedUpdate = {
                     ...updatedTask,
                     category: updatedTask.master_categories?.name || newTaskData.category || '',
@@ -312,6 +337,7 @@ export const useTaskHandlers = ({
                     projectId: updatedTask.project_id,
                     epicId: updatedTask.epic_id,
                     createdBy: editingTask.createdBy,
+                    pic: picNames, // Use mapped names instead of UUIDs
                 };
 
                 setTasks(prev => prev.map(t => t.id === editingTask.id ? mappedUpdate : t));
@@ -341,6 +367,31 @@ export const useTaskHandlers = ({
         }
 
         const createdByName = allUsers.find(u => u.id === data.created_by_id)?.name || currentUser?.name || 'Unknown';
+        
+        // Map PIC from UUID to names
+        let picNames: string[] = [];
+        if (Array.isArray(data.pic)) {
+            picNames = data.pic.map((picItem: any) => {
+                // If picItem is already a name (string without UUID format), use it
+                if (typeof picItem === 'string' && !picItem.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+                    return picItem;
+                }
+                // If picItem is a UUID, map it to name
+                const user = allUsers.find(u => u.id === picItem);
+                return user ? user.name : picItem; // Fallback to original value if not found
+            });
+        } else if (typeof data.pic === 'string') {
+            // Handle legacy single PIC
+            if (data.pic.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+                // It's a UUID, map to name
+                const user = allUsers.find(u => u.id === data.pic);
+                picNames = user ? [user.name] : [data.pic];
+            } else {
+                // It's already a name
+                picNames = [data.pic];
+            }
+        }
+        
         const mapped = {
             ...data,
             category: data.master_categories?.name || newTaskData.category || '',
@@ -351,6 +402,7 @@ export const useTaskHandlers = ({
             projectId: data.project_id,
             epicId: data.epic_id,
             createdBy: createdByName,
+            pic: picNames, // Use mapped names instead of UUIDs
         };
 
         setTasks(prev => [...prev, mapped]);

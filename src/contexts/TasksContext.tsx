@@ -197,6 +197,37 @@ export const TasksProvider: React.FC<TasksProviderProps> = ({ children, session 
                             if (creator) createdByName = creator.name;
                         }
 
+                        // Map PIC from UUID to names
+                        let picNames: string[] = [];
+                        if (Array.isArray(t.pic)) {
+                            picNames = t.pic.map((picItem: any) => {
+                                // If picItem is already a name (string without UUID format), use it
+                                if (typeof picItem === 'string' && !picItem.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+                                    return picItem;
+                                }
+                                // If picItem is a UUID, map it to name
+                                if (profiles) {
+                                    const user = profiles.find((u: any) => u.id === picItem);
+                                    if (user) return user.name;
+                                }
+                                return picItem; // Fallback to original value
+                            });
+                        } else if (typeof t.pic === 'string') {
+                            // Handle legacy single PIC
+                            if (t.pic.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+                                // It's a UUID, map to name
+                                if (profiles) {
+                                    const user = profiles.find((u: any) => u.id === t.pic);
+                                    picNames = user ? [user.name] : [t.pic];
+                                } else {
+                                    picNames = [t.pic];
+                                }
+                            } else {
+                                // It's already a name
+                                picNames = [t.pic];
+                            }
+                        }
+
                         const links = Array.isArray(t.links) ? t.links : [];
 
                         return {
@@ -209,6 +240,7 @@ export const TasksProvider: React.FC<TasksProviderProps> = ({ children, session 
                             projectId: t.project_id || t.projectId || null,
                             epicId: t.epic_id || t.epicId || null,
                             createdBy: createdByName,
+                            pic: picNames, // Use mapped names
                             deadline: t.deadline || (t.deadline_at || null),
                             attachments,
                             links,
