@@ -115,7 +115,14 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
   const isCurrentUserPIC = () => {
     if (!currentUser || !task) return false;
     const taskPics = Array.isArray(task.pic) ? task.pic : [task.pic];
-    return taskPics.includes(currentUser.name);
+    
+    // Check by name
+    if (taskPics.includes(currentUser.name)) return true;
+    
+    // Check by UUID (fallback for cases where PIC is still stored as UUID)
+    if (taskPics.includes(currentUser.id)) return true;
+    
+    return false;
   };
 
   // Can change status: PIC or canEdit (Super Admin/Atasan)

@@ -65,17 +65,51 @@ export const useTaskHandlers = ({
         if (!currentUser) return false;
         if (currentUser.role === 'Super Admin') return true;
         if (currentUser.role === 'Atasan') return true;
+        
+        // Check if user is creator
+        if (task.createdBy === currentUser.name) return true;
+        
+        // Check if user is PIC (support both name and UUID format)
         const taskPics = Array.isArray(task.pic) ? task.pic : [task.pic];
-        return task.createdBy === currentUser.name || taskPics.includes(currentUser.name);
+        
+        // Check by name
+        if (taskPics.includes(currentUser.name)) return true;
+        
+        // Check by UUID (fallback for cases where PIC is still stored as UUID)
+        if (taskPics.includes(currentUser.id)) return true;
+        
+        // Additional check: if PIC contains UUID, try to match with current user ID
+        const hasUserUUID = taskPics.some(pic => {
+            // Check if pic is a UUID format
+            if (typeof pic === 'string' && pic.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+                return pic === currentUser.id;
+            }
+            return false;
+        });
+        
+        if (hasUserUUID) return true;
+        
+        return false;
     }, [currentUser]);
 
     const checkDeletePermission = useCallback((task: Task) => {
         if (!currentUser) return false;
         if (currentUser.role === 'Super Admin') return true;
         if (currentUser.role === 'Atasan') return true;
-        // Allow PIC to delete task
+        
+        // Check if user is creator
+        if (task.createdBy === currentUser.name) return true;
+        
+        // Allow PIC to delete task (support both name and UUID format)
         const taskPics = Array.isArray(task.pic) ? task.pic : [task.pic];
-        return task.createdBy === currentUser.name || taskPics.includes(currentUser.name);
+        
+        // Check by name
+        if (taskPics.includes(currentUser.name)) return true;
+        
+        // Check by UUID (fallback)
+        if (taskPics.includes(currentUser.id)) return true;
+        
+        return false;
     }, [currentUser]);
 
     // Log task activity

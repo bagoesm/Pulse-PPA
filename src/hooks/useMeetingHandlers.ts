@@ -53,17 +53,40 @@ export const useMeetingHandlers = ({
         if (!currentUser) return false;
         if (currentUser.role === 'Super Admin') return true;
         if (currentUser.role === 'Atasan') return true;
+        
+        // Check if user is creator
+        if (meeting.createdBy === currentUser.name) return true;
+        
+        // Check if user is PIC (support both name and UUID format)
         const meetingPics = Array.isArray(meeting.pic) ? meeting.pic : [meeting.pic];
-        return meeting.createdBy === currentUser.name || meetingPics.includes(currentUser.name);
+        
+        // Check by name
+        if (meetingPics.includes(currentUser.name)) return true;
+        
+        // Check by UUID (fallback)
+        if (meetingPics.includes(currentUser.id)) return true;
+        
+        return false;
     }, [currentUser]);
 
     const checkMeetingDeletePermission = useCallback((meeting: Meeting) => {
         if (!currentUser) return false;
         if (currentUser.role === 'Super Admin') return true;
         if (currentUser.role === 'Atasan') return true;
-        // Allow PIC to delete meeting
+        
+        // Check if user is creator
+        if (meeting.createdBy === currentUser.name) return true;
+        
+        // Allow PIC to delete meeting (support both name and UUID format)
         const meetingPics = Array.isArray(meeting.pic) ? meeting.pic : [meeting.pic];
-        return meeting.createdBy === currentUser.name || meetingPics.includes(currentUser.name);
+        
+        // Check by name
+        if (meetingPics.includes(currentUser.name)) return true;
+        
+        // Check by UUID (fallback)
+        if (meetingPics.includes(currentUser.id)) return true;
+        
+        return false;
     }, [currentUser]);
 
     // Helper to log to activity_logs table (for admin view)

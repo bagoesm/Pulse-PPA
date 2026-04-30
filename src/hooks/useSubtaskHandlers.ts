@@ -38,10 +38,14 @@ export const useSubtaskHandlers = ({
         if (!currentUser) return false;
         // Super Admin & Atasan can always manage
         if (currentUser.role === 'Super Admin' || currentUser.role === 'Atasan') return true;
-        // PIC of parent task
-        if (parentTask.pic.includes(currentUser.name)) return true;
+        
+        // PIC of parent task (support both name and UUID format)
+        const parentPics = Array.isArray(parentTask.pic) ? parentTask.pic : [parentTask.pic];
+        if (parentPics.includes(currentUser.name) || parentPics.includes(currentUser.id)) return true;
+        
         // Creator of parent task
         if (parentTask.createdBy === currentUser.name) return true;
+        
         return false;
     }, [currentUser]);
 
@@ -49,12 +53,20 @@ export const useSubtaskHandlers = ({
     const checkSubtaskEditPermission = useCallback((subtask: Subtask, parentTask?: Task): boolean => {
         if (!currentUser) return false;
         if (currentUser.role === 'Super Admin' || currentUser.role === 'Atasan') return true;
-        // PIC of subtask
-        if (subtask.pic.includes(currentUser.name)) return true;
+        
+        // PIC of subtask (support both name and UUID format)
+        const subtaskPics = Array.isArray(subtask.pic) ? subtask.pic : [subtask.pic];
+        if (subtaskPics.includes(currentUser.name) || subtaskPics.includes(currentUser.id)) return true;
+        
         // Creator of subtask
         if (subtask.createdBy === currentUser.name) return true;
-        // PIC of parent task
-        if (parentTask && parentTask.pic.includes(currentUser.name)) return true;
+        
+        // PIC of parent task (support both name and UUID format)
+        if (parentTask) {
+            const parentPics = Array.isArray(parentTask.pic) ? parentTask.pic : [parentTask.pic];
+            if (parentPics.includes(currentUser.name) || parentPics.includes(currentUser.id)) return true;
+        }
+        
         return false;
     }, [currentUser]);
 
