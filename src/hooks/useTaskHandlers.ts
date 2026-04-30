@@ -78,17 +78,6 @@ export const useTaskHandlers = ({
         // Check by UUID (fallback for cases where PIC is still stored as UUID)
         if (taskPics.includes(currentUser.id)) return true;
         
-        // Additional check: if PIC contains UUID, try to match with current user ID
-        const hasUserUUID = taskPics.some(pic => {
-            // Check if pic is a UUID format
-            if (typeof pic === 'string' && pic.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
-                return pic === currentUser.id;
-            }
-            return false;
-        });
-        
-        if (hasUserUUID) return true;
-        
         return false;
     }, [currentUser]);
 
@@ -290,95 +279,97 @@ export const useTaskHandlers = ({
                 .select('*, master_categories:category_id(name), master_sub_categories:sub_category_id(name)');
 
             if (!error && updatedData && updatedData.length > 0) {
-                if (removedAttachments.length > 0) {
-                    const filePaths = removedAttachments.filter(att => att.path).map(att => att.path);
-                    if (filePaths.length > 0) {
-                        try {
-                            await supabase.storage.from('attachment').remove(filePaths);
-                        } catch (err) {
-                            console.error('Error cleaning up attachments:', err);
-                        }
+
+            // Cleanup removed attachments
+            if (removedAttachments.length > 0) {
+                const filePaths = removedAttachments.filter(att => att.path).map(att => att.path);
+                if (filePaths.length > 0) {
+                    try {
+                        await supabase.storage.from('attachment').remove(filePaths);
+                    } catch (err) {
+                        console.error('Error cleaning up attachments:', err);
                     }
                 }
+            }
 
-                // Log changes
-                if (editingTask.status !== newTaskData.status) {
-                    await logTaskActivity(editingTask.id, 'status_change', editingTask.status, newTaskData.status);
-                }
-                if (JSON.stringify(editingTask.pic) !== JSON.stringify(newTaskData.pic)) {
-                    const oldPic = Array.isArray(editingTask.pic) ? editingTask.pic.join(', ') : editingTask.pic;
-                    const newPic = Array.isArray(newTaskData.pic) ? newTaskData.pic.join(', ') : newTaskData.pic;
-                    await logTaskActivity(editingTask.id, 'pic_change', oldPic, newPic);
+            // Log changes
+            if (editingTask.status !== newTaskData.status) {
+                await logTaskActivity(editingTask.id, 'status_change', editingTask.status, newTaskData.status);
+            }
+            if (JSON.stringify(editingTask.pic) !== JSON.stringify(newTaskData.pic)) {
+                const oldPic = Array.isArray(editingTask.pic) ? editingTask.pic.join(', ') : editingTask.pic;
+                const newPic = Array.isArray(newTaskData.pic) ? newTaskData.pic.join(', ') : newTaskData.pic;
+                await logTaskActivity(editingTask.id, 'pic_change', oldPic, newPic);
 
-                    const oldPics = Array.isArray(editingTask.pic) ? editingTask.pic : [editingTask.pic];
-                    const newPics = Array.isArray(newTaskData.pic) ? newTaskData.pic : [newTaskData.pic];
-                    await createAssignmentNotification(editingTask.id, newTaskData.title, currentUser?.name || 'Unknown', newPics, oldPics, false);
-                }
-                if (editingTask.priority !== newTaskData.priority) {
-                    await logTaskActivity(editingTask.id, 'priority_change', editingTask.priority, newTaskData.priority);
-                }
-                if (editingTask.deadline !== newTaskData.deadline) {
-                    await logTaskActivity(editingTask.id, 'deadline_change', editingTask.deadline, newTaskData.deadline);
-                }
-                if (editingTask.category !== newTaskData.category) {
-                    await logTaskActivity(editingTask.id, 'category_change', editingTask.category, newTaskData.category);
-                }
+                const oldPics = Array.isArray(editingTask.pic) ? editingTask.pic : [editingTask.pic];
+                const newPics = Array.isArray(newTaskData.pic) ? newTaskData.pic : [newTaskData.pic];
+                await createAssignmentNotification(editingTask.id, newTaskData.title, currentUser?.name || 'Unknown', newPics, oldPics, false);
+            }
+            if (editingTask.priority !== newTaskData.priority) {
+                await logTaskActivity(editingTask.id, 'priority_change', editingTask.priority, newTaskData.priority);
+            }
+            if (editingTask.deadline !== newTaskData.deadline) {
+                await logTaskActivity(editingTask.id, 'deadline_change', editingTask.deadline, newTaskData.deadline);
+            }
+            if (editingTask.category !== newTaskData.category) {
+                await logTaskActivity(editingTask.id, 'category_change', editingTask.category, newTaskData.category);
+            }
 
-                // Send mention notifications for new mentions in description
-                if (newTaskData.description) {
-                    const oldMentions = editingTask.description ? parseMentions(editingTask.description, allUsers) : [];
-                    const newMentions = parseMentions(newTaskData.description, allUsers);
-                    const addedMentions = newMentions.filter(name => !oldMentions.includes(name));
-                    if (addedMentions.length > 0) {
-                        await createMentionNotification(editingTask.id, newTaskData.title, currentUser?.name || 'Unknown', addedMentions);
+            // Send mention notifications for new mentions in description
+            if (newTaskData.description) {
+                const oldMentions = editingTask.description ? parseMentions(editingTask.description, allUsers) : [];
+                const newMentions = parseMentions(newTaskData.description, allUsers);
+                const addedMentions = newMentions.filter(name => !oldMentions.includes(name));
+                if (addedMentions.length > 0) {
+                    await createMentionNotification(editingTask.id, newTaskData.title, currentUser?.name || 'Unknown', addedMentions);
+                }
+            }
+
+            // Map updated data with category names from JOIN
+            const updatedTask = updatedData[0];
+            
+            // Map PIC from UUID to names
+            let picNames: string[] = [];
+            if (Array.isArray(updatedTask.pic)) {
+                picNames = updatedTask.pic.map((picItem: any) => {
+                    // If picItem is already a name (string without UUID format), use it
+                    if (typeof picItem === 'string' && !picItem.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+                        return picItem;
                     }
+                    // If picItem is a UUID, map it to name
+                    const user = allUsers.find(u => u.id === picItem);
+                    return user ? user.name : picItem; // Fallback to original value if not found
+                });
+            } else if (typeof updatedTask.pic === 'string') {
+                // Handle legacy single PIC
+                if (updatedTask.pic.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+                    // It's a UUID, map to name
+                    const user = allUsers.find(u => u.id === updatedTask.pic);
+                    picNames = user ? [user.name] : [updatedTask.pic];
+                } else {
+                    // It's already a name
+                    picNames = [updatedTask.pic];
                 }
+            }
+            
+            const mappedUpdate = {
+                ...updatedTask,
+                category: updatedTask.master_categories?.name || newTaskData.category || '',
+                categoryId: updatedTask.category_id || null,
+                subCategory: updatedTask.master_sub_categories?.name || updatedTask.sub_category || newTaskData.subCategory || '',
+                subCategoryId: updatedTask.sub_category_id || null,
+                startDate: updatedTask.start_date,
+                projectId: updatedTask.project_id,
+                epicId: updatedTask.epic_id,
+                createdBy: editingTask.createdBy,
+                pic: picNames, // Use mapped names instead of UUIDs
+            };
 
-                // Map updated data with category names from JOIN
-                const updatedTask = updatedData[0];
-                
-                // Map PIC from UUID to names
-                let picNames: string[] = [];
-                if (Array.isArray(updatedTask.pic)) {
-                    picNames = updatedTask.pic.map((picItem: any) => {
-                        // If picItem is already a name (string without UUID format), use it
-                        if (typeof picItem === 'string' && !picItem.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
-                            return picItem;
-                        }
-                        // If picItem is a UUID, map it to name
-                        const user = allUsers.find(u => u.id === picItem);
-                        return user ? user.name : picItem; // Fallback to original value if not found
-                    });
-                } else if (typeof updatedTask.pic === 'string') {
-                    // Handle legacy single PIC
-                    if (updatedTask.pic.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
-                        // It's a UUID, map to name
-                        const user = allUsers.find(u => u.id === updatedTask.pic);
-                        picNames = user ? [user.name] : [updatedTask.pic];
-                    } else {
-                        // It's already a name
-                        picNames = [updatedTask.pic];
-                    }
-                }
-                
-                const mappedUpdate = {
-                    ...updatedTask,
-                    category: updatedTask.master_categories?.name || newTaskData.category || '',
-                    categoryId: updatedTask.category_id || null,
-                    subCategory: updatedTask.master_sub_categories?.name || updatedTask.sub_category || newTaskData.subCategory || '',
-                    subCategoryId: updatedTask.sub_category_id || null,
-                    startDate: updatedTask.start_date,
-                    projectId: updatedTask.project_id,
-                    epicId: updatedTask.epic_id,
-                    createdBy: editingTask.createdBy,
-                    pic: picNames, // Use mapped names instead of UUIDs
-                };
+            setTasks(prev => prev.map(t => t.id === editingTask.id ? mappedUpdate : t));
+            setProjectRefreshTrigger(prev => prev + 1);
 
-                setTasks(prev => prev.map(t => t.id === editingTask.id ? mappedUpdate : t));
-                setProjectRefreshTrigger(prev => prev + 1);
-
-                // Log to activity_logs for admin view
-                await logToActivityLogs('update', editingTask.id, newTaskData.title, newTaskData.projectId);
+            // Log to activity_logs for admin view
+            await logToActivityLogs('update', editingTask.id, newTaskData.title, newTaskData.projectId);
             } else {
                 showNotification('Gagal Update Task', 'Anda tidak memiliki izin untuk mengubah task ini.', 'error');
             }
