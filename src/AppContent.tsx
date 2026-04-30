@@ -2,7 +2,7 @@
 // State comes from contexts (Auth, Data, UI)
 import React, { useState, useEffect, useMemo, useCallback, lazy, Suspense, useTransition, useRef } from 'react';
 import { supabase } from './lib/supabaseClient';
-import { Plus, Search, Layout, CalendarRange, Briefcase, FileText, ListTodo, Loader2 } from 'lucide-react';
+import { Plus, Search, Layout, CalendarRange, Briefcase, FileText, ListTodo, Loader2, Download } from 'lucide-react';
 import { Task, Status, Category, Priority, FilterState, User, ProjectDefinition, ViewMode, Feedback, FeedbackCategory, FeedbackStatus, DocumentTemplate, UserStatus, Attachment, Comment, ChristmasDecorationSettings, Announcement, DataInventoryItem, TaskActivity, Meeting, MeetingInviter } from '../types';
 import Sidebar from './components/Sidebar';
 import TaskCard from './components/TaskCard';
@@ -60,6 +60,7 @@ const ActivityLogPage = lazy(() => import('./components/ActivityLogPage'));
 const DisposisiListView = lazy(() => import('./components/DisposisiListView'));
 const SatkerVisibilityManagement = lazy(() => import('./components/SatkerVisibilityManagement'));
 const VisibilityAuditTrail = lazy(() => import('./components/VisibilityAuditTrail'));
+const TaskExportModal = lazy(() => import('./components/TaskExportModal'));
 
 // Loading fallback
 const PageLoader: React.FC = () => (
@@ -205,6 +206,9 @@ const AppContent: React.FC = () => {
     if (selectedDivisi === 'All') return announcements;
     return announcements.filter(a => shouldShowByDivisi(a.createdBy));
   }, [announcements, selectedDivisi, shouldShowByDivisi]);
+
+  // ===== LOCAL UI STATE =====
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   // ===== COMPUTED DATA =====
   // Compute meetingsAsTasks
@@ -817,6 +821,17 @@ const AppContent: React.FC = () => {
                 {/* Action Buttons - Only show "Tambah Task" for non-project tabs */}
                 {!(activeTab === 'Dokumen' && suratSubTab === 'Templates') && (
                   <div className="flex gap-2">
+                    {/* Export Button - Show on Semua Task view */}
+                    {activeTab === 'Semua Task' && (
+                      <button
+                        onClick={() => setIsExportModalOpen(true)}
+                        className="flex items-center gap-1 sm:gap-2 bg-emerald-600 text-white px-2 sm:px-4 py-2 sm:py-2.5 rounded-lg font-semibold hover:bg-emerald-700 hover:shadow-lg hover:shadow-emerald-200 transition-all transform active:scale-95 text-xs sm:text-sm"
+                        title="Export Task"
+                      >
+                        <Download size={14} />
+                        <span className="hidden sm:inline">Export</span>
+                      </button>
+                    )}
                     <button
                       onClick={openNewTaskModal}
                       className="flex items-center gap-1 sm:gap-2 bg-gov-600 text-white px-2 sm:px-4 py-2 sm:py-2.5 rounded-lg font-semibold hover:bg-gov-700 hover:shadow-lg hover:shadow-gov-200 transition-all transform active:scale-95 text-xs sm:text-sm"
@@ -1193,7 +1208,7 @@ const AppContent: React.FC = () => {
         masterCategories={masterCategories}
         masterSubCategories={masterSubCategories}
         categorySubcategoryRelations={categorySubcategoryRelations}
-        allTasks={tasks}
+        allTasks={allTasksWithMeetings}
         epics={epics}
         // Epic Modal
         isEpicModalOpen={isEpicModalOpen}
@@ -1277,6 +1292,9 @@ const AppContent: React.FC = () => {
         meetingInviters={meetingInviters}
         meetings={meetings}
         handleBackToTask={handleBackToTask}
+        // Task Export Modal
+        isExportModalOpen={isExportModalOpen}
+        setIsExportModalOpen={setIsExportModalOpen}
       />
     </div >
   );

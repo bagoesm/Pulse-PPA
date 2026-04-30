@@ -22,3 +22,20 @@ export const ensureHttps = (url: string): string => {
     }
     return `https://${url}`;
 };
+
+/**
+ * Format ISO date string to Indonesian locale date
+ */
+export const formatDate = (dateString: string): string => {
+    if (!dateString) return '-';
+    try {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('id-ID', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric'
+        });
+    } catch (error) {
+        return dateString;
+    }
+};

@@ -21,6 +21,7 @@ const AnnouncementModal = lazy(() => import('./AnnouncementModal'));
 const MeetingViewModal = lazy(() => import('./MeetingViewModal'));
 const AddMeetingModal = lazy(() => import('./AddMeetingModal'));
 const EpicViewModal = lazy(() => import('./EpicViewModal'));
+const TaskExportModal = lazy(() => import('./TaskExportModal'));
 
 interface ModalsContainerProps {
     // Current User
@@ -160,6 +161,10 @@ interface ModalsContainerProps {
     meetingInviters: MeetingInviter[];
     meetings: Meeting[]; // All meetings for surat selection
     handleBackToTask: () => void;
+
+    // Task Export Modal
+    isExportModalOpen: boolean;
+    setIsExportModalOpen: (open: boolean) => void;
 }
 
 const ModalsContainer: React.FC<ModalsContainerProps> = (props) => {
@@ -411,6 +416,18 @@ const ModalsContainer: React.FC<ModalsContainerProps> = (props) => {
                 type={toast.type}
                 onClose={hideToast}
             />
+
+            {/* Task Export Modal */}
+            <Suspense fallback={null}>
+                <TaskExportModal
+                    isOpen={props.isExportModalOpen}
+                    onClose={() => props.setIsExportModalOpen(false)}
+                    tasks={props.allTasks}
+                    users={allUsers}
+                    projects={projects}
+                    epics={epics}
+                />
+            </Suspense>
         </>
     );
 };
