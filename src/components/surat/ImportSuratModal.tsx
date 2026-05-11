@@ -464,7 +464,12 @@ const ImportSuratModal: React.FC<ImportSuratModalProps> = ({
                     tanggal_surat: row.data.tanggalSurat,
                     hal: row.data.hal || null,
                     asal_surat: row.data.asalSurat || null,
-                    tujuan_surat: row.data.tujuanSurat || null,
+                    // Truncate tujuan_surat to 100 chars max (database constraint)
+                    tujuan_surat: row.data.tujuanSurat 
+                        ? (row.data.tujuanSurat.length > 100 
+                            ? row.data.tujuanSurat.substring(0, 97) + '...' 
+                            : row.data.tujuanSurat)
+                        : null,
                     klasifikasi_surat: row.data.klasifikasiSurat || null,
                     jenis_naskah: row.data.jenisNaskah || null,
                     sifat_surat: row.data.sifatSurat || null,

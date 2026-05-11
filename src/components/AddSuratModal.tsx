@@ -307,9 +307,15 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
       ? tujuanSuratList
       : null;
 
-    const finalTujuanSurat = jenisSurat === 'Keluar' && tujuanSuratList.length > 0
-      ? tujuanSuratList.map(t => `${t.name} (${t.type})`).join(', ')
-      : null;
+    // Create display string with max 100 characters limit (database constraint)
+    let finalTujuanSurat: string | null = null;
+    if (jenisSurat === 'Keluar' && tujuanSuratList.length > 0) {
+      const fullString = tujuanSuratList.map(t => `${t.name} (${t.type})`).join(', ');
+      // Truncate to 97 chars and add "..." if too long
+      finalTujuanSurat = fullString.length > 100 
+        ? fullString.substring(0, 97) + '...' 
+        : fullString;
+    }
 
     try {
       // Save to surats table (not meetings)
