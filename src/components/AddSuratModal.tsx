@@ -297,6 +297,12 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
       }
     }
 
+    // Helper function to truncate string to max length
+    const truncateString = (str: string | null | undefined, maxLength: number = 100): string | null => {
+      if (!str) return null;
+      return str.length > maxLength ? str.substring(0, maxLength - 3) + '...' : str;
+    };
+
     // Determine asal surat based on type
     const finalAsalSurat = jenisSurat === 'Masuk'
       ? (asalSuratType === 'Internal' ? asalSuratInternal : asalSuratEksternal)
@@ -321,22 +327,22 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
       // Save to surats table (not meetings)
       const suratPayload = {
         jenis_surat: jenisSurat,
-        nomor_surat: nomorSurat,
+        nomor_surat: truncateString(nomorSurat, 100),
         tanggal_surat: tanggalSurat,
-        hal: hal || null,
-        asal_surat: finalAsalSurat,
-        tujuan_surat: finalTujuanSurat, // String for display
+        hal: truncateString(hal, 255), // Assuming hal might be longer
+        asal_surat: truncateString(finalAsalSurat, 100),
+        tujuan_surat: finalTujuanSurat, // Already truncated above
         tujuan_surat_list: finalTujuanSuratList, // JSONB for structured data
-        klasifikasi_surat: klasifikasiSurat || null,
-        jenis_naskah: jenisNaskah || null,
-        sifat_surat: sifatSurat || null,
-        bidang_tugas: bidangTugas || null,
-        catatan: catatan || null,
+        klasifikasi_surat: truncateString(klasifikasiSurat, 100),
+        jenis_naskah: truncateString(jenisNaskah, 100),
+        sifat_surat: truncateString(sifatSurat, 100),
+        bidang_tugas: truncateString(bidangTugas, 100),
+        catatan: catatan || null, // No truncate for catatan (might be TEXT)
         tanggal_diterima: jenisSurat === 'Masuk' ? (tanggalDiterima || null) : null,
         tanggal_dikirim: jenisSurat === 'Keluar' ? (tanggalDikirim || null) : null,
         file_surat: suratFile,
         meeting_id: linkToKegiatan && selectedKegiatan ? selectedKegiatan.id : null,
-        created_by: currentUserName,
+        created_by: truncateString(currentUserName, 100),
         created_by_id: currentUser?.id || null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
@@ -478,7 +484,8 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
       onSave();
       handleClose();
     } catch (error: any) {
-      showNotification('Gagal Menyimpan Surat', error.message, 'error');
+      const errorMessage = error?.message || error?.error_description || error?.hint || 'Terjadi kesalahan';
+      showNotification('Gagal Menyimpan Surat', errorMessage, 'error');
     }
   };
 
