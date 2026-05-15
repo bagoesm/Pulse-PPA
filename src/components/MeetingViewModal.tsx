@@ -268,6 +268,10 @@ const MeetingViewModal: React.FC<MeetingViewModalProps> = ({
     return user?.profilePhoto;
   };
 
+  // Translate UUID to user name, fallback to UUID if not found
+  const getPicName = (picId: string): string =>
+    allUsers.find(u => u.id === picId)?.name ?? picId;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-xl w-full sm:max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
@@ -412,9 +416,9 @@ const MeetingViewModal: React.FC<MeetingViewModalProps> = ({
                 <div>
                   <p className="text-xs text-slate-500 uppercase font-semibold">PIC</p>
                   <div className="flex flex-wrap gap-1.5 mt-1">
-                    {meeting.pic.map((name, i) => (
+                    {meeting.pic.map((picId, i) => (
                       <span key={i} className="text-xs font-medium px-2 py-1 bg-indigo-50 text-indigo-700 rounded-full">
-                        {name}
+                        {getPicName(picId)}
                       </span>
                     ))}
                   </div>

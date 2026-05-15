@@ -14,6 +14,7 @@ import MultiSelectChip from './MultiSelectChip';
 import DisposisiModal from './DisposisiModal';
 import MeetingViewModal from './MeetingViewModal';
 import ConfirmModal from './ConfirmModal';
+import LinkedKegiatanCard from './surat/LinkedKegiatanCard';
 
 interface SuratViewModalProps {
   isOpen: boolean;
@@ -559,18 +560,8 @@ const SuratViewModal: React.FC<SuratViewModalProps> = ({
         try {
           const meetingId = editData.meetingId || surat.meetingId;
 
-          // Prepare meeting update payload with surat details
+          // Prepare meeting update payload with only relevant fields
           const meetingPayload: any = {
-            jenis_surat: editData.jenisSurat,
-            nomor_surat: editData.nomorSurat,
-            tanggal_surat: editData.tanggalSurat,
-            hal: editData.hal || null,
-            asal_surat: editData.asalSurat || null,
-            tujuan_surat: editData.tujuanSurat || null,
-            klasifikasi_surat: editData.klasifikasiSurat || null,
-            jenis_naskah: editData.jenisNaskah || null,
-            bidang_tugas: editData.bidangTugas || null,
-            catatan: editData.catatan || null,
             updated_at: new Date().toISOString()
           };
 
@@ -1260,60 +1251,11 @@ const SuratViewModal: React.FC<SuratViewModalProps> = ({
                     <div className="animate-spin rounded-full h-6 w-6 border-2 border-purple-600 border-t-transparent"></div>
                   </div>
                 ) : linkedKegiatan ? (
-                  <button
-                    type="button"
+                  <LinkedKegiatanCard
+                    kegiatan={linkedKegiatan}
                     onClick={() => setShowMeetingModal(true)}
-                    className="w-full bg-white rounded-lg p-4 border border-purple-200 hover:border-purple-300 hover:shadow-md transition-all text-left"
-                  >
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1">
-                        <p className="text-xs font-semibold text-purple-600 uppercase mb-1">Kegiatan Terkait</p>
-                        <h5 className="text-base font-bold text-slate-800">{linkedKegiatan.title}</h5>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${linkedKegiatan.type === 'internal' ? 'bg-blue-100 text-blue-700' :
-                          linkedKegiatan.type === 'external' ? 'bg-green-100 text-green-700' :
-                            linkedKegiatan.type === 'bimtek' ? 'bg-orange-100 text-orange-700' :
-                              'bg-purple-100 text-purple-700'
-                          }`}>
-                          {linkedKegiatan.type === 'internal' ? 'Internal' :
-                            linkedKegiatan.type === 'external' ? 'Eksternal' :
-                              linkedKegiatan.type === 'bimtek' ? 'Bimtek' :
-                                linkedKegiatan.type === 'audiensi' ? 'Audiensi' :
-                                  linkedKegiatan.type}
-                        </span>
-                        <Eye size={16} className="text-purple-600" />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3 text-sm">
-                      <div className="flex items-center gap-2 text-slate-600">
-                        <Calendar size={14} className="text-purple-600" />
-                        <span>{new Date(linkedKegiatan.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-slate-600">
-                        <Building2 size={14} className="text-purple-600" />
-                        <span>{linkedKegiatan.location}</span>
-                      </div>
-                    </div>
-                    {linkedKegiatan.pic && linkedKegiatan.pic.length > 0 && (
-                      <div className="mt-3 pt-3 border-t border-slate-200">
-                        <p className="text-xs font-semibold text-slate-500 uppercase mb-1.5">PIC</p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {linkedKegiatan.pic.map((picName, idx) => (
-                            <span key={idx} className="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded-full">
-                              {picName}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    <div className="mt-3 pt-3 border-t border-slate-200">
-                      <p className="text-xs text-purple-600 font-medium flex items-center gap-1">
-                        <Eye size={12} />
-                        Klik untuk melihat detail kegiatan
-                      </p>
-                    </div>
-                  </button>
+                    allUsers={users}
+                  />
                 ) : (
                   <div className="bg-white rounded-lg p-4 border border-purple-200 text-center text-sm text-slate-500">
                     Kegiatan tidak ditemukan

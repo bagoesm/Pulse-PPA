@@ -71,7 +71,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, onShowNoti
                     profilePhotoPath: data.profile_photo_path || undefined,
                     divisi: data.divisi || undefined
                 } as User;
-                setCurrentUser(mappedUser);
+                setCurrentUser(prev => {
+                    if (prev && JSON.stringify(prev) === JSON.stringify(mappedUser)) {
+                        return prev;
+                    }
+                    return mappedUser;
+                });
             }
         } catch (err) {
             console.error('fetchUserProfile unexpected', err);

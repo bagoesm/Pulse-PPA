@@ -24,7 +24,7 @@ const AuditTrailDisplay: React.FC<AuditTrailDisplayProps> = ({ disposisiId, clas
   const fetchUsers = async () => {
     try {
       const { data, error } = await supabase
-        .from('users')
+        .from('profiles')
         .select('id, name');
       
       if (error) throw error;
@@ -37,6 +37,21 @@ const AuditTrailDisplay: React.FC<AuditTrailDisplayProps> = ({ disposisiId, clas
   const getUserName = (userId: string): string => {
     const user = users.find(u => u.id === userId);
     return user?.name || userId;
+  };
+
+  const resolveUserNamesInText = (text: string | undefined): string => {
+    if (!text) return '';
+    let resolvedText = text;
+    const uuidRegex = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
+    const matches = text.match(uuidRegex);
+    if (matches) {
+      matches.forEach(match => {
+        resolvedText = resolvedText.replace(match, getUserName(match));
+      });
+    }
+    resolvedText = resolvedText.replace('Disposisi created for', 'Disposisi dibuat untuk');
+    resolvedText = resolvedText.replace('Disposisi deleted', 'Disposisi dihapus');
+    return resolvedText;
   };
 
   const fetchHistory = async () => {
@@ -248,7 +263,7 @@ const AuditTrailDisplay: React.FC<AuditTrailDisplayProps> = ({ disposisiId, clas
     if (item.action === 'created') {
       return (
         <div className="text-sm text-slate-600 mt-1">
-          {item.newValue}
+          {resolveUserNamesInText(item.newValue)}
         </div>
       );
     }
@@ -256,7 +271,7 @@ const AuditTrailDisplay: React.FC<AuditTrailDisplayProps> = ({ disposisiId, clas
     if (item.action === 'assignee_removed') {
       return (
         <div className="text-sm text-slate-600 mt-1">
-          {item.newValue}
+          {resolveUserNamesInText(item.newValue)}
         </div>
       );
     }
@@ -338,7 +353,7 @@ const AuditTrailDisplay: React.FC<AuditTrailDisplayProps> = ({ disposisiId, clas
                   </div>
                   <div className="flex items-center gap-1 mt-2 text-xs text-slate-600">
                     <User size={12} />
-                    <span>{item.performedBy}</span>
+                    <span>{getUserName(item.performedBy)}</span>
                   </div>
                 </div>
               </div>

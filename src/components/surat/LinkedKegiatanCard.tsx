@@ -2,14 +2,19 @@
 // Extracted component for displaying linked Kegiatan in SuratViewModal
 import React from 'react';
 import { Calendar, Building2, Eye } from 'lucide-react';
-import { Meeting } from '../../../types';
+import { Meeting, User } from '../../../types';
 
 interface LinkedKegiatanCardProps {
   kegiatan: Meeting;
   onClick: () => void;
+  allUsers?: User[];
 }
 
-const LinkedKegiatanCard: React.FC<LinkedKegiatanCardProps> = ({ kegiatan, onClick }) => {
+const LinkedKegiatanCard: React.FC<LinkedKegiatanCardProps> = ({ kegiatan, onClick, allUsers }) => {
+  // Translate UUID to user name, fallback to UUID if not found
+  const getPicName = (picId: string): string =>
+    (allUsers ?? []).find(u => u.id === picId)?.name ?? picId;
+
   const getMeetingTypeLabel = (type: string): string => {
     const labels: Record<string, string> = {
       'internal': 'Internal',
@@ -70,9 +75,9 @@ const LinkedKegiatanCard: React.FC<LinkedKegiatanCardProps> = ({ kegiatan, onCli
         <div className="mt-3 pt-3 border-t border-slate-200">
           <p className="text-xs font-semibold text-slate-500 uppercase mb-1.5">PIC</p>
           <div className="flex flex-wrap gap-1.5">
-            {kegiatan.pic.map((picName, idx) => (
+            {kegiatan.pic.map((picId, idx) => (
               <span key={idx} className="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded-full">
-                {picName}
+                {getPicName(picId)}
               </span>
             ))}
           </div>

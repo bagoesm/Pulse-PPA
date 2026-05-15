@@ -122,13 +122,14 @@ export const SuratsProvider: React.FC<SuratsProviderProps> = ({ children, sessio
         }
     }, [fetchSurats]);
 
+    const userId = session?.user?.id;
     useEffect(() => {
-        if (session) {
+        if (userId) {
             fetchSurats();
         } else {
             clearSurats();
         }
-    }, [session, fetchSurats, clearSurats]);
+    }, [userId, fetchSurats, clearSurats]);
 
     const value: SuratsContextType = {
         surats,

@@ -61,6 +61,12 @@ export const DisposisiProvider: React.FC<DisposisiProviderProps> = ({ children, 
   // Use centralized mapper - OPTIMIZATION: Eliminates duplicate mapping logic
   const mapDisposisiFromDB = mappers.disposisi;
 
+  // Use a ref to avoid recreating fetchDisposisi when currentUser changes identity
+  const currentUserRef = React.useRef(currentUser);
+  useEffect(() => {
+    currentUserRef.current = currentUser;
+  }, [currentUser]);
+
   // Fetch all disposisi (with role-based filtering)
   const fetchDisposisi = useCallback(async () => {
     setIsLoading(true);
@@ -79,12 +85,13 @@ export const DisposisiProvider: React.FC<DisposisiProviderProps> = ({ children, 
         setDisposisi(mapped);
 
         // Also populate myDisposisi and teamDisposisi for other views
-        if (currentUser) {
-          const myDisp = mapped.filter(d => d.assignedTo === currentUser.id);
+        const user = currentUserRef.current;
+        if (user) {
+          const myDisp = mapped.filter(d => d.assignedTo === user.id);
           setMyDisposisi(myDisp);
 
           // Get team user IDs for teamDisposisi
-          const teamUserIds = await getTeamUserIds(supabase, currentUser);
+          const teamUserIds = await getTeamUserIds(supabase, user);
           if (teamUserIds.length > 0) {
             const teamDisp = mapped.filter(d => teamUserIds.includes(d.assignedTo));
             setTeamDisposisi(teamDisp);
@@ -97,7 +104,7 @@ export const DisposisiProvider: React.FC<DisposisiProviderProps> = ({ children, 
     } finally {
       setIsLoading(false);
     }
-  }, [currentUser]);
+  }, [mapDisposisiFromDB]);
 
   // Fetch disposisi assigned to current user
   const fetchMyDisposisi = useCallback(async (userId: string) => {
@@ -672,13 +679,16 @@ export const DisposisiProvider: React.FC<DisposisiProviderProps> = ({ children, 
     setTeamDisposisi([]);
   }, []);
 
+  const isSessionValid = !!session;
+  const isUserValid = !!currentUser;
+
   useEffect(() => {
-    if (session && currentUser) {
+    if (isSessionValid && isUserValid) {
       fetchDisposisi();
     } else {
       clearDisposisi();
     }
-  }, [session, currentUser, fetchDisposisi, clearDisposisi]);
+  }, [isSessionValid, isUserValid, fetchDisposisi, clearDisposisi]);
 
   const value: DisposisiContextType = {
     disposisi,

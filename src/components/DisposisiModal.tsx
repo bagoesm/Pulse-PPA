@@ -1375,12 +1375,16 @@ const DisposisiModal: React.FC<DisposisiModalProps> = ({
                             Penanggung Jawab (PIC)
                           </label>
                           <div className="flex flex-wrap gap-2">
-                            {kegiatanData.pic.map((picName: string, idx: number) => (
-                              <span key={idx} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">
-                                <Users size={14} />
-                                {picName}
-                              </span>
-                            ))}
+                            {kegiatanData.pic.map((picId: string, idx: number) => {
+                              const user = users.find(u => u.id === picId || u.name === picId);
+                              const displayName = user?.name || picId;
+                              return (
+                                <span key={idx} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">
+                                  <Users size={14} />
+                                  {displayName}
+                                </span>
+                              );
+                            })}
                           </div>
                         </div>
                       )}

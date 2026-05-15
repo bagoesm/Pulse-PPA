@@ -87,6 +87,7 @@ const formatDateToString = (date: Date): string => {
 
 const MeetingCalendar: React.FC<MeetingCalendarProps> = ({
   meetings,
+  users,
   projects,
   onAddMeeting,
   onViewMeeting,
@@ -125,8 +126,13 @@ const MeetingCalendar: React.FC<MeetingCalendarProps> = ({
     meetings.forEach(m => {
       (m.pic || []).forEach(pic => picSet.add(pic));
     });
-    return Array.from(picSet).sort();
-  }, [meetings]);
+    return Array.from(picSet)
+      .map(picId => ({
+        value: picId,
+        label: users.find(u => u.id === picId)?.name ?? picId,
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [meetings, users]);
 
   // Active filter count
   const activeFilterCount = (filterType !== 'all' ? 1 : 0) + (filterStatus !== 'all' ? 1 : 0) + (filterPic !== 'all' ? 1 : 0) + (filterDisposisi !== 'all' ? 1 : 0) + (searchQuery ? 1 : 0);
@@ -515,7 +521,7 @@ const MeetingCalendar: React.FC<MeetingCalendarProps> = ({
           <SearchableSelect
             options={[
               { value: 'all', label: 'Semua PIC' },
-              ...uniquePics.map(pic => ({ value: pic, label: pic }))
+              ...uniquePics
             ]}
             value={filterPic}
             onChange={(value) => setFilterPic(value)}
@@ -587,7 +593,7 @@ const MeetingCalendar: React.FC<MeetingCalendarProps> = ({
               <SearchableSelect
                 options={[
                   { value: 'all', label: 'Semua PIC' },
-                  ...uniquePics.map(pic => ({ value: pic, label: pic }))
+                  ...uniquePics
                 ]}
                 value={filterPic}
                 onChange={(value) => setFilterPic(value)}
