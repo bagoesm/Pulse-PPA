@@ -543,8 +543,8 @@ const AnalitikPage: React.FC = () => {
               picWorkloadData.map((item, index) => {
                 const user = allUsers.find(u => u.name === item.name);
                 const avatar = user?.profilePhoto || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.name)}&background=random`;
-                const maxWorkload = picWorkloadData[0].jumlah;
-                const percentage = (item.jumlah / maxWorkload) * 100;
+                const maxWorkload = picWorkloadData[0].total;
+                const percentage = (item.total / maxWorkload) * 100;
                 
                 const handlePICClick = () => {
                   setFilters(prev => ({ ...prev, pic: item.name }));
