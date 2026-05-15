@@ -61,6 +61,7 @@ const DisposisiListView = lazy(() => import('./components/DisposisiListView'));
 const SatkerVisibilityManagement = lazy(() => import('./components/SatkerVisibilityManagement'));
 const VisibilityAuditTrail = lazy(() => import('./components/VisibilityAuditTrail'));
 const TaskExportModal = lazy(() => import('./components/TaskExportModal'));
+const AnalitikPage = lazy(() => import('./components/AnalitikPage'));
 
 // Loading fallback
 const PageLoader: React.FC = () => (
@@ -742,7 +743,7 @@ const AppContent: React.FC = () => {
         )}
 
         {/* Top Header / Filter Bar - HIDDEN for special pages */}
-        {activeTab !== 'Dashboard' && activeTab !== 'Project' && activeTab !== 'Master Data' && activeTab !== 'Saran Masukan' && activeTab !== 'Pengumuman' && activeTab !== 'Inventori Data' && activeTab !== 'Jadwal Kegiatan' && activeTab !== 'Daftar Surat' && activeTab !== 'Activity Log' && activeTab !== 'Daftar Disposisi' && activeTab !== 'Manajemen Visibility' && activeTab !== 'Riwayat Perubahan' && (
+        {activeTab !== 'Dashboard' && activeTab !== 'Analitik' && activeTab !== 'Project' && activeTab !== 'Master Data' && activeTab !== 'Saran Masukan' && activeTab !== 'Pengumuman' && activeTab !== 'Inventori Data' && activeTab !== 'Jadwal Kegiatan' && activeTab !== 'Daftar Surat' && activeTab !== 'Activity Log' && activeTab !== 'Daftar Disposisi' && activeTab !== 'Manajemen Visibility' && activeTab !== 'Riwayat Perubahan' && (
           <header className="bg-white border-b border-slate-200 px-3 sm:px-6 py-3 sm:py-4 z-20 relative">
             <div className="flex flex-col gap-3 sm:gap-4 mb-3 sm:mb-4">
               {/* Title Section */}
@@ -1082,6 +1083,10 @@ const AppContent: React.FC = () => {
               users={allUsers}
               projects={projects}
             />
+          </Suspense>
+        ) : activeTab === 'Analitik' ? (
+          <Suspense fallback={<PageLoader />}>
+            <AnalitikPage />
           </Suspense>
         ) : activeTab === 'Manajemen Visibility' ? (
           <Suspense fallback={<PageLoader />}>
