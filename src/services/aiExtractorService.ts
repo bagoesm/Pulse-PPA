@@ -54,9 +54,9 @@ Peraturan:
     `;
 
     try {
-      if (!genAI) throw new Error('API Key Gemini tidak ditemukan di .env (VITE_GEMINI_API_KEY)');
+      if (!genAI) throw new Error('API Key Google tidak ditemukan di .env (VITE_GEMINI_API_KEY)');
       
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+      const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-lite-preview' });
       const documentParts = [
         {
           inlineData: {
@@ -105,11 +105,13 @@ ${JSON.stringify(tasks.map(t => ({
 Filter yang sedang aktif: ${JSON.stringify(filters || {})}
 
 Buatlah paragraf ringkasan naratif berbahasa Indonesia yang profesional (sekitar 3-4 kalimat). Jelaskan apa yang telah dilakukan/dikerjakan oleh PIC tersebut, fokus pada pencapaian, status pengerjaan, dan rentang waktu. Jangan gunakan format list/bullet, gunakan paragraf naratif.
+
+PENTING: LANGSUNG JAWAB DENGAN PARAGRAF NARASINYA SAJA. JANGAN tuliskan pemikiran Anda, JANGAN tuliskan rekap data ulang, dan JANGAN beri pengantar/penutup apapun.
 `;
 
     try {
       if (genAI) {
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-lite-preview' });
         const result = await model.generateContent(prompt);
         const response = await result.response;
         return response.text().trim();
@@ -134,6 +136,53 @@ Buatlah paragraf ringkasan naratif berbahasa Indonesia yang profesional (sekitar
     } catch (e: any) {
       console.error('Failed to generate summary:', e);
       return "Sistem AI gagal mengenerate summary: " + e.message;
+    }
+  },
+
+  async generateAnalyticsInsight(analyticsData: any): Promise<string> {
+    const prompt = `
+Anda adalah Data Analyst Ahli. Tugas Anda adalah memberikan analisis tajam dan rekomendasi eksekutif berdasarkan data dashboard berikut:
+
+DATA:
+${JSON.stringify(analyticsData, null, 2)}
+
+Buatlah laporan ringkas berbahasa Indonesia yang mencakup:
+1. Kesimpulan Utama (1-2 kalimat tentang kondisi tim).
+2. Temuan Kritis (Apa yang berjalan baik, dan apa yang perlu diwaspadai, misalnya beban kerja PIC tertentu atau SLA).
+3. Rekomendasi Tindakan (Langkah konkret yang harus diambil).
+
+Format output menggunakan paragraf yang rapi dan mudah dibaca (boleh pakai markdown bullet). Jangan menggunakan kata-kata basa-basi, langsung ke poin analisis.
+
+PENTING: LANGSUNG OUTPUT HASIL ANALISIS. DILARANG KERAS menuliskan "Role:", "Input:", "Output requirements:", atau proses berpikir. Jangan mengulang instruksi.
+`;
+
+    try {
+      if (genAI) {
+        const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-lite-preview' });
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        return response.text().trim();
+      } else if (openAiApiKey) {
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${openAiApiKey}`
+          },
+          body: JSON.stringify({
+            model: 'gpt-4o-mini',
+            messages: [{ role: "user", content: prompt }]
+          })
+        });
+        if (!response.ok) throw new Error('OpenAI Error');
+        const data = await response.json();
+        return data.choices[0].message.content.trim();
+      } else {
+        throw new Error('Tidak ada API Key yang dikonfigurasi (Gemini atau OpenAI)');
+      }
+    } catch (e: any) {
+      console.error('Failed to generate analytics insight:', e);
+      return "Sistem AI gagal mengenerate insight: " + e.message;
     }
   }
 };

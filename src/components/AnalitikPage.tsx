@@ -7,6 +7,8 @@ import { useMeetings } from '../contexts/MeetingsContext';
 import { useUI } from '../contexts/UIContext';
 import DivisionFilter from './DivisionFilter';
 import { Status } from '../../types';
+import { aiExtractorService } from '../services/aiExtractorService';
+import ReactMarkdown from 'react-markdown';
 import {
   PieChart, Pie, Cell,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
@@ -23,7 +25,8 @@ import {
   Lightbulb,
   TrendingUp,
   AlertTriangle,
-  Zap
+  Zap,
+  Sparkles
 } from 'lucide-react';
 
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#06b6d4']; // Modern palette
@@ -91,6 +94,10 @@ const AnalitikPage: React.FC = () => {
   const { allUsers } = useUsers();
   const { setActiveTab, setFilters } = useUI();
   const [timeFilter, setTimeFilter] = useState<'all' | 'this_month' | 'last_month' | 'this_year'>('this_month');
+
+  // AI Insight states
+  const [aiInsight, setAiInsight] = useState<string | null>(null);
+  const [isGeneratingAiInsight, setIsGeneratingAiInsight] = useState(false);
 
   const isDateInFilter = (dateString?: string) => {
     if (timeFilter === 'all') return true;
@@ -374,6 +381,27 @@ const AnalitikPage: React.FC = () => {
     };
   }, [tasks]);
 
+  const handleGenerateInsight = async () => {
+    setIsGeneratingAiInsight(true);
+    try {
+      const dataToAnalyze = {
+        waktuFilter: timeFilter,
+        kpi: kpiData,
+        bebanKerjaPIC: picWorkloadData.slice(0, 5), // top 5 PICs
+        kepatuhanSLA: slaData,
+        smartMetrics: smartInsights
+      };
+      
+      const insight = await aiExtractorService.generateAnalyticsInsight(dataToAnalyze);
+      setAiInsight(insight);
+    } catch (error) {
+      console.error('Failed to generate AI insight:', error);
+      alert('Gagal menghasilkan analisis AI. Cek koneksi atau API Key.');
+    } finally {
+      setIsGeneratingAiInsight(false);
+    }
+  };
+
   return (
     <div className="p-4 sm:p-8 w-full mx-auto h-full overflow-y-auto bg-slate-50/50">
       
@@ -475,15 +503,37 @@ const AnalitikPage: React.FC = () => {
            <Lightbulb size={120} className="text-indigo-600" />
         </div>
         
-        <div className="flex items-center gap-3 mb-4">
+        <div className="flex items-center gap-3 mb-4 flex-wrap relative z-10">
           <div className="bg-indigo-600 p-2 rounded-xl text-white shadow-lg shadow-indigo-200">
             <Lightbulb size={20} />
           </div>
           <h2 className="text-lg font-extrabold text-slate-800">Smart Insights</h2>
           <span className="text-[10px] font-black bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full uppercase tracking-widest">Live Analysis</span>
+          
+          <button 
+            onClick={handleGenerateInsight}
+            disabled={isGeneratingAiInsight}
+            className="ml-auto flex items-center gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md transition-all disabled:opacity-50"
+          >
+            <Sparkles size={16} />
+            {isGeneratingAiInsight ? 'Menganalisis...' : 'Analisis AI'}
+          </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">
+        {aiInsight ? (
+          <div className="relative z-10 bg-white/80 p-5 rounded-2xl border border-indigo-100 shadow-sm mb-6 animate-in fade-in slide-in-from-bottom-4">
+            <div className="prose prose-sm prose-indigo max-w-none text-slate-700">
+              <ReactMarkdown>{aiInsight}</ReactMarkdown>
+            </div>
+            <button 
+              onClick={() => setAiInsight(null)}
+              className="mt-4 text-xs font-bold text-slate-400 hover:text-slate-600 uppercase"
+            >
+              Tutup Analisis
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">
           <div className="flex gap-4">
             <div className="bg-emerald-100 text-emerald-600 p-3 rounded-2xl h-fit">
               <Zap size={20} />
@@ -522,6 +572,7 @@ const AnalitikPage: React.FC = () => {
             </div>
           </div>
         </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 mb-8">
