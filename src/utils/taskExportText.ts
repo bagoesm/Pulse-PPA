@@ -20,6 +20,7 @@ interface ExportOptions {
     dateFrom?: string;
     dateTo?: string;
   };
+  aiSummary?: string;
 }
 
 export const exportTasksToText = (tasks: Task[], options: ExportOptions): string => {
@@ -52,6 +53,13 @@ export const exportTasksToText = (tasks: Task[], options: ExportOptions): string
       output += `• Rentang Tanggal: ${dateRange}\n`;
     }
     output += '\n';
+  }
+
+  // AI Summary
+  if (options.aiSummary) {
+    output += 'AI SUMMARY:\n';
+    output += '───────────────────────────────────────────────────────────────\n';
+    output += options.aiSummary + '\n\n';
   }
 
   // Group tasks by status
@@ -172,6 +180,13 @@ export const exportTasksSummaryToText = (tasks: Task[], options: ExportOptions):
   output += `Diekspor pada: ${new Date().toLocaleString('id-ID')}\n`;
   output += `Total Task: ${tasks.length}\n\n`;
 
+  // AI Summary
+  if (options.aiSummary) {
+    output += 'AI SUMMARY:\n';
+    output += '───────────────────────────────────────────────────────────────\n';
+    output += options.aiSummary + '\n\n';
+  }
+
   // Statistics
   const statusCounts = tasks.reduce((acc, task) => {
     acc[task.status] = (acc[task.status] || 0) + 1;
@@ -241,6 +256,12 @@ export const exportTasksToMarkdown = (tasks: Task[], options: ExportOptions): st
       output += `- **Periode:** ${dateRange}\n`;
     }
     output += '\n';
+  }
+
+  // AI Summary
+  if (options.aiSummary) {
+    output += '## AI Summary\n\n';
+    output += options.aiSummary + '\n\n';
   }
 
   // Table

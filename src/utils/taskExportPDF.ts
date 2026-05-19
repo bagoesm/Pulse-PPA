@@ -22,6 +22,7 @@ interface ExportOptions {
     dateFrom?: string;
     dateTo?: string;
   };
+  aiSummary?: string;
 }
 
 export const exportTasksToPDF = async (tasks: Task[], options: ExportOptions) => {
@@ -108,6 +109,21 @@ export const exportTasksToPDF = async (tasks: Task[], options: ExportOptions) =>
   doc.setTextColor(71, 85, 105);
   doc.text(`Total Task: ${tasks.length}`, 14, yPos);
   yPos += 5;
+  
+  if (options.aiSummary) {
+    doc.setFontSize(11);
+    doc.setTextColor(31, 41, 55); // slate-800
+    doc.setFont('helvetica', 'bold');
+    doc.text('AI Summary:', 14, yPos);
+    yPos += 5;
+    
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(71, 85, 105); // slate-600
+    const splitSummary = doc.splitTextToSize(options.aiSummary, 260); // landscape width margin
+    doc.text(splitSummary, 16, yPos);
+    yPos += (splitSummary.length * 4) + 4;
+  }
   
   // Status breakdown
   doc.setFontSize(9);

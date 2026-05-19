@@ -2,13 +2,14 @@
 // Modal untuk export task dengan filter dan pilihan format (PDF & Text)
 
 import React, { useState, useMemo } from 'react';
-import { X, Download, FileText, Copy, Check, Filter, Calendar, User, FolderOpen, Tag, AlertCircle, Search } from 'lucide-react';
+import { X, Download, FileText, Copy, Check, Filter, Calendar, User, FolderOpen, Tag, AlertCircle, Search, Sparkles } from 'lucide-react';
 import { Task, User as UserType, ProjectDefinition, Epic, Category, Status, Priority } from '../../types';
 import { exportTasksToPDF } from '../utils/taskExportPDF';
 import { exportTasksToText } from '../utils/taskExportText';
 import { formatDate } from '../utils/formatters';
 import SearchableSelect from './SearchableSelect';
 import MultiSelectChip from './MultiSelectChip';
+import { aiExtractorService } from '../services/aiExtractorService';
 
 interface TaskExportModalProps {
   isOpen: boolean;
@@ -43,6 +44,8 @@ const TaskExportModal: React.FC<TaskExportModalProps> = ({
   const [isExporting, setIsExporting] = useState(false);
   const [textCopied, setTextCopied] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [aiSummaryText, setAiSummaryText] = useState('');
+  const [isGeneratingAi, setIsGeneratingAi] = useState(false);
   
   // Manual selection states
   const [selectionMode, setSelectionMode] = useState<'filter' | 'manual'>('filter'); // 'filter' or 'manual'
@@ -234,23 +237,26 @@ const TaskExportModal: React.FC<TaskExportModalProps> = ({
                              dateRangePreset === 'thisWeek' ? 'Minggu Ini' :
                              dateRangePreset === 'thisMonth' ? 'Bulan Ini' :
                              dateRangePreset === 'custom' ? 'Custom' : undefined;
-      
+
+      const filters = {
+        project: selectedProject !== 'all' ? projects.find(p => p.id === selectedProject)?.name : undefined,
+        epic: selectedEpic !== 'all' ? epics.find(e => e.id === selectedEpic)?.name : undefined,
+        category: selectedCategories.length > 0 ? selectedCategories.join(', ') : undefined,
+        status: selectedStatuses.length > 0 ? selectedStatuses.join(', ') : undefined,
+        priority: selectedPriorities.length > 0 ? selectedPriorities.join(', ') : undefined,
+        pic: selectedPICs.length > 0 ? selectedPICs.join(', ') : undefined,
+        dateRangeLabel,
+        dateFrom: from,
+        dateTo: to
+      };
+
       await exportTasksToPDF(filteredTasks, {
         projects,
         epics,
         users,
         version: exportVersion,
-        filters: {
-          project: selectedProject !== 'all' ? projects.find(p => p.id === selectedProject)?.name : undefined,
-          epic: selectedEpic !== 'all' ? epics.find(e => e.id === selectedEpic)?.name : undefined,
-          category: selectedCategories.length > 0 ? selectedCategories.join(', ') : undefined,
-          status: selectedStatuses.length > 0 ? selectedStatuses.join(', ') : undefined,
-          priority: selectedPriorities.length > 0 ? selectedPriorities.join(', ') : undefined,
-          pic: selectedPICs.length > 0 ? selectedPICs.join(', ') : undefined,
-          dateRangeLabel,
-          dateFrom: from,
-          dateTo: to
-        }
+        filters,
+        aiSummary: aiSummaryText ? aiSummaryText : undefined
       });
     } catch (error) {
       console.error('Error exporting PDF:', error);
@@ -261,24 +267,21 @@ const TaskExportModal: React.FC<TaskExportModalProps> = ({
   };
 
   // Export to Text (copyable)
-  const handleExportText = () => {
+  const handleExportText = async () => {
     if (filteredTasks.length === 0) {
       alert('Tidak ada task yang sesuai dengan filter');
       return;
     }
 
-    const { from, to } = getDateRange;
-    const dateRangeLabel = dateRangePreset === 'today' ? 'Hari Ini' :
-                           dateRangePreset === 'thisWeek' ? 'Minggu Ini' :
-                           dateRangePreset === 'thisMonth' ? 'Bulan Ini' :
-                           dateRangePreset === 'custom' ? 'Custom' : undefined;
+    setIsExporting(true);
+    try {
+      const { from, to } = getDateRange;
+      const dateRangeLabel = dateRangePreset === 'today' ? 'Hari Ini' :
+                             dateRangePreset === 'thisWeek' ? 'Minggu Ini' :
+                             dateRangePreset === 'thisMonth' ? 'Bulan Ini' :
+                             dateRangePreset === 'custom' ? 'Custom' : undefined;
 
-    const textContent = exportTasksToText(filteredTasks, {
-      projects,
-      epics,
-      users,
-      version: exportVersion,
-      filters: {
+      const filters = {
         project: selectedProject !== 'all' ? projects.find(p => p.id === selectedProject)?.name : undefined,
         epic: selectedEpic !== 'all' ? epics.find(e => e.id === selectedEpic)?.name : undefined,
         category: selectedCategories.length > 0 ? selectedCategories.join(', ') : undefined,
@@ -288,12 +291,63 @@ const TaskExportModal: React.FC<TaskExportModalProps> = ({
         dateRangeLabel,
         dateFrom: from,
         dateTo: to
-      }
-    });
+      };
 
-    navigator.clipboard.writeText(textContent);
-    setTextCopied(true);
-    setTimeout(() => setTextCopied(false), 2000);
+      const textContent = exportTasksToText(filteredTasks, {
+        projects,
+        epics,
+        users,
+        version: exportVersion,
+        filters,
+        aiSummary: aiSummaryText ? aiSummaryText : undefined
+      });
+
+      navigator.clipboard.writeText(textContent);
+      setTextCopied(true);
+      setTimeout(() => setTextCopied(false), 2000);
+    } catch (error) {
+      console.error('Error generating text export:', error);
+      alert('Gagal mengekspor teks. Silakan coba lagi.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  // Generate AI Summary directly in modal
+  const handleGenerateAiSummary = async () => {
+    if (filteredTasks.length === 0) {
+      alert('Tidak ada task yang difilter');
+      return;
+    }
+    
+    setIsGeneratingAi(true);
+    try {
+      const { from, to } = getDateRange;
+      const dateRangeLabel = dateRangePreset === 'today' ? 'Hari Ini' :
+                             dateRangePreset === 'thisWeek' ? 'Minggu Ini' :
+                             dateRangePreset === 'thisMonth' ? 'Bulan Ini' :
+                             dateRangePreset === 'custom' ? 'Custom' : undefined;
+
+      const filters = {
+        project: selectedProject !== 'all' ? projects.find(p => p.id === selectedProject)?.name : undefined,
+        epic: selectedEpic !== 'all' ? epics.find(e => e.id === selectedEpic)?.name : undefined,
+        category: selectedCategories.length > 0 ? selectedCategories.join(', ') : undefined,
+        status: selectedStatuses.length > 0 ? selectedStatuses.join(', ') : undefined,
+        priority: selectedPriorities.length > 0 ? selectedPriorities.join(', ') : undefined,
+        pic: selectedPICs.length > 0 ? selectedPICs.join(', ') : undefined,
+        dateRangeLabel,
+        dateFrom: from,
+        dateTo: to
+      };
+
+      const summary = await aiExtractorService.generateTaskSummary(filteredTasks, filters);
+      setAiSummaryText(summary);
+    } catch (error) {
+      console.error('Error generating AI Summary:', error);
+      alert('Gagal menghasilkan summary AI');
+    } finally {
+      setIsGeneratingAi(false);
+    }
   };
 
   // Preview text
@@ -698,6 +752,36 @@ const TaskExportModal: React.FC<TaskExportModalProps> = ({
                 </div>
               </button>
             </div>
+            
+            {/* AI Summary Section */}
+            <div className="mt-4 p-4 border border-indigo-200 bg-indigo-50 rounded-lg">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <h4 className="font-bold text-indigo-900 flex items-center gap-2">
+                    AI Executive Summary <Sparkles size={16} className="text-indigo-600" />
+                  </h4>
+                  <p className="text-xs text-indigo-700 mt-1">
+                    Buat narasi evaluasi kinerja berdasarkan task yang difilter (bisa diedit sebelum diexport).
+                  </p>
+                </div>
+                <button
+                  onClick={handleGenerateAiSummary}
+                  disabled={isGeneratingAi || filteredTasks.length === 0}
+                  className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {isGeneratingAi ? 'Menganalisis...' : 'Generate AI'}
+                </button>
+              </div>
+              
+              {aiSummaryText !== '' && (
+                <textarea
+                  value={aiSummaryText}
+                  onChange={(e) => setAiSummaryText(e.target.value)}
+                  placeholder="AI summary akan muncul di sini..."
+                  className="w-full h-24 p-3 text-sm border border-indigo-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white resize-y"
+                />
+              )}
+            </div>
           </div>
 
           {/* Results Summary */}
@@ -741,7 +825,7 @@ const TaskExportModal: React.FC<TaskExportModalProps> = ({
             
             <button
               onClick={handleExportText}
-              disabled={filteredTasks.length === 0}
+              disabled={isExporting || filteredTasks.length === 0}
               className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-slate-600 text-white rounded-lg font-medium hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {textCopied ? (
@@ -749,6 +833,8 @@ const TaskExportModal: React.FC<TaskExportModalProps> = ({
                   <Check size={20} />
                   Tersalin!
                 </>
+              ) : isExporting ? (
+                'Mengekspor...'
               ) : (
                 <>
                   <Copy size={20} />

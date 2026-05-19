@@ -86,6 +86,55 @@ Peraturan:
         throw new Error('Kedua AI (Gemini dan OpenAI) gagal merespon: ' + openAiError.message);
       }
     }
+  },
+
+  async generateTaskSummary(tasks: any[], filters?: any): Promise<string> {
+    const prompt = `
+Anda adalah asisten manajer proyek cerdas. Tugas Anda adalah membuat ringkasan/narasi eksekutif berdasarkan daftar task (pekerjaan) yang telah difilter.
+Berikut adalah data task yang dikerjakan:
+
+${JSON.stringify(tasks.map(t => ({
+  judul: t.title,
+  pic: Array.isArray(t.pic) ? t.pic.join(', ') : t.pic,
+  status: t.status,
+  tanggalMulai: t.startDate,
+  tanggalSelesai: t.deadline,
+  prioritas: t.priority
+})), null, 2)}
+
+Filter yang sedang aktif: ${JSON.stringify(filters || {})}
+
+Buatlah paragraf ringkasan naratif berbahasa Indonesia yang profesional (sekitar 3-4 kalimat). Jelaskan apa yang telah dilakukan/dikerjakan oleh PIC tersebut, fokus pada pencapaian, status pengerjaan, dan rentang waktu. Jangan gunakan format list/bullet, gunakan paragraf naratif.
+`;
+
+    try {
+      if (genAI) {
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        return response.text().trim();
+      } else if (openAiApiKey) {
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${openAiApiKey}`
+          },
+          body: JSON.stringify({
+            model: 'gpt-4o-mini',
+            messages: [{ role: "user", content: prompt }]
+          })
+        });
+        if (!response.ok) throw new Error('OpenAI Error');
+        const data = await response.json();
+        return data.choices[0].message.content.trim();
+      } else {
+        throw new Error('Tidak ada API Key yang dikonfigurasi (Gemini atau OpenAI)');
+      }
+    } catch (e: any) {
+      console.error('Failed to generate summary:', e);
+      return "Sistem AI gagal mengenerate summary: " + e.message;
+    }
   }
 };
 
