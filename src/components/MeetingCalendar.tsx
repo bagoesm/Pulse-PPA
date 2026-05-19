@@ -20,12 +20,14 @@ import {
   Users,
   Loader2,
   ChevronUp,
-  ClipboardList
+  ClipboardList,
+  FileSpreadsheet
 } from 'lucide-react';
 import { Meeting, MeetingType, User, ProjectDefinition } from '../../types';
 import { useDivision } from '../contexts/DivisionContext';
 import DivisionFilter from './DivisionFilter';
 import SearchableSelect from './SearchableSelect';
+import ExportKegiatanModal from './ExportKegiatanModal';
 
 interface MeetingCalendarProps {
   meetings: Meeting[];
@@ -104,6 +106,7 @@ const MeetingCalendar: React.FC<MeetingCalendarProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   // Lazy loading state for list view
   const [visiblePastCount, setVisiblePastCount] = useState(ITEMS_PER_PAGE);
@@ -462,6 +465,11 @@ const MeetingCalendar: React.FC<MeetingCalendarProps> = ({
               {activeFilterCount > 0 && <span className="absolute -top-1 -right-1 w-4 h-4 bg-gov-600 text-white text-[10px] rounded-full flex items-center justify-center">{activeFilterCount}</span>}
             </button>
 
+            <button onClick={() => setIsExportModalOpen(true)} className="flex items-center gap-1.5 px-2.5 sm:px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium text-sm">
+              <FileSpreadsheet size={16} className="sm:w-[18px] sm:h-[18px]" />
+              <span className="hidden sm:inline">Export</span>
+            </button>
+
             <button onClick={onAddMeeting} className="flex items-center gap-1.5 px-2.5 sm:px-4 py-2 bg-gov-600 text-white rounded-lg hover:bg-gov-700 transition-colors font-medium text-sm">
               <Plus size={16} className="sm:w-[18px] sm:h-[18px]" />
               <span className="hidden sm:inline">Tambah</span>
@@ -785,6 +793,19 @@ const MeetingCalendar: React.FC<MeetingCalendarProps> = ({
           </div>
         )}
       </div>
+
+      <ExportKegiatanModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        meetings={meetings}
+        users={users}
+        defaultFilters={{
+          type: filterType,
+          status: filterStatus,
+          pic: filterPic,
+          disposisi: filterDisposisi,
+        }}
+      />
     </div>
   );
 };
