@@ -10,6 +10,7 @@ import { Surat, User } from '../../types';
 import AddSuratModal from './AddSuratModal';
 import SuratViewModal from './SuratViewModal';
 import ImportSuratModal from './surat/ImportSuratModal';
+import { SuratOtomatisModal } from './SuratOtomatisModal';
 import SearchableSelect from './SearchableSelect';
 import MultiSelectChip from './MultiSelectChip';
 import ConfirmModal from './ConfirmModal';
@@ -66,6 +67,7 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
   const [showAddSuratModal, setShowAddSuratModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedSurat, setSelectedSurat] = useState<Surat | null>(null);
+  const [showSuratOtomatisModal, setShowSuratOtomatisModal] = useState(false);
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
@@ -700,6 +702,13 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
           >
             <Plus size={18} />
             Tambah Surat
+          </button>
+          <button
+            onClick={() => setShowSuratOtomatisModal(true)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm shadow-sm"
+          >
+            <FileText size={18} />
+            Buat Surat Otomatis
           </button>
           <button
             onClick={() => setShowImportModal(true)}
@@ -1398,6 +1407,12 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
           showNotification={showNotification}
         />
       )}
+
+      {/* Surat Otomatis Modal */}
+      <SuratOtomatisModal
+        isOpen={showSuratOtomatisModal}
+        onClose={() => setShowSuratOtomatisModal(false)}
+      />
     </div>
   );
 };
