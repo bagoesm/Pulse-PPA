@@ -1,18 +1,14 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-// Initialize the API
-const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
+// Initialize the Gemini API
+const geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY;
+const genAI = geminiApiKey ? new GoogleGenerativeAI(geminiApiKey) : null;
+
+// OpenAI Configuration (Fallback)
+const openAiApiKey = import.meta.env.VITE_OPENAI_API_KEY;
 
 export const aiExtractorService = {
   async extractSuratData(file: File, masterData?: any): Promise<any> {
-    if (!genAI) {
-      throw new Error('API Key Gemini tidak ditemukan di .env (VITE_GEMINI_API_KEY)');
-    }
-
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-
-    // Convert File to base64
     const base64Data = await fileToBase64(file);
     
     let masterDataContext = "";
@@ -57,34 +53,92 @@ Peraturan:
 3. Kembalikan HANYA JSON.
     `;
 
-    const documentParts = [
-      {
-        inlineData: {
-          data: base64Data.split(',')[1],
-          mimeType: file.type,
-        },
-      },
-    ];
-
     try {
+      if (!genAI) throw new Error('API Key Gemini tidak ditemukan di .env (VITE_GEMINI_API_KEY)');
+      
+      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+      const documentParts = [
+        {
+          inlineData: {
+            data: base64Data.split(',')[1],
+            mimeType: file.type,
+          },
+        },
+      ];
+
       const result = await model.generateContent([prompt, ...documentParts]);
       const response = await result.response;
       let text = response.text();
       
-      // Clean up JSON if wrapped in markdown
-      if (text.includes('\`\`\`json')) {
-        text = text.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '');
-      } else if (text.includes('\`\`\`')) {
-        text = text.replace(/\`\`\`/g, '');
-      }
+      return cleanAndParseJson(text);
+    } catch (geminiError: any) {
+      console.warn('Gemini Extraction failed, attempting OpenAI Fallback...', geminiError);
       
-      return JSON.parse(text.trim());
-    } catch (error: any) {
-      console.error('Gemini Extraction Error:', error);
-      throw new Error(error.message || 'Gagal mengekstrak data menggunakan AI. Pastikan dokumen dapat dibaca.');
+      if (!openAiApiKey) {
+        throw new Error(geminiError.message || 'Gagal mengekstrak data menggunakan AI. Pastikan dokumen dapat dibaca.');
+      }
+
+      // Fallback to OpenAI
+      try {
+        return await fallbackToOpenAI(file, prompt, base64Data);
+      } catch (openAiError: any) {
+        console.error('OpenAI Fallback Error:', openAiError);
+        throw new Error('Kedua AI (Gemini dan OpenAI) gagal merespon: ' + openAiError.message);
+      }
     }
   }
 };
+
+async function fallbackToOpenAI(file: File, prompt: string, base64Data: string) {
+  const imageUrl = `data:${file.type};base64,${base64Data.split(',')[1]}`;
+  
+  const payload = {
+    model: 'gpt-4o-mini',
+    response_format: { type: 'json_object' },
+    messages: [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: prompt },
+          {
+            type: "image_url",
+            image_url: {
+              url: imageUrl
+            }
+          }
+        ]
+      }
+    ]
+  };
+
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${openAiApiKey}`
+    },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`OpenAI API Error (${response.status}): ${errText}`);
+  }
+
+  const data = await response.json();
+  const text = data.choices[0].message.content;
+  return cleanAndParseJson(text);
+}
+
+function cleanAndParseJson(text: string) {
+  let cleaned = text;
+  if (cleaned.includes('```json')) {
+    cleaned = cleaned.replace(/```json/g, '').replace(/```/g, '');
+  } else if (cleaned.includes('```')) {
+    cleaned = cleaned.replace(/```/g, '');
+  }
+  return JSON.parse(cleaned.trim());
+}
 
 const fileToBase64 = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
