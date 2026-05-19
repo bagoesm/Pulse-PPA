@@ -1,6 +1,6 @@
 // src/components/AddSuratModal.tsx
 import React, { useState, useEffect, useRef } from 'react';
-import { X, FileText, Upload, Link2, Save, Check, Search, Users, Plus } from 'lucide-react';
+import { X, FileText, Upload, Link2, Save, Check, Search, Users, Plus, Sparkles, Loader } from 'lucide-react';
 import { Attachment, Meeting, User } from '../../types';
 import { supabase } from '../lib/supabaseClient';
 import { disposisiService } from '../services/DisposisiService';
@@ -13,6 +13,7 @@ import MultiSelectChip from './MultiSelectChip';
 import DivisionFilteredMultiSelect from './DivisionFilteredMultiSelect';
 import MasterDataModal from './MasterDataModal';
 import { useMasterDataCRUD } from '../hooks/useMasterDataCRUD';
+import { aiExtractorService } from '../services/aiExtractorService';
 
 interface AddSuratModalProps {
   isOpen: boolean;
@@ -104,6 +105,10 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
   const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]); // Array of user names
   const [showAssigneeDropdown, setShowAssigneeDropdown] = useState(false);
   const [assigneeSearch, setAssigneeSearch] = useState('');
+
+  // Smart Extract / Auto-Fill states
+  const [reviewData, setReviewData] = useState<any>(null);
+  const [isExtracting, setIsExtracting] = useState(false);
 
   // Filter Kegiatan based on search
   const filteredKegiatan = meetings.filter(meeting => {
@@ -206,6 +211,133 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
       showNotification('Gagal Upload File', error.message, 'error');
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const handleSmartUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsExtracting(true);
+    setIsUploading(true);
+    
+    let uploadedFilePath: string | null = null;
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `${fileName}`;
+      uploadedFilePath = filePath;
+
+      const { error: uploadError } = await supabase.storage
+        .from('attachment')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('attachment')
+        .getPublicUrl(filePath);
+
+      setSuratFile({
+        id: `file_${Date.now()}`,
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        path: filePath,
+        url: publicUrl,
+        isLink: false
+      });
+
+      let extractedData: any;
+      try {
+        extractedData = await aiExtractorService.extractSuratData(file, {
+          unitInternalList,
+          unitEksternalList,
+          sifatSuratList,
+          jenisNaskahList,
+          klasifikasiSuratList
+        });
+      } catch (aiError: any) {
+        throw new Error(aiError.message || 'Gagal mengekstrak data menggunakan AI');
+      }
+
+      setReviewData({
+        jenisSurat: extractedData.jenisSurat || 'Masuk',
+        nomorSurat: extractedData.nomorSurat || '',
+        tanggalSurat: extractedData.tanggalSurat || new Date().toISOString().split('T')[0],
+        hal: extractedData.hal || '',
+        asalSuratType: extractedData.asalSuratType || 'Eksternal',
+        asalSuratUnit: extractedData.asalSuratUnit || '',
+        jenisNaskah: extractedData.jenisNaskah || '',
+        sifatSurat: extractedData.sifatSurat || '',
+        klasifikasiSurat: extractedData.klasifikasiSurat || '',
+        terkaitKegiatan: extractedData.terkaitKegiatan || false,
+        kegiatanTitle: extractedData.kegiatanTitle || '',
+        kegiatanDate: extractedData.kegiatanDate || '',
+        kegiatanStartTime: extractedData.kegiatanStartTime || '',
+        kegiatanEndTime: extractedData.kegiatanEndTime || '10:00',
+        kegiatanLocation: extractedData.kegiatanLocation || '',
+      });
+      
+      showNotification('Ekstraksi Selesai', 'Data berhasil dianalisis dengan AI Gemini, silakan review.', 'success');
+    } catch (error: any) {
+      if (uploadedFilePath) {
+        try {
+          await supabase.storage.from('attachment').remove([uploadedFilePath]);
+        } catch (cleanupError) {}
+      }
+      showNotification('Gagal Smart Upload', error.message, 'error');
+    } finally {
+      setIsExtracting(false);
+      setIsUploading(false);
+    }
+  };
+
+  const handleConfirmReview = () => {
+    if (reviewData) {
+      setJenisSurat(reviewData.jenisSurat);
+      setNomorSurat(reviewData.nomorSurat);
+      setTanggalSurat(reviewData.tanggalSurat);
+      setHal(reviewData.hal);
+      if (reviewData.jenisSurat === 'Masuk') {
+        setAsalSuratType(reviewData.asalSuratType);
+        if (reviewData.asalSuratType === 'Internal') {
+          setAsalSuratInternal(reviewData.asalSuratUnit);
+        } else {
+          setAsalSuratEksternal(reviewData.asalSuratUnit);
+        }
+      }
+      setJenisNaskah(reviewData.jenisNaskah);
+      setSifatSurat(reviewData.sifatSurat);
+      setKlasifikasiSurat(reviewData.klasifikasiSurat);
+      
+      // Setup kegiatan if detected
+      if (reviewData.terkaitKegiatan) {
+        setLinkToKegiatan(true);
+        setKegiatanMode('new');
+        setNewKegiatanTitle(reviewData.kegiatanTitle);
+        setNewKegiatanDate(reviewData.kegiatanDate);
+        setNewKegiatanStartTime(reviewData.kegiatanStartTime);
+        setNewKegiatanEndTime(reviewData.kegiatanEndTime);
+        setNewKegiatanLocation(reviewData.kegiatanLocation);
+        
+        // Auto-detect if it looks like an online meeting
+        if (reviewData.kegiatanLocation && (
+            reviewData.kegiatanLocation.toLowerCase().includes('zoom') || 
+            reviewData.kegiatanLocation.toLowerCase().includes('meet') || 
+            reviewData.kegiatanLocation.toLowerCase().includes('link') || 
+            reviewData.kegiatanLocation.toLowerCase().includes('online') ||
+            reviewData.kegiatanLocation.includes('http')
+        )) {
+            setNewKegiatanIsOnline(true);
+            setNewKegiatanOnlineLink(reviewData.kegiatanLocation);
+        } else {
+            setNewKegiatanIsOnline(false);
+        }
+      }
+      
+      setReviewData(null);
+      showNotification('Data Diterapkan', 'Silakan lengkapi sisa form jika diperlukan.', 'info');
     }
   };
 
@@ -530,6 +662,9 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
     setSelectedAssignees([]);
     setShowAssigneeDropdown(false);
     setAssigneeSearch('');
+    
+    setReviewData(null);
+    setIsExtracting(false);
 
     onClose();
   };
@@ -639,7 +774,280 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
           </div>
         </div>
 
+        {/* Review Data UI */}
+        {reviewData && (
+          <div className="p-6 space-y-6 flex-1 overflow-y-auto scrollbar-hide bg-slate-50">
+            <div className="bg-white p-6 rounded-xl border border-indigo-100 shadow-sm">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-indigo-100 rounded-lg text-indigo-600">
+                  <Sparkles size={24} />
+                </div>
+                <h4 className="text-lg font-bold text-slate-800">Review Data Diekstrak</h4>
+              </div>
+              <p className="text-sm text-slate-500 mb-6">
+                Sistem telah mengekstrak informasi dari dokumen Anda. Silakan periksa dan koreksi jika ada kesalahan.
+              </p>
+
+              <div className="space-y-4">
+                <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 mb-2">
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Jenis Surat</label>
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setReviewData({ ...reviewData, jenisSurat: 'Masuk' })}
+                      className={`flex-1 p-2.5 rounded-md border-2 transition-all flex items-center justify-center gap-2 ${reviewData.jenisSurat === 'Masuk'
+                        ? 'border-green-500 bg-green-50 text-green-700 font-bold'
+                        : 'border-slate-200 bg-white text-slate-600 hover:border-green-300'
+                        }`}
+                    >
+                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${reviewData.jenisSurat === 'Masuk' ? 'border-green-600 bg-green-600' : 'border-slate-300'}`}>
+                        {reviewData.jenisSurat === 'Masuk' && <Check size={10} className="text-white" />}
+                      </div>
+                      Surat Masuk
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setReviewData({ ...reviewData, jenisSurat: 'Keluar' })}
+                      className={`flex-1 p-2.5 rounded-md border-2 transition-all flex items-center justify-center gap-2 ${reviewData.jenisSurat === 'Keluar'
+                        ? 'border-blue-500 bg-blue-50 text-blue-700 font-bold'
+                        : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300'
+                        }`}
+                    >
+                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${reviewData.jenisSurat === 'Keluar' ? 'border-blue-600 bg-blue-600' : 'border-slate-300'}`}>
+                        {reviewData.jenisSurat === 'Keluar' && <Check size={10} className="text-white" />}
+                      </div>
+                      Surat Keluar
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">Nomor Surat</label>
+                    <input
+                      type="text"
+                      value={reviewData.nomorSurat}
+                      onChange={(e) => setReviewData({ ...reviewData, nomorSurat: e.target.value })}
+                      className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-400 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">Tanggal Surat</label>
+                    <input
+                      type="date"
+                      value={reviewData.tanggalSurat}
+                      onChange={(e) => setReviewData({ ...reviewData, tanggalSurat: e.target.value })}
+                      className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-400 outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Perihal</label>
+                  <input
+                    type="text"
+                    value={reviewData.hal}
+                    onChange={(e) => setReviewData({ ...reviewData, hal: e.target.value })}
+                    className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-400 outline-none"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">Asal Surat</label>
+                    <div className="flex gap-2 mb-2">
+                      <button
+                        type="button"
+                        onClick={() => setReviewData({ ...reviewData, asalSuratType: 'Internal' })}
+                        className={`flex-1 px-3 py-1.5 rounded text-xs font-medium transition-all ${reviewData.asalSuratType === 'Internal'
+                          ? 'bg-gov-100 text-gov-700 border border-gov-300'
+                          : 'bg-slate-100 text-slate-600 border border-transparent hover:bg-slate-200'
+                          }`}
+                      >
+                        Internal
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setReviewData({ ...reviewData, asalSuratType: 'Eksternal' })}
+                        className={`flex-1 px-3 py-1.5 rounded text-xs font-medium transition-all ${reviewData.asalSuratType === 'Eksternal'
+                          ? 'bg-gov-100 text-gov-700 border border-gov-300'
+                          : 'bg-slate-100 text-slate-600 border border-transparent hover:bg-slate-200'
+                          }`}
+                      >
+                        Eksternal
+                      </button>
+                    </div>
+                    {reviewData.asalSuratType === 'Internal' ? (
+                      <SearchableSelectWithActions
+                        options={unitInternalList.map(u => ({ value: u, label: u }))}
+                        value={reviewData.asalSuratUnit}
+                        onChange={(val) => setReviewData({ ...reviewData, asalSuratUnit: val })}
+                        placeholder="Pilih unit internal..."
+                        emptyOption="Pilih Unit Internal"
+                        tableName="Unit Internal"
+                        onAdd={(name) => addMasterData('master_unit_internal', name)}
+                        onEdit={(oldName, newName) => editMasterData('master_unit_internal', oldName, newName)}
+                        onDelete={(name) => deleteMasterData('master_unit_internal', name)}
+                        canDelete={(name) => canDeleteMasterData('master_unit_internal', name)}
+                      />
+                    ) : (
+                      <SearchableSelectWithActions
+                        options={unitEksternalList.map(u => ({ value: u, label: u }))}
+                        value={reviewData.asalSuratUnit}
+                        onChange={(val) => setReviewData({ ...reviewData, asalSuratUnit: val })}
+                        placeholder="Pilih instansi pengirim..."
+                        emptyOption="Pilih Unit Eksternal"
+                        tableName="Unit Eksternal"
+                        onAdd={(name) => addMasterData('master_unit_eksternal', name)}
+                        onEdit={(oldName, newName) => editMasterData('master_unit_eksternal', oldName, newName)}
+                        onDelete={(name) => deleteMasterData('master_unit_eksternal', name)}
+                        canDelete={(name) => canDeleteMasterData('master_unit_eksternal', name)}
+                      />
+                    )}
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">Jenis Naskah</label>
+                    <SearchableSelect
+                      options={jenisNaskahList.map(j => ({ value: j, label: j }))}
+                      value={reviewData.jenisNaskah}
+                      onChange={(val) => setReviewData({ ...reviewData, jenisNaskah: val })}
+                      placeholder="Pilih jenis naskah..."
+                      emptyOption="Pilih Jenis Naskah"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">Klasifikasi Surat</label>
+                    <SearchableSelectWithActions
+                      options={klasifikasiSuratList.map(k => ({ value: k, label: k }))}
+                      value={reviewData.klasifikasiSurat}
+                      onChange={(val) => setReviewData({ ...reviewData, klasifikasiSurat: val })}
+                      placeholder="Pilih klasifikasi..."
+                      emptyOption="Pilih Klasifikasi"
+                      tableName="Klasifikasi Surat"
+                      onAdd={(name) => addMasterData('master_klasifikasi_surat', name)}
+                      onEdit={(oldName, newName) => editMasterData('master_klasifikasi_surat', oldName, newName)}
+                      onDelete={(name) => deleteMasterData('master_klasifikasi_surat', name)}
+                      canDelete={(name) => canDeleteMasterData('master_klasifikasi_surat', name)}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">Sifat Surat</label>
+                    <SearchableSelect
+                      options={sifatSuratList.map(s => ({ value: s, label: s }))}
+                      value={reviewData.sifatSurat}
+                      onChange={(val) => setReviewData({ ...reviewData, sifatSurat: val })}
+                      placeholder="Pilih sifat surat..."
+                      emptyOption="Pilih Sifat"
+                    />
+                  </div>
+                </div>
+
+                {reviewData.terkaitKegiatan && (
+                  <div className="mt-6 border-t border-slate-200 pt-4">
+                    <div className="flex items-center gap-2 text-indigo-700 mb-3">
+                      <Sparkles size={18} />
+                      <h5 className="font-bold text-sm">Kegiatan Terdeteksi</h5>
+                    </div>
+                    <div className="bg-indigo-50/50 p-4 rounded-lg border border-indigo-100 space-y-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-600 mb-1">Judul Kegiatan</label>
+                        <input
+                          type="text"
+                          value={reviewData.kegiatanTitle}
+                          onChange={(e) => setReviewData({ ...reviewData, kegiatanTitle: e.target.value })}
+                          className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm outline-none focus:ring-1 focus:ring-indigo-400"
+                        />
+                      </div>
+                      <div className="grid grid-cols-3 gap-3">
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-600 mb-1">Tanggal</label>
+                          <input
+                            type="date"
+                            value={reviewData.kegiatanDate}
+                            onChange={(e) => setReviewData({ ...reviewData, kegiatanDate: e.target.value })}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm outline-none focus:ring-1 focus:ring-indigo-400"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-600 mb-1">Waktu Mulai</label>
+                          <input
+                            type="time"
+                            value={reviewData.kegiatanStartTime}
+                            onChange={(e) => setReviewData({ ...reviewData, kegiatanStartTime: e.target.value })}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm outline-none focus:ring-1 focus:ring-indigo-400"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-600 mb-1">Waktu Selesai</label>
+                          <input
+                            type="time"
+                            value={reviewData.kegiatanEndTime}
+                            onChange={(e) => setReviewData({ ...reviewData, kegiatanEndTime: e.target.value })}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm outline-none focus:ring-1 focus:ring-indigo-400"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-600 mb-1">Lokasi</label>
+                        <input
+                          type="text"
+                          value={reviewData.kegiatanLocation}
+                          onChange={(e) => setReviewData({ ...reviewData, kegiatanLocation: e.target.value })}
+                          className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm outline-none focus:ring-1 focus:ring-indigo-400"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => {
+                  setReviewData(null);
+                  handleRemoveFile();
+                }}
+                className="flex-1 px-4 py-3 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-100 transition-colors font-medium"
+              >
+                Batalkan Ekstraksi
+              </button>
+              <button
+                onClick={handleConfirmReview}
+                className="flex-1 px-4 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium flex items-center justify-center gap-2"
+              >
+                <Check size={18} />
+                Gunakan Data Ini
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Main Form Content */}
+        {!reviewData && (
         <div className="p-6 space-y-5 flex-1 overflow-y-auto scrollbar-hide">
+          {/* Smart Extract Banner */}
+          <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-4 rounded-xl border border-indigo-100 flex items-center justify-between shadow-sm">
+            <div className="flex gap-3 items-center">
+              <div className="p-2 bg-indigo-100 rounded-lg text-indigo-600">
+                <Sparkles size={24} />
+              </div>
+              <div>
+                <h4 className="font-bold text-indigo-900">Smart Extract</h4>
+                <p className="text-sm text-indigo-700">Upload surat untuk isi form otomatis</p>
+              </div>
+            </div>
+            <label className={`px-4 py-2.5 rounded-lg transition-colors cursor-pointer text-sm font-medium flex items-center gap-2 ${isExtracting ? 'bg-indigo-300 text-white cursor-not-allowed' : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm'}`}>
+              {isExtracting ? <Loader className="animate-spin" size={16} /> : <Upload size={16} />}
+              {isExtracting ? 'Menganalisis...' : 'Upload & Ekstrak'}
+              <input type="file" className="hidden" onChange={handleSmartUpload} disabled={isExtracting} accept=".pdf,.jpeg,.jpg,.png" />
+            </label>
+          </div>
+
           {/* Jenis Surat - Prominent */}
           <div className="bg-gradient-to-r from-slate-50 to-blue-50 p-4 rounded-lg border-2 border-slate-200">
             <label className="block text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
@@ -1443,9 +1851,11 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
             )}
           </div>
         </div>
+        )}
 
         {/* Actions */}
-        <div className="sticky bottom-0 bg-slate-50 px-6 py-4 rounded-b-xl border-t border-slate-200 flex gap-3">
+        {!reviewData && (
+        <div className="sticky bottom-0 bg-slate-50 px-6 py-4 rounded-b-xl border-t border-slate-200 flex gap-3 z-10">
           <button
             onClick={handleClose}
             className="flex-1 px-4 py-2.5 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-100 transition-colors font-medium"
@@ -1455,12 +1865,13 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
           <button
             onClick={handleSubmit}
             disabled={isUploading}
-            className="flex-1 px-4 py-2.5 bg-gov-600 text-white rounded-lg hover:bg-gov-700 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50"
+            className="flex-1 px-4 py-2.5 bg-gov-600 text-white rounded-lg hover:bg-gov-700 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50 shadow-sm"
           >
             <Save size={18} />
             Simpan Surat
           </button>
         </div>
+        )}
       </div>
 
       {/* Master Data Modal */}
