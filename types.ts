@@ -370,7 +370,6 @@ export const SIDEBAR_ITEMS = [
   { name: 'Dashboard', icon: 'LayoutDashboard' },
   { name: 'Semua Task', icon: 'ListTodo' },
   { name: 'Project', icon: 'Briefcase' },
-  { name: 'Pengembangan Aplikasi', icon: 'Code' },
   {
     name: 'Surat & Kegiatan',
     icon: 'FolderOpen',
@@ -380,11 +379,6 @@ export const SIDEBAR_ITEMS = [
       { name: 'Daftar Disposisi', icon: 'ClipboardList' },
     ]
   },
-  { name: 'Dokumen', icon: 'FileText' },
-  { name: 'Permintaan Satker', icon: 'Inbox' },
-  { name: 'Tindak Lanjut', icon: 'Forward' },
-  { name: 'Administrasi', icon: 'FolderOpen' },
-  { name: 'Monitoring', icon: 'Activity' },
   { name: 'Inventori Data', icon: 'Database' },
 ];
 

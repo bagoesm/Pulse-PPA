@@ -253,50 +253,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser,
           );
         })}
 
-        {/* Lainnya Section */}
-        {!isCollapsed && (
-          <div className="pt-4 pb-2 px-4">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Lainnya</p>
-          </div>
-        )}
-        
-        {/* Lainnya Menu */}
-        <div className="relative group">
-          <button
-            onMouseEnter={handleMouseEnter}
-            onClick={() => setActiveTab('Lainnya')}
-            className={`w-full flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'} px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 relative overflow-hidden ${activeTab === 'Lainnya'
-                ? 'bg-gradient-to-r from-slate-50 to-slate-100/50 text-slate-700 shadow-sm'
-                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-              }`}
-          >
-            {activeTab === 'Lainnya' && (
-              <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-slate-500 to-slate-600 rounded-r-full" />
-            )}
-            <MoreHorizontal 
-              size={18} 
-              className={`transition-all duration-200 flex-shrink-0 ${
-                activeTab === 'Lainnya' ? 'text-slate-600' : 'text-slate-400 group-hover:text-slate-600'
-              }`}
-            />
-            {!isCollapsed && <span className="truncate">Lainnya</span>}
-          </button>
 
-          {isCollapsed && tooltipPosition && (
-            <div 
-              className="fixed px-3 py-2 bg-slate-900 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap pointer-events-none shadow-xl"
-              style={{ 
-                zIndex: 9999,
-                left: '92px',
-                top: `${tooltipPosition.top}px`,
-                transform: 'translateY(-50%)'
-              }}
-            >
-              Lainnya
-              <div className="absolute right-full top-1/2 -translate-y-1/2 mr-1 border-[6px] border-transparent border-r-slate-900" />
-            </div>
-          )}
-        </div>
 
         {/* Pengumuman Menu */}
         <div className="relative group">
