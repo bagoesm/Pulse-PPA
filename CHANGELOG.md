@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- ✨ Filter Tahun Perolehan pada Daftar BMN
+  - Menambahkan dropdown filter tahun perolehan di BMNFilterPanel
+  - Tahun di-extract otomatis dari tanggal perolehan
+  - Dropdown menampilkan tahun yang tersedia secara descending (terbaru dulu)
+  - Filter terintegrasi dengan sistem filter lainnya
+  - Mendukung reset filter dan counter filter aktif
+
 ### Fixed
 - 🐛 Filter Umur Aset BMN tidak berfungsi
   - Perbaikan parsing Excel untuk menyimpan umur aset langsung dari kolom "Umur Aset"

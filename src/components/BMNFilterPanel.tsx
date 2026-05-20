@@ -1,6 +1,6 @@
 // src/components/BMNFilterPanel.tsx
 // Filter panel component for BMN list view
-// Validates: Requirements 7.1, 7.2, 7.3, 7.4, 7.5, 7.6, 7.9, 13.4
+// Validates: Requirements 7.1, 7.2, 7.3, 7.4, 7.5, 7.6, 7.7, 7.9, 13.4
 
 import React, { useState, useMemo } from 'react';
 import { Filter, X, ChevronDown, ChevronUp } from 'lucide-react';
@@ -33,6 +33,8 @@ const BMNFilterPanel: React.FC<BMNFilterPanelProps> = ({ bmnItems, filterHook })
         setUmurAsetMin,
         umurAsetMax,
         setUmurAsetMax,
+        tahunPerolehan,
+        setTahunPerolehan,
         resetFilters,
         hasActiveFilters
     } = filterHook;
@@ -54,6 +56,22 @@ const BMNFilterPanel: React.FC<BMNFilterPanelProps> = ({ bmnItems, filterHook })
                 .filter((value): value is string => !!value)
         )).sort();
         return unique.map(value => ({ value, label: value }));
+    }, [bmnItems]);
+
+    // Extract unique years from tanggalPerolehan
+    const uniqueTahunPerolehan = useMemo(() => {
+        const years = new Set<number>();
+        bmnItems.forEach(item => {
+            if (item.tanggalPerolehan) {
+                const year = new Date(item.tanggalPerolehan).getFullYear();
+                if (!isNaN(year)) {
+                    years.add(year);
+                }
+            }
+        });
+        return Array.from(years)
+            .sort((a, b) => b - a) // Sort descending (newest first)
+            .map(year => ({ value: year.toString(), label: year.toString() }));
     }, [bmnItems]);
 
     // Status BMN options (Requirement 7.2)
@@ -82,8 +100,9 @@ const BMNFilterPanel: React.FC<BMNFilterPanelProps> = ({ bmnItems, filterHook })
         if (nilaiPerolehanMax !== undefined) count++;
         if (umurAsetMin !== undefined) count++;
         if (umurAsetMax !== undefined) count++;
+        if (tahunPerolehan !== undefined) count++;
         return count;
-    }, [jenisBMN, statusBMN, kondisi, namaSatker, nilaiPerolehanMin, nilaiPerolehanMax, umurAsetMin, umurAsetMax]);
+    }, [jenisBMN, statusBMN, kondisi, namaSatker, nilaiPerolehanMin, nilaiPerolehanMax, umurAsetMin, umurAsetMax, tahunPerolehan]);
 
     return (
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 mb-6">
@@ -175,6 +194,20 @@ const BMNFilterPanel: React.FC<BMNFilterPanelProps> = ({ bmnItems, filterHook })
                                 value={namaSatker === 'All' ? '' : namaSatker}
                                 onChange={(value) => setNamaSatker(value || 'All')}
                                 placeholder="Cari satker..."
+                                emptyOption="Semua"
+                            />
+                        </div>
+
+                        {/* Tahun Perolehan Filter */}
+                        <div>
+                            <label className="block text-xs font-medium text-slate-500 mb-1">
+                                Tahun Perolehan
+                            </label>
+                            <SearchableSelect
+                                options={uniqueTahunPerolehan}
+                                value={tahunPerolehan?.toString() || ''}
+                                onChange={(value) => setTahunPerolehan(value ? Number(value) : undefined)}
+                                placeholder="Cari tahun..."
                                 emptyOption="Semua"
                             />
                         </div>
