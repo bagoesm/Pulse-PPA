@@ -319,10 +319,15 @@ export const useBMNHandlers = ({
             }
 
             // Step 5: Update history status to Completed
-            await supabase
+            const { error: updateHistoryError } = await supabase
                 .from('bmn_upload_history')
                 .update({ status: 'Completed' })
                 .eq('id', uploadBatchId);
+
+            if (updateHistoryError) {
+                console.error('Failed to update history status:', updateHistoryError);
+                // Don't fail the whole operation, just log the error
+            }
 
             // Refresh data
             await fetchBMNItems();

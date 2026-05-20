@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Mendukung reset filter dan counter filter aktif
 
 ### Fixed
+- 🐛 Status upload BMN tetap "Processing" padahal data sudah masuk
+  - Menambahkan error handling untuk update status history
+  - Menambahkan console log untuk debugging update status
+  - Membuat migration SQL untuk memperbaiki data lama yang masih "Processing"
+  - Status sekarang akan diupdate dengan benar ke "Completed" setelah upload berhasil
 - 🐛 Filter Umur Aset BMN tidak berfungsi
   - Perbaikan parsing Excel untuk menyimpan umur aset langsung dari kolom "Umur Aset"
   - Menambahkan variasi nama kolom: umur aset, umur_aset, umuraset, umur, age, asset age
