@@ -166,19 +166,56 @@ export const useBMNHandlers = ({
             showNotification('Menyimpan Data', 'Sedang menghapus data lama dan menyimpan data baru...', 'info');
 
             // Step 1: Delete existing data for the target satker
-            const { error: deleteError } = await supabase
+            // Normalize satker name for comparison (remove quotes, trim, lowercase)
+            const normalizeSatkerName = (name: string): string => {
+                return name.replace(/^["']|["']$/g, '').trim().toLowerCase();
+            };
+            
+            const normalizedTargetSatker = normalizeSatkerName(targetSatker);
+            
+            // Get all items for this satker (case-insensitive match)
+            const { data: existingItems, error: fetchError } = await supabase
                 .from('bmn_items')
-                .delete()
-                .eq('nama_satker', targetSatker);
-
-            if (deleteError) {
-                console.error('Delete error:', deleteError);
+                .select('id, nama_satker');
+            
+            if (fetchError) {
+                console.error('Fetch error:', fetchError);
                 showNotification(
-                    'Gagal Menghapus Data Lama',
-                    `Gagal menghapus data lama untuk satker ${targetSatker}: ${deleteError.message}`,
+                    'Gagal Mengambil Data Lama',
+                    `Gagal mengambil data lama: ${fetchError.message}`,
                     'error'
                 );
                 return;
+            }
+            
+            // Filter items that match the target satker (case-insensitive)
+            const itemsToDelete = existingItems?.filter(item => 
+                normalizeSatkerName(item.nama_satker || '') === normalizedTargetSatker
+            ) || [];
+            
+            if (itemsToDelete.length > 0) {
+                const idsToDelete = itemsToDelete.map(item => item.id);
+                
+                console.log(`Deleting ${idsToDelete.length} existing items for satker: ${targetSatker}`);
+                
+                const { error: deleteError } = await supabase
+                    .from('bmn_items')
+                    .delete()
+                    .in('id', idsToDelete);
+
+                if (deleteError) {
+                    console.error('Delete error:', deleteError);
+                    showNotification(
+                        'Gagal Menghapus Data Lama',
+                        `Gagal menghapus data lama untuk satker ${targetSatker}: ${deleteError.message}`,
+                        'error'
+                    );
+                    return;
+                }
+                
+                console.log(`Successfully deleted ${idsToDelete.length} items`);
+            } else {
+                console.log(`No existing items found for satker: ${targetSatker}`);
             }
 
             // Step 2: Create upload history record to get UUID
@@ -223,6 +260,12 @@ export const useBMNHandlers = ({
             }));
 
             // Step 4: Map to database format and insert BMN items
+            // Normalize nama_satker to remove quotes and extra whitespace
+            const normalizeSatkerForStorage = (name: string | undefined): string | undefined => {
+                if (!name) return undefined;
+                return name.replace(/^["']|["']$/g, '').trim();
+            };
+            
             const dbItems = itemsWithBatchId.map(item => ({
                 kode_barang: item.kodeBarang,
                 nama_barang: item.namaBarang,
@@ -234,10 +277,11 @@ export const useBMNHandlers = ({
                 nilai_perolehan: item.nilaiPerolehan,
                 tahun_perolehan: item.tahunPerolehan,
                 tanggal_perolehan: item.tanggalPerolehan,
+                umur_aset: item.umurAset,
                 jumlah: item.jumlah,
                 satuan: item.satuan,
                 luas: item.luas,
-                nama_satker: item.namaSatker,
+                nama_satker: normalizeSatkerForStorage(item.namaSatker), // Normalize before saving
                 alamat: item.alamat,
                 kota: item.kota,
                 provinsi: item.provinsi,
@@ -348,6 +392,7 @@ export const useBMNHandlers = ({
                 nilai_perolehan: bmnData.nilaiPerolehan,
                 tahun_perolehan: bmnData.tahunPerolehan,
                 tanggal_perolehan: bmnData.tanggalPerolehan,
+                umur_aset: bmnData.umurAset,
                 jumlah: bmnData.jumlah,
                 satuan: bmnData.satuan,
                 luas: bmnData.luas,
@@ -401,6 +446,7 @@ export const useBMNHandlers = ({
                         nilaiPerolehan: updatedData.nilai_perolehan,
                         tahunPerolehan: updatedData.tahun_perolehan,
                         tanggalPerolehan: updatedData.tanggal_perolehan,
+                        umurAset: updatedData.umur_aset,
                         jumlah: updatedData.jumlah,
                         satuan: updatedData.satuan,
                         luas: updatedData.luas,
@@ -463,6 +509,7 @@ export const useBMNHandlers = ({
                         nilaiPerolehan: insertedData.nilai_perolehan,
                         tahunPerolehan: insertedData.tahun_perolehan,
                         tanggalPerolehan: insertedData.tanggal_perolehan,
+                        umurAset: insertedData.umur_aset,
                         jumlah: insertedData.jumlah,
                         satuan: insertedData.satuan,
                         luas: insertedData.luas,

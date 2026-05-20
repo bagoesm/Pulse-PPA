@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- 🐛 Filter Umur Aset BMN tidak berfungsi
+  - Perbaikan parsing Excel untuk menyimpan umur aset langsung dari kolom "Umur Aset"
+  - Menambahkan variasi nama kolom: umur aset, umur_aset, umuraset, umur, age, asset age
+  - Menghapus duplikasi logika filtering di InventoriBMNPage
+  - Menggunakan fungsi applyFilters dari hook untuk konsistensi
+  - Filter sekarang bekerja dengan benar untuk range umur aset min/max
+- 🐛 Upload BMN menghasilkan data duplikat
+  - Perbaikan logika penghapusan data lama saat upload
+  - Normalisasi nama satker untuk perbandingan (case-insensitive, tanpa quotes)
+  - Menghapus quotes dari nama satker sebelum disimpan ke database
+  - Upload sekarang akan mengganti data lama dengan benar tanpa duplikasi
+- 🐛 Trend Perolehan Tahun dan Umur Aset di Dashboard salah
+  - **Umur aset**: HANYA diambil dari kolom "Umur Aset" di Excel, TIDAK PERNAH dihitung
+  - **Tahun perolehan**: Di-extract otomatis dari kolom "Tanggal Perolehan" di Excel
+  - Chart distribusi umur aset menggunakan data umur_aset dari Excel
+  - Chart trend perolehan menggunakan tahun yang di-extract dari tanggal_perolehan
+  - Detail modal menampilkan umur aset dari Excel (jika tidak ada tampilkan "-")
+  - Menambahkan kolom umur_aset di database untuk menyimpan nilai dari Excel
+  - Memastikan tahunPerolehan dan umurAset di-parse sebagai integer
+  - Parser otomatis extract tahun dari tanggal perolehan untuk chart trend
+  - Menambahkan console log untuk debugging data parsing dan chart
+  - **PENTING**: Umur aset tidak pernah dihitung otomatis, selalu dari Excel
+
 ## [1.5.5] - 2025-02-12
 
 ### Added

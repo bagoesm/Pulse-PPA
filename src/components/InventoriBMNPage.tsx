@@ -45,12 +45,14 @@ const BMNDetailModal: React.FC<BMNDetailModalProps> = ({ item, onClose }) => {
     });
   };
 
-  // Calculate asset age
-  const calculateAge = (tahunPerolehan: number | undefined): string => {
-    if (!tahunPerolehan) return '-';
-    const currentYear = new Date().getFullYear();
-    const age = currentYear - tahunPerolehan;
-    return `${age} tahun`;
+  // Format umur aset - HANYA dari Excel, tidak dihitung
+  const formatUmurAset = (item: BMNItem): string => {
+    // Hanya gunakan umurAset dari Excel
+    if (item.umurAset !== undefined && item.umurAset !== null) {
+      return `${item.umurAset} tahun`;
+    }
+    // Jika tidak ada di Excel, tampilkan "-"
+    return '-';
   };
 
   return (
@@ -161,7 +163,7 @@ const BMNDetailModal: React.FC<BMNDetailModalProps> = ({ item, onClose }) => {
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Umur Aset</label>
-                  <p className="text-sm text-slate-800 mt-1">{calculateAge(item.tahunPerolehan)}</p>
+                  <p className="text-sm text-slate-800 mt-1">{formatUmurAset(item)}</p>
                 </div>
               </div>
             </div>
@@ -320,11 +322,11 @@ const BMNListView: React.FC<BMNListViewProps> = ({ onItemClick }) => {
   // Initialize search hook
   const { searchQuery, setSearchQuery, debouncedSearchQuery } = useBMNSearch();
 
-  // Apply filters and search
+  // Apply filters and search using the hook's applyFilters function
   const filteredItems = useMemo(() => {
     let filtered = [...bmnItems];
 
-    // Apply search (Requirement 8.1-8.8)
+    // Apply search first (Requirement 8.1-8.8)
     if (debouncedSearchQuery) {
       const searchLower = debouncedSearchQuery.toLowerCase();
       filtered = filtered.filter(item =>
@@ -336,59 +338,12 @@ const BMNListView: React.FC<BMNListViewProps> = ({ onItemClick }) => {
       );
     }
 
-    // Apply filters (Requirement 7.1-7.10)
-    if (filterHook.jenisBMN !== 'All') {
-      filtered = filtered.filter(item => item.jenisBMN === filterHook.jenisBMN);
-    }
-
-    if (filterHook.statusBMN !== 'All') {
-      filtered = filtered.filter(item => item.statusBMN === filterHook.statusBMN);
-    }
-
-    if (filterHook.kondisi !== 'All') {
-      filtered = filtered.filter(item => item.kondisi === filterHook.kondisi);
-    }
-
-    if (filterHook.namaSatker !== 'All') {
-      filtered = filtered.filter(item => item.namaSatker === filterHook.namaSatker);
-    }
-
-    // Nilai Perolehan range filter
-    if (filterHook.nilaiPerolehanMin !== undefined) {
-      filtered = filtered.filter(item => 
-        item.nilaiPerolehan !== undefined && item.nilaiPerolehan >= filterHook.nilaiPerolehanMin!
-      );
-    }
-
-    if (filterHook.nilaiPerolehanMax !== undefined) {
-      filtered = filtered.filter(item => 
-        item.nilaiPerolehan !== undefined && item.nilaiPerolehan <= filterHook.nilaiPerolehanMax!
-      );
-    }
-
-    // Umur Aset range filter (Requirement 7.6) - FIXED
-    const currentYear = new Date().getFullYear();
-    if (filterHook.umurAsetMin !== undefined || filterHook.umurAsetMax !== undefined) {
-      filtered = filtered.filter(item => {
-        if (!item.tahunPerolehan) return false;
-        const age = currentYear - item.tahunPerolehan;
-        
-        // Check min age
-        if (filterHook.umurAsetMin !== undefined && age < filterHook.umurAsetMin) {
-          return false;
-        }
-        
-        // Check max age
-        if (filterHook.umurAsetMax !== undefined && age > filterHook.umurAsetMax) {
-          return false;
-        }
-        
-        return true;
-      });
-    }
+    // Apply all filters using the hook's applyFilters function (Requirement 7.1-7.10)
+    // This ensures consistent filtering logic across the application
+    filtered = filterHook.applyFilters(filtered);
 
     return filtered;
-  }, [bmnItems, debouncedSearchQuery, filterHook.jenisBMN, filterHook.statusBMN, filterHook.kondisi, filterHook.namaSatker, filterHook.nilaiPerolehanMin, filterHook.nilaiPerolehanMax, filterHook.umurAsetMin, filterHook.umurAsetMax]);
+  }, [bmnItems, debouncedSearchQuery, filterHook]);
 
   return (
     <div className="space-y-6">

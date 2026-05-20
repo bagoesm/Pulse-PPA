@@ -90,6 +90,7 @@ export const BMNProvider: React.FC<BMNProviderProps> = ({ children, session }) =
                     nilaiPerolehan: item.nilai_perolehan,
                     tahunPerolehan: item.tahun_perolehan,
                     tanggalPerolehan: item.tanggal_perolehan,
+                    umurAset: item.umur_aset,
                     jumlah: item.jumlah,
                     satuan: item.satuan,
                     luas: item.luas,
@@ -222,6 +223,7 @@ export const BMNProvider: React.FC<BMNProviderProps> = ({ children, session }) =
                 nilai_perolehan: item.nilaiPerolehan,
                 tahun_perolehan: item.tahunPerolehan,
                 tanggal_perolehan: item.tanggalPerolehan,
+                umur_aset: item.umurAset,
                 jumlah: item.jumlah,
                 satuan: item.satuan,
                 luas: item.luas,
@@ -266,6 +268,7 @@ export const BMNProvider: React.FC<BMNProviderProps> = ({ children, session }) =
                 nilaiPerolehan: data.nilai_perolehan,
                 tahunPerolehan: data.tahun_perolehan,
                 tanggalPerolehan: data.tanggal_perolehan,
+                umurAset: data.umur_aset,
                 jumlah: data.jumlah,
                 satuan: data.satuan,
                 luas: data.luas,
@@ -323,6 +326,7 @@ export const BMNProvider: React.FC<BMNProviderProps> = ({ children, session }) =
             if (updates.nilaiPerolehan !== undefined) dbUpdates.nilai_perolehan = updates.nilaiPerolehan;
             if (updates.tahunPerolehan !== undefined) dbUpdates.tahun_perolehan = updates.tahunPerolehan;
             if (updates.tanggalPerolehan !== undefined) dbUpdates.tanggal_perolehan = updates.tanggalPerolehan;
+            if (updates.umurAset !== undefined) dbUpdates.umur_aset = updates.umurAset;
             if (updates.jumlah !== undefined) dbUpdates.jumlah = updates.jumlah;
             if (updates.satuan !== undefined) dbUpdates.satuan = updates.satuan;
             if (updates.luas !== undefined) dbUpdates.luas = updates.luas;

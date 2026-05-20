@@ -191,10 +191,16 @@ export function useBMNFilters(): UseBMNFiltersResult {
         // Umur Aset range filter (Requirement 7.6)
         if (umurAsetMin !== undefined || umurAsetMax !== undefined) {
             filtered = filtered.filter(item => {
+                // Item must have tahunPerolehan to be included when age filter is active
+                if (!item.tahunPerolehan) return false;
+                
                 const assetAge = calculateAssetAge(item.tahunPerolehan);
                 if (assetAge === undefined) return false;
                 
+                // Apply min filter if specified
                 if (umurAsetMin !== undefined && assetAge < umurAsetMin) return false;
+                
+                // Apply max filter if specified
                 if (umurAsetMax !== undefined && assetAge > umurAsetMax) return false;
                 
                 return true;

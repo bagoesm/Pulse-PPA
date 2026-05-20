@@ -50,11 +50,19 @@ const COLUMN_MAPPINGS: Record<string, keyof BMNItem> = {
   'tahun_perolehan': 'tahunPerolehan',
   'tahunperolehan': 'tahunPerolehan',
   'tahun': 'tahunPerolehan',
+  'thn perolehan': 'tahunPerolehan',
+  'thn_perolehan': 'tahunPerolehan',
   'tanggal perolehan': 'tanggalPerolehan',
   'tanggal_perolehan': 'tanggalPerolehan',
   'tanggalperolehan': 'tanggalPerolehan',
   'tgl perolehan': 'tanggalPerolehan',
   'tanggal buku pertama': 'tanggalPerolehan', // Use "Tanggal Buku Pertama" as tanggal perolehan
+  'umur aset': 'umurAset',
+  'umur_aset': 'umurAset',
+  'umuraset': 'umurAset',
+  'umur': 'umurAset',
+  'age': 'umurAset',
+  'asset age': 'umurAset',
   
   // Physical Attributes
   'jumlah': 'jumlah',
@@ -741,12 +749,25 @@ function parseRows(rawData: any[], userId: string): BMNParseResult {
         case 'luas':
         case 'jumlah':
         case 'tahunPerolehan':
+        case 'umurAset':
           const parsedNum = parseNumber(value);
-          // For nilaiPerolehan, prioritize "Nilai Perolehan Pertama" over "Nilai Perolehan"
-          if (field === 'nilaiPerolehan' && !item.nilaiPerolehan && parsedNum !== undefined) {
-            item[field] = parsedNum;
-          } else if (field !== 'nilaiPerolehan' && parsedNum !== undefined) {
-            item[field] = parsedNum;
+          if (parsedNum !== undefined) {
+            // For tahunPerolehan and umurAset, ensure they are integers
+            if (field === 'tahunPerolehan' || field === 'umurAset') {
+              item[field] = Math.round(parsedNum);
+              // Debug log for first few rows
+              if (rowNumber <= 5) {
+                console.log(`Row ${rowNumber}: ${field} = ${value} -> ${item[field]}`);
+              }
+            }
+            // For nilaiPerolehan, prioritize "Nilai Perolehan Pertama" over "Nilai Perolehan"
+            else if (field === 'nilaiPerolehan' && !item.nilaiPerolehan) {
+              item[field] = parsedNum;
+            }
+            // For other number fields
+            else if (field !== 'nilaiPerolehan') {
+              item[field] = parsedNum;
+            }
           }
           break;
         
@@ -795,6 +816,22 @@ function parseRows(rawData: any[], userId: string): BMNParseResult {
       }
     }
     
+    // Extract tahunPerolehan from tanggalPerolehan if not already set
+    if (!item.tahunPerolehan && item.tanggalPerolehan) {
+      try {
+        const date = new Date(item.tanggalPerolehan);
+        if (!isNaN(date.getTime())) {
+          item.tahunPerolehan = date.getFullYear();
+          // Debug log
+          if (rowNumber <= 5) {
+            console.log(`Row ${rowNumber}: Extracted tahunPerolehan=${item.tahunPerolehan} from tanggalPerolehan=${item.tanggalPerolehan}`);
+          }
+        }
+      } catch (error) {
+        console.error(`Row ${rowNumber}: Failed to extract year from tanggalPerolehan=${item.tanggalPerolehan}`);
+      }
+    }
+    
     // Validate item
     const validationErrors = validateBMNItem(item, rowNumber);
     
@@ -819,6 +856,7 @@ function parseRows(rawData: any[], userId: string): BMNParseResult {
         nilaiPerolehan: item.nilaiPerolehan,
         tahunPerolehan: item.tahunPerolehan,
         tanggalPerolehan: item.tanggalPerolehan,
+        umurAset: item.umurAset, // Store umur aset from Excel
         jumlah: item.jumlah,
         satuan: item.satuan,
         luas: item.luas,

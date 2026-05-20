@@ -161,27 +161,14 @@ const BMNCharts: React.FC<BMNChartsProps> = ({
   }, [bmnItems]);
 
   // 4. Umur Aset Distribution (Line Chart)
+  // Use umurAset from Excel data, not calculated
   const umurAsetData = useMemo(() => {
-    const currentYear = new Date().getFullYear();
     const ageCounts: Record<string, number> = {};
 
     bmnItems.forEach(item => {
-      let year: number | null = null;
-      
-      // Try to get year from tahunPerolehan field
-      if (item.tahunPerolehan) {
-        year = item.tahunPerolehan;
-      }
-      // If not available, try to extract from tanggalPerolehan
-      else if (item.tanggalPerolehan) {
-        const date = new Date(item.tanggalPerolehan);
-        if (!isNaN(date.getTime())) {
-          year = date.getFullYear();
-        }
-      }
-      
-      if (year) {
-        const age = currentYear - year;
+      // Use umurAset from Excel if available
+      if (item.umurAset !== undefined && item.umurAset !== null) {
+        const age = item.umurAset;
         const range = Math.floor(age / 5) * 5; // Group by 5-year ranges
         const rangeLabel = `${range}-${range + 4} tahun`;
         ageCounts[rangeLabel] = (ageCounts[rangeLabel] || 0) + 1;
@@ -216,27 +203,16 @@ const BMNCharts: React.FC<BMNChartsProps> = ({
   }, [bmnItems]);
 
   // 6. Trend Perolehan BMN per Tahun (for single satker view)
+  // Use tahunPerolehan from Excel data as-is
   const trendPerolehanData = useMemo(() => {
     if (!isSingleSatkerView) return [];
 
     const yearCounts: Record<number, { count: number; value: number }> = {};
 
     bmnItems.forEach(item => {
-      let year: number | null = null;
-      
-      // Try to get year from tahunPerolehan field
+      // Use tahunPerolehan directly from Excel data
       if (item.tahunPerolehan) {
-        year = item.tahunPerolehan;
-      }
-      // If not available, try to extract from tanggalPerolehan
-      else if (item.tanggalPerolehan) {
-        const date = new Date(item.tanggalPerolehan);
-        if (!isNaN(date.getTime())) {
-          year = date.getFullYear();
-        }
-      }
-      
-      if (year) {
+        const year = item.tahunPerolehan;
         if (!yearCounts[year]) {
           yearCounts[year] = { count: 0, value: 0 };
         }
@@ -245,13 +221,23 @@ const BMNCharts: React.FC<BMNChartsProps> = ({
       }
     });
 
-    return Object.entries(yearCounts)
+    const result = Object.entries(yearCounts)
       .map(([year, data]) => ({ 
         name: year, 
         'Jumlah BMN': data.count,
         'Nilai Perolehan': data.value
       }))
       .sort((a, b) => parseInt(a.name) - parseInt(b.name));
+    
+    // Debug log
+    console.log('Trend Perolehan Data:', result);
+    console.log('Sample items with tahunPerolehan:', bmnItems.slice(0, 5).map(item => ({
+      namaBarang: item.namaBarang,
+      tahunPerolehan: item.tahunPerolehan,
+      umurAset: item.umurAset
+    })));
+    
+    return result;
   }, [bmnItems, isSingleSatkerView]);
 
   // Loading state

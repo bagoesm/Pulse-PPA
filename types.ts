@@ -569,6 +569,7 @@ export interface BMNItem {
   nilaiPerolehan?: number;      // Acquisition value in IDR
   tahunPerolehan?: number;      // Year of acquisition
   tanggalPerolehan?: string;    // ISO Date - Date of acquisition
+  umurAset?: number;            // Asset age in years (from Excel, not calculated)
   
   // Physical Attributes
   jumlah?: number;              // Quantity (default: 1)
