@@ -11,6 +11,7 @@ export { MasterDataProvider, useMasterData } from './MasterDataContext';
 export { AppContentProvider, useAppContent } from './AppContentContext';
 export { SuratsProvider, useSurats } from './SuratsContext';
 export { DisposisiProvider, useDisposisi } from './DisposisiContext';
+export { BMNProvider, useBMN } from './BMNContext';
 
 // Legacy aggregate hook (deprecated - use domain-specific hooks instead)
 export { DataProvider, useData } from './DataContext';

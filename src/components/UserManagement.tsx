@@ -536,7 +536,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [userFormData, setUserFormData] = useState<Partial<User>>({
-      name: '', email: '', role: 'Staff', jabatan: '', divisi: '', password: '', sakuraAnimationEnabled: false, snowAnimationEnabled: false, moneyAnimationEnabled: false,
+      name: '', email: '', role: 'Staff', jabatan: '', divisi: '', nip: '', password: '', sakuraAnimationEnabled: false, snowAnimationEnabled: false, moneyAnimationEnabled: false,
   });
 
   // Simple Input State for Jabatan/Kategori
@@ -553,7 +553,8 @@ const UserManagement: React.FC<UserManagementProps> = ({
       // Then apply search filter
       u.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
       u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.jabatan?.toLowerCase().includes(searchTerm.toLowerCase())
+      u.jabatan?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      u.nip?.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
   const handleOpenUserModal = (user?: User) => {
@@ -569,6 +570,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
               role: 'Staff',
               jabatan: defaultJabatan,
               divisi: '',
+              nip: '',
               password: '',
               sakuraAnimationEnabled: false,
               snowAnimationEnabled: false,
@@ -763,6 +765,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                             <thead className="bg-slate-50 border-b border-slate-200">
                                 <tr>
                                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Pegawai</th>
+                                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">NIP</th>
                                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Jabatan</th>
                                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Role</th>
                                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Aksi</th>
@@ -781,6 +784,9 @@ const UserManagement: React.FC<UserManagementProps> = ({
                                                     <p className="text-xs text-slate-500">{user.email}</p>
                                                 </div>
                                             </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className="text-sm text-slate-600">{user.nip || '-'}</span>
                                         </td>
                                         <td className="px-6 py-4">
                                             <span className="text-sm text-slate-600">{user.jabatan || '-'}</span>
@@ -826,6 +832,9 @@ const UserManagement: React.FC<UserManagementProps> = ({
                                             <div className="min-w-0">
                                                 <p className="font-bold text-slate-800 text-sm truncate">{user.name}</p>
                                                 <p className="text-xs text-slate-500 truncate">{user.email}</p>
+                                                {user.nip && (
+                                                    <p className="text-xs text-slate-600 mt-0.5">NIP: {user.nip}</p>
+                                                )}
                                                 <div className="flex items-center gap-2 mt-1">
                                                     <span className="text-xs text-slate-600">{user.jabatan || '-'}</span>
                                                     <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase ${
@@ -1019,18 +1028,30 @@ const UserManagement: React.FC<UserManagementProps> = ({
                                 ))}
                             </select>
                         </div>
-                        <div>
-                            <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Satuan Kerja</label>
-                            <select 
-                                value={userFormData.divisi || ''}
-                                onChange={e => setUserFormData({...userFormData, divisi: e.target.value})}
-                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm bg-white"
-                            >
-                                <option value="">-- Pilih Satuan Kerja --</option>
-                                {divisiList.map(d => (
-                                    <option key={d} value={d}>{d}</option>
-                                ))}
-                            </select>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">NIP</label>
+                                <input 
+                                    type="text"
+                                    value={userFormData.nip || ''}
+                                    onChange={e => setUserFormData({...userFormData, nip: e.target.value})}
+                                    placeholder="Nomor Induk Pegawai"
+                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Satuan Kerja</label>
+                                <select 
+                                    value={userFormData.divisi || ''}
+                                    onChange={e => setUserFormData({...userFormData, divisi: e.target.value})}
+                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm bg-white"
+                                >
+                                    <option value="">-- Pilih Satuan Kerja --</option>
+                                    {divisiList.map(d => (
+                                        <option key={d} value={d}>{d}</option>
+                                    ))}
+                                </select>
+                            </div>
                         </div>
                         
                         {/* Animation Settings - Compact for mobile */}

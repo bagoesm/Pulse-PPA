@@ -27,7 +27,8 @@ import {
   Shield,
   PieChart,
   ChevronsLeft,
-  ChevronsRight
+  ChevronsRight,
+  Package
 } from 'lucide-react';
 import { SIDEBAR_ITEMS, User } from '../../types';
 import { useSidebar } from '../contexts/SidebarContext';
@@ -63,7 +64,8 @@ const IconMap: Record<string, React.ElementType> = {
   'ClipboardCheck': ClipboardCheck,
   'ClipboardList': ClipboardList,
   'Settings': Settings,
-  'Shield': Shield
+  'Shield': Shield,
+  'Package': Package
 };
 
 const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser, users, onSwitchUser, onLogout }) => {

@@ -25,6 +25,7 @@ import { EpicsProvider } from './EpicsContext';
 import { MeetingsProvider } from './MeetingsContext';
 import { SuratsProvider } from './SuratsContext';
 import { DisposisiProvider } from './DisposisiContext';
+import { BMNProvider } from './BMNContext';
 import { MasterDataProvider } from './MasterDataContext';
 import { AppContentProvider } from './AppContentContext';
 import { SubtasksProvider } from './SubtasksContext';
@@ -49,13 +50,15 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, session })
                             <MeetingsProvider session={session}>
                                 <SuratsProvider session={session}>
                                     <DisposisiProvider session={session}>
-                                        <TasksProvider session={session}>
-                                            <SubtasksProvider session={session}>
-                                                <AppContentProvider session={session}>
-                                                    {children}
-                                                </AppContentProvider>
-                                            </SubtasksProvider>
-                                        </TasksProvider>
+                                        <BMNProvider session={session}>
+                                            <TasksProvider session={session}>
+                                                <SubtasksProvider session={session}>
+                                                    <AppContentProvider session={session}>
+                                                        {children}
+                                                    </AppContentProvider>
+                                                </SubtasksProvider>
+                                            </TasksProvider>
+                                        </BMNProvider>
                                     </DisposisiProvider>
                                 </SuratsProvider>
                             </MeetingsProvider>

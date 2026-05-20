@@ -101,7 +101,8 @@ export const UsersProvider: React.FC<UsersProviderProps> = ({ children, session 
                     moneyAnimationEnabled: user.money_animation_enabled || false,
                     profilePhoto: user.profile_photo || undefined,
                     profilePhotoPath: user.profile_photo_path || undefined,
-                    divisi: user.divisi || undefined
+                    divisi: user.divisi || undefined,
+                    nip: user.nip || undefined
                 })) as User[];
                 setAllUsers(mappedUsers);
                 return mappedUsers;

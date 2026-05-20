@@ -9,6 +9,11 @@ import packageJson from './package.json';
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
   return {
+    test: {
+      globals: true,
+      environment: 'jsdom',
+      setupFiles: './src/test/setup.ts',
+    },
     server: {
       port: 3000,
       host: '0.0.0.0',

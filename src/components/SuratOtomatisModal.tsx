@@ -81,7 +81,7 @@ export const SuratOtomatisModal: React.FC<SuratOtomatisModalProps> = ({ isOpen, 
                   value = user.name;
                   break;
                 case 'nip':
-                  value = user.id; // Assuming user.id is NIP
+                  value = user.nip || '-'; // Ambil NIP dari user
                   break;
                 case 'jabatan':
                   value = user.jabatan || '-';

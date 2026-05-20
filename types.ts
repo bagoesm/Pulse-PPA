@@ -65,6 +65,7 @@ export interface User {
   initials: string;
   jabatan?: string; // e.g. "Pranata Komputer Ahli Muda"
   divisi?: string; // Satuan Kerja user, e.g. "Biro Data Dan Informasi"
+  nip?: string; // Nomor Induk Pegawai
   password?: string; // For mock auth
   sakuraAnimationEnabled?: boolean; // Setting untuk animasi bunga sakura
   snowAnimationEnabled?: boolean; // Setting untuk animasi salju
@@ -380,6 +381,7 @@ export const SIDEBAR_ITEMS = [
     ]
   },
   { name: 'Inventori Data', icon: 'Database' },
+  { name: 'Inventori BMN', icon: 'Package' },
 ];
 
 // Disposisi - Disposition workflow for Surat-Kegiatan integration
@@ -525,4 +527,223 @@ export interface AuditTrailFilters {
   satkerId?: string;           // Filter by specific satker
   limit?: number;              // Number of results to return
   offset?: number;             // Offset for pagination
+}
+
+// ============================================================================
+// BMN (Barang Milik Negara) Inventory Types
+// ============================================================================
+
+/**
+ * Status BMN - Current status of the asset
+ */
+export type BMNStatus = 'Aktif' | 'Tidak Aktif' | 'Hilang' | 'Rusak';
+
+/**
+ * Kondisi BMN - Physical condition of the asset
+ */
+export type BMNKondisi = 'Baik' | 'Rusak Ringan' | 'Rusak Berat';
+
+/**
+ * Upload Status - Status of BMN data upload operation
+ */
+export type BMNUploadStatus = 'Processing' | 'Completed' | 'Failed' | 'Rolled Back';
+
+/**
+ * BMNItem - Represents a single BMN (state-owned asset) item
+ */
+export interface BMNItem {
+  id: string;
+  
+  // Basic Information
+  kodeBarang: string;           // Unique code for the asset (required)
+  namaBarang: string;           // Name/description of the asset (required)
+  jenisBMN?: string;            // Type/category of BMN
+  merk?: string;                // Brand/manufacturer
+  tipe?: string;                // Model/type
+  
+  // Status and Condition
+  statusBMN: BMNStatus;         // Current status (required)
+  kondisi?: BMNKondisi;         // Physical condition
+  
+  // Financial Information
+  nilaiPerolehan?: number;      // Acquisition value in IDR
+  tahunPerolehan?: number;      // Year of acquisition
+  tanggalPerolehan?: string;    // ISO Date - Date of acquisition
+  
+  // Physical Attributes
+  jumlah?: number;              // Quantity (default: 1)
+  satuan?: string;              // Unit of measurement
+  luas?: number;                // Area/size (for land/buildings)
+  
+  // Location Information
+  namaSatker?: string;          // Name of organizational unit (Satuan Kerja)
+  alamat?: string;              // Address
+  kota?: string;                // City
+  provinsi?: string;            // Province
+  
+  // Document Information
+  nomorRegister?: string;       // Registration number
+  nomorSertifikat?: string;     // Certificate number
+  tanggalSertifikat?: string;   // ISO Date - Certificate date
+  
+  // Disposal Information
+  tanggalPengapusan?: string;   // ISO Date - Disposal date
+  alasanPengapusan?: string;    // Reason for disposal
+  
+  // Additional Information
+  keterangan?: string;          // Notes/remarks
+  
+  // Raw Data from Excel (stores all columns)
+  rawData?: Record<string, any>; // Complete raw data from Excel file as JSON
+  
+  // Metadata
+  createdBy: string;            // User who created the record
+  createdAt: string;            // ISO Date - Creation timestamp
+  updatedAt?: string;           // ISO Date - Last update timestamp
+  uploadBatchId?: string;       // Reference to upload batch
+}
+
+/**
+ * BMNUploadHistory - Tracks BMN data upload operations
+ */
+export interface BMNUploadHistory {
+  id: string;
+  
+  // Upload Information
+  filename: string;             // Original filename
+  fileSize?: number;            // File size in bytes
+  fileType?: string;            // File type (xlsx, xls, csv)
+  
+  // Upload Results
+  totalRecords: number;         // Total records in file
+  successfulRecords: number;    // Successfully imported records
+  failedRecords: number;        // Failed records
+  
+  // Status
+  status: BMNUploadStatus;      // Upload status
+  
+  // Error Information
+  errorDetails?: Array<{        // Array of error details
+    row: number;
+    field?: string;
+    message: string;
+  }>;
+  
+  // Metadata
+  uploadedBy: string;           // User who uploaded
+  uploadedAt: string;           // ISO Date - Upload timestamp
+  
+  // Rollback Information
+  rolledBackAt?: string;        // ISO Date - Rollback timestamp
+  rolledBackBy?: string;        // User who performed rollback
+  previousDataSnapshot?: any;   // Snapshot for rollback capability
+}
+
+/**
+ * BMNFilters - Filter criteria for BMN list view
+ */
+export interface BMNFilters {
+  // Text search
+  search?: string;              // Search across multiple fields
+  
+  // Category filters
+  jenisBMN?: string | 'All';    // Filter by BMN type
+  statusBMN?: BMNStatus | 'All'; // Filter by status
+  kondisi?: BMNKondisi | 'All'; // Filter by condition
+  namaSatker?: string | 'All';  // Filter by organizational unit
+  
+  // Range filters
+  nilaiPerolehanMin?: number;   // Minimum acquisition value
+  nilaiPerolehanMax?: number;   // Maximum acquisition value
+  umurAsetMin?: number;         // Minimum asset age (years)
+  umurAsetMax?: number;         // Maximum asset age (years)
+  
+  // Date filters
+  tahunPerolehan?: number;      // Filter by acquisition year
+}
+
+/**
+ * BMNStats - Statistics for BMN dashboard
+ */
+export interface BMNStats {
+  // Total counts
+  totalItems: number;           // Total number of BMN items
+  
+  // Status distribution
+  statusDistribution: {
+    aktif: number;
+    tidakAktif: number;
+    hilang: number;
+    rusak: number;
+  };
+  
+  // Condition distribution
+  kondisiDistribution: {
+    baik: number;
+    rusakRingan: number;
+    rusakBerat: number;
+  };
+  
+  // Type distribution (top 10)
+  jenisBMNDistribution: Array<{
+    jenisBMN: string;
+    count: number;
+  }>;
+  
+  // Value statistics
+  totalNilaiPerolehan: number;  // Total acquisition value
+  nilaiPerolehanBySatker: Array<{
+    namaSatker: string;
+    totalNilai: number;
+  }>;
+  
+  // Age distribution
+  umurAsetDistribution: Array<{
+    range: string;              // e.g., "0-5 tahun", "6-10 tahun"
+    count: number;
+  }>;
+  
+  // Top items by value
+  topItemsByValue: BMNItem[];   // Top 5 items by acquisition value
+  
+  // Last upload info
+  lastUpload?: {
+    date: string;               // ISO Date
+    uploadedBy: string;
+    recordCount: number;
+  };
+}
+
+/**
+ * BMNExportOptions - Options for exporting BMN data
+ */
+export interface BMNExportOptions {
+  format: 'excel' | 'csv';      // Export format
+  filters?: BMNFilters;         // Applied filters
+  columns?: string[];           // Columns to include (all if not specified)
+  filename?: string;            // Custom filename
+}
+
+/**
+ * BMNValidationError - Validation error for BMN data
+ */
+export interface BMNValidationError {
+  row: number;                  // Row number in file (1-indexed)
+  field?: string;               // Field name that failed validation
+  value?: any;                  // Invalid value
+  message: string;              // Error message
+  severity: 'error' | 'warning'; // Error severity
+}
+
+/**
+ * BMNParseResult - Result of parsing BMN file
+ */
+export interface BMNParseResult {
+  success: boolean;
+  data: BMNItem[];              // Parsed BMN items
+  errors: BMNValidationError[]; // Validation errors
+  warnings: BMNValidationError[]; // Validation warnings
+  totalRows: number;            // Total rows in file
+  validRows: number;            // Valid rows
+  invalidRows: number;          // Invalid rows
 }

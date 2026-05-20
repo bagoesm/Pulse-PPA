@@ -65,9 +65,11 @@ export const SURAT_TEMPLATES: SuratTemplate[] = [
         id: 'penandatangan_nip',
         label: 'NIP Penandatangan',
         type: 'text',
-        placeholder: 'Masukkan NIP penandatangan',
+        placeholder: 'NIP akan terisi otomatis',
         required: true,
-        helpText: 'Isi manual NIP penandatangan'
+        readOnly: true,
+        autoFillFrom: 'penandatangan_user_id.nip',
+        helpText: 'Otomatis terisi dari user yang dipilih'
       },
       {
         id: 'penandatangan_jabatan',
@@ -101,9 +103,11 @@ export const SURAT_TEMPLATES: SuratTemplate[] = [
         id: 'nip',
         label: 'NIP Pegawai',
         type: 'text',
-        placeholder: 'Masukkan NIP pegawai',
+        placeholder: 'NIP akan terisi otomatis',
         required: true,
-        helpText: 'Isi manual NIP pegawai'
+        readOnly: true,
+        autoFillFrom: 'pegawai_user_id.nip',
+        helpText: 'Otomatis terisi dari user yang dipilih'
       },
       {
         id: 'pangkat_golongan',
