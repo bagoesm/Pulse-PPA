@@ -2,7 +2,7 @@
 // State comes from contexts (Auth, Data, UI)
 import React, { useState, useEffect, useMemo, useCallback, lazy, Suspense, useTransition, useRef } from 'react';
 import { supabase } from './lib/supabaseClient';
-import { Plus, Search, Layout, CalendarRange, Briefcase, FileText, ListTodo, Loader2, Download } from 'lucide-react';
+import { Plus, Search, Layout, CalendarRange, Briefcase, FileText, ListTodo, Loader2, Download, ClipboardList } from 'lucide-react';
 import { Task, Status, Category, Priority, FilterState, User, ProjectDefinition, ViewMode, Feedback, FeedbackCategory, FeedbackStatus, DocumentTemplate, UserStatus, Attachment, Comment, ChristmasDecorationSettings, Announcement, DataInventoryItem, TaskActivity, Meeting, MeetingInviter } from '../types';
 import Sidebar from './components/Sidebar';
 import TaskCard from './components/TaskCard';
@@ -186,8 +186,18 @@ const AppContent: React.FC = () => {
     // Notification & Confirm Modals
     notificationModal, showNotification, hideNotification,
     confirmModal, showConfirm, hideConfirm,
-    showToast, hideToast
+    showToast, hideToast,
+    isActiveTasksModalOpen, setIsActiveTasksModalOpen
   } = useUI();
+
+  const currentUserActiveTasksCount = useMemo(() => {
+    if (!currentUser || !tasks) return 0;
+    return tasks.filter(task => {
+      if (task.isMeeting) return false;
+      const picArray = Array.isArray(task.pic) ? task.pic : [task.pic];
+      return picArray.includes(currentUser.name) && task.status !== Status.Done;
+    }).length;
+  }, [tasks, currentUser]);
 
   // ===== DIVISION CONTEXT =====
   const {
@@ -756,6 +766,20 @@ const AppContent: React.FC = () => {
 
                 {/* Notification Icon & Profile Photo */}
                 <div className="flex items-center gap-2 sm:gap-3">
+                  {currentUser && (
+                    <button
+                      onClick={() => setIsActiveTasksModalOpen(true)}
+                      className="relative p-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-gov-600 rounded-lg transition-all shadow-sm hover:shadow active:scale-95 flex items-center justify-center flex-shrink-0"
+                      title="Tugas Aktif Saya"
+                    >
+                      <ClipboardList size={18} />
+                      {currentUserActiveTasksCount > 0 && (
+                        <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white ring-2 ring-white">
+                          {currentUserActiveTasksCount}
+                        </span>
+                      )}
+                    </button>
+                  )}
                   <NotificationIcon
                     notifications={notifications}
                     onMarkAllAsRead={markAllAsRead}

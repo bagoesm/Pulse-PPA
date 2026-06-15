@@ -1,11 +1,13 @@
 // src/components/DashboardHeader.tsx
 // Header section for Dashboard
 
-import React from 'react';
-import { User } from '../../types';
+import React, { useMemo } from 'react';
+import { User, Status } from '../../types';
 import NotificationIcon from './NotificationIcon';
 import DivisionFilter from './DivisionFilter';
-import { MessageCircle, Gift } from 'lucide-react';
+import { MessageCircle, Gift, ClipboardList } from 'lucide-react';
+import { useTasks } from '../contexts/TasksContext';
+import { useUI } from '../contexts/UIContext';
 
 interface DashboardHeaderProps {
     currentUser: User | null;
@@ -29,6 +31,18 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
     onDeleteNotification,
     onDismissAll
 }) => {
+    const { tasks } = useTasks();
+    const { setIsActiveTasksModalOpen } = useUI();
+
+    const activeTasksCount = useMemo(() => {
+        if (!currentUser || !tasks) return 0;
+        return tasks.filter(task => {
+            if (task.isMeeting) return false;
+            const picArray = Array.isArray(task.pic) ? task.pic : [task.pic];
+            return picArray.includes(currentUser.name) && task.status !== Status.Done;
+        }).length;
+    }, [tasks, currentUser]);
+
     return (
         <div className="mb-6 md:mb-8 flex flex-col sm:flex-row justify-between items-start gap-4">
             <div>
@@ -39,6 +53,22 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
             <div className="flex items-center gap-2 md:gap-3 w-full sm:w-auto">
                 {/* Satuan Kerja Filter */}
                 <DivisionFilter compact />
+
+                {/* Active Tasks Shortcut Button */}
+                {currentUser && (
+                    <button
+                        onClick={() => setIsActiveTasksModalOpen(true)}
+                        className="relative p-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-gov-600 rounded-lg transition-all shadow-sm hover:shadow active:scale-95 flex items-center justify-center flex-shrink-0"
+                        title="Tugas Aktif Saya"
+                    >
+                        <ClipboardList size={18} />
+                        {activeTasksCount > 0 && (
+                            <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white ring-2 ring-white">
+                                {activeTasksCount}
+                            </span>
+                        )}
+                    </button>
+                )}
 
                 {/* Notification Icon */}
                 {onNotificationClick && onMarkAllAsRead && onDeleteNotification && onDismissAll && (

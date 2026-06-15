@@ -56,6 +56,8 @@ interface UIContextType {
     setIsAnnouncementModalOpen: (open: boolean) => void;
     isProfilePhotoModalOpen: boolean;
     setIsProfilePhotoModalOpen: (open: boolean) => void;
+    isActiveTasksModalOpen: boolean;
+    setIsActiveTasksModalOpen: (open: boolean) => void;
 
     // Meeting Modal States
     isMeetingModalOpen: boolean;
@@ -178,6 +180,7 @@ export const UIProvider: React.FC<UIProviderProps> = ({ children }) => {
     const [isTaskViewModalOpen, setIsTaskViewModalOpen] = useState(false);
     const [isAnnouncementModalOpen, setIsAnnouncementModalOpen] = useState(false);
     const [isProfilePhotoModalOpen, setIsProfilePhotoModalOpen] = useState(false);
+    const [isActiveTasksModalOpen, setIsActiveTasksModalOpen] = useState(false);
 
     // Meeting Modal States
     const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false);
@@ -291,6 +294,7 @@ export const UIProvider: React.FC<UIProviderProps> = ({ children }) => {
         isTaskViewModalOpen, setIsTaskViewModalOpen,
         isAnnouncementModalOpen, setIsAnnouncementModalOpen,
         isProfilePhotoModalOpen, setIsProfilePhotoModalOpen,
+        isActiveTasksModalOpen, setIsActiveTasksModalOpen,
         isMeetingModalOpen, setIsMeetingModalOpen,
         isMeetingViewModalOpen, setIsMeetingViewModalOpen,
         isMeetingFromTask, setIsMeetingFromTask,

@@ -169,7 +169,7 @@ interface ModalsContainerProps {
 }
 
 const ModalsContainer: React.FC<ModalsContainerProps> = (props) => {
-    const { toast, hideToast, setActiveTab } = useUI();
+    const { toast, hideToast, setActiveTab, isActiveTasksModalOpen, setIsActiveTasksModalOpen } = useUI();
     const {
         currentUser,
         // Task View Modal
@@ -226,7 +226,6 @@ const ModalsContainer: React.FC<ModalsContainerProps> = (props) => {
         });
     }, [allTasks, currentUser]);
 
-    const [isOverdueModalOpen, setIsOverdueModalOpen] = useState(false);
     const [hasCheckedOverdue, setHasCheckedOverdue] = useState(false);
 
     useEffect(() => {
@@ -249,9 +248,9 @@ const ModalsContainer: React.FC<ModalsContainerProps> = (props) => {
             return;
         }
 
-        setIsOverdueModalOpen(true);
+        setIsActiveTasksModalOpen(true);
         setHasCheckedOverdue(true);
-    }, [activeTasks, hasCheckedOverdue]);
+    }, [activeTasks, hasCheckedOverdue, setIsActiveTasksModalOpen]);
 
     return (
         <>
@@ -472,25 +471,25 @@ const ModalsContainer: React.FC<ModalsContainerProps> = (props) => {
 
             {/* Overdue Tasks Alert Modal */}
             <OverdueTasksModal
-                isOpen={isOverdueModalOpen}
+                isOpen={isActiveTasksModalOpen}
                 onClose={() => {
-                    setIsOverdueModalOpen(false);
+                    setIsActiveTasksModalOpen(false);
                     sessionStorage.setItem('overdue_tasks_dismissed', 'true');
                 }}
                 tasks={activeTasks}
                 onViewTask={(task) => {
-                    setIsOverdueModalOpen(false);
+                    setIsActiveTasksModalOpen(false);
                     sessionStorage.setItem('overdue_tasks_dismissed', 'true');
                     setViewingTask(task);
                     setIsTaskViewModalOpen(true);
                 }}
                 onViewAllTasks={() => {
-                    setIsOverdueModalOpen(false);
+                    setIsActiveTasksModalOpen(false);
                     sessionStorage.setItem('overdue_tasks_dismissed', 'true');
                     setActiveTab('Semua Task');
                 }}
                 onSnooze={() => {
-                    setIsOverdueModalOpen(false);
+                    setIsActiveTasksModalOpen(false);
                     const snoozeTime = Date.now() + 60 * 60 * 1000; // 1 hour
                     localStorage.setItem('overdue_tasks_snooze_until', snoozeTime.toString());
                     sessionStorage.setItem('overdue_tasks_dismissed', 'true');

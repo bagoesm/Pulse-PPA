@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clock, ChevronRight, X, Calendar, AlertTriangle, PlayCircle, ClipboardList, HelpCircle } from 'lucide-react';
+import { Clock, ChevronRight, X, Calendar, AlertTriangle, ClipboardList, PauseCircle } from 'lucide-react';
 import { Task, Status } from '../../types';
 
 interface OverdueTasksModalProps {
@@ -50,26 +50,29 @@ const OverdueTasksModal: React.FC<OverdueTasksModalProps> = ({
   };
 
   // Group tasks
-  const todayStr = new Date().getFullYear() + '-' + 
-      String(new Date().getMonth() + 1).padStart(2, '0') + '-' + 
-      String(new Date().getDate()).padStart(2, '0');
-
   const overdueTasks = tasks.filter(task => {
     const daysOverdue = getDaysOverdue(task.deadline);
-    return daysOverdue > 0;
+    // Non-pending overdue tasks
+    return daysOverdue > 0 && task.status !== Status.Pending;
+  });
+
+  const pendingTasks = tasks.filter(task => {
+    // All pending tasks regardless of deadline
+    return task.status === Status.Pending;
   });
 
   const inProgressTasks = tasks.filter(task => {
     const daysOverdue = getDaysOverdue(task.deadline);
+    // In progress, Review, etc. that are not overdue
     return daysOverdue === 0 && (
       task.status === Status.InProgress || 
-      task.status === Status.Pending || 
       task.status === Status.Review
     );
   });
 
   const toDoTasks = tasks.filter(task => {
     const daysOverdue = getDaysOverdue(task.deadline);
+    // To Do tasks that are not overdue
     return daysOverdue === 0 && task.status === Status.ToDo;
   });
 
@@ -92,7 +95,7 @@ const OverdueTasksModal: React.FC<OverdueTasksModalProps> = ({
 
       <div className="bg-white rounded-2xl shadow-2xl w-full sm:max-w-xl overflow-hidden animate-in fade-in-50 zoom-in-95 duration-300 flex flex-col max-h-[85vh] border border-slate-100">
         
-        {/* Header - changes background and icon depending on overdue tasks presence */}
+        {/* Header */}
         <div className={`relative overflow-hidden px-6 py-5 text-white flex items-center gap-4 transition-all duration-300 ${
           hasOverdue 
             ? 'bg-gradient-to-r from-red-500 via-orange-500 to-amber-500' 
@@ -130,7 +133,7 @@ const OverdueTasksModal: React.FC<OverdueTasksModalProps> = ({
           {overdueTasks.length > 0 && (
             <div className="space-y-3">
               <div className="flex items-center gap-2 border-l-4 border-red-500 pl-2">
-                <h4 className="text-sm font-bold text-red-600 tracking-wide uppercase">Terlewat Deadline (Terlupakan)</h4>
+                <h4 className="text-sm font-bold text-red-600 tracking-wide uppercase">Terlewat Deadline</h4>
                 <span className="bg-red-100 text-red-700 text-xs font-extrabold px-2 py-0.5 rounded-full">
                   {overdueTasks.length}
                 </span>
@@ -171,7 +174,58 @@ const OverdueTasksModal: React.FC<OverdueTasksModalProps> = ({
             </div>
           )}
 
-          {/* GROUP 2: SEDANG DIKERJAKAN */}
+          {/* GROUP 2: DITUNDA (PENDING) */}
+          {pendingTasks.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 border-l-4 border-amber-500 pl-2">
+                <h4 className="text-sm font-bold text-amber-700 tracking-wide uppercase">Ditunda (Pending)</h4>
+                <span className="bg-amber-100 text-amber-800 text-xs font-extrabold px-2 py-0.5 rounded-full">
+                  {pendingTasks.length}
+                </span>
+              </div>
+              <div className="space-y-2">
+                {pendingTasks.map(task => {
+                  const daysOverdue = getDaysOverdue(task.deadline);
+                  return (
+                    <div 
+                      key={task.id}
+                      onClick={() => onViewTask(task)}
+                      className="bg-white p-3.5 rounded-xl border border-slate-200 hover:border-amber-400 hover:shadow-md transition-all cursor-pointer group flex items-start justify-between gap-3"
+                    >
+                      <div className="space-y-1 flex-1 min-w-0">
+                        <span className="text-[9px] font-bold text-amber-700 bg-amber-50 border border-amber-100 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                          {task.category}
+                        </span>
+                        <h5 className="text-sm font-semibold text-slate-800 group-hover:text-amber-700 transition-colors truncate mt-1">
+                          {task.title}
+                        </h5>
+                        <div className="flex items-center gap-1.5 text-slate-400 text-[11px] font-medium">
+                          <Calendar size={11} />
+                          <span>Deadline: {formatDateIndo(task.deadline)}</span>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                        {daysOverdue > 0 ? (
+                          <span className="text-[10px] font-semibold px-2 py-0.5 bg-amber-500 text-white rounded-lg shadow-sm">
+                            Terlewat {daysOverdue} hari
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-semibold px-2 py-0.5 bg-slate-200 text-slate-700 rounded-lg">
+                            Pending
+                          </span>
+                        )}
+                        <span className="text-[10px] text-slate-400 group-hover:text-amber-600 transition-colors flex items-center gap-0.5">
+                          Detail <ChevronRight size={10} />
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* GROUP 3: SEDANG DIKERJAKAN */}
           {inProgressTasks.length > 0 && (
             <div className="space-y-3">
               <div className="flex items-center gap-2 border-l-4 border-sky-500 pl-2">
@@ -213,7 +267,7 @@ const OverdueTasksModal: React.FC<OverdueTasksModalProps> = ({
             </div>
           )}
 
-          {/* GROUP 3: BELUM MULAI (TO DO) */}
+          {/* GROUP 4: BELUM MULAI (TO DO) */}
           {toDoTasks.length > 0 && (
             <div className="space-y-3">
               <div className="flex items-center gap-2 border-l-4 border-slate-400 pl-2">
