@@ -111,16 +111,21 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Check if current user is PIC of this task
+  // Check if current user is PIC of this task (case-insensitive, trimmed)
   const isCurrentUserPIC = () => {
     if (!currentUser || !task) return false;
-    const taskPics = Array.isArray(task.pic) ? task.pic : [task.pic];
+    const taskPics = (Array.isArray(task.pic) ? task.pic : [task.pic])
+        .filter(Boolean)
+        .map(p => (typeof p === 'string' ? p.trim().toLowerCase() : ''));
     
-    // Check by name
-    if (taskPics.includes(currentUser.name)) return true;
+    const userName = currentUser.name?.trim().toLowerCase() || '';
+    const userId = currentUser.id?.trim().toLowerCase() || '';
+    
+    // Check by name (case-insensitive)
+    if (userName && taskPics.includes(userName)) return true;
     
     // Check by UUID (fallback for cases where PIC is still stored as UUID)
-    if (taskPics.includes(currentUser.id)) return true;
+    if (userId && taskPics.includes(userId)) return true;
     
     return false;
   };

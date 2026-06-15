@@ -60,6 +60,25 @@ export const useTaskHandlers = ({
     setIsMeetingViewModalOpen
 }: UseTaskHandlersProps) => {
 
+    // Helper: check if current user is PIC of a task (case-insensitive, trimmed)
+    const isUserPicOfTask = useCallback((task: Task): boolean => {
+        if (!currentUser) return false;
+        const taskPics = (Array.isArray(task.pic) ? task.pic : [task.pic])
+            .filter(Boolean)
+            .map(p => (typeof p === 'string' ? p.trim().toLowerCase() : ''));
+        
+        const userName = currentUser.name?.trim().toLowerCase() || '';
+        const userId = currentUser.id?.trim().toLowerCase() || '';
+        
+        // Check by name (case-insensitive)
+        if (userName && taskPics.includes(userName)) return true;
+        
+        // Check by UUID (fallback for cases where PIC is still stored as UUID)
+        if (userId && taskPics.includes(userId)) return true;
+        
+        return false;
+    }, [currentUser]);
+
     // Permission checks
     const checkEditPermission = useCallback((task: Task) => {
         if (!currentUser) return false;
@@ -69,17 +88,11 @@ export const useTaskHandlers = ({
         // Check if user is creator
         if (task.createdBy === currentUser.name) return true;
         
-        // Check if user is PIC (support both name and UUID format)
-        const taskPics = Array.isArray(task.pic) ? task.pic : [task.pic];
-        
-        // Check by name
-        if (taskPics.includes(currentUser.name)) return true;
-        
-        // Check by UUID (fallback for cases where PIC is still stored as UUID)
-        if (taskPics.includes(currentUser.id)) return true;
+        // Check if user is PIC (case-insensitive, supports both name and UUID)
+        if (isUserPicOfTask(task)) return true;
         
         return false;
-    }, [currentUser]);
+    }, [currentUser, isUserPicOfTask]);
 
     const checkDeletePermission = useCallback((task: Task) => {
         if (!currentUser) return false;
@@ -89,17 +102,11 @@ export const useTaskHandlers = ({
         // Check if user is creator
         if (task.createdBy === currentUser.name) return true;
         
-        // Allow PIC to delete task (support both name and UUID format)
-        const taskPics = Array.isArray(task.pic) ? task.pic : [task.pic];
-        
-        // Check by name
-        if (taskPics.includes(currentUser.name)) return true;
-        
-        // Check by UUID (fallback)
-        if (taskPics.includes(currentUser.id)) return true;
+        // Allow PIC to delete task (case-insensitive, supports both name and UUID)
+        if (isUserPicOfTask(task)) return true;
         
         return false;
-    }, [currentUser]);
+    }, [currentUser, isUserPicOfTask]);
 
     // Log task activity
     const logTaskActivity = useCallback(async (
@@ -191,6 +198,13 @@ export const useTaskHandlers = ({
             const task = tasks.find(t => t.id === draggedTaskId);
             const oldStatus = task?.status;
 
+            // Double-check edit permission (defensive guard)
+            if (task && !checkEditPermission(task)) {
+                showNotification('Tidak Memiliki Izin', 'Anda tidak memiliki izin untuk mengubah status task ini.', 'error');
+                setDraggedTaskId(null);
+                return;
+            }
+
             // Check if task is blocked by unfinished tasks
             if (task && status !== Status.ToDo) {
                 const blockingTaskIds = task.blockedBy || [];
@@ -234,7 +248,7 @@ export const useTaskHandlers = ({
 
             setDraggedTaskId(null);
         }
-    }, [draggedTaskId, tasks, setTasks, setDraggedTaskId, logTaskActivity, logToActivityLogs, showNotification]);
+    }, [draggedTaskId, tasks, setTasks, setDraggedTaskId, checkEditPermission, logTaskActivity, logToActivityLogs, showNotification]);
 
     // Save task (create or update)
     const handleSaveTask = useCallback(async (newTaskData: Omit<Task, 'id'>) => {
@@ -492,6 +506,12 @@ export const useTaskHandlers = ({
         const task = tasks.find(t => t.id === taskId);
         if (!task) return;
 
+        // Permission check: allow PIC, creator, Super Admin, and Atasan
+        if (!checkEditPermission(task) && !isUserPicOfTask(task)) {
+            showNotification('Tidak Memiliki Izin', 'Anda tidak memiliki izin untuk mengubah status task ini.', 'error');
+            return;
+        }
+
         // Check if task is blocked by unfinished tasks
         const blockingTaskIds = task.blockedBy || [];
         if (blockingTaskIds.length > 0 && newStatus !== Status.ToDo) {
@@ -532,7 +552,7 @@ export const useTaskHandlers = ({
             }
             showNotification('Gagal Update Status', 'Anda tidak memiliki izin untuk mengubah status task ini.', 'error');
         }
-    }, [tasks, viewingTask, setTasks, setViewingTask, logTaskActivity, showNotification]);
+    }, [tasks, viewingTask, setTasks, setViewingTask, checkEditPermission, isUserPicOfTask, logTaskActivity, showNotification]);
 
     // Add comment
     const handleAddComment = useCallback(async (taskId: string, content: string) => {
