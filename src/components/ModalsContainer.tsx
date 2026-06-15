@@ -1,8 +1,9 @@
 // src/components/ModalsContainer.tsx
 // All application modals in one container to reduce AppContent size
-import React, { lazy, Suspense } from 'react';
-import { Task, User, ProjectDefinition, Comment, TaskActivity, Announcement, Meeting, MeetingInviter, Epic, Subtask } from '../../types';
+import React, { lazy, Suspense, useState, useEffect, useMemo } from 'react';
+import { Task, User, ProjectDefinition, Comment, TaskActivity, Announcement, Meeting, MeetingInviter, Epic, Subtask, Status } from '../../types';
 import AddEpicModal from './AddEpicModal';
+import OverdueTasksModal from './OverdueTasksModal';
 
 // Small modals - regular imports (keep synchronous for fast feedback)
 import AddProjectModal from './AddProjectModal';
@@ -168,7 +169,7 @@ interface ModalsContainerProps {
 }
 
 const ModalsContainer: React.FC<ModalsContainerProps> = (props) => {
-    const { toast, hideToast } = useUI();
+    const { toast, hideToast, setActiveTab } = useUI();
     const {
         currentUser,
         // Task View Modal
@@ -211,6 +212,46 @@ const ModalsContainer: React.FC<ModalsContainerProps> = (props) => {
         handleSaveEpic, handleDeleteEpic, defaultEpicProjectId,
         isEpicViewModalOpen, setIsEpicViewModalOpen, viewingEpic, setViewingEpic, onViewKanbanForEpic
     } = props;
+
+    // Active tasks checking logic (includes overdue, in-progress, and to-do)
+    const activeTasks = useMemo(() => {
+        if (!currentUser || allTasks.length === 0) return [];
+
+        return allTasks.filter(task => {
+            if (task.isMeeting) return false;
+            const picArray = Array.isArray(task.pic) ? task.pic : [task.pic];
+            const isAssignee = picArray.includes(currentUser.name);
+            const isNotDone = task.status !== Status.Done;
+            return isAssignee && isNotDone;
+        });
+    }, [allTasks, currentUser]);
+
+    const [isOverdueModalOpen, setIsOverdueModalOpen] = useState(false);
+    const [hasCheckedOverdue, setHasCheckedOverdue] = useState(false);
+
+    useEffect(() => {
+        if (hasCheckedOverdue || activeTasks.length === 0) return;
+
+        // Check snooze in localStorage
+        const snoozeUntil = localStorage.getItem('overdue_tasks_snooze_until');
+        if (snoozeUntil) {
+            const snoozeTime = parseInt(snoozeUntil, 10);
+            if (!isNaN(snoozeTime) && Date.now() < snoozeTime) {
+                setHasCheckedOverdue(true);
+                return;
+            }
+        }
+
+        // Check session dismissal in sessionStorage
+        const sessionDismissed = sessionStorage.getItem('overdue_tasks_dismissed');
+        if (sessionDismissed === 'true') {
+            setHasCheckedOverdue(true);
+            return;
+        }
+
+        setIsOverdueModalOpen(true);
+        setHasCheckedOverdue(true);
+    }, [activeTasks, hasCheckedOverdue]);
 
     return (
         <>
@@ -428,6 +469,33 @@ const ModalsContainer: React.FC<ModalsContainerProps> = (props) => {
                     epics={epics}
                 />
             </Suspense>
+
+            {/* Overdue Tasks Alert Modal */}
+            <OverdueTasksModal
+                isOpen={isOverdueModalOpen}
+                onClose={() => {
+                    setIsOverdueModalOpen(false);
+                    sessionStorage.setItem('overdue_tasks_dismissed', 'true');
+                }}
+                tasks={activeTasks}
+                onViewTask={(task) => {
+                    setIsOverdueModalOpen(false);
+                    sessionStorage.setItem('overdue_tasks_dismissed', 'true');
+                    setViewingTask(task);
+                    setIsTaskViewModalOpen(true);
+                }}
+                onViewAllTasks={() => {
+                    setIsOverdueModalOpen(false);
+                    sessionStorage.setItem('overdue_tasks_dismissed', 'true');
+                    setActiveTab('Semua Task');
+                }}
+                onSnooze={() => {
+                    setIsOverdueModalOpen(false);
+                    const snoozeTime = Date.now() + 60 * 60 * 1000; // 1 hour
+                    localStorage.setItem('overdue_tasks_snooze_until', snoozeTime.toString());
+                    sessionStorage.setItem('overdue_tasks_dismissed', 'true');
+                }}
+            />
         </>
     );
 };
