@@ -63,6 +63,7 @@ const VisibilityAuditTrail = lazy(() => import('./components/VisibilityAuditTrai
 const TaskExportModal = lazy(() => import('./components/TaskExportModal'));
 const AnalitikPage = lazy(() => import('./components/AnalitikPage'));
 const InventoriBMNPage = lazy(() => import('./components/InventoriBMNPage'));
+const BudgetRealizationPage = lazy(() => import('./components/BudgetRealization/BudgetRealizationPage'));
 
 // Loading fallback
 const PageLoader: React.FC = () => (
@@ -754,7 +755,7 @@ const AppContent: React.FC = () => {
         )}
 
         {/* Top Header / Filter Bar - HIDDEN for special pages */}
-        {activeTab !== 'Dashboard' && activeTab !== 'Analitik' && activeTab !== 'Project' && activeTab !== 'Master Data' && activeTab !== 'Saran Masukan' && activeTab !== 'Pengumuman' && activeTab !== 'Inventori Data' && activeTab !== 'Inventori BMN' && activeTab !== 'Jadwal Kegiatan' && activeTab !== 'Daftar Surat' && activeTab !== 'Activity Log' && activeTab !== 'Daftar Disposisi' && activeTab !== 'Manajemen Visibility' && activeTab !== 'Riwayat Perubahan' && (
+        {activeTab !== 'Dashboard' && activeTab !== 'Analitik' && activeTab !== 'Project' && activeTab !== 'Master Data' && activeTab !== 'Saran Masukan' && activeTab !== 'Pengumuman' && activeTab !== 'Inventori Data' && activeTab !== 'Inventori BMN' && activeTab !== 'Jadwal Kegiatan' && activeTab !== 'Daftar Surat' && activeTab !== 'Activity Log' && activeTab !== 'Daftar Disposisi' && activeTab !== 'Manajemen Visibility' && activeTab !== 'Riwayat Perubahan' && !['Dashboard Realisasi', 'Monitoring Anggaran', 'Daftar Transaksi', 'Laporan Anggaran', 'Master Anggaran'].includes(activeTab) && (
           <header className="bg-white border-b border-slate-200 px-3 sm:px-6 py-3 sm:py-4 z-20 relative">
             <div className="flex flex-col gap-3 sm:gap-4 mb-3 sm:mb-4">
               {/* Title Section */}
@@ -1087,6 +1088,14 @@ const AppContent: React.FC = () => {
         ) : activeTab === 'Daftar Disposisi' ? (
           <Suspense fallback={<PageLoader />}>
             <DisposisiListView
+              currentUser={currentUser}
+              showNotification={showNotification}
+            />
+          </Suspense>
+        ) : ['Dashboard Realisasi', 'Monitoring Anggaran', 'Daftar Transaksi', 'Laporan Anggaran', 'Master Anggaran'].includes(activeTab) ? (
+          <Suspense fallback={<PageLoader />}>
+            <BudgetRealizationPage
+              activeTab={activeTab}
               currentUser={currentUser}
               showNotification={showNotification}
             />

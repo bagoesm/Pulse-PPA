@@ -65,7 +65,8 @@ const IconMap: Record<string, React.ElementType> = {
   'ClipboardList': ClipboardList,
   'Settings': Settings,
   'Shield': Shield,
-  'Package': Package
+  'Package': Package,
+  'PieChart': PieChart
 };
 
 const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser, users, onSwitchUser, onLogout }) => {

@@ -47,6 +47,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
   const moreMenuItems = [
     { name: 'Jadwal Kegiatan', icon: CalendarDays, color: 'text-indigo-600', bg: 'bg-indigo-50' },
     { name: 'Daftar Surat', icon: FileSpreadsheet, color: 'text-teal-600', bg: 'bg-teal-50' },
+    { name: 'Dashboard Realisasi', icon: FileSpreadsheet, color: 'text-rose-600', bg: 'bg-rose-50' },
     { name: 'Saran Masukan', icon: MessageSquarePlus, color: 'text-emerald-600', bg: 'bg-emerald-50' },
     { name: 'Pengumuman', icon: Megaphone, color: 'text-blue-600', bg: 'bg-blue-50' },
     { name: 'Inventori Data', icon: Database, color: 'text-purple-600', bg: 'bg-purple-50' },
@@ -58,7 +59,8 @@ const MobileNav: React.FC<MobileNavProps> = ({
     ] : []),
   ];
 
-  const isMoreActive = moreMenuItems.some((item) => activeTab === item.name);
+  const isMoreActive = moreMenuItems.some((item) => activeTab === item.name) ||
+    ['Dashboard Realisasi', 'Monitoring Anggaran', 'Daftar Transaksi', 'Laporan Anggaran', 'Master Anggaran'].includes(activeTab);
 
   return (
     <>

@@ -380,6 +380,17 @@ export const SIDEBAR_ITEMS = [
       { name: 'Daftar Disposisi', icon: 'ClipboardList' },
     ]
   },
+  {
+    name: 'Realisasi Anggaran',
+    icon: 'FileSpreadsheet',
+    submenu: [
+      { name: 'Dashboard Realisasi', icon: 'LayoutDashboard' },
+      { name: 'Monitoring Anggaran', icon: 'PieChart' },
+      { name: 'Daftar Transaksi', icon: 'ClipboardList' },
+      { name: 'Laporan Anggaran', icon: 'FileText' },
+      { name: 'Master Anggaran', icon: 'Database' },
+    ]
+  },
   { name: 'Inventori Data', icon: 'Database' },
   { name: 'Inventori BMN', icon: 'Package' },
 ];
@@ -748,3 +759,62 @@ export interface BMNParseResult {
   validRows: number;            // Valid rows
   invalidRows: number;          // Invalid rows
 }
+
+// ============================================================================
+// Budget Realization (APBN & Hibah) Types
+// ============================================================================
+
+export interface MasterSumberDana {
+  id: string;
+  name: string;
+  createdAt: string;
+}
+
+export interface BudgetEditor {
+  id: string;
+  userId: string;
+  divisi: string;
+  createdAt: string;
+  userName?: string;
+  userEmail?: string;
+}
+
+export interface BudgetMaster {
+  id: string;
+  divisi: string;
+  sumberDanaId: string;
+  kegiatan: string;
+  namaKegiatan: string;
+  kro: string;
+  namaKro: string;
+  ro: string;
+  namaRo: string;
+  komponen: string;
+  namaKomponen: string;
+  subkomponen: string;
+  namaSubkomponen: string;
+  akun: string;
+  namaAkun: string;
+  detail: string;
+  pagu: number;
+  createdBy: string;
+  createdAt: string;
+  updatedAt?: string;
+  sumberDana?: MasterSumberDana;
+}
+
+export interface BudgetTransaction {
+  id: string;
+  masterId: string;
+  tanggal: string;
+  uraian: string;
+  nominal: number;
+  bukti?: string;
+  keterangan?: string;
+  status: 'Realisasi' | 'Outstanding';
+  createdBy: string;
+  createdAt: string;
+  updatedAt?: string;
+  master?: BudgetMaster;
+}
+
