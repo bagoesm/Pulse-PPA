@@ -166,6 +166,10 @@ interface ModalsContainerProps {
     // Task Export Modal
     isExportModalOpen: boolean;
     setIsExportModalOpen: (open: boolean) => void;
+
+    // Highlighted subtask state
+    highlightedSubtaskId?: string | null;
+    setHighlightedSubtaskId?: React.Dispatch<React.SetStateAction<string | null>>;
 }
 
 const ModalsContainer: React.FC<ModalsContainerProps> = (props) => {
@@ -210,7 +214,8 @@ const ModalsContainer: React.FC<ModalsContainerProps> = (props) => {
         // Epics
         epics, isEpicModalOpen, setIsEpicModalOpen, editingEpic, setEditingEpic,
         handleSaveEpic, handleDeleteEpic, defaultEpicProjectId,
-        isEpicViewModalOpen, setIsEpicViewModalOpen, viewingEpic, setViewingEpic, onViewKanbanForEpic
+        isEpicViewModalOpen, setIsEpicViewModalOpen, viewingEpic, setViewingEpic, onViewKanbanForEpic,
+        highlightedSubtaskId, setHighlightedSubtaskId
     } = props;
 
     // Active tasks checking logic (includes overdue, in-progress, and to-do)
@@ -258,7 +263,13 @@ const ModalsContainer: React.FC<ModalsContainerProps> = (props) => {
             <Suspense fallback={null}>
                 <TaskViewModal
                     isOpen={isTaskViewModalOpen}
-                    onClose={() => { setIsTaskViewModalOpen(false); setViewingTask(null); }}
+                    onClose={() => {
+                        setIsTaskViewModalOpen(false);
+                        setViewingTask(null);
+                        if (setHighlightedSubtaskId) {
+                            setHighlightedSubtaskId(null);
+                        }
+                    }}
                     onEdit={handleEditFromView}
                     task={viewingTask}
                     currentUser={currentUser}
@@ -284,6 +295,7 @@ const ModalsContainer: React.FC<ModalsContainerProps> = (props) => {
                     onUpdateChecklistItem={handleUpdateChecklistItem}
                     subtasks={subtasks.filter(s => s.parentTaskId === viewingTask?.id)}
                     subtaskHandlers={subtaskHandlers}
+                    highlightedSubtaskId={highlightedSubtaskId}
                 />
             </Suspense>
 

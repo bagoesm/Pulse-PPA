@@ -191,14 +191,23 @@ const AppContent: React.FC = () => {
     isActiveTasksModalOpen, setIsActiveTasksModalOpen
   } = useUI();
 
+  const [highlightedSubtaskId, setHighlightedSubtaskId] = useState<string | null>(null);
+
   const currentUserActiveTasksCount = useMemo(() => {
-    if (!currentUser || !tasks) return 0;
-    return tasks.filter(task => {
+    if (!currentUser) return 0;
+    const activeTasksCount = tasks.filter(task => {
       if (task.isMeeting) return false;
       const picArray = Array.isArray(task.pic) ? task.pic : [task.pic];
       return picArray.includes(currentUser.name) && task.status !== Status.Done;
     }).length;
-  }, [tasks, currentUser]);
+
+    const activeSubtasksCount = subtasks.filter(sub => {
+      const picArray = sub.pic || [];
+      return picArray.includes(currentUser.name) && sub.status !== Status.Done;
+    }).length;
+
+    return activeTasksCount + activeSubtasksCount;
+  }, [tasks, subtasks, currentUser]);
 
   // ===== DIVISION CONTEXT =====
   const {
@@ -230,10 +239,43 @@ const AppContent: React.FC = () => {
     [getMeetingsAsTasks, meetings]
   );
 
-  // Compute allTasksWithMeetings
+  // Convert subtasks to task-like structures
+  const subtasksAsTasks = useMemo(() => {
+    return subtasks.map(subtask => {
+      const parent = tasks.find(t => t.id === subtask.parentTaskId);
+      return {
+        id: `subtask_${subtask.id}`,
+        title: subtask.title,
+        status: subtask.status,
+        pic: subtask.pic || [],
+        startDate: subtask.startDate || parent?.startDate || null,
+        deadline: subtask.deadline || parent?.deadline || null,
+        priority: subtask.priority || parent?.priority || Priority.Medium,
+        projectId: parent?.projectId || null,
+        epicId: parent?.epicId || null,
+        categoryId: parent?.categoryId || null,
+        subCategoryId: parent?.subCategoryId || null,
+        category: parent?.category || Category.Lainnya,
+        subCategory: parent?.subCategory || '',
+        description: subtask.description || '',
+        isSubtask: true,
+        parentTaskId: subtask.parentTaskId,
+        parentTaskTitle: parent?.title || 'Unknown Parent Task',
+        attachments: subtask.attachments || [],
+        links: [],
+        blockedBy: [],
+        checklists: subtask.checklists || [],
+        createdBy: subtask.createdBy || parent?.createdBy || 'System',
+        createdAt: subtask.createdAt,
+        updatedAt: subtask.updatedAt || subtask.createdAt
+      } as unknown as Task;
+    });
+  }, [subtasks, tasks]);
+
+  // Compute allTasksWithMeetings including subtasks
   const allTasksWithMeetings = useMemo(() =>
-    [...tasks, ...meetingsAsTasks],
-    [tasks, meetingsAsTasks]
+    [...tasks, ...meetingsAsTasks, ...subtasksAsTasks],
+    [tasks, meetingsAsTasks, subtasksAsTasks]
   );
 
   // Apply division filter to all tasks
@@ -386,6 +428,7 @@ const AppContent: React.FC = () => {
   const {
     notifications,
     createAssignmentNotification,
+    createSubtaskAssignmentNotification,
     createCommentNotification,
     createMentionNotification,
     createMeetingNotification,
@@ -397,6 +440,7 @@ const AppContent: React.FC = () => {
   } = useNotifications({
     currentUser,
     tasks,
+    subtasks,
     onTaskNavigation: handleTaskNavigation,
     onMeetingNavigation: handleMeetingNavigation,
     onDisposisiNavigation: handleDisposisiNavigation
@@ -467,7 +511,10 @@ const AppContent: React.FC = () => {
     createMentionNotification,
     meetings,
     setViewingMeeting,
-    setIsMeetingViewModalOpen
+    setIsMeetingViewModalOpen,
+    subtasks,
+    setSubtasks,
+    setHighlightedSubtaskId
   });
 
   // Project handlers
@@ -510,7 +557,8 @@ const AppContent: React.FC = () => {
     setTasks,
     showNotification,
     showConfirm,
-    showToast
+    showToast,
+    createSubtaskAssignmentNotification
   });
 
   // Meeting handlers
@@ -1234,6 +1282,8 @@ const AppContent: React.FC = () => {
         // Subtasks
         subtasks={subtasks}
         subtaskHandlers={subtaskHandlers}
+        highlightedSubtaskId={highlightedSubtaskId}
+        setHighlightedSubtaskId={setHighlightedSubtaskId}
         // Add Task Modal
         isModalOpen={isModalOpen}
         setIsModalOpen={setIsModalOpen}

@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useTasks } from '../contexts/TasksContext';
+import { useSubtasks } from '../contexts/SubtasksContext';
 import { useDisposisi } from '../contexts/DisposisiContext';
 import { useDivision } from '../contexts/DivisionContext';
 import { useUsers } from '../contexts/UsersContext';
@@ -88,6 +89,7 @@ const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, per
 
 const AnalitikPage: React.FC = () => {
   const { tasks, getMeetingsAsTasks } = useTasks();
+  const { subtasks } = useSubtasks();
   const { meetings } = useMeetings();
   const { disposisi } = useDisposisi();
   const { shouldShowByDivisi, selectedDivisi, isUserIdInSelectedDivisi } = useDivision();
@@ -119,15 +121,49 @@ const AnalitikPage: React.FC = () => {
     return true;
   };
 
+  // Convert subtasks to task-like structures
+  const tasksIncludingSubtasks = useMemo(() => {
+    const subtasksAsTasks = subtasks.map(subtask => {
+      const parent = tasks.find(t => t.id === subtask.parentTaskId);
+      return {
+        id: `subtask_${subtask.id}`,
+        title: subtask.title,
+        status: subtask.status,
+        pic: subtask.pic || [],
+        startDate: subtask.startDate || parent?.startDate || null,
+        deadline: subtask.deadline || parent?.deadline || null,
+        priority: subtask.priority || parent?.priority || 'Medium',
+        projectId: parent?.projectId || null,
+        epicId: parent?.epicId || null,
+        categoryId: parent?.categoryId || null,
+        subCategoryId: parent?.subCategoryId || null,
+        category: parent?.category || 'Lainnya',
+        subCategory: parent?.subCategory || '',
+        description: subtask.description || '',
+        isSubtask: true,
+        parentTaskId: subtask.parentTaskId,
+        parentTaskTitle: parent?.title || 'Unknown Parent Task',
+        attachments: subtask.attachments || [],
+        links: [],
+        blockedBy: [],
+        checklists: subtask.checklists || [],
+        createdBy: subtask.createdBy || parent?.createdBy || 'System',
+        createdAt: subtask.createdAt,
+        updatedAt: subtask.updatedAt || subtask.createdAt
+      } as any;
+    });
+    return [...tasks, ...subtasksAsTasks];
+  }, [tasks, subtasks]);
+
   // Separate Tasks and Meetings
   const filteredOnlyTasks = useMemo(() => {
-    let result = tasks;
+    let result = tasksIncludingSubtasks;
     result = result.filter(t => isDateInFilter(t.startDate || (t as any).createdAt));
     if (selectedDivisi !== 'All') {
       result = result.filter(t => shouldShowByDivisi(t.createdBy, t.pic));
     }
     return result;
-  }, [tasks, selectedDivisi, shouldShowByDivisi, timeFilter]);
+  }, [tasksIncludingSubtasks, selectedDivisi, shouldShowByDivisi, timeFilter]);
 
   const filteredMeetingsAsTasks = useMemo(() => {
     let result = getMeetingsAsTasks(meetings);
@@ -356,17 +392,17 @@ const AnalitikPage: React.FC = () => {
     const now = new Date();
     const fourteenDaysAgo = new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000));
     
-    const completedRecently = tasks.filter(t => 
+    const completedRecently = tasksIncludingSubtasks.filter(t => 
       t.status === Status.Done && 
       (t.startDate && new Date(t.startDate) >= fourteenDaysAgo)
     ).length;
     
     const velocity = completedRecently / 14;
-    const activeCount = tasks.filter(t => t.status !== Status.Done).length;
+    const activeCount = tasksIncludingSubtasks.filter(t => t.status !== Status.Done).length;
     const forecastDays = velocity > 0 ? Math.ceil(activeCount / velocity) : null;
     
     // Inflow vs Outflow
-    const addedRecently = tasks.filter(t => {
+    const addedRecently = tasksIncludingSubtasks.filter(t => {
       const createdDate = (t as any).createdAt || t.startDate;
       return createdDate && new Date(createdDate) >= fourteenDaysAgo;
     }).length;
@@ -379,7 +415,7 @@ const AnalitikPage: React.FC = () => {
       isProductivityGood: velocity > 0.5,
       activeCount
     };
-  }, [tasks]);
+  }, [tasksIncludingSubtasks]);
 
   const handleGenerateInsight = async () => {
     setIsGeneratingAiInsight(true);

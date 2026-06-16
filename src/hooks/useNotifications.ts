@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { Notification, Task, User, NotificationType } from '../../types';
+import { Notification, Task, User, NotificationType, Subtask } from '../../types';
 
 interface UseNotificationsProps {
   currentUser: User | null;
   tasks: Task[];
+  subtasks?: Subtask[];
   onTaskNavigation: (taskId: string) => void;
   onMeetingNavigation?: (meetingId: string) => void;
   onDisposisiNavigation?: (disposisiId: string) => void;
@@ -44,7 +45,7 @@ const mapDbToNotification = (n: DbNotification): Notification => ({
   expiresAt: new Date(new Date(n.created_at).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString()
 });
 
-export const useNotifications = ({ currentUser, tasks, onTaskNavigation, onMeetingNavigation, onDisposisiNavigation }: UseNotificationsProps) => {
+export const useNotifications = ({ currentUser, tasks, subtasks = [], onTaskNavigation, onMeetingNavigation, onDisposisiNavigation }: UseNotificationsProps) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const deadlineCheckDone = useRef(false);
@@ -242,6 +243,55 @@ export const useNotifications = ({ currentUser, tasks, onTaskNavigation, onMeeti
     }
   }, [currentUser, createNotification, fetchNotifications]);
 
+  // Create subtask assignment notification
+  const createSubtaskAssignmentNotification = useCallback(async (
+    parentTaskId: string,
+    parentTaskTitle: string,
+    subtaskTitle: string,
+    assignerName: string,
+    newPics: string[],
+    oldPics: string[] = [],
+    isNewSubtask: boolean = false
+  ) => {
+    if (!currentUser) return;
+
+    try {
+      const newlyAssignedPics = newPics.filter(pic => !oldPics.includes(pic));
+      const picsToNotify = newlyAssignedPics.filter(pic => pic !== assignerName);
+
+      if (picsToNotify.length === 0) return;
+
+      const { data: users } = await supabase
+        .from('profiles')
+        .select('id, name')
+        .in('name', picsToNotify);
+
+      if (!users || users.length === 0) return;
+
+      for (const user of users) {
+        const message = isNewSubtask
+          ? `${assignerName} menugaskan Anda pada subtask baru "${subtaskTitle}" di task "${parentTaskTitle}"`
+          : `${assignerName} menambahkan Anda pada subtask "${subtaskTitle}" di task "${parentTaskTitle}"`;
+
+        await createNotification(
+          user.id,
+          'assignment',
+          isNewSubtask ? 'Subtask Baru' : 'Ditugaskan ke Subtask',
+          message,
+          parentTaskId,
+          parentTaskTitle
+        );
+      }
+
+      // Refresh if current user is a target
+      if (users.some(u => u.id === currentUser.id)) {
+        fetchNotifications();
+      }
+    } catch (error) {
+      console.error('Error creating subtask assignment notification:', error);
+    }
+  }, [currentUser, createNotification, fetchNotifications]);
+
   // Create assignment notification (when user is assigned as PIC)
   const createAssignmentNotification = useCallback(async (
     taskId: string,
@@ -327,10 +377,37 @@ export const useNotifications = ({ currentUser, tasks, onTaskNavigation, onMeeti
       );
     }
 
-    if (upcomingTasks.length > 0) {
+    // Find subtasks with deadlines within next 24 hours where user is PIC
+    const upcomingSubtasks = subtasks.filter(subtask => {
+      if (subtask.status === 'Done') return false;
+      if (!subtask.deadline) return false;
+
+      const deadline = new Date(subtask.deadline);
+      const isWithin24Hours = deadline <= tomorrow && deadline >= now;
+
+      const pics = Array.isArray(subtask.pic) ? subtask.pic : [subtask.pic];
+      const isUserPic = pics.includes(currentUser.name);
+
+      return isWithin24Hours && isUserPic;
+    });
+
+    // Create notifications for subtasks
+    for (const subtask of upcomingSubtasks) {
+      const parent = tasks.find(t => t.id === subtask.parentTaskId);
+      await createNotification(
+        currentUser.id,
+        'deadline',
+        'Deadline Subtask Mendekat',
+        `Subtask "${subtask.title}" (dari task "${parent?.title || ''}") akan berakhir dalam 24 jam (${new Date(subtask.deadline!).toLocaleDateString('id-ID')})`,
+        subtask.parentTaskId,
+        parent?.title || ''
+      );
+    }
+
+    if (upcomingTasks.length > 0 || upcomingSubtasks.length > 0) {
       fetchNotifications();
     }
-  }, [currentUser, tasks, createNotification, fetchNotifications]);
+  }, [currentUser, tasks, subtasks, createNotification, fetchNotifications]);
 
   // Mark as read
   const markAsRead = useCallback(async (notificationId: string) => {
@@ -580,6 +657,7 @@ export const useNotifications = ({ currentUser, tasks, onTaskNavigation, onMeeti
     createCommentNotification,
     createMentionNotification,
     createAssignmentNotification,
+    createSubtaskAssignmentNotification,
     createMeetingNotification,
     markAsRead,
     markAllAsRead,

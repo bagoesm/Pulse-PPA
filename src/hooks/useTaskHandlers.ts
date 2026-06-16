@@ -2,7 +2,7 @@
 // Comprehensive task handlers - CRUD, drag/drop, comments, activities
 import { useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { Task, Status, Comment, TaskActivity, User, Category, Meeting, ChecklistItem, ActivityType } from '../../types';
+import { Task, Status, Comment, TaskActivity, User, Category, Meeting, ChecklistItem, ActivityType, Subtask } from '../../types';
 import { parseMentions } from '../components/MentionInput';
 
 interface UseTaskHandlersProps {
@@ -31,6 +31,9 @@ interface UseTaskHandlersProps {
     meetings: any[]; // Using any[] temporarily to avoid circular dependency issues if types are tricky, but preferably Meeting[]
     setViewingMeeting: React.Dispatch<React.SetStateAction<any | null>>;
     setIsMeetingViewModalOpen: (open: boolean) => void;
+    subtasks?: Subtask[];
+    setSubtasks?: React.Dispatch<React.SetStateAction<Subtask[]>>;
+    setHighlightedSubtaskId?: React.Dispatch<React.SetStateAction<string | null>>;
 }
 
 export const useTaskHandlers = ({
@@ -57,7 +60,10 @@ export const useTaskHandlers = ({
     createMentionNotification,
     meetings,
     setViewingMeeting,
-    setIsMeetingViewModalOpen
+    setIsMeetingViewModalOpen,
+    subtasks = [],
+    setSubtasks,
+    setHighlightedSubtaskId
 }: UseTaskHandlersProps) => {
 
     // Helper: check if current user is PIC of a task (case-insensitive, trimmed)
@@ -181,6 +187,27 @@ export const useTaskHandlers = ({
 
     // Drag handlers
     const handleDragStart = useCallback((e: React.DragEvent, id: string) => {
+        if (id.startsWith('subtask_')) {
+            const subtaskId = id.replace('subtask_', '');
+            const subtask = subtasks.find(s => s.id === subtaskId);
+            const parentTask = tasks.find(t => t.id === subtask?.parentTaskId);
+            if (subtask && parentTask) {
+                const isSubtaskPic = (subtask.pic || []).includes(currentUser?.name || '') || (subtask.pic || []).includes(currentUser?.id || '');
+                const isSubtaskCreator = subtask.createdBy === currentUser?.name;
+                const isParentPic = (parentTask.pic || []).includes(currentUser?.name || '') || (parentTask.pic || []).includes(currentUser?.id || '');
+                const isParentCreator = parentTask.createdBy === currentUser?.name;
+                const isAdmin = currentUser?.role === 'Super Admin' || currentUser?.role === 'Atasan';
+
+                if (isSubtaskPic || isSubtaskCreator || isParentPic || isParentCreator || isAdmin) {
+                    setDraggedTaskId(id);
+                    e.dataTransfer.effectAllowed = 'move';
+                    return;
+                }
+            }
+            e.preventDefault();
+            return;
+        }
+
         const task = tasks.find(t => t.id === id);
         if (task && checkEditPermission(task)) {
             setDraggedTaskId(id);
@@ -188,13 +215,50 @@ export const useTaskHandlers = ({
         } else {
             e.preventDefault();
         }
-    }, [tasks, checkEditPermission, setDraggedTaskId]);
+    }, [tasks, subtasks, currentUser, checkEditPermission, setDraggedTaskId]);
 
     const handleDragOver = useCallback((e: React.DragEvent) => e.preventDefault(), []);
 
     const handleDrop = useCallback(async (e: React.DragEvent, status: Status) => {
         e.preventDefault();
         if (draggedTaskId) {
+            if (draggedTaskId.startsWith('subtask_')) {
+                const subtaskId = draggedTaskId.replace('subtask_', '');
+                const subtask = subtasks.find(s => s.id === subtaskId);
+                const parentTask = tasks.find(t => t.id === subtask?.parentTaskId);
+                if (subtask && parentTask) {
+                    if (setSubtasks) {
+                        setSubtasks(prev => prev.map(s => s.id === subtaskId ? { ...s, status } : s));
+                    }
+                    const { error } = await supabase
+                        .from('subtasks')
+                        .update({ status, updated_at: new Date().toISOString() })
+                        .eq('id', subtaskId);
+
+                    if (!error) {
+                        const updatedSubtasks = subtasks.map(s => s.id === subtaskId ? { ...s, status } : s);
+                        const parentSubtasks = updatedSubtasks.filter(s => s.parentTaskId === parentTask.id);
+                        const allDone = parentSubtasks.every(s => s.status === Status.Done);
+                        const anyInProgress = parentSubtasks.some(s => s.status === Status.InProgress || s.status === Status.Review);
+
+                        if (allDone && parentTask.status !== Status.Done) {
+                            await supabase.from('tasks').update({ status: Status.Done, updated_at: new Date().toISOString() }).eq('id', parentTask.id);
+                            setTasks(prev => prev.map(t => t.id === parentTask.id ? { ...t, status: Status.Done } : t));
+                        } else if (anyInProgress && parentTask.status === Status.ToDo) {
+                            await supabase.from('tasks').update({ status: Status.InProgress, updated_at: new Date().toISOString() }).eq('id', parentTask.id);
+                            setTasks(prev => prev.map(t => t.id === parentTask.id ? { ...t, status: Status.InProgress } : t));
+                        }
+                    } else {
+                        if (setSubtasks) {
+                            setSubtasks(prev => prev.map(s => s.id === subtaskId ? { ...s, status: subtask.status } : s));
+                        }
+                        showNotification('Gagal Update Status Subtask', error.message, 'error');
+                    }
+                }
+                setDraggedTaskId(null);
+                return;
+            }
+
             const task = tasks.find(t => t.id === draggedTaskId);
             const oldStatus = task?.status;
 
@@ -248,7 +312,7 @@ export const useTaskHandlers = ({
 
             setDraggedTaskId(null);
         }
-    }, [draggedTaskId, tasks, setTasks, setDraggedTaskId, checkEditPermission, logTaskActivity, logToActivityLogs, showNotification]);
+    }, [draggedTaskId, tasks, subtasks, setSubtasks, setTasks, setDraggedTaskId, checkEditPermission, logTaskActivity, logToActivityLogs, showNotification]);
 
     // Save task (create or update)
     const handleSaveTask = useCallback(async (newTaskData: Omit<Task, 'id'>) => {
@@ -635,6 +699,19 @@ export const useTaskHandlers = ({
 
     // Task click handlers (for view modal)
     const handleTaskClick = useCallback((task: Task) => {
+        if ((task as any).isSubtask) {
+            const parentId = (task as any).parentTaskId;
+            const parentTask = tasks.find(t => t.id === parentId);
+            if (parentTask) {
+                if (setHighlightedSubtaskId) {
+                    setHighlightedSubtaskId((task as any).id.replace('subtask_', ''));
+                }
+                setViewingTask(parentTask);
+                setIsTaskViewModalOpen(true);
+            }
+            return;
+        }
+
         // Redirect to Meeting View if category is Audiensi/Rapat
         if (task.category === Category.AudiensiRapat) {
             // Find meeting by ID if linked, OR if one exists with same title? 
@@ -657,7 +734,7 @@ export const useTaskHandlers = ({
             setViewingTask(task);
             setIsTaskViewModalOpen(true);
         }
-    }, [setViewingTask, setIsTaskViewModalOpen, meetings, setViewingMeeting, setIsMeetingViewModalOpen]);
+    }, [setViewingTask, setIsTaskViewModalOpen, tasks, meetings, setViewingMeeting, setIsMeetingViewModalOpen, setHighlightedSubtaskId]);
 
     const handleEditClick = useCallback((task: Task) => {
         if (checkEditPermission(task)) {

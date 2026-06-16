@@ -96,16 +96,26 @@ export const exportTasksToText = (tasks: Task[], options: ExportOptions): string
 
       const picNames = Array.isArray(task.pic) ? task.pic.join(', ') : task.pic;
 
-      output += `\n[${index + 1}] ${task.title}\n`;
+      const isSubtask = (task as any).isSubtask;
+      const parentTaskTitle = (task as any).parentTaskTitle;
+
+      output += `\n[${index + 1}] ${isSubtask ? '[SUBTASK] ' : ''}${task.title}\n`;
       output += '───────────────────────────────────────────────────────────────\n';
       
       // Essential info only for summary version
       if (version === 'summary') {
+        if (isSubtask) {
+          output += `Parent Task     : ${parentTaskTitle}\n`;
+        }
         output += `PIC             : ${picNames}\n`;
         output += `Tanggal Mulai   : ${formatDate(task.startDate)}\n`;
         output += `Deadline        : ${formatDate(task.deadline)}\n`;
       } else {
         // Full basic info for detailed version
+        if (isSubtask) {
+          output += `Jenis           : Subtask\n`;
+          output += `Parent Task     : ${parentTaskTitle}\n`;
+        }
         output += `Kategori        : ${task.category}\n`;
         output += `Sub Kategori    : ${task.subCategory || '-'}\n`;
         output += `Project         : ${projectName}\n`;
@@ -217,10 +227,14 @@ export const exportTasksSummaryToText = (tasks: Task[], options: ExportOptions):
       : '-';
     
     const picNames = Array.isArray(task.pic) ? task.pic.join(', ') : task.pic;
+    const isSubtask = (task as any).isSubtask;
+    const parentTaskTitle = (task as any).parentTaskTitle;
 
-    output += `${index + 1}. ${task.title}\n`;
-    output += `   ${task.status} | ${task.priority} | ${picNames} | ${formatDate(task.deadline)}\n`;
-    if (projectName !== '-') {
+    output += `${index + 1}. ${isSubtask ? '[SUBTASK] ' : ''}${task.title}\n`;
+    output += `   Status: ${task.status} | Prioritas: ${task.priority} | PIC: ${picNames} | Deadline: ${formatDate(task.deadline)}\n`;
+    if (isSubtask) {
+      output += `   Parent Task: ${parentTaskTitle}\n`;
+    } else if (projectName !== '-') {
       output += `   Project: ${projectName}\n`;
     }
     output += '\n';
@@ -271,7 +285,9 @@ export const exportTasksToMarkdown = (tasks: Task[], options: ExportOptions): st
 
   tasks.forEach((task, index) => {
     const picNames = Array.isArray(task.pic) ? task.pic.join(', ') : task.pic;
-    output += `| ${index + 1} | ${task.title} | ${task.category} | ${picNames} | ${task.priority} | ${task.status} | ${formatDate(task.deadline)} |\n`;
+    const isSubtask = (task as any).isSubtask;
+    const typeLabel = isSubtask ? 'Subtask' : 'Task';
+    output += `| ${index + 1} | ${task.title} (${typeLabel}) | ${task.category} | ${picNames} | ${task.priority} | ${task.status} | ${formatDate(task.deadline)} |\n`;
   });
 
   output += '\n';
@@ -289,7 +305,13 @@ export const exportTasksToMarkdown = (tasks: Task[], options: ExportOptions): st
 
     const picNames = Array.isArray(task.pic) ? task.pic.join(', ') : task.pic;
 
-    output += `### ${index + 1}. ${task.title}\n\n`;
+    const isSubtask = (task as any).isSubtask;
+    const parentTaskTitle = (task as any).parentTaskTitle;
+    
+    output += `### ${index + 1}. ${isSubtask ? '[Subtask] ' : ''}${task.title}\n\n`;
+    if (isSubtask) {
+      output += `- **Parent Task:** ${parentTaskTitle}\n`;
+    }
     output += `- **Kategori:** ${task.category}\n`;
     output += `- **Sub Kategori:** ${task.subCategory || '-'}\n`;
     output += `- **Project:** ${projectName}\n`;

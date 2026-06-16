@@ -160,14 +160,16 @@ export const exportTasksToPDF = async (tasks: Task[], options: ExportOptions) =>
         : '-';
 
       const picNames = Array.isArray(task.pic) ? task.pic.join(', ') : task.pic;
+      const isSubtask = (task as any).isSubtask;
+      const parentTaskTitle = (task as any).parentTaskTitle;
 
       return [
         index + 1,
-        task.title,
+        isSubtask ? `[SUBTASK] ${task.title}` : task.title,
         task.category,
-        task.subCategory || '-',
-        projectName,
-        epicName,
+        isSubtask ? 'Subtask' : (task.subCategory || '-'),
+        isSubtask ? `Parent: ${parentTaskTitle}` : projectName,
+        isSubtask ? (projectName !== '-' ? `Proj: ${projectName}` : '-') : epicName,
         picNames,
         task.priority,
         formatDate(task.startDate),
@@ -232,10 +234,13 @@ export const exportTasksToPDF = async (tasks: Task[], options: ExportOptions) =>
       statusTasks.forEach((task, taskIndex) => {
         doc.addPage();
     
+      const isSubtask = (task as any).isSubtask;
+      const parentTaskTitle = (task as any).parentTaskTitle;
+
       // Task header with status
       doc.setFontSize(14);
       doc.setTextColor(31, 41, 55);
-      doc.text(`[${status}] ${task.title}`, 14, 15);
+      doc.text(`[${status}] ${isSubtask ? '[SUBTASK] ' : ''}${task.title}`, 14, 15);
 
       let detailY = 25;
       doc.setFontSize(10);
@@ -253,8 +258,10 @@ export const exportTasksToPDF = async (tasks: Task[], options: ExportOptions) =>
     const picNames = Array.isArray(task.pic) ? task.pic.join(', ') : task.pic;
 
     const details = [
+      isSubtask ? ['Jenis', 'Subtask'] : null,
+      isSubtask ? ['Parent Task', parentTaskTitle] : null,
       ['Kategori', task.category],
-      ['Sub Kategori', task.subCategory || '-'],
+      ['Sub Kategori', isSubtask ? 'Subtask' : (task.subCategory || '-')],
       ['Project', projectName],
       ['Epic', epicName],
       ['PIC', picNames],
@@ -263,7 +270,7 @@ export const exportTasksToPDF = async (tasks: Task[], options: ExportOptions) =>
       ['Tanggal Mulai', formatDate(task.startDate)],
       ['Deadline', formatDate(task.deadline)],
       ['Dibuat Oleh', task.createdBy]
-    ];
+    ].filter(Boolean) as string[][];
 
     autoTable(doc, {
       startY: detailY,

@@ -15,6 +15,7 @@ interface SubtaskSectionProps {
     onUpdateSubtask: (subtaskId: string, updates: Partial<Subtask>) => Promise<void>;
     onToggleStatus: (subtaskId: string) => Promise<void>;
     onDeleteSubtask: (subtaskId: string) => Promise<void>;
+    highlightedSubtaskId?: string | null;
 }
 
 const priorityColors: Record<string, string> = {
@@ -40,7 +41,8 @@ const SubtaskSection: React.FC<SubtaskSectionProps> = ({
     onCreateSubtask,
     onUpdateSubtask,
     onToggleStatus,
-    onDeleteSubtask
+    onDeleteSubtask,
+    highlightedSubtaskId
 }) => {
     const [isExpanded, setIsExpanded] = useState(true);
     const [showAddForm, setShowAddForm] = useState(false);
@@ -48,6 +50,20 @@ const SubtaskSection: React.FC<SubtaskSectionProps> = ({
     const [newPriority, setNewPriority] = useState<Priority>(parentTask.priority);
     const [newPic, setNewPic] = useState<string[]>(Array.isArray(parentTask.pic) ? parentTask.pic : (parentTask.pic ? [parentTask.pic] : []));
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Auto-scroll and highlight subtask
+    React.useEffect(() => {
+        if (highlightedSubtaskId && subtasks.some(s => s.id === highlightedSubtaskId)) {
+            setIsExpanded(true);
+            const timer = setTimeout(() => {
+                const element = document.getElementById(`subtask-item-${highlightedSubtaskId}`);
+                if (element) {
+                    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }, 300);
+            return () => clearTimeout(timer);
+        }
+    }, [highlightedSubtaskId, subtasks]);
 
     // Edit state
     const [editingId, setEditingId] = useState<string | null>(null);
@@ -150,10 +166,13 @@ const SubtaskSection: React.FC<SubtaskSectionProps> = ({
                             {subtasks.map((subtask) => (
                                 <div
                                     key={subtask.id}
+                                    id={`subtask-item-${subtask.id}`}
                                     className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border transition-all group
-                                        ${subtask.status === Status.Done
-                                            ? 'bg-emerald-50/50 border-emerald-200/60'
-                                            : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-sm'
+                                        ${subtask.id === highlightedSubtaskId
+                                            ? 'border-violet-400 bg-violet-50 ring-2 ring-violet-100 shadow-sm'
+                                            : subtask.status === Status.Done
+                                                ? 'bg-emerald-50/50 border-emerald-200/60'
+                                                : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-sm'
                                         }`}
                                 >
                                     {/* Status Toggle */}

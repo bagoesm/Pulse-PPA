@@ -46,8 +46,37 @@ const TimelineView: React.FC<TimelineViewProps> = ({
   const isFilteringByEpic = epicFilter !== 'All';
   const filteredEpic = isFilteringByEpic ? epics.find(e => e.id === epicFilter) : null;
 
-  // New Filters
+  // Filter and sort tasks (Priority filter removed - already filtered from parent)
+  const filteredAndSortedTasks = useMemo(() => {
+    let filtered = tasks.filter(task => {
+      // Status Filter
+      if (filterStatus !== 'All' && task.status !== filterStatus) return false;
 
+      return true;
+    });
+
+    // Sort tasks
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'startDate':
+          return new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
+        case 'priority':
+          const priorityOrder = { 'Urgent': 0, 'High': 1, 'Medium': 2, 'Low': 3 };
+          return priorityOrder[a.priority] - priorityOrder[b.priority];
+        case 'status':
+          const statusOrder = { 'To Do': 0, 'In Progress': 1, 'Review': 2, 'Pending': 3, 'Done': 4 };
+          return statusOrder[a.status] - statusOrder[b.status];
+        case 'project':
+          const aProject = projects.find(p => p.id === a.projectId)?.name || 'No Project';
+          const bProject = projects.find(p => p.id === b.projectId)?.name || 'No Project';
+          return aProject.localeCompare(bProject);
+        default:
+          return 0;
+      }
+    });
+
+    return filtered;
+  }, [tasks, sortBy, filterStatus, projects]);
 
   // Generate date range based on current view mode and filters
   const dates = useMemo(() => {
@@ -66,7 +95,7 @@ const TimelineView: React.FC<TimelineViewProps> = ({
         .filter(Boolean)
         .filter(date => /^\d{4}-\d{2}-\d{2}$/.test(date));
       
-      const epicTaskDates = tasks
+      const epicTaskDates = filteredAndSortedTasks
         .filter(task => task.epicId === filteredEpic.id)
         .flatMap(task => [task.startDate, task.deadline])
         .filter(Boolean)
@@ -74,18 +103,11 @@ const TimelineView: React.FC<TimelineViewProps> = ({
       
       relevantDates = [...epicDates, ...epicTaskDates];
     } else {
-      // Normal task view - use all tasks and epics dates
-      const taskDates = tasks
+      // Normal task view - use only filtered task dates
+      relevantDates = filteredAndSortedTasks
         .flatMap(task => [task.startDate, task.deadline])
         .filter(Boolean)
         .filter(date => /^\d{4}-\d{2}-\d{2}$/.test(date));
-
-      const epicDates = epics
-        .flatMap(epic => [epic.startDate, epic.targetDate])
-        .filter(Boolean)
-        .filter(date => /^\d{4}-\d{2}-\d{2}$/.test(date));
-
-      relevantDates = [...taskDates, ...epicDates];
     }
 
     // If no relevant dates found, use default range
@@ -120,41 +142,51 @@ const TimelineView: React.FC<TimelineViewProps> = ({
     }
 
     return dateRange;
-  }, [tasks, epics, timelineViewMode, isFilteringByProject, projectEpics, isFilteringByEpic, filteredEpic]);
+  }, [filteredAndSortedTasks, timelineViewMode, isFilteringByProject, projectEpics, isFilteringByEpic, filteredEpic]);
 
-  // Filter and sort tasks (Priority filter removed - already filtered from parent)
-  const filteredAndSortedTasks = useMemo(() => {
-    let filtered = tasks.filter(task => {
-      // Status Filter
-      if (filterStatus !== 'All' && task.status !== filterStatus) return false;
+  const dayWidth = useMemo(() => {
+    if (dates.length <= 12) return 120;
+    if (dates.length <= 24) return 80;
+    return 55;
+  }, [dates.length]);
 
-
-
-      return true;
-    });
-
-    // Sort tasks
-    filtered.sort((a, b) => {
-      switch (sortBy) {
-        case 'startDate':
-          return new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
-        case 'priority':
-          const priorityOrder = { 'Urgent': 0, 'High': 1, 'Medium': 2, 'Low': 3 };
-          return priorityOrder[a.priority] - priorityOrder[b.priority];
-        case 'status':
-          const statusOrder = { 'To Do': 0, 'In Progress': 1, 'Review': 2, 'Pending': 3, 'Done': 4 };
-          return statusOrder[a.status] - statusOrder[b.status];
-        case 'project':
-          const aProject = projects.find(p => p.id === a.projectId)?.name || 'No Project';
-          const bProject = projects.find(p => p.id === b.projectId)?.name || 'No Project';
-          return aProject.localeCompare(bProject);
-        default:
-          return 0;
-      }
-    });
-
-    return filtered;
-  }, [tasks, sortBy, filterStatus, projects]);
+  const renderDateHeader = (dateStr: string) => {
+    const date = new Date(dateStr + 'T00:00:00');
+    if (dayWidth >= 120) {
+      return (
+        <div>
+          <div className="text-xs font-semibold text-slate-600">
+            {date.toLocaleDateString('id-ID', { weekday: 'short' })}
+          </div>
+          <div className="text-sm font-bold text-slate-800">
+            {date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+          </div>
+        </div>
+      );
+    } else if (dayWidth >= 80) {
+      return (
+        <div>
+          <div className="text-[10px] font-semibold text-slate-500 uppercase leading-none">
+            {date.toLocaleDateString('id-ID', { weekday: 'short' })}
+          </div>
+          <div className="text-xs font-bold text-slate-800 mt-0.5">
+            {date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }).replace(/\./g, '')}
+          </div>
+        </div>
+      );
+    } else {
+      return (
+        <div className="flex flex-col items-center justify-center">
+          <div className="text-[9px] font-semibold text-slate-400 leading-none">
+            {date.toLocaleDateString('id-ID', { weekday: 'narrow' })}
+          </div>
+          <div className="text-[11px] font-bold text-slate-700 mt-0.5">
+            {date.getDate()}
+          </div>
+        </div>
+      );
+    }
+  };
 
   const getDayName = (dateStr: string) => {
     const date = new Date(dateStr + 'T00:00:00');
@@ -202,14 +234,12 @@ const TimelineView: React.FC<TimelineViewProps> = ({
       return null;
     }
 
-    const dayWidth = 120;
-
     // Calculate position based on array indices
     const left = startIndex * dayWidth;
     const width = Math.max(dayWidth * 0.8, (endIndex - startIndex + 1) * dayWidth - 8);
 
     return { left, width };
-  }, [dates]);
+  }, [dates, dayWidth]);
 
   // Calculate epic position and width based on dates
   const getEpicPosition = useCallback((epic: Epic) => {
@@ -226,14 +256,12 @@ const TimelineView: React.FC<TimelineViewProps> = ({
       return null;
     }
 
-    const dayWidth = 120;
-
     // Calculate position based on array indices
     const left = startIndex * dayWidth;
     const width = Math.max(dayWidth * 0.8, (endIndex - startIndex + 1) * dayWidth - 8);
 
     return { left, width };
-  }, [dates]);
+  }, [dates, dayWidth]);
 
   const getEpicColor = (epic: Epic) => {
     switch (epic.color) {
@@ -348,19 +376,21 @@ const TimelineView: React.FC<TimelineViewProps> = ({
         <div className="min-w-fit">
           {/* Header Dates */}
           <div className="flex border-b border-slate-200 bg-slate-50 sticky top-0 z-20">
-            <div className="w-80 p-4 shrink-0 font-bold text-slate-700 text-sm border-r border-slate-200 sticky left-0 bg-slate-50 z-30">
+            <div className="w-64 p-3 shrink-0 font-bold text-slate-700 text-xs border-r border-slate-200 sticky left-0 bg-slate-50 z-30 flex items-center">
               Task Details
             </div>
-            <div className="flex" style={{ minWidth: `${dates.length * 120}px` }}>
+            <div className="flex" style={{ minWidth: `${dates.length * dayWidth}px` }}>
               {dates.map((date, index) => {
                 const isToday = date === new Date().toISOString().split('T')[0];
 
                 return (
-                  <div key={date} className={`w-30 shrink-0 p-3 text-center border-r border-slate-100 last:border-r-0 ${isToday ? 'bg-gov-50 border-gov-200' : ''}`} style={{ width: '120px' }}>
-                    <div className={`text-xs font-semibold ${isToday ? 'text-gov-700' : 'text-slate-600'}`}>
-                      {getDayName(date)}
-                      {isToday && <div className="text-[10px] text-gov-600 font-bold">TODAY</div>}
-                    </div>
+                  <div
+                    key={date}
+                    className={`shrink-0 p-2 text-center border-r border-slate-100 last:border-r-0 flex flex-col justify-center items-center ${isToday ? 'bg-gov-50 border-gov-200' : ''}`}
+                    style={{ width: `${dayWidth}px` }}
+                  >
+                    {renderDateHeader(date)}
+                    {isToday && <div className="text-[9px] text-gov-600 font-bold leading-none mt-0.5">TODAY</div>}
                   </div>
                 );
               })}
@@ -377,59 +407,36 @@ const TimelineView: React.FC<TimelineViewProps> = ({
                   onClick={() => toggleEpicExpanded(filteredEpic.id)}
                 >
                   {/* Epic Info Column */}
-                  <div className="w-80 p-4 shrink-0 border-r border-purple-200 bg-purple-50 sticky left-0 z-10">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-purple-100 text-purple-700 rounded-lg">
-                        <Layers size={20} />
+                  <div className="w-64 p-2 shrink-0 border-r border-purple-200 bg-purple-50 sticky left-0 z-10 flex flex-col justify-center min-h-[52px]">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1 bg-purple-100 text-purple-700 rounded shrink-0">
+                        <Layers size={14} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1">
                           {expandedEpics.has(filteredEpic.id) ? (
-                            <ChevronDown size={16} className="text-purple-600 flex-shrink-0" />
+                            <ChevronDown size={12} className="text-purple-600 flex-shrink-0" />
                           ) : (
-                            <ChevronRight size={16} className="text-purple-600 flex-shrink-0" />
+                            <ChevronRight size={12} className="text-purple-600 flex-shrink-0" />
                           )}
-                          <h3 className="font-bold text-purple-900 text-sm truncate">{filteredEpic.name}</h3>
+                          <h3 className="font-bold text-purple-900 text-xs truncate" title={filteredEpic.name}>{filteredEpic.name}</h3>
                         </div>
-                        <div className="flex flex-wrap items-center gap-2 mt-1 text-xs">
-                          <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full font-medium">
-                            {filteredAndSortedTasks.length} Tasks
+                        <div className="flex flex-wrap items-center gap-1.5 mt-0.5 text-[9px] text-purple-700">
+                          <span className="px-1 py-0.2 bg-purple-100 rounded font-medium">
+                            {filteredAndSortedTasks.length} T
                           </span>
-                          {filteredEpic.pic && filteredEpic.pic.length > 0 && (
-                            <span className="flex items-center gap-1 text-purple-600">
-                              <UserIcon size={12} />
-                              {filteredEpic.pic.length === 1
-                                ? filteredEpic.pic[0]
-                                : `${filteredEpic.pic.length} PICs`}
-                            </span>
-                          )}
-                          <span className={`px-2 py-0.5 rounded-full font-medium ${filteredEpic.status === 'Completed' ? 'bg-green-100 text-green-700' :
+                          <span className={`px-1 py-0.2 rounded font-medium ${filteredEpic.status === 'Completed' ? 'bg-green-100 text-green-700' :
                             filteredEpic.status === 'In Progress' ? 'bg-blue-100 text-blue-700' :
                               'bg-slate-100 text-slate-600'
                             }`}>
                             {filteredEpic.status}
                           </span>
                         </div>
-                        {filteredEpic.description && (
-                          <p className="text-xs text-purple-600 mt-1 line-clamp-1">{filteredEpic.description}</p>
-                        )}
-                        {/* Epic Dates */}
-                        <div className="flex items-center gap-3 text-xs text-purple-600 mt-1">
-                          <div className="flex items-center gap-1">
-                            <Calendar size={12} />
-                            <span>{new Date(filteredEpic.startDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}</span>
-                          </div>
-                          <span>→</span>
-                          <div className="flex items-center gap-1">
-                            <Clock size={12} />
-                            <span>{new Date(filteredEpic.targetDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}</span>
-                          </div>
-                        </div>
                       </div>
                     </div>
                   </div>
                   {/* Epic Timeline Area - Show epic bar */}
-                  <div className="flex-1 relative bg-purple-50/30" style={{ minWidth: `${dates.length * 120}px` }}>
+                  <div className="flex-1 relative bg-purple-50/30" style={{ minWidth: `${dates.length * dayWidth}px` }}>
                     {/* Date Grid Background */}
                     <div className="absolute inset-0 flex">
                       {dates.map((date, index) => {
@@ -439,7 +446,7 @@ const TimelineView: React.FC<TimelineViewProps> = ({
                             key={date}
                             className={`border-r border-slate-100 last:border-r-0 ${isToday ? 'bg-gov-50/30' : ''}`}
                             style={{
-                              width: '120px',
+                              width: `${dayWidth}px`,
                               backgroundColor: isToday ? '#dbeafe' : (index % 2 === 0 ? 'transparent' : '#f8fafc')
                             }}
                           />
@@ -451,23 +458,23 @@ const TimelineView: React.FC<TimelineViewProps> = ({
                     {(() => {
                       const epicPosition = getEpicPosition(filteredEpic);
                       return epicPosition ? (
-                        <div className="absolute inset-0 flex items-center" style={{ paddingLeft: '12px', paddingRight: '12px' }}>
+                        <div className="absolute inset-0 flex items-center" style={{ paddingLeft: '8px', paddingRight: '8px' }}>
                           <div
-                            className={`absolute rounded-lg text-white shadow-sm border border-white/20 flex items-center justify-between px-3 py-2 ${getEpicColor(filteredEpic)}`}
+                            className={`absolute rounded text-white shadow-sm border border-white/20 flex items-center justify-between px-2 py-1 ${getEpicColor(filteredEpic)}`}
                             style={{
                               left: `${epicPosition.left}px`,
                               width: `${epicPosition.width}px`,
-                              height: '40px',
+                              height: '26px',
                               zIndex: 5
                             }}
                             title={`${filteredEpic.name}\nStart: ${new Date(filteredEpic.startDate).toLocaleDateString('id-ID')}\nTarget: ${new Date(filteredEpic.targetDate).toLocaleDateString('id-ID')}\nStatus: ${filteredEpic.status}`}
                           >
-                            <div className="flex items-center gap-2 flex-1 min-w-0">
-                              <Layers size={16} />
-                              <span className="font-medium truncate">{filteredEpic.name}</span>
+                            <div className="flex items-center gap-1 flex-1 min-w-0">
+                              <Layers size={12} className="shrink-0" />
+                              <span className="text-[11px] font-medium truncate">{filteredEpic.name}</span>
                             </div>
-                            <div className="flex items-center gap-2 shrink-0">
-                              <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full">
+                            <div className="flex items-center gap-1 shrink-0 text-[10px]">
+                              <span className="bg-white/20 px-1 py-0.2 rounded-full">
                                 {Math.round((filteredAndSortedTasks.filter(t => t.status === 'Done').length / Math.max(filteredAndSortedTasks.length, 1)) * 100)}%
                               </span>
                               {filteredEpic.status === 'Completed' && <span>✓</span>}
@@ -476,7 +483,7 @@ const TimelineView: React.FC<TimelineViewProps> = ({
                         </div>
                       ) : (
                         <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="text-xs text-purple-400 font-medium">
+                          <div className="text-[10px] text-purple-400 font-medium">
                             {expandedEpics.has(filteredEpic.id) ? 'Klik untuk collapse tasks' : 'Klik untuk expand tasks'}
                           </div>
                         </div>
@@ -495,6 +502,7 @@ const TimelineView: React.FC<TimelineViewProps> = ({
                   const completedTasks = epicTasks.filter(t => t.status === 'Done');
                   const progress = epicTasks.length > 0 ? Math.round((completedTasks.length / epicTasks.length) * 100) : 0;
                   const isExpanded = expandedEpics.has(epic.id);
+                  const displayTasks = filteredAndSortedTasks.filter(t => t.epicId === epic.id);
 
                   return (
                     <div key={epic.id}>
@@ -504,58 +512,43 @@ const TimelineView: React.FC<TimelineViewProps> = ({
                         onClick={() => toggleEpicExpanded(epic.id)}
                       >
                         {/* Epic Info Column */}
-                        <div className="w-80 p-4 shrink-0 border-r border-purple-200 bg-white sticky left-0 z-10">
-                          <div className="flex items-center gap-3">
-                            <div className={`p-2 rounded-lg ${epic.color === 'purple' ? 'bg-purple-100 text-purple-700' :
+                        <div className="w-64 p-2 shrink-0 border-r border-purple-200 bg-white sticky left-0 z-10 flex flex-col justify-center min-h-[52px]">
+                          <div className="flex items-center gap-2">
+                            <div className={`p-1 rounded ${epic.color === 'purple' ? 'bg-purple-100 text-purple-700' :
                                 epic.color === 'blue' ? 'bg-blue-100 text-blue-700' :
                                   epic.color === 'green' ? 'bg-emerald-100 text-emerald-700' :
                                     epic.color === 'orange' ? 'bg-orange-100 text-orange-700' :
                                       'bg-purple-100 text-purple-700'
-                              }`}>
-                              <Layers size={18} />
+                              } shrink-0`}>
+                              <Layers size={14} />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-1">
                                 {isExpanded ? (
-                                  <ChevronDown size={14} className="text-purple-600 flex-shrink-0" />
+                                  <ChevronDown size={12} className="text-purple-600 flex-shrink-0" />
                                 ) : (
-                                  <ChevronRight size={14} className="text-purple-600 flex-shrink-0" />
+                                  <ChevronRight size={12} className="text-purple-600 flex-shrink-0" />
                                 )}
-                                <h4 className="font-semibold text-slate-800 text-sm truncate">{epic.name}</h4>
+                                <h4 className="font-semibold text-slate-800 text-xs truncate" title={epic.name}>{epic.name}</h4>
                               </div>
-                              <div className="flex flex-wrap items-center gap-2 mt-1 text-xs">
-                                <span className="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded font-medium">
-                                  {epicTasks.length} Tasks
+                              <div className="flex flex-wrap items-center gap-1.5 mt-0.5 text-[9px] text-slate-500">
+                                <span className="font-medium bg-slate-100 px-1 py-0.2 rounded">
+                                  {epicTasks.length} T
                                 </span>
-                                <span className="text-slate-400">•</span>
-                                <span className="text-slate-500">{progress}% selesai</span>
+                                <span>•</span>
+                                <span>{progress}%</span>
                                 {epic.pic && epic.pic.length > 0 && (
                                   <>
-                                    <span className="text-slate-400">•</span>
-                                    <span className="flex items-center gap-1 text-slate-500">
-                                      <UserIcon size={10} />
-                                      {epic.pic.length === 1 ? epic.pic[0] : `${epic.pic.length} PICs`}
-                                    </span>
+                                    <span>•</span>
+                                    <span className="truncate max-w-[80px]" title={epic.pic.join(', ')}>{epic.pic.join(', ')}</span>
                                   </>
                                 )}
-                              </div>
-                              {/* Epic Dates */}
-                              <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
-                                <div className="flex items-center gap-1">
-                                  <Calendar size={10} />
-                                  <span>{new Date(epic.startDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}</span>
-                                </div>
-                                <span>→</span>
-                                <div className="flex items-center gap-1">
-                                  <Clock size={10} />
-                                  <span>{new Date(epic.targetDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}</span>
-                                </div>
                               </div>
                             </div>
                           </div>
                         </div>
                         {/* Epic Progress Bar Area */}
-                        <div className="flex-1 relative" style={{ minWidth: `${dates.length * 120}px` }}>
+                        <div className="flex-1 relative" style={{ minWidth: `${dates.length * dayWidth}px` }}>
                           {/* Date Grid Background */}
                           <div className="absolute inset-0 flex">
                             {dates.map((date, index) => {
@@ -565,7 +558,7 @@ const TimelineView: React.FC<TimelineViewProps> = ({
                                   key={date}
                                   className={`border-r border-slate-100 last:border-r-0 ${isToday ? 'bg-gov-50/30' : ''}`}
                                   style={{
-                                    width: '120px',
+                                    width: `${dayWidth}px`,
                                     backgroundColor: isToday ? '#dbeafe' : (index % 2 === 0 ? 'transparent' : '#f8fafc')
                                   }}
                                 />
@@ -577,34 +570,34 @@ const TimelineView: React.FC<TimelineViewProps> = ({
                           {(() => {
                             const epicPosition = getEpicPosition(epic);
                             return epicPosition ? (
-                              <div className="absolute inset-0 flex items-center" style={{ paddingLeft: '12px', paddingRight: '12px' }}>
+                              <div className="absolute inset-0 flex items-center" style={{ paddingLeft: '8px', paddingRight: '8px' }}>
                                 <div
-                                  className={`absolute rounded-lg text-white shadow-sm border border-white/20 flex items-center justify-between px-3 py-2 ${getEpicColor(epic)}`}
+                                  className={`absolute rounded text-white shadow-sm border border-white/20 flex items-center justify-between px-2 py-1 ${getEpicColor(epic)}`}
                                   style={{
                                     left: `${epicPosition.left}px`,
                                     width: `${epicPosition.width}px`,
-                                    height: '36px',
+                                    height: '26px',
                                     zIndex: 5
                                   }}
                                   title={`${epic.name}\nStart: ${new Date(epic.startDate).toLocaleDateString('id-ID')}\nTarget: ${new Date(epic.targetDate).toLocaleDateString('id-ID')}\nStatus: ${epic.status}`}
                                 >
-                                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                                    <Layers size={14} />
-                                    <span className="text-sm font-medium truncate">{epic.name}</span>
+                                  <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                                    <Layers size={12} />
+                                    <span className="text-[11px] font-medium truncate">{epic.name}</span>
                                   </div>
-                                  <div className="flex items-center gap-2 shrink-0">
-                                    <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full">
+                                  <div className="flex items-center gap-1.5 shrink-0 text-[10px]">
+                                    <span className="bg-white/20 px-1 py-0.2 rounded-full">
                                       {progress}%
                                     </span>
-                                    {epic.status === 'Completed' && <span className="text-sm">✓</span>}
+                                    {epic.status === 'Completed' && <span className="text-xs">✓</span>}
                                   </div>
                                 </div>
                               </div>
                             ) : (
                               <div className="absolute inset-0 flex items-center px-4">
-                                <div className="w-full max-w-md">
-                                  <div className="flex items-center gap-3">
-                                    <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                                <div className="w-full max-w-xs">
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                                       <div
                                         className={`h-full rounded-full transition-all ${epic.color === 'purple' ? 'bg-purple-500' :
                                             epic.color === 'blue' ? 'bg-blue-500' :
@@ -615,7 +608,7 @@ const TimelineView: React.FC<TimelineViewProps> = ({
                                         style={{ width: `${progress}%` }}
                                       />
                                     </div>
-                                    <span className="text-xs text-slate-500 font-medium w-10">{progress}%</span>
+                                    <span className="text-[10px] text-slate-500 font-medium w-8">{progress}%</span>
                                   </div>
                                 </div>
                               </div>
@@ -625,32 +618,29 @@ const TimelineView: React.FC<TimelineViewProps> = ({
                       </div>
 
                       {/* Expanded Tasks for this Epic */}
-                      {isExpanded && epicTasks.length > 0 && (
+                      {isExpanded && displayTasks.length > 0 && (
                         <div className="bg-purple-50/20">
-                          {epicTasks.map(task => {
+                          {displayTasks.map(task => {
                             const position = getTaskPosition(task);
                             const taskPics = Array.isArray(task.pic) ? task.pic : [task.pic];
                             return (
-                              <div key={task.id} className="flex border-b border-slate-100 hover:bg-slate-50/50 transition-colors min-h-[60px]">
+                              <div key={task.id} className="flex border-b border-slate-100 hover:bg-slate-50/50 transition-colors min-h-[44px]">
                                 {/* Indented Task Info */}
-                                <div className="w-80 p-3 pl-12 shrink-0 border-r border-slate-200 bg-white sticky left-0 z-10">
-                                  <div className="font-medium text-slate-700 text-xs leading-tight truncate">{task.title}</div>
-                                  <div className="flex items-center gap-2 mt-1 text-[10px] text-slate-500">
-                                    <span className={`px-1.5 py-0.5 rounded-full font-medium ${task.status === 'Done' ? 'bg-green-100 text-green-700' :
-                                        task.status === 'In Progress' ? 'bg-blue-100 text-blue-700' :
-                                          'bg-slate-100 text-slate-600'
-                                      }`}>{task.status}</span>
-                                    <span>{taskPics[0]}</span>
+                                <div className="w-64 p-2 pl-8 shrink-0 border-r border-slate-200 bg-white sticky left-0 z-10 flex flex-col justify-center min-h-[44px]">
+                                  <div className="font-medium text-slate-700 text-xs leading-tight truncate" title={task.title}>{task.title}</div>
+                                  <div className="flex items-center gap-1.5 mt-0.5 text-[9px] text-slate-500">
+                                    <span className={`px-1 py-0.2 rounded font-medium ${getStatusColor(task.status)}`}>{task.status}</span>
+                                    <span className="truncate max-w-[80px]" title={taskPics.join(', ')}>{taskPics.join(', ')}</span>
                                   </div>
                                 </div>
                                 {/* Task Timeline */}
-                                <div className="flex-1 relative" style={{ minWidth: `${dates.length * 120}px` }}>
+                                <div className="flex-1 relative" style={{ minWidth: `${dates.length * dayWidth}px` }}>
                                   {position && (
-                                    <div className="absolute inset-0 flex items-center" style={{ paddingLeft: '12px' }}>
+                                    <div className="absolute inset-0 flex items-center" style={{ paddingLeft: '8px' }}>
                                       <button
                                         onClick={(e) => { e.stopPropagation(); onTaskClick(task); }}
-                                        className={`absolute rounded text-white shadow-sm hover:shadow-md transition-all text-[10px] font-medium px-2 py-1 truncate ${getPriorityColor(task.priority, isTaskOverdue(task))}`}
-                                        style={{ left: `${position.left}px`, width: `${position.width}px`, height: '24px', zIndex: 5 }}
+                                        className={`absolute rounded text-white shadow-sm hover:shadow-md transition-all text-[10px] font-medium px-2 py-0.5 truncate ${getPriorityColor(task.priority, isTaskOverdue(task))}`}
+                                        style={{ left: `${position.left}px`, width: `${position.width}px`, height: '22px', zIndex: 5 }}
                                       >
                                         {task.title}
                                       </button>
@@ -662,9 +652,9 @@ const TimelineView: React.FC<TimelineViewProps> = ({
                           })}
                         </div>
                       )}
-                      {isExpanded && epicTasks.length === 0 && (
-                        <div className="py-4 px-12 text-sm text-slate-400 italic bg-purple-50/20 border-b border-slate-100">
-                          Belum ada task di epic ini
+                      {isExpanded && displayTasks.length === 0 && (
+                        <div className="py-2 px-8 text-xs text-slate-400 italic bg-purple-50/20 border-b border-slate-100">
+                          {epicTasks.length === 0 ? 'Belum ada task di epic ini' : 'Tidak ada task yang sesuai filter'}
                         </div>
                       )}
                     </div>
@@ -690,68 +680,45 @@ const TimelineView: React.FC<TimelineViewProps> = ({
                 const position = getTaskPosition(task);
                 const project = projects.find(p => p.id === task.projectId);
                 const taskPics = Array.isArray(task.pic) ? task.pic : [task.pic];
-                const assignedUsers = users.filter(u => taskPics.includes(u.name));
 
                 return (
-                  <div key={task.id} className="flex border-b border-slate-100 hover:bg-slate-50/50 transition-colors min-h-[80px]">
+                  <div key={task.id} className="flex border-b border-slate-100 hover:bg-slate-50/50 transition-colors min-h-[52px]">
                     {/* Task Info Column */}
-                    <div className="w-80 p-4 shrink-0 border-r border-slate-200 bg-white sticky left-0 z-10">
-                      <div className="flex flex-col gap-2">
-                        {/* Task Title */}
-                        <div className="font-medium text-slate-800 text-sm leading-tight">
-                          {task.title}
-                        </div>
+                    <div className="w-64 p-2 shrink-0 border-r border-slate-200 bg-white sticky left-0 z-10 flex flex-col justify-center min-h-[52px]">
+                      <div className="font-semibold text-slate-800 text-xs leading-tight truncate" title={task.title}>
+                        {task.title}
+                      </div>
 
-                        {/* Task Meta Info */}
-                        <div className="flex flex-wrap items-center gap-2 text-xs">
-                          {/* Status */}
-                          <span className={`px-2 py-1 rounded-full border text-xs font-medium ${getStatusColor(task.status)}`}>
-                            {task.status}
-                          </span>
+                      <div className="flex flex-wrap items-center gap-1.5 mt-0.5 text-[9px] text-slate-500">
+                        {/* Status */}
+                        <span className={`px-1 py-0.2 rounded-full border text-[9px] font-medium ${getStatusColor(task.status)}`}>
+                          {task.status}
+                        </span>
 
-                          {/* Priority */}
-                          <span className={`px-2 py-1 rounded-full text-white text-xs font-medium ${getPriorityColor(task.priority, isTaskOverdue(task))}`}>
+                        {/* Priority */}
+                        {(task.priority === Priority.Urgent || task.priority === Priority.High || isTaskOverdue(task)) && (
+                          <span className={`px-1 py-0.2 rounded-full text-white text-[9px] font-medium ${getPriorityColor(task.priority, isTaskOverdue(task))}`}>
                             {isTaskOverdue(task) ? '⚠️ OVERDUE' : task.priority}
                           </span>
+                        )}
 
-                          {/* Assignees */}
-                          <div className="flex items-center gap-1 text-slate-600">
-                            <UserIcon size={12} />
-                            <span>
-                              {taskPics.length === 1
-                                ? taskPics[0]
-                                : `${taskPics.length} PIC${taskPics.length > 1 ? 's' : ''}`
-                              }
-                            </span>
-                          </div>
+                        {/* Assignee */}
+                        <span className="truncate">
+                          {taskPics.join(', ')}
+                        </span>
 
-                          {/* Project */}
-                          {project && (
-                            <div className="flex items-center gap-1 text-slate-600">
-                              <span className="text-slate-400">•</span>
-                              <span>{project.name}</span>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Dates */}
-                        <div className="flex items-center gap-3 text-xs text-slate-500">
-                          <div className="flex items-center gap-1">
-                            <Calendar size={12} />
-                            <span>{new Date(task.startDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}</span>
-                          </div>
-                          <span>→</span>
-                          <div className="flex items-center gap-1">
-                            <Clock size={12} />
-                            <span>{new Date(task.deadline).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}</span>
-                          </div>
-
-                        </div>
+                        {/* Project */}
+                        {project && (
+                          <>
+                            <span>•</span>
+                            <span className="truncate max-w-[80px]" title={project.name}>{project.name}</span>
+                          </>
+                        )}
                       </div>
                     </div>
 
                     {/* Timeline Area */}
-                    <div className="flex-1 relative" style={{ minWidth: `${dates.length * 120}px` }}>
+                    <div className="flex-1 relative" style={{ minWidth: `${dates.length * dayWidth}px` }}>
                       {/* Date Grid Background */}
                       <div className="absolute inset-0 flex">
                         {dates.map((date, index) => {
@@ -761,7 +728,7 @@ const TimelineView: React.FC<TimelineViewProps> = ({
                               key={date}
                               className={`border-r border-slate-100 last:border-r-0 ${isToday ? 'bg-gov-50/30' : ''}`}
                               style={{
-                                width: '120px',
+                                width: `${dayWidth}px`,
                                 backgroundColor: isToday ? '#dbeafe' : (index % 2 === 0 ? 'transparent' : '#f8fafc')
                               }}
                             />
@@ -771,14 +738,14 @@ const TimelineView: React.FC<TimelineViewProps> = ({
 
                       {/* Task Bar */}
                       {position && (
-                        <div className="absolute inset-0 flex items-center" style={{ paddingLeft: '12px', paddingRight: '12px' }}>
+                        <div className="absolute inset-0 flex items-center" style={{ paddingLeft: '8px', paddingRight: '8px' }}>
                           <button
                             onClick={() => onTaskClick(task)}
-                            className={`absolute rounded-lg text-white shadow-sm hover:shadow-md transition-all text-xs font-medium px-3 py-2 overflow-hidden border border-white/20 flex items-center gap-2 ${getPriorityColor(task.priority, isTaskOverdue(task))}`}
+                            className={`absolute rounded text-white shadow-sm hover:shadow-md transition-all text-[11px] font-medium px-2 py-1 overflow-hidden border border-white/20 flex items-center gap-1.5 ${getPriorityColor(task.priority, isTaskOverdue(task))}`}
                             style={{
                               left: `${position.left}px`,
                               width: `${position.width}px`,
-                              height: '32px',
+                              height: '26px',
                               zIndex: 5
                             }}
                             title={`${task.title}\nStart: ${new Date(task.startDate).toLocaleDateString('id-ID')}\nEnd: ${new Date(task.deadline).toLocaleDateString('id-ID')}\nStatus: ${task.status}\nPriority: ${task.priority}`}

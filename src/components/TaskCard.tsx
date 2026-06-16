@@ -68,9 +68,16 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({ task, projects, users = 
       `}
     >
       <div className="flex justify-between items-center mb-2">
-        <span className={`text-[9px] sm:text-[10px] uppercase font-bold px-1.5 sm:px-2 py-0.5 rounded border ${getCategoryColor(task.category)}`}>
-          {task.category}
-        </span>
+        <div className="flex items-center gap-1.5 overflow-hidden">
+          {(task as any).isSubtask && (
+            <span className="text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded border bg-violet-100 text-violet-700 border-violet-200 whitespace-nowrap">
+              Subtask
+            </span>
+          )}
+          <span className={`text-[9px] sm:text-[10px] uppercase font-bold px-1.5 sm:px-2 py-0.5 rounded border ${getCategoryColor(task.category)} truncate`}>
+            {task.category}
+          </span>
+        </div>
         <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
           {onShare && (
             <ShareButton
@@ -88,8 +95,15 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({ task, projects, users = 
         {task.title}
       </h3>
 
-      {/* Project Indicator or Subcategory */}
-      {project ? (
+      {/* Project Indicator or Subcategory or Parent task */}
+      {(task as any).isSubtask ? (
+        <div className="flex flex-col gap-0.5 mb-2 sm:mb-3">
+          <div className="flex items-center gap-1 text-[10px] sm:text-xs text-violet-600 font-medium">
+            <span className="font-semibold">Parent:</span>
+            <span className="truncate" title={(task as any).parentTaskTitle}>{(task as any).parentTaskTitle}</span>
+          </div>
+        </div>
+      ) : project ? (
         <div className="flex flex-col gap-0.5 mb-2 sm:mb-3">
           <div className="flex items-center gap-1 text-[10px] sm:text-xs text-gov-700 font-medium">
             <Layers size={10} />

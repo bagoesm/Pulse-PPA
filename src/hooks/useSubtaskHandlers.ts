@@ -20,6 +20,15 @@ interface UseSubtaskHandlersProps {
         cancelText?: string
     ) => void;
     showToast: (message: string, type?: 'success' | 'error' | 'warning' | 'info') => void;
+    createSubtaskAssignmentNotification?: (
+        parentTaskId: string,
+        parentTaskTitle: string,
+        subtaskTitle: string,
+        assignerName: string,
+        newPics: string[],
+        oldPics: string[],
+        isNewSubtask: boolean
+    ) => Promise<void>;
 }
 
 export const useSubtaskHandlers = ({
@@ -30,7 +39,8 @@ export const useSubtaskHandlers = ({
     setTasks,
     showNotification,
     showConfirm,
-    showToast
+    showToast,
+    createSubtaskAssignmentNotification
 }: UseSubtaskHandlersProps) => {
 
     // Permission: check if user can manage subtasks for a parent task
@@ -69,6 +79,61 @@ export const useSubtaskHandlers = ({
         
         return false;
     }, [currentUser]);
+
+    // Status propagation: Bottom-Up (subtasks -> parent task)
+    const propagateStatusUp = useCallback((parentTaskId: string, currentSubtasks: Subtask[]) => {
+        const parentSubtasks = currentSubtasks.filter(s => s.parentTaskId === parentTaskId);
+        if (parentSubtasks.length === 0) return;
+
+        const parentTask = tasks.find(t => t.id === parentTaskId);
+        if (!parentTask) return;
+
+        const allDone = parentSubtasks.every(s => s.status === Status.Done);
+        const anyInProgress = parentSubtasks.some(s =>
+            s.status === Status.InProgress || s.status === Status.Review
+        );
+
+        if (allDone && parentTask.status !== Status.Done) {
+            // All subtasks done → prompt user to mark parent as Done
+            showConfirm(
+                'Semua Subtask Selesai',
+                `Semua subtask untuk "${parentTask.title}" telah selesai. Tandai parent task sebagai Done?`,
+                async () => {
+                    try {
+                        await supabase
+                            .from('tasks')
+                            .update({ status: 'Done', updated_at: new Date().toISOString() })
+                            .eq('id', parentTaskId);
+
+                        setTasks(prev => prev.map(t =>
+                            t.id === parentTaskId ? { ...t, status: Status.Done } : t
+                        ));
+                    } catch (err: any) {
+                        console.error('Error propagating status:', err);
+                    }
+                },
+                'success',
+                'Ya, Tandai Done',
+                'Tidak, Biarkan'
+            );
+        } else if (anyInProgress && parentTask.status === Status.ToDo) {
+            // Auto-move parent to In Progress if any subtask is In Progress
+            (async () => {
+                try {
+                    await supabase
+                        .from('tasks')
+                        .update({ status: 'In Progress', updated_at: new Date().toISOString() })
+                        .eq('id', parentTaskId);
+
+                    setTasks(prev => prev.map(t =>
+                        t.id === parentTaskId ? { ...t, status: Status.InProgress } : t
+                    ));
+                } catch (err: any) {
+                    console.error('Error auto-updating parent status:', err);
+                }
+            })();
+        }
+    }, [tasks, setTasks, showConfirm]);
 
     // Create subtask
     const handleCreateSubtask = useCallback(async (subtaskData: Omit<Subtask, 'id' | 'createdAt' | 'updatedAt' | 'createdBy' | 'sortOrder'>) => {
@@ -134,13 +199,26 @@ export const useSubtaskHandlers = ({
             setSubtasks(prev => [...prev, newSubtask]);
             showToast(`Subtask "${subtaskData.title}" berhasil dibuat.`, 'success');
 
+            const parentTask = tasks.find(t => t.id === subtaskData.parentTaskId);
+            if (createSubtaskAssignmentNotification && parentTask && subtaskData.pic && subtaskData.pic.length > 0) {
+                await createSubtaskAssignmentNotification(
+                    subtaskData.parentTaskId,
+                    parentTask.title,
+                    subtaskData.title,
+                    currentUser.name,
+                    subtaskData.pic,
+                    [],
+                    true
+                );
+            }
+
             // Check for parent status propagation: if parent is To Do and subtask is In Progress
             propagateStatusUp(subtaskData.parentTaskId, [...subtasks, newSubtask]);
 
         } catch (error: any) {
             showNotification('Kesalahan', `Terjadi kesalahan: ${error.message}`, 'error');
         }
-    }, [currentUser, subtasks, setSubtasks, showNotification]);
+    }, [currentUser, subtasks, setSubtasks, tasks, createSubtaskAssignmentNotification, showNotification, showToast, propagateStatusUp]);
 
     // Update subtask
     const handleUpdateSubtask = useCallback(async (subtaskId: string, updates: Partial<Subtask>) => {
@@ -171,11 +249,28 @@ export const useSubtaskHandlers = ({
                 return;
             }
 
+            const oldSubtask = subtasks.find(s => s.id === subtaskId);
+
             setSubtasks(prev => prev.map(s =>
                 s.id === subtaskId
                     ? { ...s, ...updates, updatedAt: dbUpdates.updated_at }
                     : s
             ));
+
+            if (updates.pic !== undefined && oldSubtask && JSON.stringify(oldSubtask.pic) !== JSON.stringify(updates.pic)) {
+                const parentTask = tasks.find(t => t.id === oldSubtask.parentTaskId);
+                if (createSubtaskAssignmentNotification && parentTask) {
+                    await createSubtaskAssignmentNotification(
+                        oldSubtask.parentTaskId,
+                        parentTask.title,
+                        updates.title || oldSubtask.title,
+                        currentUser.name,
+                        updates.pic,
+                        oldSubtask.pic || [],
+                        false
+                    );
+                }
+            }
 
             // Status propagation after update
             const updatedSubtask = subtasks.find(s => s.id === subtaskId);
@@ -189,7 +284,7 @@ export const useSubtaskHandlers = ({
         } catch (error: any) {
             showNotification('Kesalahan', `Terjadi kesalahan: ${error.message}`, 'error');
         }
-    }, [currentUser, subtasks, setSubtasks, showNotification, showToast]);
+    }, [currentUser, subtasks, setSubtasks, tasks, createSubtaskAssignmentNotification, showNotification, propagateStatusUp]);
 
     // Quick status toggle (for checkbox-like behavior)
     const handleToggleSubtaskStatus = useCallback(async (subtaskId: string) => {
@@ -228,60 +323,7 @@ export const useSubtaskHandlers = ({
         }
     }, [subtasks, setSubtasks, showNotification, showToast]);
 
-    // Status propagation: Bottom-Up (subtasks -> parent task)
-    const propagateStatusUp = useCallback((parentTaskId: string, currentSubtasks: Subtask[]) => {
-        const parentSubtasks = currentSubtasks.filter(s => s.parentTaskId === parentTaskId);
-        if (parentSubtasks.length === 0) return;
 
-        const parentTask = tasks.find(t => t.id === parentTaskId);
-        if (!parentTask) return;
-
-        const allDone = parentSubtasks.every(s => s.status === Status.Done);
-        const anyInProgress = parentSubtasks.some(s =>
-            s.status === Status.InProgress || s.status === Status.Review
-        );
-
-        if (allDone && parentTask.status !== Status.Done) {
-            // All subtasks done → prompt user to mark parent as Done
-            showConfirm(
-                'Semua Subtask Selesai',
-                `Semua subtask untuk "${parentTask.title}" telah selesai. Tandai parent task sebagai Done?`,
-                async () => {
-                    try {
-                        await supabase
-                            .from('tasks')
-                            .update({ status: 'Done', updated_at: new Date().toISOString() })
-                            .eq('id', parentTaskId);
-
-                        setTasks(prev => prev.map(t =>
-                            t.id === parentTaskId ? { ...t, status: Status.Done } : t
-                        ));
-                    } catch (err: any) {
-                        console.error('Error propagating status:', err);
-                    }
-                },
-                'success',
-                'Ya, Tandai Done',
-                'Tidak, Biarkan'
-            );
-        } else if (anyInProgress && parentTask.status === Status.ToDo) {
-            // Auto-move parent to In Progress if any subtask is In Progress
-            (async () => {
-                try {
-                    await supabase
-                        .from('tasks')
-                        .update({ status: 'In Progress', updated_at: new Date().toISOString() })
-                        .eq('id', parentTaskId);
-
-                    setTasks(prev => prev.map(t =>
-                        t.id === parentTaskId ? { ...t, status: Status.InProgress } : t
-                    ));
-                } catch (err: any) {
-                    console.error('Error auto-updating parent status:', err);
-                }
-            })();
-        }
-    }, [tasks, setTasks, showConfirm]);
 
     return {
         checkSubtaskPermission,

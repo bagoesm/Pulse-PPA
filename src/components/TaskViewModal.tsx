@@ -35,6 +35,7 @@ interface TaskViewModalProps {
   // Subtasks
   subtasks?: Subtask[];
   subtaskHandlers?: any;
+  highlightedSubtaskId?: string | null;
 }
 
 const getPriorityConfig = (priority: Priority) => {
@@ -91,7 +92,8 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
   onRemoveChecklistItem,
   onUpdateChecklistItem,
   subtasks = [],
-  subtaskHandlers
+  subtaskHandlers,
+  highlightedSubtaskId
 }) => {
   const [newComment, setNewComment] = useState('');
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
@@ -600,6 +602,7 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                   onUpdateSubtask={subtaskHandlers.handleUpdateSubtask}
                   onToggleStatus={subtaskHandlers.handleToggleSubtaskStatus}
                   onDeleteSubtask={subtaskHandlers.handleDeleteSubtask}
+                  highlightedSubtaskId={highlightedSubtaskId}
                 />
               )}
 
