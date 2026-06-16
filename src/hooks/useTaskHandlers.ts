@@ -894,6 +894,12 @@ export const useTaskHandlers = ({
         const task = tasks.find(t => t.id === taskId);
         if (!task) return;
 
+        const checklistItem = task.checklists?.find(c => c.id === checklistId);
+        if (!checklistItem) return;
+
+        const oldText = checklistItem.text;
+        if (oldText === newText) return;
+
         const updatedChecklists = task.checklists?.map(c => {
             if (c.id === checklistId) {
                 return { ...c, text: newText };
@@ -920,8 +926,12 @@ export const useTaskHandlers = ({
                 t.id === taskId ? { ...t, checklists: task.checklists || [] } : t
             ));
             showNotification('Gagal', 'Gagal mengubah checklist', 'error');
+            return;
         }
-    }, [currentUser, tasks, viewingTask, setTasks, setViewingTask, showNotification]);
+
+        // Log activity
+        await logTaskActivity(taskId, 'checklist_edit', oldText, newText);
+    }, [currentUser, tasks, viewingTask, setTasks, setViewingTask, showNotification, logTaskActivity]);
 
     return {
         checkEditPermission,

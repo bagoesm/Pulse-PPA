@@ -294,7 +294,7 @@ export interface DataInventoryItem {
 }
 
 // Task Activity Log
-export type ActivityType = 'created' | 'status_change' | 'pic_change' | 'priority_change' | 'deadline_change' | 'category_change' | 'checklist_add' | 'checklist_remove' | 'checklist_toggle';
+export type ActivityType = 'created' | 'status_change' | 'pic_change' | 'priority_change' | 'deadline_change' | 'category_change' | 'checklist_add' | 'checklist_remove' | 'checklist_toggle' | 'checklist_edit';
 
 export interface TaskActivity {
   id: string;

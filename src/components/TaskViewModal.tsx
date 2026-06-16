@@ -856,6 +856,7 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                             case 'checklist_add': return '☑️';
                             case 'checklist_remove': return '❌';
                             case 'checklist_toggle': return '✅';
+                            case 'checklist_edit': return '✏️';
                             default: return '📝';
                           }
                         };
@@ -910,6 +911,12 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                               return activity.newValue === 'completed'
                                 ? (<>menyelesaikan checklist: <span className="font-medium text-gray-700">{activity.oldValue}</span></>)
                                 : (<>membatalkan checklist: <span className="font-medium text-gray-700">{activity.oldValue}</span></>);
+                            case 'checklist_edit':
+                              return (
+                                <>
+                                  mengubah checklist dari <span className="font-medium text-gray-700">"{activity.oldValue}"</span> menjadi <span className="font-medium text-gray-700">"{activity.newValue}"</span>
+                                </>
+                              );
                             default:
                               return 'melakukan perubahan';
                           }
