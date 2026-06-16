@@ -62,3 +62,6 @@ MANUAL_*.md
 
 # Kiro specs (development)
 .kiro/specs/
+
+# Dynamic build version file
+public/version.json

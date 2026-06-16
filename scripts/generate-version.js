@@ -17,19 +17,24 @@ try {
   const packageJsonPath = join(__dirname, '..', 'package.json');
   const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
   
+  // Create buildId
+  const buildId = process.env.VERCEL_GIT_COMMIT_SHA || `build-${Date.now()}`;
+  
   // Create version object
   const versionData = {
     version: packageJson.version,
+    buildId,
     buildTime: new Date().toISOString(),
     name: packageJson.name
   };
   
-  // Write to dist/version.json
-  const distPath = join(__dirname, '..', 'dist', 'version.json');
-  writeFileSync(distPath, JSON.stringify(versionData, null, 2));
+  // Write to public/version.json
+  const publicPath = join(__dirname, '..', 'public', 'version.json');
+  writeFileSync(publicPath, JSON.stringify(versionData, null, 2));
   
-  console.log('✅ version.json generated successfully');
+  console.log('✅ version.json generated successfully in public/');
   console.log(`   Version: ${versionData.version}`);
+  console.log(`   Build ID: ${versionData.buildId}`);
   console.log(`   Build time: ${versionData.buildTime}`);
 } catch (error) {
   console.error('❌ Failed to generate version.json:', error.message);

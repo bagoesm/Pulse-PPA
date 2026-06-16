@@ -44,6 +44,9 @@ const App: React.FC = () => {
   useEffect(() => {
     // Setup global chunk error handler
     setupChunkErrorHandler();
+    
+    // Clear chunk retry flag on successful mount
+    sessionStorage.removeItem('chunk_retry');
   }, []);
 
   return (

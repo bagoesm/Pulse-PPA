@@ -1,6 +1,7 @@
 // src/components/ErrorBoundary.tsx
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
+import { isChunkLoadError, forceReload } from '../utils/versionCheck';
 
 interface Props {
     children: ReactNode;
@@ -26,6 +27,18 @@ class ErrorBoundary extends Component<Props, State> {
     componentDidCatch(error: Error, errorInfo: ErrorInfo) {
         console.error('ErrorBoundary caught an error:', error, errorInfo);
         this.setState({ errorInfo });
+        
+        // Auto-recover from chunk load errors (caused by new deployments)
+        if (isChunkLoadError(error)) {
+            console.warn('[ErrorBoundary] Chunk load error caught. Attempting automatic reload...');
+            const isRetry = sessionStorage.getItem('chunk_retry') === 'true';
+            if (!isRetry) {
+                sessionStorage.setItem('chunk_retry', 'true');
+                forceReload();
+            } else {
+                console.error('[ErrorBoundary] Chunk load error persisted after auto-reload.');
+            }
+        }
     }
 
     handleRetry = () => {

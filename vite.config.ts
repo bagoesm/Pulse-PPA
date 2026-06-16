@@ -1,10 +1,22 @@
 import path from 'path';
+import fs from 'fs';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
-// Read version from package.json
+// Read version and build info
 import packageJson from './package.json';
+
+let buildId = 'development';
+try {
+  const versionJsonPath = path.resolve(__dirname, 'public/version.json');
+  if (fs.existsSync(versionJsonPath)) {
+    const versionJson = JSON.parse(fs.readFileSync(versionJsonPath, 'utf-8'));
+    buildId = versionJson.buildId || 'development';
+  }
+} catch (error) {
+  console.warn('Failed to read version.json in vite.config:', error);
+}
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
@@ -23,6 +35,7 @@ export default defineConfig(({ mode }) => {
       VitePWA({
         registerType: 'autoUpdate',
         workbox: {
+          globIgnores: ['**/version.json'],
           // Aggressive cache cleanup
           cleanupOutdatedCaches: true,
           // Skip waiting and claim clients immediately
@@ -72,7 +85,8 @@ export default defineConfig(({ mode }) => {
     define: {
       'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
       'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-      'import.meta.env.VITE_APP_VERSION': JSON.stringify(packageJson.version)
+      'import.meta.env.VITE_APP_VERSION': JSON.stringify(packageJson.version),
+      'import.meta.env.VITE_BUILD_ID': JSON.stringify(buildId)
     },
     resolve: {
       alias: {
