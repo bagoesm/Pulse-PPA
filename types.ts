@@ -797,6 +797,7 @@ export interface BudgetMaster {
   namaAkun: string;
   detail: string;
   pagu: number;
+  tahun?: number;
   createdBy: string;
   createdAt: string;
   updatedAt?: string;

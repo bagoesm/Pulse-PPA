@@ -27,6 +27,7 @@ interface TransactionListProps {
   refreshTrigger: number;
   onTransactionUpdated: () => void;
   showNotification: (title: string, message: string, type: 'success' | 'warning' | 'error' | 'info') => void;
+  selectedTahun: number;
 }
 
 const TransactionList: React.FC<TransactionListProps> = ({
@@ -36,7 +37,8 @@ const TransactionList: React.FC<TransactionListProps> = ({
   isEditor,
   refreshTrigger,
   onTransactionUpdated,
-  showNotification
+  showNotification,
+  selectedTahun
 }) => {
   const [transactions, setTransactions] = useState<BudgetTransaction[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -65,14 +67,14 @@ const TransactionList: React.FC<TransactionListProps> = ({
   const loadTransactions = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await budgetService.fetchTransactions(selectedDivisi);
+      const data = await budgetService.fetchTransactions(selectedDivisi, selectedTahun);
       setTransactions(data);
     } catch (err) {
       console.error('Error fetching transactions list:', err);
     } finally {
       setLoading(false);
     }
-  }, [selectedDivisi]);
+  }, [selectedDivisi, selectedTahun]);
 
   useEffect(() => {
     loadTransactions();
@@ -534,6 +536,7 @@ const TransactionList: React.FC<TransactionListProps> = ({
                 onTransactionUpdated();
               }}
               onClose={() => setIsAddModalOpen(false)}
+              selectedTahun={selectedTahun}
             />
           </div>
         </div>

@@ -32,6 +32,7 @@ interface BudgetMasterEditorProps {
   refreshTrigger: number;
   onMasterUpdated: () => void;
   showNotification: (title: string, message: string, type: 'success' | 'warning' | 'error' | 'info') => void;
+  selectedTahun: number;
 }
 
 const BudgetMasterEditor: React.FC<BudgetMasterEditorProps> = ({
@@ -41,7 +42,8 @@ const BudgetMasterEditor: React.FC<BudgetMasterEditorProps> = ({
   isEditor,
   refreshTrigger,
   onMasterUpdated,
-  showNotification
+  showNotification,
+  selectedTahun
 }) => {
   // Navigation sections
   const [activeSection, setActiveSection] = useState<'pagu' | 'editors' | 'sumber_dana'>('pagu');
@@ -74,6 +76,7 @@ const BudgetMasterEditor: React.FC<BudgetMasterEditorProps> = ({
   const [detail, setDetail] = useState<string>('');
   const [pagu, setPagu] = useState<string>('');
   const [sumberDanaId, setSumberDanaId] = useState<string>('');
+  const [tahun, setTahun] = useState<number>(selectedTahun);
   const [saving, setSaving] = useState<boolean>(false);
 
   // Editor configuration states
@@ -98,8 +101,8 @@ const BudgetMasterEditor: React.FC<BudgetMasterEditorProps> = ({
   const loadAllData = useCallback(async () => {
     setLoading(true);
     try {
-      const mastersData = await budgetService.fetchBudgetMasters(selectedDivisi);
-      const trxData = await budgetService.fetchTransactions(selectedDivisi);
+      const mastersData = await budgetService.fetchBudgetMasters(selectedDivisi, undefined, selectedTahun);
+      const trxData = await budgetService.fetchTransactions(selectedDivisi, selectedTahun);
       setMasters(mastersData);
       setTransactions(trxData);
 
@@ -122,7 +125,7 @@ const BudgetMasterEditor: React.FC<BudgetMasterEditorProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [selectedDivisi, currentUser]);
+  }, [selectedDivisi, currentUser, selectedTahun]);
 
   useEffect(() => {
     loadAllData();
@@ -159,6 +162,7 @@ const BudgetMasterEditor: React.FC<BudgetMasterEditorProps> = ({
     setNamaAkun('');
     setDetail('');
     setPagu('');
+    setTahun(selectedTahun);
     if (sumberDanaList.length > 0) {
       setSumberDanaId(sumberDanaList[0].id);
     }
@@ -178,11 +182,11 @@ const BudgetMasterEditor: React.FC<BudgetMasterEditorProps> = ({
     setSubkomponen(m.subkomponen || '');
     setNamaSubkomponen(m.namaSubkomponen || '');
     setAkun(m.akun);
-    setAkun(m.akun);
     setNamaAkun(m.namaAkun || '');
     setDetail(m.detail || '');
     setPagu(String(m.pagu));
     setSumberDanaId(m.sumberDanaId);
+    setTahun(m.tahun || selectedTahun);
     setIsModalOpen(true);
   };
 
@@ -190,8 +194,8 @@ const BudgetMasterEditor: React.FC<BudgetMasterEditorProps> = ({
     e.preventDefault();
     if (!isEditor) return;
 
-    if (!kro.trim() || !ro.trim() || !komponen.trim() || !akun.trim() || !detail.trim() || !pagu) {
-      showNotification('Input Tidak Lengkap', 'Silakan isi kolom KRO, RO, Komponen, Akun, Detail Belanja, dan Pagu.', 'warning');
+    if (!kro.trim() || !ro.trim() || !komponen.trim() || !akun.trim() || !detail.trim() || !pagu || !tahun) {
+      showNotification('Input Tidak Lengkap', 'Silakan isi kolom KRO, RO, Komponen, Akun, Detail Belanja, Pagu, dan Tahun.', 'warning');
       return;
     }
 
@@ -200,6 +204,7 @@ const BudgetMasterEditor: React.FC<BudgetMasterEditorProps> = ({
       const payload = {
         divisi: selectedDivisi,
         sumberDanaId,
+        tahun: Number(tahun),
         kegiatan,
         namaKegiatan,
         kro,
@@ -358,7 +363,7 @@ const BudgetMasterEditor: React.FC<BudgetMasterEditorProps> = ({
         let failCount = 0;
 
         for (const row of rows) {
-          // Columns matching: KRO, RO, Komponen, Akun, Detail, Pagu, Sumber Dana
+          // Columns matching: KRO, RO, Komponen, Akun, Detail, Pagu, Sumber Dana, Tahun
           const excelKro = String(row['KRO'] || '').trim();
           const excelRo = String(row['RO'] || '').trim();
           const excelKomponen = String(row['Komponen'] || '').trim();
@@ -366,6 +371,7 @@ const BudgetMasterEditor: React.FC<BudgetMasterEditorProps> = ({
           const excelDetail = String(row['Detail Belanja'] || row['Detail'] || '').trim();
           const excelPagu = Number(row['Pagu'] || 0);
           const excelSdName = String(row['Sumber Dana'] || 'APBN').trim();
+          const excelTahun = Number(row['Tahun'] || selectedTahun);
 
           if (!excelKro || !excelRo || !excelKomponen || !excelAkun || !excelDetail) {
             failCount++;
@@ -386,6 +392,7 @@ const BudgetMasterEditor: React.FC<BudgetMasterEditorProps> = ({
           await budgetService.createBudgetMaster({
             divisi: selectedDivisi,
             sumberDanaId: sd.id,
+            tahun: excelTahun,
             kegiatan: String(row['Kegiatan'] || '').trim(),
             namaKegiatan: String(row['Nama Kegiatan'] || '').trim(),
             kro: excelKro,
@@ -872,17 +879,30 @@ const BudgetMasterEditor: React.FC<BudgetMasterEditorProps> = ({
             {/* Modal Body Form */}
             <form onSubmit={handleSaveMaster} className="flex-1 overflow-y-auto p-5 space-y-4 text-xs font-medium">
               
-              {/* Row 1: Sumber Dana */}
-              <div className="space-y-1">
-                <label className="text-slate-500 font-bold block">Sumber Dana</label>
-                <SearchableSelect
-                  options={sumberDanaList.map((sd) => ({ value: sd.id, label: sd.name }))}
-                  value={sumberDanaId}
-                  onChange={setSumberDanaId}
-                  placeholder="Cari sumber dana..."
-                  emptyOption="Pilih Sumber Dana"
-                  className="w-full"
-                />
+              {/* Row 1: Sumber Dana & Tahun */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="sm:col-span-2 space-y-1">
+                  <label className="text-slate-500 font-bold block">Sumber Dana</label>
+                  <SearchableSelect
+                    options={sumberDanaList.map((sd) => ({ value: sd.id, label: sd.name }))}
+                    value={sumberDanaId}
+                    onChange={setSumberDanaId}
+                    placeholder="Cari sumber dana..."
+                    emptyOption="Pilih Sumber Dana"
+                    className="w-full"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-slate-500 font-bold block">Tahun Anggaran *</label>
+                  <input
+                    type="number"
+                    placeholder="e.g. 2026"
+                    value={tahun}
+                    onChange={(e) => setTahun(Number(e.target.value))}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gov-300 focus:bg-white font-semibold"
+                    required
+                  />
+                </div>
               </div>
 
               {/* Row 2: Kegiatan & Nama Kegiatan */}

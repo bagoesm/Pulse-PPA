@@ -23,6 +23,7 @@ interface BudgetTransactionFormProps {
   showNotification: (title: string, message: string, type: 'success' | 'warning' | 'error' | 'info') => void;
   onTransactionAdded: () => void;
   onClose?: () => void;
+  selectedTahun: number;
 }
 
 const BudgetTransactionForm: React.FC<BudgetTransactionFormProps> = ({
@@ -31,7 +32,8 @@ const BudgetTransactionForm: React.FC<BudgetTransactionFormProps> = ({
   isEditor,
   showNotification,
   onTransactionAdded,
-  onClose
+  onClose,
+  selectedTahun
 }) => {
   const [masters, setMasters] = useState<BudgetMaster[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -54,8 +56,8 @@ const BudgetTransactionForm: React.FC<BudgetTransactionFormProps> = ({
   const loadMastersAndRealisasi = useCallback(async () => {
     setLoading(true);
     try {
-      const mastersData = await budgetService.fetchBudgetMasters(selectedDivisi);
-      const trxData = await budgetService.fetchTransactions(selectedDivisi);
+      const mastersData = await budgetService.fetchBudgetMasters(selectedDivisi, undefined, selectedTahun);
+      const trxData = await budgetService.fetchTransactions(selectedDivisi, selectedTahun);
       setMasters(mastersData);
 
       const realMap = new Map<string, number>();
@@ -69,7 +71,7 @@ const BudgetTransactionForm: React.FC<BudgetTransactionFormProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [selectedDivisi]);
+  }, [selectedDivisi, selectedTahun]);
 
   useEffect(() => {
     if (isEditor) {

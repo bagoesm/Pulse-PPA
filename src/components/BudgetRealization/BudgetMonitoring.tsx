@@ -22,13 +22,15 @@ interface BudgetMonitoringProps {
   currentUser: any;
   refreshTrigger: number;
   showNotification: (title: string, message: string, type: 'success' | 'warning' | 'error' | 'info') => void;
+  selectedTahun: number;
 }
 
 const BudgetMonitoring: React.FC<BudgetMonitoringProps> = ({
   selectedDivisi,
   sumberDanaList,
   refreshTrigger,
-  showNotification
+  showNotification,
+  selectedTahun
 }) => {
   const [masters, setMasters] = useState<BudgetMaster[]>([]);
   const [transactions, setTransactions] = useState<BudgetTransaction[]>([]);
@@ -52,8 +54,8 @@ const BudgetMonitoring: React.FC<BudgetMonitoringProps> = ({
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const mastersData = await budgetService.fetchBudgetMasters(selectedDivisi);
-      const trxData = await budgetService.fetchTransactions(selectedDivisi);
+      const mastersData = await budgetService.fetchBudgetMasters(selectedDivisi, undefined, selectedTahun);
+      const trxData = await budgetService.fetchTransactions(selectedDivisi, selectedTahun);
       setMasters(mastersData);
       setTransactions(trxData);
     } catch (err) {
@@ -61,7 +63,7 @@ const BudgetMonitoring: React.FC<BudgetMonitoringProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [selectedDivisi]);
+  }, [selectedDivisi, selectedTahun]);
 
   useEffect(() => {
     loadData();

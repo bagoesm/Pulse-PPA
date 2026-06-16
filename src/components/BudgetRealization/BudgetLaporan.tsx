@@ -10,28 +10,40 @@ interface BudgetLaporanProps {
   selectedDivisi: string;
   sumberDanaList: MasterSumberDana[];
   refreshTrigger: number;
+  selectedTahun: number;
 }
 
 const BudgetLaporan: React.FC<BudgetLaporanProps> = ({
   selectedDivisi,
   sumberDanaList,
-  refreshTrigger
+  refreshTrigger,
+  selectedTahun
 }) => {
   const [transactions, setTransactions] = useState<BudgetTransaction[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
   // Filter parameters
-  const [tglAwal, setTglAwal] = useState<string>(() => {
-    // Default to 1st day of current year
-    const yr = new Date().getFullYear();
-    return `${yr}-01-01`;
-  });
+  const [tglAwal, setTglAwal] = useState<string>(`${selectedTahun}-01-01`);
   const [tglAkhir, setTglAkhir] = useState<string>(() => {
-    // Default to today
-    return new Date().toISOString().slice(0, 10);
+    const yr = new Date().getFullYear();
+    if (selectedTahun === yr) {
+      return new Date().toISOString().slice(0, 10);
+    }
+    return `${selectedTahun}-12-31`;
   });
   const [selectedSumberDanaId, setSelectedSumberDanaId] = useState<string>('All');
   const [selectedKro, setSelectedKro] = useState<string>('All');
+
+  // Sync date ranges when selectedTahun changes
+  useEffect(() => {
+    setTglAwal(`${selectedTahun}-01-01`);
+    const currentYear = new Date().getFullYear();
+    if (selectedTahun === currentYear) {
+      setTglAkhir(new Date().toISOString().slice(0, 10));
+    } else {
+      setTglAkhir(`${selectedTahun}-12-31`);
+    }
+  }, [selectedTahun]);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -45,14 +57,14 @@ const BudgetLaporan: React.FC<BudgetLaporanProps> = ({
   const loadTransactions = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await budgetService.fetchTransactions(selectedDivisi);
+      const data = await budgetService.fetchTransactions(selectedDivisi, selectedTahun);
       setTransactions(data);
     } catch (err) {
       console.error('Error fetching transactions for report:', err);
     } finally {
       setLoading(false);
     }
-  }, [selectedDivisi]);
+  }, [selectedDivisi, selectedTahun]);
 
   useEffect(() => {
     loadTransactions();

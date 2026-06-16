@@ -155,7 +155,7 @@ export class BudgetService {
   }
 
   // --- Budget Masters CRUD ---
-  async fetchBudgetMasters(divisi: string, sumberDanaId?: string): Promise<BudgetMaster[]> {
+  async fetchBudgetMasters(divisi: string, sumberDanaId?: string, tahun?: number): Promise<BudgetMaster[]> {
     return handleDatabaseOperation(async () => {
       let query = this.supabase
         .from('budget_masters')
@@ -163,6 +163,7 @@ export class BudgetService {
           id,
           divisi,
           sumber_dana_id,
+          tahun,
           kegiatan,
           nama_kegiatan,
           kro,
@@ -193,6 +194,9 @@ export class BudgetService {
       if (sumberDanaId && sumberDanaId !== 'All') {
         query = query.eq('sumber_dana_id', sumberDanaId);
       }
+      if (tahun) {
+        query = query.eq('tahun', tahun);
+      }
 
       const { data, error } = await query;
       if (error) throw error;
@@ -206,6 +210,7 @@ export class BudgetService {
       const dbPayload = {
         divisi: data.divisi,
         sumber_dana_id: data.sumberDanaId,
+        tahun: data.tahun || new Date().getFullYear(),
         kegiatan: data.kegiatan,
         nama_kegiatan: data.namaKegiatan,
         kro: data.kro,
@@ -239,6 +244,7 @@ export class BudgetService {
       const dbPayload: any = {};
       if (data.divisi !== undefined) dbPayload.divisi = data.divisi;
       if (data.sumberDanaId !== undefined) dbPayload.sumber_dana_id = data.sumberDanaId;
+      if (data.tahun !== undefined) dbPayload.tahun = data.tahun;
       if (data.kegiatan !== undefined) dbPayload.kegiatan = data.kegiatan;
       if (data.namaKegiatan !== undefined) dbPayload.nama_kegiatan = data.namaKegiatan;
       if (data.kro !== undefined) dbPayload.kro = data.kro;
@@ -279,12 +285,15 @@ export class BudgetService {
   }
 
   // --- Budget Transactions CRUD ---
-  async fetchTransactions(divisi: string): Promise<BudgetTransaction[]> {
+  async fetchTransactions(divisi: string, tahun?: number): Promise<BudgetTransaction[]> {
     return handleDatabaseOperation(async () => {
       // First get masters in division to load transactions
       let masterQuery = this.supabase.from('budget_masters').select('id');
       if (divisi && divisi !== 'All') {
         masterQuery = masterQuery.eq('divisi', divisi);
+      }
+      if (tahun) {
+        masterQuery = masterQuery.eq('tahun', tahun);
       }
       const { data: masters, error: mError } = await masterQuery;
       if (mError) throw mError;
@@ -293,44 +302,45 @@ export class BudgetService {
       const masterIds = masters.map((m: any) => m.id);
 
       const { data, error } = await this.supabase
-        .from('budget_transactions')
-        .select(`
-          id,
-          master_id,
-          tanggal,
-          uraian,
-          nominal,
-          bukti,
-          keterangan,
-          status,
-          created_by,
-          created_at,
-          updated_at,
-          budget_masters (
-            id,
-            divisi,
-            sumber_dana_id,
-            kegiatan,
-            nama_kegiatan,
-            kro,
-            nama_kro,
-            ro,
-            nama_ro,
-            komponen,
-            nama_komponen,
-            subkomponen,
-            nama_subkomponen,
-            akun,
-            nama_akun,
-            detail,
-            pagu,
-            master_sumber_dana (
-              id,
-              name,
-              created_at
-            )
-          )
-        `)
+         .from('budget_transactions')
+         .select(`
+           id,
+           master_id,
+           tanggal,
+           uraian,
+           nominal,
+           bukti,
+           keterangan,
+           status,
+           created_by,
+           created_at,
+           updated_at,
+           budget_masters (
+             id,
+             divisi,
+             sumber_dana_id,
+             tahun,
+             kegiatan,
+             nama_kegiatan,
+             kro,
+             nama_kro,
+             ro,
+             nama_ro,
+             komponen,
+             nama_komponen,
+             subkomponen,
+             nama_subkomponen,
+             akun,
+             nama_akun,
+             detail,
+             pagu,
+             master_sumber_dana (
+               id,
+               name,
+               created_at
+             )
+           )
+         `)
         .in('master_id', masterIds)
         .order('tanggal', { ascending: false });
 
@@ -456,6 +466,7 @@ export class BudgetService {
       namaAkun: row.nama_akun || '',
       detail: row.detail || '',
       pagu: Number(row.pagu),
+      tahun: Number(row.tahun) || new Date(row.created_at || new Date()).getFullYear(),
       createdBy: row.created_by,
       createdAt: row.created_at,
       updatedAt: row.updated_at,

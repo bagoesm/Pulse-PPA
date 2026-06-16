@@ -45,6 +45,7 @@ const BudgetRealizationPage: React.FC<BudgetRealizationPageProps> = ({
   const [isEditor, setIsEditor] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
+  const [selectedTahun, setSelectedTahun] = useState<number>(new Date().getFullYear());
 
   // Determine if activeTab needs tabs display name override for layout title
   const getSubmenuName = () => {
@@ -129,20 +130,38 @@ const BudgetRealizationPage: React.FC<BudgetRealizationPageProps> = ({
             </p>
           </div>
 
-          {/* Division Selector for Super Admin */}
-          {currentUser.role === 'Super Admin' && (
+          {/* Filters Area (Division & Year Selector) */}
+          <div className="flex items-center gap-4 flex-wrap">
+            {/* Division Selector for Super Admin */}
+            {currentUser.role === 'Super Admin' && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-slate-500 whitespace-nowrap">Satker:</span>
+                <SearchableSelect
+                  options={divisiList.map((div) => ({ value: div, label: div }))}
+                  value={selectedDivisi}
+                  onChange={(val) => startTransition(() => setSelectedDivisi(val))}
+                  placeholder="Cari Satker..."
+                  emptyOption="Pilih Satker"
+                  className="w-48 text-slate-800 text-sm font-medium shadow-sm"
+                />
+              </div>
+            )}
+
+            {/* Year Selector */}
             <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-slate-500 whitespace-nowrap">Satker:</span>
-              <SearchableSelect
-                options={divisiList.map((div) => ({ value: div, label: div }))}
-                value={selectedDivisi}
-                onChange={(val) => startTransition(() => setSelectedDivisi(val))}
-                placeholder="Cari Satker..."
-                emptyOption="Pilih Satker"
-                className="w-48 text-slate-800 text-sm font-medium shadow-sm"
-              />
+              <span className="text-xs font-semibold text-slate-500 whitespace-nowrap">Tahun:</span>
+              <select
+                value={selectedTahun}
+                onChange={(e) => setSelectedTahun(Number(e.target.value))}
+                className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs sm:text-sm font-semibold text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-gov-300"
+              >
+                <option value={2024}>2024</option>
+                <option value={2025}>2025</option>
+                <option value={2026}>2026</option>
+                <option value={2027}>2027</option>
+              </select>
             </div>
-          )}
+          </div>
         </div>
 
         {/* Mobile Horizontal Switcher - swipeable menu on small screens */}
@@ -191,6 +210,7 @@ const BudgetRealizationPage: React.FC<BudgetRealizationPageProps> = ({
             sumberDanaList={sumberDanaList}
             currentUser={currentUser}
             refreshTrigger={refreshTrigger}
+            selectedTahun={selectedTahun}
           />
         ) : activeTab === 'Monitoring Anggaran' ? (
           <BudgetMonitoring
@@ -199,6 +219,7 @@ const BudgetRealizationPage: React.FC<BudgetRealizationPageProps> = ({
             currentUser={currentUser}
             refreshTrigger={refreshTrigger}
             showNotification={showNotification}
+            selectedTahun={selectedTahun}
           />
         ) : activeTab === 'Daftar Transaksi' ? (
           <TransactionList
@@ -209,12 +230,14 @@ const BudgetRealizationPage: React.FC<BudgetRealizationPageProps> = ({
             refreshTrigger={refreshTrigger}
             onTransactionUpdated={triggerRefresh}
             showNotification={showNotification}
+            selectedTahun={selectedTahun}
           />
         ) : activeTab === 'Laporan Anggaran' ? (
           <BudgetLaporan
             selectedDivisi={selectedDivisi}
             sumberDanaList={sumberDanaList}
             refreshTrigger={refreshTrigger}
+            selectedTahun={selectedTahun}
           />
         ) : activeTab === 'Master Anggaran' ? (
           <BudgetMasterEditor
@@ -225,6 +248,7 @@ const BudgetRealizationPage: React.FC<BudgetRealizationPageProps> = ({
             refreshTrigger={refreshTrigger}
             onMasterUpdated={triggerRefresh}
             showNotification={showNotification}
+            selectedTahun={selectedTahun}
           />
         ) : (
           <div className="bg-white rounded-xl p-8 border border-slate-200 text-center text-slate-500">

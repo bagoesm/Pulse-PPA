@@ -30,12 +30,14 @@ interface BudgetDashboardProps {
   sumberDanaList: MasterSumberDana[];
   currentUser: any;
   refreshTrigger: number;
+  selectedTahun: number;
 }
 
 const BudgetDashboard: React.FC<BudgetDashboardProps> = ({
   selectedDivisi,
   sumberDanaList,
-  refreshTrigger
+  refreshTrigger,
+  selectedTahun
 }) => {
   const [masters, setMasters] = useState<BudgetMaster[]>([]);
   const [transactions, setTransactions] = useState<BudgetTransaction[]>([]);
@@ -46,8 +48,8 @@ const BudgetDashboard: React.FC<BudgetDashboardProps> = ({
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const mastersData = await budgetService.fetchBudgetMasters(selectedDivisi);
-      const trxData = await budgetService.fetchTransactions(selectedDivisi);
+      const mastersData = await budgetService.fetchBudgetMasters(selectedDivisi, undefined, selectedTahun);
+      const trxData = await budgetService.fetchTransactions(selectedDivisi, selectedTahun);
       setMasters(mastersData);
       setTransactions(trxData);
     } catch (err) {
@@ -55,7 +57,7 @@ const BudgetDashboard: React.FC<BudgetDashboardProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [selectedDivisi]);
+  }, [selectedDivisi, selectedTahun]);
 
   useEffect(() => {
     loadData();
