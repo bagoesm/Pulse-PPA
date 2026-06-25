@@ -269,7 +269,7 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
                     </div>
 
                     {/* Count */}
-                    <div className="px-3 py-1.5 border-t border-slate-100 bg-slate-50 text-[10px] text-slate-400 flex-shrink-0">
+                    <div className="px-3 py-1.5 border-t border-slate-100 bg-slate-50 text-xs text-slate-400 flex-shrink-0">
                         {filteredOptions.length} dari {options.length} opsi
                     </div>
                 </div>,

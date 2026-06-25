@@ -60,6 +60,8 @@ const ActivityLogPage = lazy(() => import('./components/ActivityLogPage'));
 const DisposisiListView = lazy(() => import('./components/DisposisiListView'));
 const SatkerVisibilityManagement = lazy(() => import('./components/SatkerVisibilityManagement'));
 const VisibilityAuditTrail = lazy(() => import('./components/VisibilityAuditTrail'));
+const PelayananZoomPage = lazy(() => import('./components/PelayananZoomPage'));
+const ModuleVisibilityManagement = lazy(() => import('./components/ModuleVisibilityManagement'));
 const TaskExportModal = lazy(() => import('./components/TaskExportModal'));
 const AnalitikPage = lazy(() => import('./components/AnalitikPage'));
 const InventoriBMNPage = lazy(() => import('./components/InventoriBMNPage'));
@@ -803,7 +805,7 @@ const AppContent: React.FC = () => {
         )}
 
         {/* Top Header / Filter Bar - HIDDEN for special pages */}
-        {activeTab !== 'Dashboard' && activeTab !== 'Analitik' && activeTab !== 'Project' && activeTab !== 'Master Data' && activeTab !== 'Saran Masukan' && activeTab !== 'Pengumuman' && activeTab !== 'Inventori Data' && activeTab !== 'Inventori BMN' && activeTab !== 'Jadwal Kegiatan' && activeTab !== 'Daftar Surat' && activeTab !== 'Activity Log' && activeTab !== 'Daftar Disposisi' && activeTab !== 'Manajemen Visibility' && activeTab !== 'Riwayat Perubahan' && !['Dashboard Realisasi', 'Monitoring Anggaran', 'Daftar Transaksi', 'Laporan Anggaran', 'Master Anggaran'].includes(activeTab) && (
+        {activeTab !== 'Dashboard' && activeTab !== 'Analitik' && activeTab !== 'Project' && activeTab !== 'Master Data' && activeTab !== 'Saran Masukan' && activeTab !== 'Pengumuman' && activeTab !== 'Inventori Data' && activeTab !== 'Inventori BMN' && activeTab !== 'Jadwal Kegiatan' && activeTab !== 'Daftar Surat' && activeTab !== 'Activity Log' && activeTab !== 'Daftar Disposisi' && activeTab !== 'Manajemen Visibility' && activeTab !== 'Riwayat Perubahan' && activeTab !== 'Pelayanan Zoom' && activeTab !== 'Manajemen Modul' && !['Dashboard Realisasi', 'Monitoring Anggaran', 'Daftar Transaksi', 'Laporan Anggaran', 'Master Anggaran'].includes(activeTab) && (
           <header className="bg-white border-b border-slate-200 px-3 sm:px-6 py-3 sm:py-4 z-20 relative">
             <div className="flex flex-col gap-3 sm:gap-4 mb-3 sm:mb-4">
               {/* Title Section */}
@@ -1181,6 +1183,14 @@ const AppContent: React.FC = () => {
         ) : activeTab === 'Riwayat Perubahan' ? (
           <Suspense fallback={<PageLoader />}>
             <VisibilityAuditTrail />
+          </Suspense>
+        ) : activeTab === 'Pelayanan Zoom' ? (
+          <Suspense fallback={<PageLoader />}>
+            <PelayananZoomPage />
+          </Suspense>
+        ) : activeTab === 'Manajemen Modul' ? (
+          <Suspense fallback={<PageLoader />}>
+            <ModuleVisibilityManagement />
           </Suspense>
         ) : activeTab === 'Master Data' ? (
           <Suspense fallback={<PageLoader />}>

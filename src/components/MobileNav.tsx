@@ -13,9 +13,12 @@ import {
   Settings,
   CalendarDays,
   FileSpreadsheet,
+  Video,
+  Layers
 } from 'lucide-react';
 import { User } from '../../types';
 import UserAvatar from './UserAvatar';
+import { useModuleVisibility } from '../hooks/useModuleVisibility';
 
 interface MobileNavProps {
   activeTab: string;
@@ -33,6 +36,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
   onOpenProfile,
 }) => {
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+  const { isModuleVisible } = useModuleVisibility(currentUser);
 
   // Main tabs for bottom nav
   const bottomTabs = [
@@ -41,7 +45,11 @@ const MobileNav: React.FC<MobileNavProps> = ({
     { name: 'Project', icon: Briefcase },
     { name: 'Lainnya', icon: MoreHorizontal, isMore: true },
     { name: 'Profile', icon: UserIcon, isProfile: true },
-  ];
+  ].filter(tab => {
+    if (tab.name === 'Semua Task') return isModuleVisible('Semua Task');
+    if (tab.name === 'Project') return isModuleVisible('Project');
+    return true;
+  });
 
   // Sub-menu items for "Lainnya"
   const moreMenuItems = [
@@ -51,16 +59,33 @@ const MobileNav: React.FC<MobileNavProps> = ({
     { name: 'Saran Masukan', icon: MessageSquarePlus, color: 'text-emerald-600', bg: 'bg-emerald-50' },
     { name: 'Pengumuman', icon: Megaphone, color: 'text-blue-600', bg: 'bg-blue-50' },
     { name: 'Inventori Data', icon: Database, color: 'text-purple-600', bg: 'bg-purple-50' },
+    { name: 'Inventori BMN', icon: Database, color: 'text-sky-600', bg: 'bg-sky-50' },
+    { name: 'Pelayanan Zoom', icon: Video, color: 'text-gov-600', bg: 'bg-gov-50' },
     // Master Data and Satker Visibility only for Super Admin
     ...(currentUser.role === 'Super Admin' ? [
       { name: 'Master Data', icon: Settings, color: 'text-orange-600', bg: 'bg-orange-50' },
       { name: 'Manajemen Visibility', icon: Settings, color: 'text-red-600', bg: 'bg-red-50' },
       { name: 'Riwayat Perubahan', icon: Database, color: 'text-amber-600', bg: 'bg-amber-50' },
+      { name: 'Manajemen Modul', icon: Layers, color: 'text-indigo-600', bg: 'bg-indigo-50' },
     ] : []),
   ];
 
-  const isMoreActive = moreMenuItems.some((item) => activeTab === item.name) ||
+  const filteredMoreMenuItems = moreMenuItems.filter((item) => {
+    if (['Jadwal Kegiatan', 'Daftar Surat'].includes(item.name)) {
+      return isModuleVisible('Surat & Kegiatan');
+    }
+    if (['Dashboard Realisasi'].includes(item.name)) {
+      return isModuleVisible('Realisasi Anggaran');
+    }
+    if (item.name === 'Saran Masukan' || item.name === 'Pengumuman') {
+      return true; // Always visible
+    }
+    return isModuleVisible(item.name);
+  });
+
+  const isMoreActive = filteredMoreMenuItems.some((item) => activeTab === item.name) ||
     ['Dashboard Realisasi', 'Monitoring Anggaran', 'Daftar Transaksi', 'Laporan Anggaran', 'Master Anggaran'].includes(activeTab);
+
 
   return (
     <>
@@ -117,7 +142,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
 
             {/* Menu Items */}
             <div className="space-y-2">
-              {moreMenuItems.map((item) => {
+              {filteredMoreMenuItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = activeTab === item.name;
                 return (

@@ -184,8 +184,200 @@ PENTING: LANGSUNG OUTPUT HASIL ANALISIS. DILARANG KERAS menuliskan "Role:", "Inp
       console.error('Failed to generate analytics insight:', e);
       return "Sistem AI gagal mengenerate insight: " + e.message;
     }
+  },
+  
+  async extractZoomMeeting(invitationText: string): Promise<any> {
+    const prompt = `
+Anda adalah asisten administrasi cerdas. Tugas Anda adalah mengekstrak data dari salinan/copyan undangan Zoom berikut.
+Ekstrak informasi ini dan kembalikan HANYA dalam format JSON (tanpa markdown atau teks awalan/akhiran).
+
+Struktur JSON yang WAJIB dipatuhi:
+{
+  "kegiatan": "Judul kegiatan/rapat/acara (jika ada, biasanya setelah 'Topic:' atau 'Topik:')",
+  "tanggal": "Tanggal pelaksanaan dalam format YYYY-MM-DD (jika ada, konversi dari tanggal yang tertulis)",
+  "waktuMulai": "Waktu mulai dalam format HH:MM (jika ada, format 24 jam, hilangkan AM/PM)",
+  "waktuSelesai": "Waktu selesai dalam format HH:MM (jika ada, jika tidak ada isi 2 jam setelah waktuMulai)",
+  "zoomLink": "URL Link Zoom Meeting lengkap (cari yang memiliki format https://...zoom.us/j/...)",
+  "meetingId": "Zoom Meeting ID (biasanya angka saja, bersihkan dari spasi)",
+  "passcode": "Zoom Passcode/Sandi (jika ada)"
+}
+
+Peraturan:
+1. Pastikan tanggal berformat YYYY-MM-DD. Jika tertulis 28 Jun 2026 atau June 28, 2026, jadikan 2026-06-28.
+2. Pastikan waktuMulai dan waktuSelesai berformat HH:MM dalam format 24 jam. Jika tertulis 09:00 AM, jadikan 09:00. Jika 02:00 PM, jadikan 14:00.
+3. Kembalikan HANYA JSON.
+    `;
+
+    try {
+      if (!genAI) throw new Error('API Key Google tidak ditemukan di .env (VITE_GEMINI_API_KEY)');
+      
+      const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-lite-preview' });
+      const result = await model.generateContent([prompt, invitationText]);
+      const response = await result.response;
+      let text = response.text();
+      
+      return cleanAndParseJson(text);
+    } catch (geminiError: any) {
+      console.warn('Gemini Zoom Extraction failed, attempting regex-based fallback...', geminiError);
+      return parseZoomInvitationRegex(invitationText);
+    }
   }
 };
+
+export function parseZoomInvitationRegex(text: string): any {
+  const result: any = {
+    kegiatan: '',
+    tanggal: '',
+    waktuMulai: '',
+    waktuSelesai: '',
+    zoomLink: '',
+    meetingId: '',
+    passcode: ''
+  };
+
+  // 1. Zoom Link
+  const linkRegex = /(https:\/\/[a-zA-Z0-9-.]*zoom\.us\/j\/[0-9]+(?:\?pwd=[a-zA-Z0-9]+)?)/i;
+  const linkMatch = text.match(linkRegex);
+  if (linkMatch) {
+    result.zoomLink = linkMatch[1];
+  }
+
+  // 2. Meeting ID
+  const idRegex = /(?:Meeting ID|ID Rapat|ID):\s*([0-9\s]+)/i;
+  const idMatch = text.match(idRegex);
+  if (idMatch) {
+    result.meetingId = idMatch[1].replace(/\s/g, '');
+  }
+
+  // 3. Passcode
+  const passcodeRegex = /(?:Passcode|Password|Sandi|Kode Akses|Pass):\s*([a-zA-Z0-9]+)/i;
+  const passcodeMatch = text.match(passcodeRegex);
+  if (passcodeMatch) {
+    result.passcode = passcodeMatch[1];
+  }
+
+  // 4. Topic/Kegiatan
+  const topicRegex = /(?:Topic|Topik|Kegiatan|Tema|Acara):\s*(.*)/i;
+  const topicMatch = text.match(topicRegex);
+  if (topicMatch) {
+    result.kegiatan = topicMatch[1].trim();
+  }
+
+  // 5. Date & Time
+  const timeRegex = /(?:Time|Waktu|Tanggal):\s*(.*)/i;
+  const timeMatch = text.match(timeRegex);
+  if (timeMatch) {
+    const parsed = parseDateTimeString(timeMatch[1].trim());
+    if (parsed) {
+      result.tanggal = parsed.date;
+      result.waktuMulai = parsed.startTime;
+      result.waktuSelesai = parsed.endTime;
+    }
+  }
+
+  // Fallback: If no topic is found, use the first line of the text or "Rapat Zoom"
+  if (!result.kegiatan) {
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+    if (lines.length > 0 && lines[0].length < 100) {
+      result.kegiatan = lines[0];
+    } else {
+      result.kegiatan = 'Rapat Zoom';
+    }
+  }
+
+  // Fallback: If no date/time is found, use today
+  if (!result.tanggal) {
+    const today = new Date();
+    result.tanggal = today.toISOString().split('T')[0];
+  }
+  if (!result.waktuMulai) {
+    result.waktuMulai = '09:00';
+  }
+  if (!result.waktuSelesai) {
+    result.waktuSelesai = '11:00';
+  }
+
+  return result;
+}
+
+function parseDateTimeString(str: string): { date: string; startTime: string; endTime: string } | null {
+  try {
+    let dateStr = '';
+    let startTimeStr = '09:00';
+    let endTimeStr = '11:00';
+
+    const months: Record<string, string> = {
+      jan: '01', feb: '02', mar: '03', apr: '04', mei: '05', may: '05', jun: '06',
+      jul: '07', agu: '08', aug: '08', sep: '09', okt: '10', oct: '10', nov: '11', des: '12', dec: '12'
+    };
+
+    // Try to extract year: 4 digits
+    const yearMatch = str.match(/\b(202[0-9])\b/);
+    const year = yearMatch ? yearMatch[1] : new Date().getFullYear().toString();
+
+    // Try to extract month
+    let month = '01';
+    for (const [mName, mVal] of Object.entries(months)) {
+      const reg = new RegExp('\\b' + mName, 'i');
+      if (reg.test(str)) {
+        month = mVal;
+        break;
+      }
+    }
+
+    // Try to extract day: 1 or 2 digits
+    const dayMatch = str.match(/\b([0-2]?[0-9]|3[01])\b/);
+    let day = dayMatch ? dayMatch[1].padStart(2, '0') : '01';
+
+    // Refine day if part of a standard date format like "28 Jun 2026"
+    const dayNameYearMatch = str.match(/\b(\d{1,2})\s+(?:Jan|Feb|Mar|Apr|Mei|May|Jun|Jul|Agu|Aug|Sep|Okt|Oct|Nov|Des|Dec)[a-z]*\s+(\d{4})\b/i);
+    if (dayNameYearMatch) {
+      day = dayNameYearMatch[1].padStart(2, '0');
+    }
+
+    dateStr = `${year}-${month}-${day}`;
+
+    // Extract time: e.g., "09:00 AM" or "13:00"
+    const timeMatches = str.match(/\b([0-1]?[0-9]|2[0-3]):([0-5][0-9])\s*(AM|PM)?\b/gi);
+    if (timeMatches && timeMatches.length > 0) {
+      const firstTime = timeMatches[0];
+      const match = firstTime.match(/\b([0-1]?[0-9]|2[0-3]):([0-5][0-9])\s*(AM|PM)?\b/i);
+      if (match) {
+        let hour = parseInt(match[1]);
+        const minute = match[2];
+        const ampm = match[3];
+        if (ampm) {
+          if (ampm.toUpperCase() === 'PM' && hour < 12) hour += 12;
+          if (ampm.toUpperCase() === 'AM' && hour === 12) hour = 0;
+        }
+        startTimeStr = `${hour.toString().padStart(2, '0')}:${minute}`;
+        
+        let endHour = (hour + 2) % 24;
+        endTimeStr = `${endHour.toString().padStart(2, '0')}:${minute}`;
+      }
+
+      if (timeMatches.length > 1) {
+        const secondTime = timeMatches[1];
+        const match2 = secondTime.match(/\b([0-1]?[0-9]|2[0-3]):([0-5][0-9])\s*(AM|PM)?\b/i);
+        if (match2) {
+          let hour = parseInt(match2[1]);
+          const minute = match2[2];
+          const ampm = match2[3];
+          if (ampm) {
+            if (ampm.toUpperCase() === 'PM' && hour < 12) hour += 12;
+            if (ampm.toUpperCase() === 'AM' && hour === 12) hour = 0;
+          }
+          endTimeStr = `${hour.toString().padStart(2, '0')}:${minute}`;
+        }
+      }
+    }
+
+    return { date: dateStr, startTime: startTimeStr, endTime: endTimeStr };
+  } catch (e) {
+    console.error('Error parsing date time string:', e);
+    return null;
+  }
+}
 
 async function fallbackToOpenAI(file: File, prompt: string, base64Data: string) {
   const imageUrl = `data:${file.type};base64,${base64Data.split(',')[1]}`;

@@ -28,10 +28,13 @@ import {
   PieChart,
   ChevronsLeft,
   ChevronsRight,
-  Package
+  Package,
+  Video,
+  Layers
 } from 'lucide-react';
 import { SIDEBAR_ITEMS, User } from '../../types';
 import { useSidebar } from '../contexts/SidebarContext';
+import { useModuleVisibility } from '../hooks/useModuleVisibility';
 
 interface SidebarProps {
   activeTab: string;
@@ -66,13 +69,16 @@ const IconMap: Record<string, React.ElementType> = {
   'Settings': Settings,
   'Shield': Shield,
   'Package': Package,
-  'PieChart': PieChart
+  'PieChart': PieChart,
+  'Video': Video,
+  'Layers': Layers
 };
 
 const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser, users, onSwitchUser, onLogout }) => {
   const [openSubmenu, setOpenSubmenu] = useState<string | null>('Surat & Kegiatan'); // Default open
   const { isCollapsed, toggleCollapse } = useSidebar();
   const [tooltipPosition, setTooltipPosition] = useState<{ top: number } | null>(null);
+  const { isModuleVisible } = useModuleVisibility(currentUser);
   
   const toggleSubmenu = (menuName: string) => {
     if (isCollapsed) {
@@ -122,7 +128,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser,
           if (item.adminOnly && currentUser.role !== 'Super Admin') {
             return false;
           }
-          return true;
+          // Filter based on Satker module visibility settings
+          return isModuleVisible(item.name);
         }).map((item: any) => {
           const Icon = IconMap[item.icon];
           const isActive = activeTab === item.name;
@@ -546,6 +553,28 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser,
                         />
                         <span className="truncate">Riwayat Perubahan</span>
                       </button>
+
+                      {currentUser.role === 'Super Admin' && (
+                        <button
+                          onClick={() => setActiveTab('Manajemen Modul')}
+                          className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 relative group/sub ${
+                            activeTab === 'Manajemen Modul'
+                              ? 'bg-gradient-to-r from-indigo-50 to-transparent text-indigo-700'
+                              : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:translate-x-1'
+                          }`}
+                        >
+                          {activeTab === 'Manajemen Modul' && (
+                            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-indigo-600 rounded-full" />
+                          )}
+                          <Layers 
+                            size={16} 
+                            className={`transition-all duration-200 flex-shrink-0 ${
+                              activeTab === 'Manajemen Modul' ? 'text-indigo-600' : 'text-slate-400 group-hover/sub:text-slate-600'
+                            }`}
+                          />
+                          <span className="truncate">Manajemen Modul</span>
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>

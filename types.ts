@@ -393,6 +393,7 @@ export const SIDEBAR_ITEMS = [
   },
   { name: 'Inventori Data', icon: 'Database' },
   { name: 'Inventori BMN', icon: 'Package' },
+  { name: 'Pelayanan Zoom', icon: 'Video' },
 ];
 
 // Disposisi - Disposition workflow for Surat-Kegiatan integration
@@ -840,4 +841,74 @@ export interface BudgetTransaction {
   updatedAt?: string;
   master?: BudgetMaster;
 }
+
+// ============================================================================
+// Zoom Service & Module Visibility Types
+// ============================================================================
+
+export interface ZoomAccount {
+  id: string;
+  name: string;
+  email?: string;
+  password?: string;
+  kapasitas: number;
+  isActive: boolean;
+  divisi: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ZoomEditor {
+  id: string;
+  userId: string;
+  divisi: string;
+  createdAt: string;
+  userName?: string;
+  userEmail?: string;
+}
+
+export interface ZoomRoom {
+  id: string;
+  name: string;
+  createdAt: string;
+}
+
+export interface ZoomMeetingType {
+  id: string;
+  name: string;
+  createdAt: string;
+}
+
+export interface ZoomMeeting {
+  id: string;
+  zoomAccountId: string | null;
+  tanggal: string;
+  waktuMulai: string;
+  waktuSelesai: string;
+  kegiatan: string;
+  operatorId: string | null;
+  lokasi: string;
+  unitKerja: string;
+  jenisRapat: string;
+  status: 'Scheduled' | 'Completed' | 'Cancelled';
+  zoomLink?: string;
+  meetingId?: string;
+  passcode?: string;
+  undanganText?: string;
+  createdAt: string;
+  updatedAt: string;
+  zoomAccount?: ZoomAccount;
+  operator?: User;
+  operatorIds?: string[];
+}
+
+export interface ModuleVisibility {
+  id: string;
+  moduleName: string;
+  divisiId: string;
+  isVisible: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 
