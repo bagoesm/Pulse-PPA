@@ -41,6 +41,8 @@ const BMNDashboard: React.FC<BMNDashboardProps> = ({ onOpenUploadModal }) => {
     return currentUser?.divisi || 'All';
   });
 
+  const [hasUploadPermission, setHasUploadPermission] = useState(false);
+
   // Satker list from master_divisi table
   const [availableSatkers, setAvailableSatkers] = useState<Array<{ value: string; label: string }>>([]);
 
@@ -112,6 +114,14 @@ const BMNDashboard: React.FC<BMNDashboardProps> = ({ onOpenUploadModal }) => {
     fetchUploadHistory: async () => {}
   });
 
+  useEffect(() => {
+    const checkPermission = async () => {
+      const allowed = await canUploadBMN(selectedSatker);
+      setHasUploadPermission(allowed);
+    };
+    checkPermission();
+  }, [selectedSatker, currentUser, canUploadBMN]);
+
   // Get last upload info
   const lastUpload = useMemo(() => {
     if (!uploadHistory || uploadHistory.length === 0) return null;
@@ -139,7 +149,7 @@ const BMNDashboard: React.FC<BMNDashboardProps> = ({ onOpenUploadModal }) => {
           </div>
 
           {/* Upload Button - Only for logged-in users */}
-          {canUploadBMN() && onOpenUploadModal && (
+          {hasUploadPermission && onOpenUploadModal && (
             <div>
               <button
                 onClick={onOpenUploadModal}

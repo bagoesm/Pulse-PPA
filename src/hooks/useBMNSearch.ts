@@ -87,6 +87,11 @@ export function useBMNSearch(): UseBMNSearchResult {
                     return true;
                 }
                 
+                // Search in NUP / Nomor Register
+                if (item.nomorRegister?.toLowerCase().includes(searchLower)) {
+                    return true;
+                }
+                
                 return false;
             });
             

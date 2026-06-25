@@ -142,7 +142,7 @@ const BMNTable: React.FC<BMNTableProps> = ({ items, isLoading, onRowClick }) => 
     <div className="space-y-4">
       {/* Table */}
       <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto overflow-y-auto max-h-[600px]">
+        <div className="overflow-x-auto overflow-y-auto max-h-[900px]">
           <table className="w-full">
             <thead className="bg-gradient-to-r from-slate-50 to-slate-100 border-b-2 border-slate-200 sticky top-0 z-10">
               <tr>
@@ -196,6 +196,11 @@ const BMNTable: React.FC<BMNTableProps> = ({ items, isLoading, onRowClick }) => 
                     {getSortIcon('kondisi')}
                   </button>
                 </th>
+                <th className="px-4 py-3.5 text-left min-w-[150px]">
+                  <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                    Pemegang
+                  </span>
+                </th>
                 <th className="px-4 py-3.5 text-right min-w-[180px]">
                   <button
                     onClick={() => handleSort('nilaiPerolehan')}
@@ -210,7 +215,7 @@ const BMNTable: React.FC<BMNTableProps> = ({ items, isLoading, onRowClick }) => 
             <tbody className="divide-y divide-slate-100">
               {isLoading ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center">
+                  <td colSpan={8} className="px-4 py-12 text-center">
                     <div className="flex items-center justify-center gap-2">
                       <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gov-600"></div>
                       <span className="text-sm text-slate-600">Memuat data...</span>
@@ -219,7 +224,7 @@ const BMNTable: React.FC<BMNTableProps> = ({ items, isLoading, onRowClick }) => 
                 </tr>
               ) : paginatedItems.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center">
+                  <td colSpan={8} className="px-4 py-12 text-center">
                     <Package size={56} className="mx-auto mb-3 text-slate-300" />
                     <p className="text-base font-medium text-slate-600 mb-1">Tidak ada data</p>
                     <p className="text-sm text-slate-400">Belum ada data BMN yang tersedia</p>
@@ -255,9 +260,16 @@ const BMNTable: React.FC<BMNTableProps> = ({ items, isLoading, onRowClick }) => 
 
                     {/* Kode Barang */}
                     <td className="px-4 py-4">
-                      <span className="text-sm font-mono text-slate-700 bg-slate-100 px-2.5 py-1 rounded">
-                        {item.kodeBarang}
-                      </span>
+                      <div className="flex flex-col gap-1">
+                        <span className="text-sm font-mono text-slate-700 bg-slate-100 px-2.5 py-1 rounded w-fit">
+                          {item.kodeBarang}
+                        </span>
+                        {item.nup && (
+                          <span className="text-xs text-slate-500 font-semibold">
+                            NUP: {item.nup}
+                          </span>
+                        )}
+                      </div>
                     </td>
 
                     {/* Jenis BMN */}
@@ -283,6 +295,22 @@ const BMNTable: React.FC<BMNTableProps> = ({ items, isLoading, onRowClick }) => 
                       <span className={`inline-flex items-center text-xs font-semibold px-3 py-1.5 rounded-full ${getKondisiColor(item.kondisi)}`}>
                         {item.kondisi || '-'}
                       </span>
+                    </td>
+
+                    {/* Pemegang */}
+                    <td className="px-4 py-4">
+                      {item.holder?.name ? (
+                        <div className="flex flex-col">
+                          <span className="text-sm font-semibold text-slate-800">
+                            {item.holder.name}
+                          </span>
+                          <span className="text-xs text-slate-500 font-medium">
+                            {item.namaSatker || ''}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-slate-400 italic font-medium">Belum Ditugaskan</span>
+                      )}
                     </td>
 
                     {/* Nilai Perolehan */}

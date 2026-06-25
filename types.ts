@@ -595,6 +595,7 @@ export interface BMNItem {
   
   // Document Information
   nomorRegister?: string;       // Registration number
+  nup?: string;                 // Nomor Urut Pendaftaran (NUP)
   nomorSertifikat?: string;     // Certificate number
   tanggalSertifikat?: string;   // ISO Date - Certificate date
   
@@ -613,7 +614,27 @@ export interface BMNItem {
   createdAt: string;            // ISO Date - Creation timestamp
   updatedAt?: string;           // ISO Date - Last update timestamp
   uploadBatchId?: string;       // Reference to upload batch
+  
+  // Assignment Tracking
+  heldBy?: string | null;       // UUID references profiles(id)
+  holder?: {
+    id: string;
+    name: string;
+  } | null;
 }
+
+/**
+ * BMNEditor - Designates BMN edit permissions for specific Satkers
+ */
+export interface BMNEditor {
+  id: string;
+  userId: string;
+  namaSatker: string;
+  createdAt: string;
+  userName?: string;
+  userEmail?: string;
+}
+
 
 /**
  * BMNUploadHistory - Tracks BMN data upload operations
@@ -660,6 +681,7 @@ export interface BMNFilters {
   
   // Category filters
   jenisBMN?: string | 'All';    // Filter by BMN type
+  kodeBarang?: string | 'All';   // Filter by Kode Barang
   statusBMN?: BMNStatus | 'All'; // Filter by status
   kondisi?: BMNKondisi | 'All'; // Filter by condition
   namaSatker?: string | 'All';  // Filter by organizational unit

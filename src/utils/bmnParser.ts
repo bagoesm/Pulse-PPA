@@ -14,7 +14,10 @@ const COLUMN_MAPPINGS: Record<string, keyof BMNItem> = {
   'kode_barang': 'kodeBarang',
   'kodebarang': 'kodeBarang',
   'kode': 'kodeBarang',
-  'nup': 'kodeBarang', // NUP (Nomor Urut Pendaftaran) as Kode Barang - ONLY if it looks like a code
+  'nup': 'nup', // NUP (Nomor Urut Pendaftaran) is now mapped to its own separate field
+  'nomor urut pendaftaran': 'nup',
+  'no urut pendaftaran': 'nup',
+  'no. urut pendaftaran': 'nup',
   'nama barang': 'namaBarang',
   'nama_barang': 'namaBarang',
   'namabarang': 'namaBarang',
@@ -731,6 +734,7 @@ function parseRows(rawData: any[], userId: string): BMNParseResult {
         case 'kota':
         case 'provinsi':
         case 'nomorRegister':
+        case 'nup':
         case 'nomorSertifikat':
         case 'alasanPengapusan':
         case 'keterangan':
