@@ -195,6 +195,10 @@ export interface Task {
   checklists?: ChecklistItem[]; // Daftar checklist items
   subtaskCount?: number; // Jumlah subtask (denormalized for display)
   subtaskDoneCount?: number; // Jumlah subtask yang Done (denormalized for display)
+  created_at?: string;
+  updated_at?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 // Subtask - Mini-task di bawah Task (1 level saja, tidak bisa nested)
@@ -227,6 +231,7 @@ export interface FilterState {
   projectId: string | 'All';
   epicId: string | 'All';
   divisi: string | 'All'; // Filter by division
+  sortBy?: 'updated' | 'priority' | 'deadline' | 'title';
 }
 
 export interface Comment {

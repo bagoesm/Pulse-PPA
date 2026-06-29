@@ -147,6 +147,7 @@ const defaultFilters: FilterState = {
     projectId: 'All',
     epicId: 'All',
     divisi: 'All',
+    sortBy: 'updated',
 };
 
 export const UIProvider: React.FC<UIProviderProps> = ({ children }) => {

@@ -990,6 +990,20 @@ const AppContent: React.FC = () => {
                     emptyOption="Semua Prioritas"
                     className="min-w-[100px]"
                   />
+
+                  <SearchableSelect
+                    options={[
+                      { value: 'updated', label: 'Terbaru' },
+                      { value: 'priority', label: 'Prioritas' },
+                      { value: 'deadline', label: 'Tenggat Waktu' },
+                      { value: 'title', label: 'Abjad (A-Z)' }
+                    ]}
+                    value={filters.sortBy || 'updated'}
+                    onChange={(val) => setFilters(prev => ({ ...prev, sortBy: (val || 'updated') as any }))}
+                    placeholder="Urutan"
+                    emptyOption="Urut: Terbaru"
+                    className="min-w-[140px]"
+                  />
                 </div>
               </div>
             )}
@@ -1248,6 +1262,7 @@ const AppContent: React.FC = () => {
                     onTaskClick={handleTaskClick}
                     onTaskShare={openTaskShare}
                     checkEditPermission={checkEditPermission}
+                    sortBy={filters.sortBy || 'updated'}
                   />
                 ))}
               </div>
