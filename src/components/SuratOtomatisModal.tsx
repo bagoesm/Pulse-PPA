@@ -311,6 +311,71 @@ export const SuratOtomatisModal: React.FC<SuratOtomatisModalProps> = ({ isOpen, 
           />
         );
 
+      case 'multi-date': {
+        const dates = value ? String(value).split(',') : [new Date().toISOString().split('T')[0]];
+        
+        const updateDates = (newDates: string[]) => {
+          handleFieldChange(field.id, newDates.filter(Boolean).join(','));
+        };
+
+        const handleDateChange = (idx: number, val: string) => {
+          const updated = [...dates];
+          updated[idx] = val;
+          updateDates(updated);
+        };
+
+        const addDateRow = () => {
+          const today = new Date().toISOString().split('T')[0];
+          updateDates([...dates, today]);
+        };
+
+        const removeDateRow = (idx: number) => {
+          if (dates.length <= 1) return;
+          const updated = dates.filter((_, i) => i !== idx);
+          updateDates(updated);
+        };
+
+        return (
+          <div className="space-y-2">
+            {dates.map((dateVal, idx) => (
+              <div key={idx} className="flex items-center gap-2">
+                <input
+                  type="date"
+                  value={dateVal}
+                  onChange={(e) => handleDateChange(idx, e.target.value)}
+                  readOnly={field.readOnly}
+                  className={`${baseInputClass} flex-1`}
+                />
+                {!field.readOnly && dates.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeDateRow(idx)}
+                    className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors border border-red-200"
+                    title="Hapus tanggal"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+            ))}
+            {!field.readOnly && (
+              <button
+                type="button"
+                onClick={addDateRow}
+                className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-3 py-1.5 rounded-lg border border-dashed border-blue-300 transition-colors mt-1 font-semibold"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                </svg>
+                Tambah Tanggal
+              </button>
+            )}
+          </div>
+        );
+      }
+
       case 'time':
         return (
           <input
@@ -408,7 +473,7 @@ export const SuratOtomatisModal: React.FC<SuratOtomatisModalProps> = ({ isOpen, 
                 /* CUSTOM PREVIEW FOR DAFTAR HADIR */
                 <div className="p-10" style={{ fontFamily: 'Arial, sans-serif' }}>
                   {/* Header */}
-                  <div className="relative flex justify-between items-center pb-4 border-b border-black mb-6" style={{ minHeight: '90px' }}>
+                  <div className="relative flex justify-between items-center pb-4 mb-6" style={{ minHeight: '90px' }}>
                     {/* Left: KPPPA Logo */}
                     <div className="w-16 h-16 flex items-center justify-start">
                       <img src="/Logo.svg" alt="Logo KPPPA" className="max-w-full max-h-full object-contain" />
@@ -416,13 +481,16 @@ export const SuratOtomatisModal: React.FC<SuratOtomatisModalProps> = ({ isOpen, 
 
                     {/* Center: Title & Details */}
                     <div className="flex-1 text-center px-4">
-                      <h1 className="font-bold text-sm leading-tight text-black m-0 mb-1">DAFTAR HADIR PESERTA</h1>
-                      <h2 className="font-bold text-xs leading-tight text-black m-0 mb-1 whitespace-pre-wrap">
+                      <h1 className="font-bold text-sm leading-tight text-black m-0 mb-1">
+                        DAFTAR HADIR {String(formData.tipe_daftar_hadir || 'PESERTA').toUpperCase()}
+                      </h1>
+                      <h2 className="font-bold text-sm leading-tight text-black m-0 mb-1 whitespace-pre-wrap">
                         {String(formData.nama_kegiatan || 'NAMA KEGIATAN').toUpperCase()}
                       </h2>
-                      <p className="font-bold text-xs leading-tight text-black m-0">
+                      <p className="font-bold text-sm leading-tight text-black m-0">
+                        {formData.tempat_kegiatan ? `${formData.tempat_kegiatan.toString().toUpperCase()}, ` : ''}
                         {formData.tanggal_kegiatan 
-                          ? SuratOtomatisService.formatTanggalIndonesia(formData.tanggal_kegiatan.toString()).toUpperCase() 
+                          ? SuratOtomatisService.formatMultipleDates(formData.tanggal_kegiatan.toString()).toUpperCase()
                           : 'TANGGAL KEGIATAN'}
                       </p>
                     </div>
@@ -441,39 +509,73 @@ export const SuratOtomatisModal: React.FC<SuratOtomatisModalProps> = ({ isOpen, 
                   </div>
 
                   {/* Table */}
-                  <table className="w-full border-collapse border border-black text-xs text-black mb-4">
-                    <thead>
-                      <tr className="bg-gray-100">
-                        <th className="border border-black p-2 text-center font-bold" style={{ width: '5%' }}>No.</th>
-                        <th className="border border-black p-2 text-center font-bold" style={{ width: '22%' }}>Nama</th>
-                        <th className="border border-black p-2 text-center font-bold" style={{ width: '22%' }}>Asal Instansi</th>
-                        <th className="border border-black p-2 text-center font-bold" style={{ width: '19%' }}>Jabatan</th>
-                        <th className="border border-black p-2 text-center font-bold" style={{ width: '17%' }}>Nomor Telepon</th>
-                        <th className="border border-black p-2 text-center font-bold" style={{ width: '15%' }}>Tanda Tangan</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {Array.from({ length: 10 }).map((_, index) => {
-                        const rowNum = index + 1;
-                        return (
-                          <tr key={index} style={{ height: '42px' }}>
-                            <td className="border border-black p-1 text-center font-semibold">{rowNum}</td>
-                            <td className="border border-black p-1"></td>
-                            <td className="border border-black p-1"></td>
-                            <td className="border border-black p-1"></td>
-                            <td className="border border-black p-1"></td>
-                            <td className="border border-black p-1 relative align-top pt-1 pl-1 font-bold">
-                              {rowNum % 2 !== 0 ? (
+                  {formData.perlu_rekening === 'Ya' ? (
+                    <table className="w-full border-collapse border border-black text-[10px] text-black mb-4">
+                      <thead>
+                        <tr className="bg-gray-100">
+                          <th className="border border-black p-1.5 text-center font-bold" style={{ width: '4%' }}>No.</th>
+                          <th className="border border-black p-1.5 text-center font-bold" style={{ width: '15%' }}>Nama</th>
+                          <th className="border border-black p-1.5 text-center font-bold" style={{ width: '15%' }}>Instansi</th>
+                          <th className="border border-black p-1.5 text-center font-bold" style={{ width: '13%' }}>Jabatan</th>
+                          <th className="border border-black p-1.5 text-center font-bold" style={{ width: '11%' }}>Nomor Telepon</th>
+                          <th className="border border-black p-1.5 text-center font-bold" style={{ width: '11%' }}>Nama Bank</th>
+                          <th className="border border-black p-1.5 text-center font-bold" style={{ width: '11%' }}>Nomor Rekening</th>
+                          <th className="border border-black p-1.5 text-center font-bold" style={{ width: '11%' }}>Nama Pemilik Rekening</th>
+                          <th className="border border-black p-1.5 text-center font-bold" style={{ width: '9%' }}>Tanda Tangan</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {Array.from({ length: 10 }).map((_, index) => {
+                          const rowNum = index + 1;
+                          return (
+                            <tr key={index} style={{ height: '42px' }}>
+                              <td className="border border-black p-1 text-center font-semibold">{rowNum}</td>
+                              <td className="border border-black p-1"></td>
+                              <td className="border border-black p-1"></td>
+                              <td className="border border-black p-1"></td>
+                              <td className="border border-black p-1"></td>
+                              <td className="border border-black p-1"></td>
+                              <td className="border border-black p-1"></td>
+                              <td className="border border-black p-1"></td>
+                              <td className="border border-black p-1.5 align-middle text-left font-bold">
                                 <span>{rowNum}.</span>
-                              ) : (
-                                <span className="pl-6">{rowNum}.</span>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <table className="w-full border-collapse border border-black text-xs text-black mb-4">
+                      <thead>
+                        <tr className="bg-gray-100">
+                          <th className="border border-black p-2 text-center font-bold" style={{ width: '5%' }}>No.</th>
+                          <th className="border border-black p-2 text-center font-bold" style={{ width: '22%' }}>Nama</th>
+                          <th className="border border-black p-2 text-center font-bold" style={{ width: '22%' }}>Instansi</th>
+                          <th className="border border-black p-2 text-center font-bold" style={{ width: '19%' }}>Jabatan</th>
+                          <th className="border border-black p-2 text-center font-bold" style={{ width: '17%' }}>Nomor Telepon</th>
+                          <th className="border border-black p-2 text-center font-bold" style={{ width: '15%' }}>Tanda Tangan</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {Array.from({ length: 10 }).map((_, index) => {
+                          const rowNum = index + 1;
+                          return (
+                            <tr key={index} style={{ height: '42px' }}>
+                              <td className="border border-black p-1 text-center font-semibold">{rowNum}</td>
+                              <td className="border border-black p-1"></td>
+                              <td className="border border-black p-1"></td>
+                              <td className="border border-black p-1"></td>
+                              <td className="border border-black p-1"></td>
+                              <td className="border border-black p-2 align-middle text-left font-bold">
+                                <span>{rowNum}.</span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  )}
 
                   {/* Footer */}
                   <div className="text-right text-[10px] text-gray-500 mt-4">

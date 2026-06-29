@@ -10,20 +10,25 @@ import autoTable from 'jspdf-autotable';
  */
 export class SuratOtomatisService {
   /**
-   * Helper to convert SVG to PNG data URL
+   * Helper to convert SVG to PNG data URL with aspect ratio
    */
-  private static convertSvgToPng(svgUrl: string): Promise<string> {
+  private static convertSvgToPng(svgUrl: string): Promise<{ base64: string; aspect: number }> {
     return new Promise((resolve, reject) => {
       const img = new Image();
       img.crossOrigin = 'anonymous';
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        canvas.width = img.width || 200;
-        canvas.height = img.height || 200;
+        const aspect = img.width / img.height || 1;
+        // Use high-resolution canvas maintaining aspect ratio
+        canvas.width = 300 * aspect;
+        canvas.height = 300;
         const ctx = canvas.getContext('2d');
         if (ctx) {
-          ctx.drawImage(img, 0, 0);
-          resolve(canvas.toDataURL('image/png'));
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve({
+            base64: canvas.toDataURL('image/png'),
+            aspect
+          });
         } else {
           reject(new Error('Failed to get canvas context'));
         }
@@ -43,14 +48,17 @@ export class SuratOtomatisService {
     partnerLogos: { base64: string; aspect: number; format: string }[]
   ): Promise<void> {
     try {
+      const tipeDaftarHadir = String(formData.tipe_daftar_hadir || 'PESERTA').trim().toUpperCase();
       const namaKegiatan = String(formData.nama_kegiatan || '').toUpperCase();
       const tanggalKegiatan = String(formData.tanggal_kegiatan || '');
+      const tempatKegiatan = String(formData.tempat_kegiatan || '').trim().toUpperCase();
+      const perluRekening = String(formData.perlu_rekening || 'Tidak') === 'Ya';
       const jumlahBaris = Number(formData.jumlah_baris || 20);
 
       // Load KPPPA Logo
-      let kpppaLogoPng = '';
+      let kpppaLogo = { base64: '', aspect: 1 };
       try {
-        kpppaLogoPng = await this.convertSvgToPng('/Logo.svg');
+        kpppaLogo = await this.convertSvgToPng('/Logo.svg');
       } catch (err) {
         console.error('Failed to convert KPPPA logo SVG to PNG:', err);
       }
@@ -64,8 +72,10 @@ export class SuratOtomatisService {
       const rowsPerPage = 10;
       const totalPages = Math.ceil(jumlahBaris / rowsPerPage);
 
-      // Formatting date (e.g., 23 JUNI 2026)
-      const formattedDate = this.formatTanggalIndonesia(tanggalKegiatan).toUpperCase();
+      // Formatting date (e.g., 23 JUNI 2026 or 12, 19, dan 26 September 2025)
+      const formattedDate = this.formatMultipleDates(tanggalKegiatan).toUpperCase();
+      const tempatPrefix = tempatKegiatan ? `${tempatKegiatan}, ` : '';
+      const dateLine = `${tempatPrefix}${formattedDate}`;
 
       for (let pageIndex = 0; pageIndex < totalPages; pageIndex++) {
         if (pageIndex > 0) {
@@ -73,20 +83,34 @@ export class SuratOtomatisService {
         }
 
         // --- DRAW HEADER ---
-        // 1. KPPPA Logo on the left
-        if (kpppaLogoPng) {
-          doc.addImage(kpppaLogoPng, 'PNG', 15, 15, 20, 20);
+        // 1. KPPPA Logo on the left (Respect aspect ratio)
+        if (kpppaLogo.base64) {
+          const maxW = 20;
+          const maxH = 20;
+          let w = maxW;
+          let h = maxW / kpppaLogo.aspect;
+          
+          if (h > maxH) {
+            h = maxH;
+            w = maxH * kpppaLogo.aspect;
+          }
+          
+          // Center the logo inside the 20x20mm bounding box starting at X=15, Y=15
+          const logoX = 15 + (maxW - w) / 2;
+          const logoY = 15 + (maxH - h) / 2;
+          
+          doc.addImage(kpppaLogo.base64, 'PNG', logoX, logoY, w, h);
         }
 
         // 2. Centered Text (Center of A4 Landscape is 148.5mm)
         doc.setFont('Helvetica', 'bold');
         
-        // Title
-        doc.setFontSize(12);
-        doc.text('DAFTAR HADIR PESERTA', 148.5, 19, { align: 'center' });
+        // Title (Uniform size: 11pt, dynamic type)
+        doc.setFontSize(11);
+        doc.text(`DAFTAR HADIR ${tipeDaftarHadir}`, 148.5, 19, { align: 'center' });
 
-        // Activity Name (wrapped if too long)
-        doc.setFontSize(10);
+        // Activity Name (wrapped if too long, size: 11pt)
+        doc.setFontSize(11);
         const splitKegiatan = doc.splitTextToSize(namaKegiatan, 180);
         
         let currentY = 24;
@@ -95,8 +119,8 @@ export class SuratOtomatisService {
           currentY += 4.5;
         });
 
-        // Date
-        doc.text(formattedDate, 148.5, currentY, { align: 'center' });
+        // Date (Uniform size: 11pt)
+        doc.text(dateLine, 148.5, currentY, { align: 'center' });
 
         // 3. Partner Logos on the right (up to 3)
         if (partnerLogos && partnerLogos.length > 0) {
@@ -132,11 +156,8 @@ export class SuratOtomatisService {
           });
         }
 
-        // 4. Line under header
+        // 4. Line under header (REMOVED as requested)
         const headerBottomY = Math.max(currentY + 6, 36);
-        doc.setDrawColor(0, 0, 0);
-        doc.setLineWidth(0.5);
-        doc.line(15, headerBottomY, 282, headerBottomY);
 
         // --- DRAW TABLE ---
         const startRow = pageIndex * rowsPerPage;
@@ -146,36 +167,83 @@ export class SuratOtomatisService {
         const tableData = [];
         for (let i = 0; i < pageRowsCount; i++) {
           const rowNum = startRow + i + 1;
-          const sigText = rowNum % 2 !== 0 
-            ? `${rowNum}.` 
-            : `          ${rowNum}.`;
+          const sigText = `${rowNum}.`;
           
-          tableData.push([
-            rowNum.toString(),
-            '', // Nama
-            '', // Asal Instansi
-            '', // Jabatan
-            '', // Nomor Telepon
-            sigText
-          ]);
+          if (perluRekening) {
+            tableData.push([
+              rowNum.toString(),
+              '', // Nama
+              '', // Instansi
+              '', // Jabatan
+              '', // Nomor Telepon
+              '', // Nama Bank
+              '', // Nomor Rekening
+              '', // Nama Pemilik Rekening
+              sigText
+            ]);
+          } else {
+            tableData.push([
+              rowNum.toString(),
+              '', // Nama
+              '', // Instansi
+              '', // Jabatan
+              '', // Nomor Telepon
+              sigText
+            ]);
+          }
         }
+
+        const tableHeaders = perluRekening 
+          ? [
+              { content: 'No.', styles: { halign: 'center' as const, valign: 'middle' as const } },
+              { content: 'Nama', styles: { halign: 'center' as const, valign: 'middle' as const } },
+              { content: 'Instansi', styles: { halign: 'center' as const, valign: 'middle' as const } },
+              { content: 'Jabatan', styles: { halign: 'center' as const, valign: 'middle' as const } },
+              { content: 'Nomor Telepon', styles: { halign: 'center' as const, valign: 'middle' as const } },
+              { content: 'Nama Bank', styles: { halign: 'center' as const, valign: 'middle' as const } },
+              { content: 'Nomor Rekening', styles: { halign: 'center' as const, valign: 'middle' as const } },
+              { content: 'Nama Pemilik Rekening', styles: { halign: 'center' as const, valign: 'middle' as const } },
+              { content: 'Tanda Tangan', styles: { halign: 'center' as const, valign: 'middle' as const } }
+            ]
+          : [
+              { content: 'No.', styles: { halign: 'center' as const, valign: 'middle' as const } },
+              { content: 'Nama', styles: { halign: 'center' as const, valign: 'middle' as const } },
+              { content: 'Instansi', styles: { halign: 'center' as const, valign: 'middle' as const } },
+              { content: 'Jabatan', styles: { halign: 'center' as const, valign: 'middle' as const } },
+              { content: 'Nomor Telepon', styles: { halign: 'center' as const, valign: 'middle' as const } },
+              { content: 'Tanda Tangan', styles: { halign: 'center' as const, valign: 'middle' as const } }
+            ];
+
+        const columnStyles = perluRekening
+          ? {
+              0: { cellWidth: 10, halign: 'center' as const, valign: 'middle' as const },
+              1: { cellWidth: 40 },
+              2: { cellWidth: 40 },
+              3: { cellWidth: 32 },
+              4: { cellWidth: 30 },
+              5: { cellWidth: 30 },
+              6: { cellWidth: 30 },
+              7: { cellWidth: 30 },
+              8: { cellWidth: 25, valign: 'middle' as const, halign: 'left' as const, fontStyle: 'bold' as const } // Tanda tangan
+            }
+          : {
+              0: { cellWidth: 12, halign: 'center' as const, valign: 'middle' as const },
+              1: { cellWidth: 60 },
+              2: { cellWidth: 60 },
+              3: { cellWidth: 50 },
+              4: { cellWidth: 45 },
+              5: { cellWidth: 40, valign: 'middle' as const, halign: 'left' as const, fontStyle: 'bold' as const } // Tanda tangan
+            };
 
         autoTable(doc, {
           startY: headerBottomY + 4,
           margin: { left: 15, right: 15 },
-          head: [[
-            { content: 'No.', styles: { halign: 'center', valign: 'middle' } },
-            { content: 'Nama', styles: { halign: 'center', valign: 'middle' } },
-            { content: 'Asal Instansi', styles: { halign: 'center', valign: 'middle' } },
-            { content: 'Jabatan', styles: { halign: 'center', valign: 'middle' } },
-            { content: 'Nomor Telepon', styles: { halign: 'center', valign: 'middle' } },
-            { content: 'Tanda Tangan', styles: { halign: 'center', valign: 'middle' } }
-          ]],
+          head: [tableHeaders],
           body: tableData,
           theme: 'grid',
           styles: {
-            fontSize: 9,
-            cellPadding: 3,
+            fontSize: perluRekening ? 8 : 9,
+            cellPadding: 2.5,
             lineColor: [0, 0, 0], // Black borders like Excel
             lineWidth: 0.15,
             textColor: [0, 0, 0],
@@ -186,14 +254,7 @@ export class SuratOtomatisService {
             fontStyle: 'bold',
             lineWidth: 0.25,
           },
-          columnStyles: {
-            0: { cellWidth: 12, halign: 'center', valign: 'middle' },
-            1: { cellWidth: 60 },
-            2: { cellWidth: 60 },
-            3: { cellWidth: 50 },
-            4: { cellWidth: 45 },
-            5: { cellWidth: 40, valign: 'middle', fontStyle: 'bold' } // Tanda tangan
-          },
+          columnStyles: columnStyles,
           didParseCell: (data) => {
             if (data.section === 'body') {
               data.cell.styles.minCellHeight = 12; // Height in mm (fits beautifully in Landscape)
@@ -397,6 +458,69 @@ export class SuratOtomatisService {
       console.error('Error formatting date:', error);
       return dateString;
     }
+  }
+
+  /**
+   * Format multiple comma-separated dates to Indonesian text
+   * @param datesStr - Comma-separated ISO date strings (e.g. "2025-09-12,2025-09-19,2025-09-26")
+   * @returns Formatted date string (e.g. "12, 19, dan 26 September 2025")
+   */
+  static formatMultipleDates(datesStr: string): string {
+    if (!datesStr) return '';
+    const dateStrings = datesStr.split(',').map(d => d.trim()).filter(Boolean);
+    if (dateStrings.length === 0) return '';
+    if (dateStrings.length === 1) {
+      return this.formatTanggalIndonesia(dateStrings[0]);
+    }
+
+    const months = [
+      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    ];
+
+    const parsed = dateStrings
+      .map(d => {
+        const date = new Date(d);
+        return {
+          day: date.getDate(),
+          monthNum: date.getMonth(),
+          monthName: months[date.getMonth()],
+          year: date.getFullYear(),
+          time: date.getTime()
+        };
+      })
+      .filter(p => !isNaN(p.time))
+      .sort((a, b) => a.time - b.time);
+
+    if (parsed.length === 0) return '';
+    if (parsed.length === 1) {
+      return `${parsed[0].day} ${parsed[0].monthName} ${parsed[0].year}`;
+    }
+
+    // Check if all are in the same month and year
+    const allSameMonthAndYear = parsed.every(
+      p => p.monthNum === parsed[0].monthNum && p.year === parsed[0].year
+    );
+
+    if (allSameMonthAndYear) {
+      const days = parsed.map(p => p.day);
+      const lastDay = days.pop();
+      return `${days.join(', ')} dan ${lastDay} ${parsed[0].monthName} ${parsed[0].year}`;
+    }
+
+    // Check if all are in the same year
+    const allSameYear = parsed.every(p => p.year === parsed[0].year);
+
+    if (allSameYear) {
+      const formattedParts = parsed.map(p => `${p.day} ${p.monthName}`);
+      const lastPart = formattedParts.pop();
+      return `${formattedParts.join(', ')} dan ${lastPart} ${parsed[0].year}`;
+    }
+
+    // Different years
+    const formattedParts = parsed.map(p => `${p.day} ${p.monthName} ${p.year}`);
+    const lastPart = formattedParts.pop();
+    return `${formattedParts.join(', ')} dan ${lastPart}`;
   }
 
   /**
