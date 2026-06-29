@@ -229,6 +229,15 @@ const ZoomAccountManager: React.FC<ZoomAccountManagerProps> = ({
   };
 
   // Zoom Editors Management Logic
+  const isZoomEditor = useMemo(() => {
+    if (!currentUser) return false;
+    return zoomEditors.some(e => e.userId === currentUser.id);
+  }, [zoomEditors, currentUser]);
+
+  const canManageEditors = useMemo(() => {
+    return isSuperAdmin || isZoomEditor || currentUser?.divisi === 'Biro Data dan Informasi';
+  }, [isSuperAdmin, isZoomEditor, currentUser]);
+
   const filteredEditors = useMemo(() => {
     if (!selectedEditorSatker) return [];
     
@@ -658,8 +667,8 @@ const ZoomAccountManager: React.FC<ZoomAccountManagerProps> = ({
         </div>
       </div>
 
-      {/* 2. Zoom Editors Assignment Section (Super Admin Only) */}
-      {isSuperAdmin && (
+      {/* 2. Zoom Editors Assignment Section */}
+      {canManageEditors && (
         <div className="bg-slate-50/60 border border-slate-200 rounded-2xl p-5 space-y-5 text-sm animate-fadeIn">
           <div>
             <h4 className="text-base font-bold text-slate-800 flex items-center gap-2">
@@ -667,7 +676,7 @@ const ZoomAccountManager: React.FC<ZoomAccountManagerProps> = ({
               Manajemen Hak Akses Editor Zoom
             </h4>
             <p className="text-slate-500 text-xs mt-0.5">
-              Super Admin dapat menunjuk Staff/Atasan sebagai Editor Zoom per Satker. Editor memiliki izin penuh untuk mengelola kredensial and akun Zoom di Satker tersebut.
+              Super Admin atau Editor Zoom dapat menunjuk Staff/Atasan sebagai Editor Zoom per Satker. Editor memiliki izin penuh untuk mengelola kredensial dan akun Zoom di Satker tersebut.
             </p>
           </div>
 

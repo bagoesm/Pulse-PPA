@@ -7,7 +7,7 @@ import {
   ChevronRight, RefreshCw, BarChart2, Briefcase, Activity, X,
   FileSpreadsheet
 } from 'lucide-react';
-import { ZoomMeeting, ZoomAccount } from '../../types';
+import { ZoomMeeting, ZoomAccount, ZoomEditor } from '../../types';
 import { zoomService } from '../services/ZoomService';
 import AddZoomScheduleModal from './AddZoomScheduleModal';
 import ZoomAccountManager from './ZoomAccountManager';
@@ -22,7 +22,6 @@ import { supabase } from '../lib/supabaseClient';
 
 const PelayananZoomPage: React.FC = () => {
   const { currentUser } = useAuth();
-  const isDatinOrAdmin = currentUser?.role === 'Super Admin' || currentUser?.divisi === 'Biro Data dan Informasi';
 
   // Navigation state
   const [activeSubTab, setActiveSubTab] = useState<'dashboard' | 'schedules' | 'accounts'>('dashboard');
@@ -31,6 +30,7 @@ const PelayananZoomPage: React.FC = () => {
   const [meetings, setMeetings] = useState<ZoomMeeting[]>([]);
   const [accounts, setAccounts] = useState<ZoomAccount[]>([]);
   const [usersMap, setUsersMap] = useState<Record<string, string>>({});
+  const [zoomEditors, setZoomEditors] = useState<ZoomEditor[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -82,6 +82,14 @@ const PelayananZoomPage: React.FC = () => {
   const [exportStartDate, setExportStartDate] = useState('');
   const [exportEndDate, setExportEndDate] = useState('');
 
+  // Authorization check (includes Super Admin, Datin, and designated Zoom Editors)
+  const isDatinOrAdmin = useMemo(() => {
+    if (!currentUser) return false;
+    const isDatinOrAdminUser = currentUser.role === 'Super Admin' || currentUser.divisi === 'Biro Data dan Informasi';
+    const isEditor = zoomEditors.some(e => e.userId === currentUser.id);
+    return isDatinOrAdminUser || isEditor;
+  }, [currentUser, zoomEditors]);
+
   const handleOpenExportModal = () => {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
@@ -110,12 +118,45 @@ const PelayananZoomPage: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const [mtgs, accs] = await Promise.all([
+      const [mtgs, accs, eds] = await Promise.all([
         zoomService.getMeetings(),
-        zoomService.getAccounts()
+        zoomService.getAccounts(),
+        zoomService.getZoomEditors()
       ]);
-      setMeetings(mtgs);
+
+      // Automatically mark past scheduled meetings as completed
+      const now = new Date();
+      const meetingsToUpdate: string[] = [];
+      const processedMeetings = mtgs.map((m) => {
+        if (m.status === 'Scheduled') {
+          const cleanTime = (m.waktuSelesai || '23:59').trim().replace('.', ':');
+          const [hours, minutes] = cleanTime.split(':');
+          const hr = (hours || '23').padStart(2, '0');
+          const mn = (minutes || '59').padStart(2, '0');
+          const meetingEnd = new Date(`${m.tanggal}T${hr}:${mn}:00`);
+          
+          if (meetingEnd < now) {
+            meetingsToUpdate.push(m.id);
+            return { ...m, status: 'Completed' as const };
+          }
+        }
+        return m;
+      });
+
+      setMeetings(processedMeetings);
       setAccounts(accs);
+      setZoomEditors(eds);
+
+      // Perform background update to Supabase for the status change
+      if (meetingsToUpdate.length > 0) {
+        Promise.all(
+          meetingsToUpdate.map((id) =>
+            supabase.from('zoom_meetings').update({ status: 'Completed' }).eq('id', id)
+          )
+        ).catch((err) => {
+          console.error('Error updating past meetings status in database:', err);
+        });
+      }
     } catch (err) {
       console.error('Error fetching zoom data:', err);
       setError('Gagal memuat data pelayanan Zoom. Silakan periksa koneksi Anda.');
