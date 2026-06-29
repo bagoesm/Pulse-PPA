@@ -1,7 +1,7 @@
-// src/components/AddTaskModal.tsx
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { X, Trash2, Lock, Info, Upload, FileText, Paperclip, Download, ExternalLink, Plus, Loader2 } from 'lucide-react';
 import { Task, Category, Priority, Status, User, ProjectDefinition, Attachment, TaskLink, ChecklistItem, Epic } from '../../types';
+import { aiExtractorService } from '../services/aiExtractorService';
 import { supabase } from '../lib/supabaseClient';
 import { useModals } from '../hooks/useModalHelpers';
 import { useFileUpload } from '../hooks/useFileUpload';
@@ -20,6 +20,7 @@ interface AddTaskModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (task: Omit<Task, 'id'>) => void;
+  onSaveMultiple?: (tasks: Omit<Task, 'id'>[]) => Promise<void>;
   onDelete: (id: string) => void;
   initialData?: Task | null;
   currentUser: User | null;
@@ -40,6 +41,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
   isOpen,
   onClose,
   onSave,
+  onSaveMultiple,
   onDelete,
   initialData = null,
   currentUser,
@@ -70,6 +72,14 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
 
   // default manager/pic name from currentUser or first user in list
   const defaultPic = currentUser?.name ?? (users && users.length > 0 ? users[0].name : '');
+
+  // AI Task Generation States
+  const [isAiMode, setIsAiMode] = useState(false);
+  const [aiInputText, setAiInputText] = useState('');
+  const [isAiProcessing, setIsAiProcessing] = useState(false);
+  const [aiTasks, setAiTasks] = useState<any[]>([]);
+  const [reviewMode, setReviewMode] = useState(false);
+  const [defaultAiProjectId, setDefaultAiProjectId] = useState('');
 
   const [formData, setFormData] = useState<Partial<Task>>({
     title: '',
@@ -178,6 +188,15 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
         createdBy: currentUser?.name ?? ''
       });
     }
+
+    // Reset AI states when modal opens
+    setIsAiMode(false);
+    setAiInputText('');
+    setIsAiProcessing(false);
+    setAiTasks([]);
+    setReviewMode(false);
+    setDefaultAiProjectId('');
+
     // Reset tracking state when modal opens
     setNewlyUploadedAttachments([]);
     setIsUploading(false);
@@ -340,6 +359,218 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
     }));
   };
 
+  // AI Task Generation Handlers
+  const handleAiTaskChange = (tempId: string, key: string, value: any) => {
+    setAiTasks(prev => prev.map(t => {
+      if (t.tempId !== tempId) return t;
+      
+      const updated = { ...t, [key]: value };
+      
+      if (key === 'category') {
+        const cat = masterCategories.find(c => c.name === value);
+        if (cat) {
+          updated.categoryId = cat.id;
+          
+          const relatedSubIds = categorySubcategoryRelations
+            .filter(rel => rel.category_id === cat.id)
+            .map(rel => rel.subcategory_id);
+          const filteredSubs = masterSubCategories.filter(sub => relatedSubIds.includes(sub.id));
+          
+          if (updated.subCategory && !filteredSubs.some(s => s.name === updated.subCategory)) {
+            updated.subCategory = '';
+            updated.subCategoryId = undefined;
+          }
+        } else {
+          updated.categoryId = undefined;
+          updated.subCategory = '';
+          updated.subCategoryId = undefined;
+        }
+      }
+      
+      if (key === 'subCategory') {
+        const cat = masterCategories.find(c => c.name === updated.category);
+        if (cat) {
+          const relatedSubIds = categorySubcategoryRelations
+            .filter(rel => rel.category_id === cat.id)
+            .map(rel => rel.subcategory_id);
+          const sub = masterSubCategories.find(s => s.name === value && relatedSubIds.includes(s.id));
+          if (sub) {
+            updated.subCategoryId = sub.id;
+          }
+        }
+      }
+
+      return updated;
+    }));
+  };
+
+  const handleAddBlankAiTask = () => {
+    const newTask = {
+      tempId: `ai_task_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      title: '',
+      description: '',
+      priority: Priority.Medium,
+      status: Status.ToDo,
+      startDate: new Date().toISOString().split('T')[0],
+      deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      pic: defaultPic ? [defaultPic] : [],
+      category: masterCategories.length > 0 ? masterCategories[0].name : '',
+      categoryId: masterCategories.length > 0 ? masterCategories[0].id : undefined,
+      subCategory: '',
+      subCategoryId: undefined,
+      projectId: defaultAiProjectId || '',
+      attachments: [],
+      links: [],
+      blockedBy: [],
+      checklists: []
+    };
+    setAiTasks(prev => [...prev, newTask]);
+  };
+
+  const handleProcessAi = async () => {
+    if (!aiInputText.trim() || isAiProcessing) return;
+
+    setIsAiProcessing(true);
+    try {
+      const extracted = await aiExtractorService.extractTasksFromText(aiInputText, {
+        users: users.map(u => u.name),
+        categories: masterCategories.map(c => c.name),
+        subCategories: masterSubCategories.map(s => s.name),
+        projects: projects.map(p => ({ id: p.id, name: p.name }))
+      });
+
+      if (!Array.isArray(extracted)) {
+        throw new Error('AI tidak mengembalikan format data yang valid (harus berupa array).');
+      }
+
+      const processedTasks = extracted.map((t: any, index: number) => {
+        let categoryId = undefined;
+        let subCategoryId = undefined;
+        
+        if (t.category) {
+          const cat = masterCategories.find(c => c.name.toLowerCase() === t.category.toLowerCase());
+          if (cat) {
+            categoryId = cat.id;
+            t.category = cat.name;
+            
+            if (t.subCategory) {
+              const relatedSubIds = categorySubcategoryRelations
+                .filter(rel => rel.category_id === cat.id)
+                .map(rel => rel.subcategory_id);
+              const sub = masterSubCategories.find(s => s.name.toLowerCase() === t.subCategory.toLowerCase() && relatedSubIds.includes(s.id));
+              if (sub) {
+                subCategoryId = sub.id;
+                t.subCategory = sub.name;
+              } else {
+                const generalSub = masterSubCategories.find(s => s.name.toLowerCase() === t.subCategory.toLowerCase());
+                if (generalSub) {
+                  subCategoryId = generalSub.id;
+                  t.subCategory = generalSub.name;
+                }
+              }
+            }
+          }
+        }
+        
+        if (!categoryId && masterCategories.length > 0) {
+          categoryId = masterCategories[0].id;
+          t.category = masterCategories[0].name;
+        }
+
+        let projectId = t.projectId || defaultAiProjectId || '';
+        if (projectId && !projects.some(p => p.id === projectId)) {
+          projectId = '';
+        }
+
+        const picList = Array.isArray(t.pic) 
+          ? t.pic.filter((p: string) => users.some(u => u.name.toLowerCase() === p.toLowerCase()))
+              .map((p: string) => {
+                const matchedUser = users.find(u => u.name.toLowerCase() === p.toLowerCase());
+                return matchedUser ? matchedUser.name : p;
+              })
+          : [];
+
+        return {
+          tempId: `ai_task_${Date.now()}_${index}_${Math.random().toString(36).substr(2, 9)}`,
+          title: t.title || '',
+          description: t.description || '',
+          priority: t.priority || Priority.Medium,
+          status: Status.ToDo,
+          startDate: t.startDate || new Date().toISOString().split('T')[0],
+          deadline: t.deadline || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          pic: picList.length > 0 ? picList : (defaultPic ? [defaultPic] : []),
+          category: t.category || '',
+          categoryId: categoryId,
+          subCategory: t.subCategory || '',
+          subCategoryId: subCategoryId,
+          projectId: projectId,
+          attachments: [],
+          links: [],
+          blockedBy: [],
+          checklists: []
+        };
+      });
+
+      setAiTasks(processedTasks);
+      setReviewMode(true);
+    } catch (error: any) {
+      showNotification('Gagal Memproses AI', error.message || 'Terjadi kesalahan saat memproses data dengan AI.', 'error');
+    } finally {
+      setIsAiProcessing(false);
+    }
+  };
+
+  const handleSaveAiTasks = async () => {
+    if (isSaving) return;
+    
+    for (let i = 0; i < aiTasks.length; i++) {
+      const t = aiTasks[i];
+      if (!t.title.trim()) {
+        showNotification('Judul Kosong', `Task #${i + 1} harus memiliki judul.`, 'warning');
+        return;
+      }
+      if (!t.category) {
+        showNotification('Kategori Kosong', `Task #${i + 1} harus memiliki kategori.`, 'warning');
+        return;
+      }
+      if (!t.pic || t.pic.length === 0) {
+        showNotification('PIC Kosong', `Task #${i + 1} harus memiliki minimal 1 PIC.`, 'warning');
+        return;
+      }
+      
+      const start = new Date(t.startDate);
+      const end = new Date(t.deadline);
+      if (start > end) {
+        showNotification('Tanggal Tidak Valid', `Task #${i + 1}: Tanggal mulai tidak boleh melebihi tanggal deadline.`, 'warning');
+        return;
+      }
+    }
+
+    setIsSaving(true);
+    try {
+      if (onSaveMultiple) {
+        const payloads = aiTasks.map(t => {
+          const { tempId, ...rest } = t;
+          return {
+            ...rest,
+            title: t.title.trim(),
+            description: t.description.trim()
+          };
+        });
+        await onSaveMultiple(payloads);
+      } else {
+        for (const t of aiTasks) {
+          const { tempId, ...rest } = t;
+          await onSave(rest);
+        }
+      }
+    } catch (err: any) {
+      showNotification('Gagal Menyimpan', `Gagal menyimpan task: ${err.message}`, 'error');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isReadOnly || isSaving) return;
@@ -464,13 +695,308 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
               </span>
             )}
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full text-slate-500 transition-colors" aria-label="Close">
+          <button onClick={handleCleanupAndClose} className="p-2 hover:bg-slate-200 rounded-full text-slate-500 transition-colors" aria-label="Close">
             <X size={20} />
           </button>
         </div>
 
-        {/* Body */}
-        <form onSubmit={handleSubmit} className="p-4 sm:p-6 overflow-y-auto custom-scrollbar">
+        {/* Tabs - Only for new tasks */}
+        {!initialData && (
+          <div className="flex border-b border-slate-100 bg-slate-50/50 px-4 sm:px-6 shrink-0">
+            <button
+              type="button"
+              onClick={() => { setIsAiMode(false); setReviewMode(false); }}
+              className={`py-3 px-4 text-sm font-semibold border-b-2 transition-all ${
+                !isAiMode 
+                  ? 'border-gov-600 text-gov-600' 
+                  : 'border-transparent text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              Input Manual
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsAiMode(true)}
+              className={`py-3 px-4 text-sm font-semibold border-b-2 transition-all flex items-center gap-1.5 ${
+                isAiMode 
+                  ? 'border-gov-600 text-gov-600' 
+                  : 'border-transparent text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <span>Bikin dengan AI</span>
+              <span className="text-[12px] bg-gov-100 text-gov-700 px-1.5 py-0.5 rounded-full font-bold">🪄</span>
+            </button>
+          </div>
+        )}
+
+        {isAiMode ? (
+          reviewMode ? (
+            /* AI Review Mode */
+            <div className="p-4 sm:p-6 overflow-y-auto custom-scrollbar flex-1 flex flex-col space-y-4 bg-slate-50">
+              <div className="flex justify-between items-center bg-gov-50 p-3 rounded-xl border border-gov-100 shrink-0">
+                <div>
+                  <h3 className="text-sm font-bold text-gov-800">Review Hasil Ekstraksi AI</h3>
+                  <p className="text-[11px] text-gov-600">Periksa dan lengkapi detail tugas di bawah sebelum disimpan ke database.</p>
+                </div>
+                <span className="bg-gov-200 text-gov-800 text-xs font-bold px-2.5 py-1 rounded-full shrink-0">
+                  {aiTasks.length} Task
+                </span>
+              </div>
+
+              <div className="space-y-4 flex-1">
+                {aiTasks.map((task, index) => {
+                  return (
+                    <div key={task.tempId} className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm hover:border-gov-200 transition-all relative space-y-3">
+                      {/* Card Header */}
+                      <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                          Task #{index + 1}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setAiTasks(prev => prev.filter(t => t.tempId !== task.tempId))}
+                          className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1.5 rounded-full transition-colors"
+                          title="Hapus task ini"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+
+                      {/* Title */}
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Judul Task *</label>
+                        <input
+                          type="text"
+                          required
+                          value={task.title}
+                          onChange={(e) => handleAiTaskChange(task.tempId, 'title', e.target.value)}
+                          className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm text-slate-800 focus:ring-2 focus:ring-gov-400 outline-none transition-all"
+                          placeholder="Masukkan judul task..."
+                        />
+                      </div>
+
+                      {/* Description */}
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Deskripsi</label>
+                        <textarea
+                          value={task.description}
+                          onChange={(e) => handleAiTaskChange(task.tempId, 'description', e.target.value)}
+                          rows={2}
+                          className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs text-slate-700 focus:ring-2 focus:ring-gov-400 outline-none resize-y transition-all"
+                          placeholder="Tambahkan rincian pekerjaan..."
+                        />
+                      </div>
+
+                      {/* Category and Sub-category */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Kategori *</label>
+                          <select
+                            value={task.category || ''}
+                            onChange={(e) => handleAiTaskChange(task.tempId, 'category', e.target.value)}
+                            className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs text-slate-700 bg-white focus:ring-2 focus:ring-gov-400 outline-none"
+                          >
+                            <option value="" disabled hidden>-- Pilih Kategori --</option>
+                            {masterCategories.map(cat => (
+                              <option key={cat.id} value={cat.name}>{cat.name}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Sub-Kategori</label>
+                          <select
+                            value={task.subCategory || ''}
+                            onChange={(e) => handleAiTaskChange(task.tempId, 'subCategory', e.target.value)}
+                            className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs text-slate-700 bg-white focus:ring-2 focus:ring-gov-400 outline-none"
+                          >
+                            <option value="">-- Pilih Sub Kategori --</option>
+                            {(() => {
+                              const currentCategory = masterCategories.find(cat => cat.name === task.category);
+                              if (currentCategory) {
+                                const relatedSubIds = categorySubcategoryRelations
+                                  .filter(rel => rel.category_id === currentCategory.id)
+                                  .map(rel => rel.subcategory_id);
+                                return masterSubCategories
+                                  .filter(sub => relatedSubIds.includes(sub.id))
+                                  .map(sub => (
+                                    <option key={sub.id} value={sub.name}>{sub.name}</option>
+                                  ));
+                              }
+                              return [];
+                            })()}
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* PIC Selection */}
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">PIC *</label>
+                        <DivisionFilteredMultiSelect
+                          users={users}
+                          currentUserDivisi={currentUser?.divisi}
+                          value={task.pic}
+                          onChange={(selected) => handleAiTaskChange(task.tempId, 'pic', selected)}
+                          placeholder="Pilih PIC..."
+                          maxVisibleChips={3}
+                          className="w-full text-xs"
+                        />
+                      </div>
+
+                      {/* Dates */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Mulai</label>
+                          <input
+                            type="date"
+                            value={task.startDate}
+                            onChange={(e) => handleAiTaskChange(task.tempId, 'startDate', e.target.value)}
+                            className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs text-slate-750 focus:ring-2 focus:ring-gov-400 outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Deadline</label>
+                          <input
+                            type="date"
+                            value={task.deadline}
+                            onChange={(e) => handleAiTaskChange(task.tempId, 'deadline', e.target.value)}
+                            className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs text-slate-755 focus:ring-2 focus:ring-gov-400 outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Priority and Project */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Prioritas</label>
+                          <select
+                            value={task.priority}
+                            onChange={(e) => handleAiTaskChange(task.tempId, 'priority', e.target.value as Priority)}
+                            className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs text-slate-700 bg-white focus:ring-2 focus:ring-gov-400 outline-none"
+                          >
+                            {Object.values(Priority).map(p => <option key={p} value={p}>{p}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Project (Opsional)</label>
+                          <select
+                            value={task.projectId || ''}
+                            onChange={(e) => handleAiTaskChange(task.tempId, 'projectId', e.target.value)}
+                            className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs text-slate-700 bg-white focus:ring-2 focus:ring-gov-400 outline-none"
+                          >
+                            <option value="">-- Tidak Terkait Project --</option>
+                            {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Add blank task button */}
+              <button
+                type="button"
+                onClick={handleAddBlankAiTask}
+                className="w-full py-3 border-2 border-dashed border-slate-300 rounded-xl text-xs font-bold text-slate-500 hover:text-gov-600 hover:border-gov-400 hover:bg-gov-50 transition-all flex items-center justify-center gap-1.5 shrink-0"
+              >
+                <Plus size={14} />
+                <span>Tambah Task Manual Ke Review</span>
+              </button>
+
+              {/* Footer actions for AI Review */}
+              <div className="pt-4 border-t border-slate-100 flex justify-between gap-3 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setReviewMode(false)}
+                  className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors"
+                >
+                  Kembali
+                </button>
+                <button
+                  type="button"
+                  disabled={isSaving || aiTasks.length === 0}
+                  onClick={handleSaveAiTasks}
+                  className="px-4 py-2 rounded-lg text-sm font-bold text-white bg-gov-600 hover:bg-gov-700 shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {isSaving ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      <span>Menyimpan...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Simpan Semua ({aiTasks.length} Task)</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* AI Input Mode */
+            <div className="p-4 sm:p-6 overflow-y-auto custom-scrollbar flex-1 flex flex-col space-y-4">
+              <div className="flex-1 flex flex-col space-y-2">
+                <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                  Catatan Rapat / Instruksi / Data Mentah
+                </label>
+                <textarea
+                  value={aiInputText}
+                  onChange={(e) => setAiInputText(e.target.value)}
+                  placeholder="Contoh: Tolong buatkan 3 task untuk tim:&#10;1. Budi membuat desain UI/UX untuk fitur login mulai hari ini dan selesai lusa.&#10;2. Ani melakukan coding frontend dan integrasi API mulai tanggal 2 Juli selama 5 hari.&#10;3. Tono melakukan QA dan pengujian akhir selesai tanggal 10 Juli."
+                  className="w-full flex-1 min-h-[200px] p-3.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-gov-400 outline-none text-sm text-slate-855 placeholder-slate-400 transition-all resize-none"
+                />
+              </div>
+
+              {/* Default Project for AI Tasks */}
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 shrink-0">
+                <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                  Pilih Project Default (Opsional)
+                </label>
+                <SearchableSelect
+                  options={projects.map(p => ({ value: p.id, label: p.name }))}
+                  value={defaultAiProjectId}
+                  onChange={(val) => setDefaultAiProjectId(val)}
+                  placeholder="Pilih project untuk semua task..."
+                  emptyOption="-- Tidak terkait project --"
+                />
+                <p className="text-[10px] text-slate-400 mt-1.5 italic">
+                  Semua task hasil AI akan otomatis dikaitkan dengan project ini jika AI tidak menemukan project spesifik di teks.
+                </p>
+              </div>
+
+              {/* Footer actions for AI Input */}
+              <div className="pt-4 border-t border-slate-100 flex justify-end gap-3 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleCleanupAndClose}
+                  className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  disabled={isAiProcessing || !aiInputText.trim()}
+                  onClick={handleProcessAi}
+                  className="px-4 py-2 rounded-lg text-sm font-bold text-white bg-gov-600 hover:bg-gov-700 shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {isAiProcessing ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      <span>Menganalisis...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Proses dengan AI</span>
+                      <span className="text-xs">🪄</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          )
+        ) : (
+          /* Manual Mode */
+          <form onSubmit={handleSubmit} className="p-4 sm:p-6 overflow-y-auto custom-scrollbar flex-1">
           <div className="space-y-3 sm:space-y-4">
             {/* Title */}
             <div>
@@ -963,6 +1489,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
             </div>
           </div>
         </form>
+        )}
       </div>
 
       {/* Custom Modals */}

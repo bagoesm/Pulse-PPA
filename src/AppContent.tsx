@@ -477,6 +477,7 @@ const AppContent: React.FC = () => {
     handleDragOver,
     handleDrop,
     handleSaveTask,
+    handleSaveMultipleTasks,
     handleDeleteTask,
     handleStatusChangeFromView,
     handleAddComment,
@@ -1315,6 +1316,7 @@ const AppContent: React.FC = () => {
         editingTask={editingTask}
         setEditingTask={setEditingTask}
         handleSaveTask={handleSaveTask}
+        handleSaveMultipleTasks={handleSaveMultipleTasks}
         handleDeleteTask={handleDeleteTask}
         checkDeletePermission={checkDeletePermission}
         handleAddMeeting={handleAddMeeting}

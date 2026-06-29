@@ -221,6 +221,102 @@ Peraturan:
       console.warn('Gemini Zoom Extraction failed, attempting regex-based fallback...', geminiError);
       return parseZoomInvitationRegex(invitationText);
     }
+  },
+
+  async extractTasksFromText(
+    inputText: string, 
+    contextData?: { 
+      users?: string[]; 
+      categories?: string[]; 
+      subCategories?: string[]; 
+      projects?: { id: string; name: string }[] 
+    }
+  ): Promise<any[]> {
+    const todayStr = new Date().toISOString().split('T')[0];
+    
+    let contextPrompt = "";
+    if (contextData) {
+      contextPrompt = `
+Gunakan informasi konteks berikut untuk mencocokkan data jika memungkinkan:
+${contextData.users ? `- Daftar PIC (nama pengguna) yang Valid: ${contextData.users.join(', ')}` : ''}
+${contextData.categories ? `- Daftar Kategori yang Valid: ${contextData.categories.join(', ')}` : ''}
+${contextData.subCategories ? `- Daftar Sub-Kategori yang Valid: ${contextData.subCategories.join(', ')}` : ''}
+${contextData.projects ? `- Daftar Project yang Valid (nama dan ID): ${JSON.stringify(contextData.projects.map(p => ({ id: p.id, name: p.name })))}` : ''}
+`;
+    }
+
+    const prompt = `
+Anda adalah asisten manajer proyek AI yang cerdas. Tugas Anda adalah menganalisis teks berikut dan memecahnya menjadi daftar task (tugas/pekerjaan) yang terperinci.
+
+Teks input:
+"""
+${inputText}
+"""
+
+${contextPrompt}
+Tanggal hari ini: ${todayStr}
+
+Ekstrak semua task yang perlu dilakukan dari teks tersebut. Untuk setiap task, buat objek JSON dengan struktur berikut:
+{
+  "title": "Judul task singkat dan jelas (Bahasa Indonesia)",
+  "description": "Deskripsi lengkap mengenai apa yang harus dikerjakan",
+  "priority": "Low" | "Medium" | "High" (pilih salah satu sesuai tingkat urgensi),
+  "startDate": "YYYY-MM-DD" (tanggal mulai task, default hari ini jika tidak ada info spesifik),
+  "deadline": "YYYY-MM-DD" (tanggal selesai task, perkirakan deadline yang logis berdasarkan konteks teks, atau buat 3-7 hari setelah startDate jika tidak ada info spesifik),
+  "pic": ["Nama PIC 1", "Nama PIC 2"] (array nama PIC yang ditugaskan. WAJIB pilih dari Daftar PIC yang Valid di atas jika ada nama yang mirip/cocok. Jika tidak ada yang cocok, Anda boleh menggunakan nama yang tertulis di teks),
+  "category": "Nama Kategori" (WAJIB pilih dari Daftar Kategori yang Valid di atas yang paling mendekati/cocok. Jika tidak ada yang cocok, gunakan salah satu kategori yang umum),
+  "subCategory": "Nama Sub-Kategori" (WAJIB pilih dari Daftar Sub-Kategori yang Valid di atas yang paling mendekati/cocok),
+  "projectId": "ID project" (jika task ini terkait dengan salah satu project dari Daftar Project yang Valid di atas, isi dengan ID-nya. Jika tidak terkait, kosongkan atau isi null)
+}
+
+Kembalikan HANYA array JSON berisi objek-objek task tersebut, contoh:
+[
+  {
+    "title": "...",
+    "description": "...",
+    "priority": "Medium",
+    "startDate": "2026-06-29",
+    "deadline": "2026-07-02",
+    "pic": ["Budi"],
+    "category": "Pengembangan Aplikasi",
+    "subCategory": "Frontend",
+    "projectId": "project-uuid-123"
+  }
+]
+
+PENTING: Kembalikan HANYA JSON. JANGAN sertakan markdown block seperti \`\`\`json, JANGAN berikan teks pengantar, penjelas, atau penutup. Jika tidak ada task yang bisa diekstrak, kembalikan array kosong [].
+`;
+
+    try {
+      if (genAI) {
+        const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-lite-preview' });
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        return cleanAndParseJson(response.text());
+      } else if (openAiApiKey) {
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${openAiApiKey}`
+          },
+          body: JSON.stringify({
+            model: 'gpt-4o-mini',
+            response_format: { type: 'json_object' },
+            messages: [{ role: "user", content: prompt }]
+          })
+        });
+        if (!response.ok) throw new Error('OpenAI Error');
+        const data = await response.json();
+        const resText = data.choices[0].message.content;
+        return cleanAndParseJson(resText);
+      } else {
+        throw new Error('Tidak ada API Key yang dikonfigurasi (Gemini atau OpenAI)');
+      }
+    } catch (e: any) {
+      console.error('Failed to extract tasks from text:', e);
+      throw new Error('Gagal mengekstrak task dengan AI: ' + e.message);
+    }
   }
 };
 
