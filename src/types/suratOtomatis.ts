@@ -1,6 +1,6 @@
 // Types untuk fitur pembuatan surat otomatis
 
-export type SuratTemplateType = 'surat-keterangan-umum';
+export type SuratTemplateType = 'surat-keterangan-umum' | 'daftar-hadir';
 
 export interface SuratTemplate {
   id: SuratTemplateType;
@@ -155,4 +155,37 @@ export const SURAT_TEMPLATES: SuratTemplate[] = [
       },
     ],
   },
+  {
+    id: 'daftar-hadir',
+    name: 'Daftar Hadir Kegiatan',
+    description: 'Template daftar hadir/presensi peserta rapat atau kegiatan dengan format Excel-like dan dukungan logo instansi',
+    fileName: 'daftar-hadir.pdf',
+    previewInstructions: 'Preview menampilkan halaman pertama dari daftar hadir (10 baris pertama) dengan logo KPPPA di kiri, teks di tengah, dan logo partner di kanan.',
+    fields: [
+      {
+        id: 'nama_kegiatan',
+        label: 'Nama Kegiatan',
+        type: 'text',
+        placeholder: 'Contoh: PEMBAHASAN INTEGRASI APLIKASI ARSI DENGAN SIMFONI PPA V3 MANAJEMEN KASUS',
+        required: true,
+        helpText: 'Nama kegiatan/pertemuan'
+      },
+      {
+        id: 'tanggal_kegiatan',
+        label: 'Tanggal Kegiatan',
+        type: 'date',
+        required: true,
+        helpText: 'Tanggal diadakannya kegiatan'
+      },
+      {
+        id: 'jumlah_baris',
+        label: 'Jumlah Baris Daftar Hadir',
+        type: 'number',
+        placeholder: 'Contoh: 25',
+        required: true,
+        defaultValue: '20',
+        helpText: 'Jumlah baris tanda tangan yang akan dibuat (akan dibagi 10 baris per halaman)'
+      }
+    ]
+  }
 ];
