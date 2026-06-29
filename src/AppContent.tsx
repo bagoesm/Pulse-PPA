@@ -41,6 +41,7 @@ import { useFeedbackHandlers } from './hooks/useFeedbackHandlers';
 import { useMiscHandlers } from './hooks/useMiscHandlers';
 import { useProjectHelpers } from './hooks/useProjectHelpers';
 import KanbanColumn from './components/KanbanColumn';
+import PublicProjectView from './components/PublicProjectView';
 
 // Lazy loaded heavy components
 const Dashboard = lazy(() => import('./components/Dashboard'));
@@ -80,6 +81,15 @@ const PageLoader: React.FC = () => (
 
 const AppContent: React.FC = () => {
   const [isPending, startTransition] = useTransition();
+  const [shareToken, setShareToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('share');
+    if (token) {
+      setShareToken(token);
+    }
+  }, []);
 
   // ===== SIDEBAR STATE =====
   const { isCollapsed } = useSidebar();
@@ -747,6 +757,11 @@ const AppContent: React.FC = () => {
   // - useMiscHandlers: Christmas + announcements + data inventory + status
 
   // meetingsAsTasks, allTasksWithMeetings, and filteredTasks now come from DataContext
+
+  // Render Public Project View if share token is present in URL
+  if (shareToken) {
+    return <PublicProjectView shareToken={shareToken} />;
+  }
 
   // --- Loading UI & Login rendering ---
   if (isLoadingAuth) {

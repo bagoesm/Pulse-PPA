@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Task, ProjectDefinition, User, Meeting, Epic } from '../../types';
-import { ArrowLeft, RefreshCw, Plus } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Plus, Share2 } from 'lucide-react';
 
 // Hooks
 import { useProjectData } from '../hooks/useProjectData';
@@ -21,6 +21,7 @@ import ProjectLinksSection from './ProjectLinksSection';
 import ProjectTeamSection from './ProjectTeamSection';
 import ProjectEpicsSection from './ProjectEpicsSection';
 import AddProjectLinkModal from './AddProjectLinkModal';
+import { ShareProjectModal } from './ShareProjectModal';
 
 // Icon mapping
 import {
@@ -127,6 +128,15 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
 
   // Pinned links
   const [pinnedLinkIds, setPinnedLinkIds] = useState<Set<string>>(new Set());
+
+  // Sharing states
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [localProjectState, setLocalProjectState] = useState<ProjectDefinition | null>(null);
+
+  // Reset local project state when selected project ID changes
+  useEffect(() => {
+    setLocalProjectState(null);
+  }, [filters.selectedProjectId]);
 
   // Load projects when filters change or on initial mount
   useEffect(() => {
@@ -263,7 +273,7 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
   }
 
   // PROJECT DETAIL VIEW
-  const selectedProject = (projectData.projects || []).find(p => p.id === filters.selectedProjectId);
+  const selectedProject = localProjectState || (projectData.projects || []).find(p => p.id === filters.selectedProjectId);
   const selectedStats = projectStats.projectStatsCache[filters.selectedProjectId || ''];
 
   if (!selectedProject) return null;
@@ -370,6 +380,14 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
             >
               <RefreshCw size={14} className={projectData.tasksLoading ? 'animate-spin' : ''} />
               <span className="hidden sm:inline">Refresh</span>
+            </button>
+
+            <button
+              onClick={() => setIsShareModalOpen(true)}
+              className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 border border-slate-300 text-slate-600 rounded-lg font-medium hover:bg-slate-50 transition-colors shadow-sm text-xs sm:text-sm"
+            >
+              <Share2 size={14} className="text-slate-500" />
+              <span>Bagikan</span>
             </button>
 
             <div className="text-right hidden sm:block">
@@ -480,6 +498,18 @@ const ProjectOverview: React.FC<ProjectOverviewProps> = ({
           );
         }}
       />
+
+      {/* Share Project Modal */}
+      {isShareModalOpen && selectedProject && (
+        <ShareProjectModal
+          project={selectedProject}
+          onClose={() => setIsShareModalOpen(false)}
+          onShareStateChanged={(updated) => {
+            setLocalProjectState(updated);
+          }}
+          showNotification={showNotification}
+        />
+      )}
     </div>
   );
 };

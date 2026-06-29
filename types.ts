@@ -108,6 +108,7 @@ export interface ProjectDefinition {
   targetLiveDate?: string; // ISO Date string - Target go-live date
   status?: ProjectStatus; // Project status
   pinnedLinks?: string[]; // Array of link IDs that are pinned
+  share_token?: string | null; // Token untuk berbagi ke publik
 }
 
 // Epic - Middle layer between Project and Task
