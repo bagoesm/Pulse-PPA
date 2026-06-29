@@ -86,7 +86,9 @@ export const useUserHandlers = ({
                     initials: newUser.initials,
                     sakura_animation_enabled: newUser.sakuraAnimationEnabled || false,
                     snow_animation_enabled: newUser.snowAnimationEnabled || false,
-                    money_animation_enabled: newUser.moneyAnimationEnabled || false
+                    money_animation_enabled: newUser.moneyAnimationEnabled || false,
+                    flower_decoration_enabled: newUser.flowerDecorationEnabled || false,
+                    header_color: newUser.header_color || null
                 };
 
                 const { error: profileError } = await supabase
@@ -174,7 +176,9 @@ export const useUserHandlers = ({
                 email: updatedUser.email,
                 sakura_animation_enabled: updatedUser.sakuraAnimationEnabled || false,
                 snow_animation_enabled: updatedUser.snowAnimationEnabled || false,
-                money_animation_enabled: updatedUser.moneyAnimationEnabled || false
+                money_animation_enabled: updatedUser.moneyAnimationEnabled || false,
+                flower_decoration_enabled: updatedUser.flowerDecorationEnabled || false,
+                header_color: updatedUser.header_color || null
             }).eq('id', updatedUser.id);
 
             if (profileError) {

@@ -71,6 +71,16 @@ const getStatusConfig = (status: Status) => {
 };
 
 
+const headerColorPresets = {
+  default: { bg: 'bg-gray-50', border: 'border-gray-200', text: 'text-gray-600', label: 'Default' },
+  blue: { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-700', label: 'Biru' },
+  green: { bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-700', label: 'Hijau' },
+  purple: { bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-700', label: 'Ungu' },
+  red: { bg: 'bg-rose-50', border: 'border-rose-200', text: 'text-rose-700', label: 'Merah' },
+  amber: { bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-700', label: 'Kuning' },
+  indigo: { bg: 'bg-indigo-50', border: 'border-indigo-200', text: 'text-indigo-700', label: 'Indigo' },
+};
+
 const TaskViewModal: React.FC<TaskViewModalProps> = ({
   isOpen,
   onClose,
@@ -239,13 +249,149 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
     return deadline < today && task.status !== Status.Done;
   };
 
+  const taskPicsList = task ? (Array.isArray(task.pic) ? task.pic : [task.pic])
+    .filter(Boolean)
+    .map(p => (typeof p === 'string' ? p.trim().toLowerCase() : '')) : [];
+
+  const showFlower = users.some(u => {
+    const uName = u.name?.trim().toLowerCase() || '';
+    const uId = u.id?.trim().toLowerCase() || '';
+    const isPic = taskPicsList.includes(uName) || taskPicsList.includes(uId);
+    return isPic && u.flowerDecorationEnabled;
+  });
+
+  const firstPicUser = users.find(u => {
+    const uName = u.name?.trim().toLowerCase() || '';
+    const uId = u.id?.trim().toLowerCase() || '';
+    return taskPicsList.includes(uName) || taskPicsList.includes(uId);
+  });
+
+  const activeColorPreset = (firstPicUser && firstPicUser.header_color && headerColorPresets[firstPicUser.header_color as keyof typeof headerColorPresets]) || headerColorPresets.default;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-full sm:max-w-3xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="relative w-full sm:max-w-3xl flex items-center justify-center">
+        {/* Butterfly Wings & Magical Sparkles (Behind the Modal) */}
+        {showFlower && (
+          <>
+            <style>{`
+              @keyframes flap-left {
+                0%, 100% { transform: translateY(-50%) rotate(0deg) scale(1); }
+                50% { transform: translateY(-50%) rotate(-3deg) scale(1.02); }
+              }
+              @keyframes flap-right {
+                0%, 100% { transform: translateY(-50%) scaleX(-1) rotate(0deg) scale(1); }
+                50% { transform: translateY(-50%) scaleX(-1) rotate(-3deg) scale(1.02); }
+              }
+              @keyframes sparkle-float {
+                0% { transform: translate(0, 0) scale(0); opacity: 0; }
+                20% { opacity: 1; transform: translate(var(--x-mid), var(--y-mid)) scale(1.2); }
+                100% { transform: translate(var(--x-end), var(--y-end)) scale(0); opacity: 0; }
+              }
+              .animate-flap-left {
+                animation: flap-left 6s ease-in-out infinite;
+                transform-origin: right center;
+              }
+              .animate-flap-right {
+                animation: flap-right 6s ease-in-out infinite;
+                transform-origin: right center;
+              }
+              .animate-sparkle {
+                animation: sparkle-float var(--duration) ease-out infinite;
+                animation-delay: var(--delay);
+              }
+            `}</style>
+
+            {/* Background Glow Aura */}
+            <div 
+              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] rounded-full bg-[radial-gradient(circle,_rgba(244,114,182,0.18)_0%,_rgba(253,224,71,0.15)_40%,_rgba(167,139,250,0.12)_70%,_transparent_100%)] blur-[60px] -z-20 pointer-events-none animate-pulse"
+              style={{ animationDuration: '4s' }}
+            />
+
+            {/* Left Wing */}
+            <img 
+              src="/angle-wing-side.svg" 
+              alt="" 
+              className="absolute right-[85%] top-1/2 w-[50%] sm:w-[60%] h-auto max-w-none opacity-95 pointer-events-none select-none -z-10 hidden sm:block animate-flap-left"
+            />
+            {/* Right Wing */}
+            <img 
+              src="/angle-wing-side.svg" 
+              alt="" 
+              className="absolute right-[15%] top-1/2 w-[50%] sm:w-[60%] h-auto max-w-none opacity-95 pointer-events-none select-none -z-10 hidden sm:block animate-flap-right"
+            />
+
+            {/* Magical Glitters/Sparkles (Only near the wings) */}
+            {Array.from({ length: 30 }).map((_, idx) => {
+              const isLeftSide = idx % 2 === 0;
+              
+              // Position them strictly on the left or right side, close to the wings
+              const left = isLeftSide 
+                ? `${-25 + Math.random() * 25}%` // -25% to 0% (left side outside the modal)
+                : `${100 + Math.random() * 25}%`; // 100% to 125% (right side outside the modal)
+                
+              const top = `${15 + Math.random() * 70}%`; // Vertical spread along the wings
+              
+              const xMid = `${(Math.random() - 0.5) * 100}px`;
+              const yMid = `${(Math.random() - 0.5) * 150}px`;
+              const xEnd = `${(Math.random() - 0.5) * 150}px`;
+              const yEnd = `${-150 - Math.random() * 200}px`; // Float upwards
+              const duration = `${4 + Math.random() * 5}s`;
+              const delay = `${Math.random() * -10}s`; // Negative delay so they start immediately
+              const size = `${5 + Math.random() * 8}px`;
+              
+              const colors = [
+                'bg-amber-200 shadow-[0_0_10px_#f59e0b,0_0_20px_#fbbf24]',
+                'bg-pink-200 shadow-[0_0_10px_#ec4899,0_0_20px_#f472b6]',
+                'bg-white shadow-[0_0_10px_#ffffff,0_0_20px_#ffffff]',
+                'bg-cyan-200 shadow-[0_0_10px_#06b6d4,0_0_20px_#22d3ee]'
+              ];
+              const colorClass = colors[idx % colors.length];
+              
+              return (
+                <div
+                  key={idx}
+                  className={`absolute animate-sparkle rounded-full pointer-events-none select-none -z-10 ${colorClass}`}
+                  style={{
+                    left,
+                    top,
+                    width: size,
+                    height: size,
+                    '--x-mid': xMid,
+                    '--y-mid': yMid,
+                    '--x-end': xEnd,
+                    '--y-end': yEnd,
+                    '--duration': duration,
+                    '--delay': delay,
+                  } as React.CSSProperties}
+                />
+              );
+            })}
+          </>
+        )}
+
+        <div className="relative bg-white rounded-2xl shadow-2xl w-full overflow-hidden flex flex-col max-h-[90vh]">
+          {/* Decorative Flower - Top Right */}
+          {showFlower && (
+            <img 
+              src="/flower.svg" 
+              alt="" 
+              className="absolute -top-12 -right-6 w-72 h-72 opacity-35 pointer-events-none select-none z-10"
+            />
+          )}
+
+          {/* Decorative Flower - Bottom Left */}
+          {showFlower && (
+            <img 
+              src="/flower.svg" 
+              alt="" 
+              className="absolute -bottom-12 -left-6 w-72 h-72 opacity-35 pointer-events-none select-none z-10 rotate-180"
+            />
+          )}
 
         {/* Header */}
-        <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
-          <div className="flex items-center gap-2 text-gray-600">
+        <div className={`px-4 sm:px-6 py-3 sm:py-4 border-b flex justify-between items-center transition-colors ${activeColorPreset.bg} ${activeColorPreset.border}`}>
+          <div className={`flex items-center gap-2 ${activeColorPreset.text}`}>
             <button
               onClick={onClose}
               className="p-1 hover:bg-gray-200 rounded text-gray-400 hover:text-gray-600 transition-colors"
@@ -707,6 +853,8 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                 </div>
               </div>
 
+
+
               {/* Comments & Activity Section with Tabs */}
               <div className="pt-6 border-t border-gray-200 mt-8">
                 {/* Tab Bar */}
@@ -961,6 +1109,7 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
         </div>
       </div>
     </div>
+  </div>
   );
 };
 

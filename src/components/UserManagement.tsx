@@ -516,6 +516,16 @@ interface UserManagementProps {
 
 type Tab = 'Users' | 'Jabatan' | 'Kategori' | 'Satuan Kerja';
 
+const headerColorPresets = {
+  default: { bg: 'bg-gray-50', border: 'border-gray-200', text: 'text-gray-600', label: 'Default' },
+  blue: { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-700', label: 'Biru' },
+  green: { bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-700', label: 'Hijau' },
+  purple: { bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-700', label: 'Ungu' },
+  red: { bg: 'bg-rose-50', border: 'border-rose-200', text: 'text-rose-700', label: 'Merah' },
+  amber: { bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-700', label: 'Kuning' },
+  indigo: { bg: 'bg-indigo-50', border: 'border-indigo-200', text: 'text-indigo-700', label: 'Indigo' },
+};
+
 const UserManagement: React.FC<UserManagementProps> = ({ 
     users, onAddUser, onEditUser, onDeleteUser, currentUser,
     jabatanList, onAddJabatan, onDeleteJabatan,
@@ -536,7 +546,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [userFormData, setUserFormData] = useState<Partial<User>>({
-      name: '', email: '', role: 'Staff', jabatan: '', divisi: '', nip: '', password: '', sakuraAnimationEnabled: false, snowAnimationEnabled: false, moneyAnimationEnabled: false,
+      name: '', email: '', role: 'Staff', jabatan: '', divisi: '', nip: '', password: '', sakuraAnimationEnabled: false, snowAnimationEnabled: false, moneyAnimationEnabled: false, flowerDecorationEnabled: false, header_color: undefined,
   });
 
   // Simple Input State for Jabatan/Kategori
@@ -575,6 +585,8 @@ const UserManagement: React.FC<UserManagementProps> = ({
               sakuraAnimationEnabled: false,
               snowAnimationEnabled: false,
               moneyAnimationEnabled: false,
+              flowerDecorationEnabled: false,
+              header_color: undefined,
           });
       }
       setIsModalOpen(true);
@@ -1098,6 +1110,51 @@ const UserManagement: React.FC<UserManagementProps> = ({
                                         onChange={e => setUserFormData({...userFormData, moneyAnimationEnabled: e.target.checked})}
                                         className="w-4 h-4 text-green-500 border-slate-300 rounded focus:ring-green-400"
                                     />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Tampilan & Dekorasi */}
+                        <div className="space-y-2">
+                            <label className="block text-xs font-bold text-slate-600 uppercase mb-2">Tampilan & Dekorasi</label>
+                            <div className="space-y-3">
+                                {/* Flower Decoration Switch */}
+                                <div className="flex items-center justify-between p-2.5 sm:p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-emerald-500">🌸</span>
+                                        <span className="text-xs sm:text-sm font-medium text-slate-700">Dekorasi Bunga Detail Task</span>
+                                    </div>
+                                    <input
+                                        type="checkbox"
+                                        checked={userFormData.flowerDecorationEnabled || false}
+                                        onChange={e => setUserFormData({...userFormData, flowerDecorationEnabled: e.target.checked})}
+                                        className="w-4 h-4 text-emerald-500 border-slate-300 rounded focus:ring-emerald-400"
+                                    />
+                                </div>
+
+                                {/* Header Color Selection */}
+                                <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2">
+                                    <span className="text-xs font-bold text-slate-500 uppercase block mb-1">Warna Header Detail Task</span>
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {Object.keys(headerColorPresets).map((colorKey) => {
+                                            const preset = headerColorPresets[colorKey as keyof typeof headerColorPresets];
+                                            const isSelected = (userFormData.header_color || 'default') === colorKey;
+                                            return (
+                                                <button
+                                                    key={colorKey}
+                                                    type="button"
+                                                    onClick={() => setUserFormData({...userFormData, header_color: colorKey === 'default' ? undefined : colorKey})}
+                                                    className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border transition-all ${preset.bg} ${preset.text} ${
+                                                        isSelected
+                                                            ? 'ring-2 ring-blue-500 border-blue-500 scale-105 shadow-sm'
+                                                            : 'border-slate-300 hover:scale-105'
+                                                    }`}
+                                                >
+                                                    {preset.label}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
                             </div>
                         </div>

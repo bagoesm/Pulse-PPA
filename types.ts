@@ -70,6 +70,8 @@ export interface User {
   sakuraAnimationEnabled?: boolean; // Setting untuk animasi bunga sakura
   snowAnimationEnabled?: boolean; // Setting untuk animasi salju
   moneyAnimationEnabled?: boolean; // Setting untuk animasi uang
+  flowerDecorationEnabled?: boolean; // Setting untuk dekorasi bunga (bunga.svg)
+  header_color?: string; // Warna header modal task detail untuk user ini
   profilePhoto?: string; // URL foto profil dari Supabase Storage
   profilePhotoPath?: string; // Path file di bucket
 }
