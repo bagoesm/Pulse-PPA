@@ -730,192 +730,247 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
         )}
 
         {isAiMode ? (
-          reviewMode ? (
-            /* AI Review Mode */
-            <div className="p-4 sm:p-6 overflow-y-auto custom-scrollbar flex-1 flex flex-col space-y-4 bg-slate-50">
-              <div className="flex justify-between items-center bg-gov-50 p-3 rounded-xl border border-gov-100 shrink-0">
+          /* AI Mode (Input + Review) */
+          <div className="p-4 sm:p-6 overflow-y-auto custom-scrollbar flex-1 flex flex-col space-y-4 bg-slate-50">
+            {/* Source Text Input */}
+            <div className="flex flex-col space-y-2 bg-white p-4 rounded-xl border border-slate-200 shrink-0">
+              <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                Catatan Rapat / Instruksi / Data Mentah
+              </label>
+              <textarea
+                value={aiInputText}
+                onChange={(e) => setAiInputText(e.target.value)}
+                placeholder="Contoh: Tolong buatkan 3 task untuk tim:&#10;1. Budi membuat desain UI/UX untuk fitur login mulai hari ini dan selesai lusa.&#10;2. Ani melakukan coding frontend dan integrasi API mulai tanggal 2 Juli selama 5 hari.&#10;3. Tono melakukan QA dan pengujian akhir selesai tanggal 10 Juli."
+                className={`w-full p-3.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-gov-400 outline-none text-sm text-slate-850 placeholder-slate-400 transition-all resize-y ${
+                  aiTasks.length > 0 ? 'h-24' : 'h-48'
+                }`}
+              />
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center pt-2">
                 <div>
-                  <h3 className="text-sm font-bold text-gov-800">Review Hasil Ekstraksi AI</h3>
-                  <p className="text-[11px] text-gov-600">Periksa dan lengkapi detail tugas di bawah sebelum disimpan ke database.</p>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                    Project Default (Opsional)
+                  </label>
+                  <SearchableSelect
+                    options={projects.map(p => ({ value: p.id, label: p.name }))}
+                    value={defaultAiProjectId}
+                    onChange={(val) => setDefaultAiProjectId(val)}
+                    placeholder="Pilih project..."
+                    emptyOption="-- Tidak terkait project --"
+                  />
                 </div>
-                <span className="bg-gov-200 text-gov-800 text-xs font-bold px-2.5 py-1 rounded-full shrink-0">
-                  {aiTasks.length} Task
-                </span>
+                <div className="flex justify-end pt-4">
+                  <button
+                    type="button"
+                    disabled={isAiProcessing || !aiInputText.trim()}
+                    onClick={handleProcessAi}
+                    className="w-full sm:w-auto px-4 py-2.5 rounded-lg text-xs font-bold text-white bg-gov-600 hover:bg-gov-700 shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+                  >
+                    {isAiProcessing ? (
+                      <>
+                        <Loader2 size={14} className="animate-spin" />
+                        <span>Menganalisis...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>{aiTasks.length > 0 ? 'Proses Ulang dengan AI' : 'Proses dengan AI'}</span>
+                        <span className="text-xs">🪄</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
+            </div>
 
-              <div className="space-y-4 flex-1">
-                {aiTasks.map((task, index) => {
-                  return (
-                    <div key={task.tempId} className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm hover:border-gov-200 transition-all relative space-y-3">
-                      {/* Card Header */}
-                      <div className="flex justify-between items-center pb-2 border-b border-slate-100">
-                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                          Task #{index + 1}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setAiTasks(prev => prev.filter(t => t.tempId !== task.tempId))}
-                          className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1.5 rounded-full transition-colors"
-                          title="Hapus task ini"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
+            {/* AI Review Section */}
+            {aiTasks.length > 0 && (
+              <div className="space-y-4 flex-1 flex flex-col">
+                <div className="flex justify-between items-center bg-gov-50 p-3 rounded-xl border border-gov-100 shrink-0">
+                  <div>
+                    <h3 className="text-sm font-bold text-gov-800">Review Hasil Ekstraksi AI</h3>
+                    <p className="text-[11px] text-gov-600">Periksa dan lengkapi detail tugas di bawah sebelum disimpan ke database.</p>
+                  </div>
+                  <span className="bg-gov-200 text-gov-800 text-xs font-bold px-2.5 py-1 rounded-full shrink-0">
+                    {aiTasks.length} Task
+                  </span>
+                </div>
 
-                      {/* Title */}
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Judul Task *</label>
-                        <input
-                          type="text"
-                          required
-                          value={task.title}
-                          onChange={(e) => handleAiTaskChange(task.tempId, 'title', e.target.value)}
-                          className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm text-slate-800 focus:ring-2 focus:ring-gov-400 outline-none transition-all"
-                          placeholder="Masukkan judul task..."
-                        />
-                      </div>
-
-                      {/* Description */}
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Deskripsi</label>
-                        <textarea
-                          value={task.description}
-                          onChange={(e) => handleAiTaskChange(task.tempId, 'description', e.target.value)}
-                          rows={2}
-                          className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs text-slate-700 focus:ring-2 focus:ring-gov-400 outline-none resize-y transition-all"
-                          placeholder="Tambahkan rincian pekerjaan..."
-                        />
-                      </div>
-
-                      {/* Category and Sub-category */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Kategori *</label>
-                          <select
-                            value={task.category || ''}
-                            onChange={(e) => handleAiTaskChange(task.tempId, 'category', e.target.value)}
-                            className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs text-slate-700 bg-white focus:ring-2 focus:ring-gov-400 outline-none"
+                <div className="space-y-4">
+                  {aiTasks.map((task, index) => {
+                    return (
+                      <div key={task.tempId} className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm hover:border-gov-200 transition-all relative space-y-3">
+                        {/* Card Header */}
+                        <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+                          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                            Task #{index + 1}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setAiTasks(prev => prev.filter(t => t.tempId !== task.tempId))}
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1.5 rounded-full transition-colors"
+                            title="Hapus task ini"
                           >
-                            <option value="" disabled hidden>-- Pilih Kategori --</option>
-                            {masterCategories.map(cat => (
-                              <option key={cat.id} value={cat.name}>{cat.name}</option>
-                            ))}
-                          </select>
+                            <Trash2 size={14} />
+                          </button>
                         </div>
 
+                        {/* Title */}
                         <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Sub-Kategori</label>
-                          <select
-                            value={task.subCategory || ''}
-                            onChange={(e) => handleAiTaskChange(task.tempId, 'subCategory', e.target.value)}
-                            className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs text-slate-700 bg-white focus:ring-2 focus:ring-gov-400 outline-none"
-                          >
-                            <option value="">-- Pilih Sub Kategori --</option>
-                            {(() => {
-                              const currentCategory = masterCategories.find(cat => cat.name === task.category);
-                              if (currentCategory) {
-                                const relatedSubIds = categorySubcategoryRelations
-                                  .filter(rel => rel.category_id === currentCategory.id)
-                                  .map(rel => rel.subcategory_id);
-                                return masterSubCategories
-                                  .filter(sub => relatedSubIds.includes(sub.id))
-                                  .map(sub => (
-                                    <option key={sub.id} value={sub.name}>{sub.name}</option>
-                                  ));
-                              }
-                              return [];
-                            })()}
-                          </select>
-                        </div>
-                      </div>
-
-                      {/* PIC Selection */}
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">PIC *</label>
-                        <DivisionFilteredMultiSelect
-                          users={users}
-                          currentUserDivisi={currentUser?.divisi}
-                          value={task.pic}
-                          onChange={(selected) => handleAiTaskChange(task.tempId, 'pic', selected)}
-                          placeholder="Pilih PIC..."
-                          maxVisibleChips={3}
-                          className="w-full text-xs"
-                        />
-                      </div>
-
-                      {/* Dates */}
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Mulai</label>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Judul Task *</label>
                           <input
-                            type="date"
-                            value={task.startDate}
-                            onChange={(e) => handleAiTaskChange(task.tempId, 'startDate', e.target.value)}
-                            className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs text-slate-750 focus:ring-2 focus:ring-gov-400 outline-none"
+                            type="text"
+                            required
+                            value={task.title}
+                            onChange={(e) => handleAiTaskChange(task.tempId, 'title', e.target.value)}
+                            className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm text-slate-800 focus:ring-2 focus:ring-gov-400 outline-none transition-all"
+                            placeholder="Masukkan judul task..."
                           />
                         </div>
+
+                        {/* Description */}
                         <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Deadline</label>
-                          <input
-                            type="date"
-                            value={task.deadline}
-                            onChange={(e) => handleAiTaskChange(task.tempId, 'deadline', e.target.value)}
-                            className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs text-slate-755 focus:ring-2 focus:ring-gov-400 outline-none"
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Deskripsi</label>
+                          <textarea
+                            value={task.description}
+                            onChange={(e) => handleAiTaskChange(task.tempId, 'description', e.target.value)}
+                            rows={2}
+                            className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs text-slate-700 focus:ring-2 focus:ring-gov-400 outline-none resize-y transition-all"
+                            placeholder="Tambahkan rincian pekerjaan..."
                           />
                         </div>
-                      </div>
 
-                      {/* Priority and Project */}
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Prioritas</label>
-                          <select
-                            value={task.priority}
-                            onChange={(e) => handleAiTaskChange(task.tempId, 'priority', e.target.value as Priority)}
-                            className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs text-slate-700 bg-white focus:ring-2 focus:ring-gov-400 outline-none"
-                          >
-                            {Object.values(Priority).map(p => <option key={p} value={p}>{p}</option>)}
-                          </select>
+                        {/* Category and Sub-category */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Kategori *</label>
+                            <select
+                              value={task.category || ''}
+                              onChange={(e) => handleAiTaskChange(task.tempId, 'category', e.target.value)}
+                              className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs text-slate-700 bg-white focus:ring-2 focus:ring-gov-400 outline-none"
+                            >
+                              <option value="" disabled hidden>-- Pilih Kategori --</option>
+                              {masterCategories.map(cat => (
+                                <option key={cat.id} value={cat.name}>{cat.name}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Sub-Kategori</label>
+                            <select
+                              value={task.subCategory || ''}
+                              onChange={(e) => handleAiTaskChange(task.tempId, 'subCategory', e.target.value)}
+                              className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs text-slate-700 bg-white focus:ring-2 focus:ring-gov-400 outline-none"
+                            >
+                              <option value="">-- Pilih Sub Kategori --</option>
+                              {(() => {
+                                const currentCategory = masterCategories.find(cat => cat.name === task.category);
+                                if (currentCategory) {
+                                  const relatedSubIds = categorySubcategoryRelations
+                                    .filter(rel => rel.category_id === currentCategory.id)
+                                    .map(rel => rel.subcategory_id);
+                                  return masterSubCategories
+                                    .filter(sub => relatedSubIds.includes(sub.id))
+                                    .map(sub => (
+                                      <option key={sub.id} value={sub.name}>{sub.name}</option>
+                                    ));
+                                }
+                                return [];
+                              })()}
+                            </select>
+                          </div>
                         </div>
+
+                        {/* PIC Selection */}
                         <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Project (Opsional)</label>
-                          <select
-                            value={task.projectId || ''}
-                            onChange={(e) => handleAiTaskChange(task.tempId, 'projectId', e.target.value)}
-                            className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs text-slate-700 bg-white focus:ring-2 focus:ring-gov-400 outline-none"
-                          >
-                            <option value="">-- Tidak Terkait Project --</option>
-                            {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                          </select>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">PIC *</label>
+                          <DivisionFilteredMultiSelect
+                            users={users}
+                            currentUserDivisi={currentUser?.divisi}
+                            value={task.pic}
+                            onChange={(selected) => handleAiTaskChange(task.tempId, 'pic', selected)}
+                            placeholder="Pilih PIC..."
+                            maxVisibleChips={3}
+                            className="w-full text-xs"
+                          />
+                        </div>
+
+                        {/* Dates */}
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Mulai</label>
+                            <input
+                              type="date"
+                              value={task.startDate}
+                              onChange={(e) => handleAiTaskChange(task.tempId, 'startDate', e.target.value)}
+                              className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs text-slate-750 focus:ring-2 focus:ring-gov-400 outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Deadline</label>
+                            <input
+                              type="date"
+                              value={task.deadline}
+                              onChange={(e) => handleAiTaskChange(task.tempId, 'deadline', e.target.value)}
+                              className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs text-slate-755 focus:ring-2 focus:ring-gov-400 outline-none"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Priority and Project */}
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Prioritas</label>
+                            <select
+                              value={task.priority}
+                              onChange={(e) => handleAiTaskChange(task.tempId, 'priority', e.target.value as Priority)}
+                              className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs text-slate-700 bg-white focus:ring-2 focus:ring-gov-400 outline-none"
+                            >
+                              {Object.values(Priority).map(p => <option key={p} value={p}>{p}</option>)}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Project (Opsional)</label>
+                            <select
+                              value={task.projectId || ''}
+                              onChange={(e) => handleAiTaskChange(task.tempId, 'projectId', e.target.value)}
+                              className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs text-slate-700 bg-white focus:ring-2 focus:ring-gov-400 outline-none"
+                            >
+                              <option value="">-- Tidak Terkait Project --</option>
+                              {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                            </select>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
+
+                {/* Add blank task button */}
+                <button
+                  type="button"
+                  onClick={handleAddBlankAiTask}
+                  className="w-full py-3 border-2 border-dashed border-slate-300 rounded-xl text-xs font-bold text-slate-500 hover:text-gov-600 hover:border-gov-400 hover:bg-gov-50 transition-all flex items-center justify-center gap-1.5 shrink-0"
+                >
+                  <Plus size={14} />
+                  <span>Tambah Task Manual Ke Review</span>
+                </button>
               </div>
+            )}
 
-              {/* Add blank task button */}
+            {/* Footer actions for AI Mode */}
+            <div className="pt-4 border-t border-slate-100 flex justify-end gap-3 shrink-0">
               <button
                 type="button"
-                onClick={handleAddBlankAiTask}
-                className="w-full py-3 border-2 border-dashed border-slate-300 rounded-xl text-xs font-bold text-slate-500 hover:text-gov-600 hover:border-gov-400 hover:bg-gov-50 transition-all flex items-center justify-center gap-1.5 shrink-0"
+                onClick={handleCleanupAndClose}
+                className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors"
               >
-                <Plus size={14} />
-                <span>Tambah Task Manual Ke Review</span>
+                Batal
               </button>
-
-              {/* Footer actions for AI Review */}
-              <div className="pt-4 border-t border-slate-100 flex justify-between gap-3 shrink-0">
+              {aiTasks.length > 0 && (
                 <button
                   type="button"
-                  onClick={() => setReviewMode(false)}
-                  className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors"
-                >
-                  Kembali
-                </button>
-                <button
-                  type="button"
-                  disabled={isSaving || aiTasks.length === 0}
+                  disabled={isSaving}
                   onClick={handleSaveAiTasks}
                   className="px-4 py-2 rounded-lg text-sm font-bold text-white bg-gov-600 hover:bg-gov-700 shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
@@ -930,70 +985,9 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
                     </>
                   )}
                 </button>
-              </div>
+              )}
             </div>
-          ) : (
-            /* AI Input Mode */
-            <div className="p-4 sm:p-6 overflow-y-auto custom-scrollbar flex-1 flex flex-col space-y-4">
-              <div className="flex-1 flex flex-col space-y-2">
-                <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                  Catatan Rapat / Instruksi / Data Mentah
-                </label>
-                <textarea
-                  value={aiInputText}
-                  onChange={(e) => setAiInputText(e.target.value)}
-                  placeholder="Contoh: Tolong buatkan 3 task untuk tim:&#10;1. Budi membuat desain UI/UX untuk fitur login mulai hari ini dan selesai lusa.&#10;2. Ani melakukan coding frontend dan integrasi API mulai tanggal 2 Juli selama 5 hari.&#10;3. Tono melakukan QA dan pengujian akhir selesai tanggal 10 Juli."
-                  className="w-full flex-1 min-h-[200px] p-3.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-gov-400 outline-none text-sm text-slate-855 placeholder-slate-400 transition-all resize-none"
-                />
-              </div>
-
-              {/* Default Project for AI Tasks */}
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 shrink-0">
-                <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
-                  Pilih Project Default (Opsional)
-                </label>
-                <SearchableSelect
-                  options={projects.map(p => ({ value: p.id, label: p.name }))}
-                  value={defaultAiProjectId}
-                  onChange={(val) => setDefaultAiProjectId(val)}
-                  placeholder="Pilih project untuk semua task..."
-                  emptyOption="-- Tidak terkait project --"
-                />
-                <p className="text-[10px] text-slate-400 mt-1.5 italic">
-                  Semua task hasil AI akan otomatis dikaitkan dengan project ini jika AI tidak menemukan project spesifik di teks.
-                </p>
-              </div>
-
-              {/* Footer actions for AI Input */}
-              <div className="pt-4 border-t border-slate-100 flex justify-end gap-3 shrink-0">
-                <button
-                  type="button"
-                  onClick={handleCleanupAndClose}
-                  className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors"
-                >
-                  Batal
-                </button>
-                <button
-                  type="button"
-                  disabled={isAiProcessing || !aiInputText.trim()}
-                  onClick={handleProcessAi}
-                  className="px-4 py-2 rounded-lg text-sm font-bold text-white bg-gov-600 hover:bg-gov-700 shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                >
-                  {isAiProcessing ? (
-                    <>
-                      <Loader2 size={16} className="animate-spin" />
-                      <span>Menganalisis...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Proses dengan AI</span>
-                      <span className="text-xs">🪄</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          )
+          </div>
         ) : (
           /* Manual Mode */
           <form onSubmit={handleSubmit} className="p-4 sm:p-6 overflow-y-auto custom-scrollbar flex-1">
