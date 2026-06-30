@@ -33,6 +33,15 @@
         </div>
 
         <div class="top-controls">
+            <!-- Download PDF Button -->
+            <button id="downloadPdfBtn" class="icon-btn" title="Unduh PDF (Simpan sebagai PDF)" aria-label="Unduh PDF">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px;">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+            </button>
+
             <!-- Theme Toggle -->
             <button id="themeToggle" class="icon-btn" title="Ubah Tema" aria-label="Ubah Tema">
                 <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -68,24 +77,28 @@
                 <span class="dot-num">03</span>
                 <span class="dot-label">Gambaran Umum</span>
             </button>
-            <button class="nav-dot" data-slide="3" title="Tabel Analisis">
+            <button class="nav-dot" data-slide="3" title="Hasil Survey (1)">
                 <span class="dot-num">04</span>
-                <span class="dot-label">Tabel Analisis</span>
+                <span class="dot-label">Hasil Survey (1)</span>
             </button>
-            <button class="nav-dot" data-slide="4" title="Analisis Tematik">
+            <button class="nav-dot" data-slide="4" title="Hasil Survey (2)">
                 <span class="dot-num">05</span>
+                <span class="dot-label">Hasil Survey (2)</span>
+            </button>
+            <button class="nav-dot" data-slide="5" title="Analisis Tematik">
+                <span class="dot-num">06</span>
                 <span class="dot-label">Analisis Tematik</span>
             </button>
-            <button class="nav-dot" data-slide="5" title="Masukan Tambahan">
-                <span class="dot-num">06</span>
+            <button class="nav-dot" data-slide="6" title="Masukan Tambahan">
+                <span class="dot-num">07</span>
                 <span class="dot-label">Masukan Tambahan</span>
             </button>
-            <button class="nav-dot" data-slide="6" title="Rekomendasi Tindak Lanjut">
-                <span class="dot-num">07</span>
+            <button class="nav-dot" data-slide="7" title="Rekomendasi Tindak Lanjut">
+                <span class="dot-num">08</span>
                 <span class="dot-label">Rekomendasi</span>
             </button>
-            <button class="nav-dot" data-slide="7" title="Terima Kasih">
-                <span class="dot-num">08</span>
+            <button class="nav-dot" data-slide="8" title="Terima Kasih">
+                <span class="dot-num">09</span>
                 <span class="dot-label">Terima Kasih</span>
             </button>
         </nav>
@@ -300,13 +313,13 @@
             </div>
         </section>
 
-        <!-- SLIDE 4: BENTO GRID SURVEY RESULTS -->
+        <!-- SLIDE 4: BENTO GRID SURVEY RESULTS (PART 1) -->
         <section class="slide" id="slide-3">
             <div class="slide-content bento-layout">
                 <div class="slide-header">
                     <span class="slide-number">04</span>
-                    <h2 class="slide-title">Hasil Survey Identifikasi Data (Bento Grid)</h2>
-                    <div class="slide-subtitle-right">Menyajikan 8 item data survey beserta analisis lengkap secara langsung</div>
+                    <h2 class="slide-title">Hasil Survey Identifikasi Data (1/2)</h2>
+                    <div class="slide-subtitle-right">Menyajikan 4 item data survey beserta analisis lengkap (Bagian 1)</div>
                 </div>
                 
                 <div class="bento-grid">
@@ -453,8 +466,20 @@
                             <p>Data sesuai, tetapi format sumber berasal dari aplikasi sehingga perlu standardisasi ekstraksi agar mudah direkap.</p>
                         </div>
                     </div>
+                </div>
+            </div>
+        </section>
 
-                    <!-- Card 5: BKKBN Siap Nikah -->
+        <!-- SLIDE 5: BENTO GRID SURVEY RESULTS (PART 2) -->
+        <section class="slide" id="slide-4">
+            <div class="slide-content bento-layout">
+                <div class="slide-header">
+                    <span class="slide-number">05</span>
+                    <h2 class="slide-title">Hasil Survey Identifikasi Data (2/2)</h2>
+                    <div class="slide-subtitle-right">Menyajikan 4 item data survey beserta analisis lengkap (Bagian 2)</div>
+                </div>
+                
+                <div class="bento-grid">
                     <div class="bento-card glass">
                         <div class="bento-card-header">
                             <span class="bento-num">05</span>
@@ -562,8 +587,8 @@
                         </div>
                     </div>
 
-                    <!-- Card 8: KPAD (Spans 2 columns) -->
-                    <div class="bento-card glass critical bento-col-2">
+                    <!-- Card 8: KPAD -->
+                    <div class="bento-card glass critical">
                         <div class="bento-card-header">
                             <span class="bento-num text-danger">08</span>
                             <span class="instansi-badge api">KemenPPPA / Sek. KPAI</span>
@@ -603,8 +628,8 @@
             </div>
         </section>
 
-        <!-- SLIDE 5: THEMATIC ANALYSIS -->
-        <section class="slide" id="slide-4">
+        <!-- SLIDE 6: THEMATIC ANALYSIS -->
+        <section class="slide" id="slide-5">
             <div class="slide-content">
                 <div class="slide-header">
                     <span class="slide-number">06</span>
@@ -665,11 +690,11 @@
             </div>
         </section>
 
-        <!-- SLIDE 6: ADDITIONAL INPUTS -->
-        <section class="slide" id="slide-5">
+        <!-- SLIDE 7: ADDITIONAL INPUTS -->
+        <section class="slide" id="slide-6">
             <div class="slide-content">
                 <div class="slide-header">
-                    <span class="slide-number">06</span>
+                    <span class="slide-number">07</span>
                     <h2 class="slide-title">Tambahan Masukan Tindak Lanjut</h2>
                 </div>
                 <div class="grid-2col-unequal">
@@ -765,11 +790,11 @@
             </div>
         </section>
 
-        <!-- SLIDE 7: RECOMMENDATIONS / ACTION PLAN (BENTO GRID) -->
-        <section class="slide" id="slide-6">
+        <!-- SLIDE 8: RECOMMENDATIONS / ACTION PLAN (BENTO GRID) -->
+        <section class="slide" id="slide-7">
             <div class="slide-content bento-layout">
                 <div class="slide-header">
-                    <span class="slide-number">07</span>
+                    <span class="slide-number">08</span>
                     <h2 class="slide-title">Rencana Tindak Lanjut (Rekomendasi)</h2>
                     <div class="slide-subtitle-right">Klik pada kartu rekomendasi untuk menyetujui rencana aksi</div>
                 </div>
@@ -877,8 +902,8 @@
             </div>
         </section>
 
-        <!-- SLIDE 8: THANK YOU -->
-        <section class="slide" id="slide-7">
+        <!-- SLIDE 9: THANK YOU -->
+        <section class="slide" id="slide-8">
             <div class="slide-content thank-you-layout">
                 <div class="thank-you-card glass">
                     <div class="thank-you-icon">
@@ -1000,7 +1025,18 @@
         </div>
     </div>
 
+    <!-- PDF Loading Overlay -->
+    <div id="pdfLoadingOverlay" class="pdf-loading-overlay" data-html2canvas-ignore="true" style="display: none;">
+        <div class="pdf-loading-content">
+            <div class="pdf-spinner"></div>
+            <h3 style="margin: 10px 0 5px 0; font-size: 1.2rem; font-weight: 700; color: #f8fafc;">Sedang Mengekspor PDF...</h3>
+            <p style="margin: 0; font-size: 0.85rem; color: #94a3b8;">Harap tunggu, seluruh slide sedang direkam secara otomatis.</p>
+        </div>
+    </div>
+
     <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="script.js"></script>
 </body>

@@ -182,14 +182,20 @@ themeToggle.addEventListener('click', () => {
 function animateCounters() {
     const counters = document.querySelectorAll('.counter');
     const speed = 200; // The lower the slower
+    const isPdfMode = document.body.classList.contains('pdf-export-mode');
 
     counters.forEach(counter => {
+        const target = parseFloat(counter.getAttribute('data-target'));
+        const isDecimal = target % 1 !== 0;
+
+        if (isPdfMode) {
+            // Set directly to target value without animation during PDF export
+            counter.innerText = isDecimal ? target.toFixed(1) : target;
+            return;
+        }
+
         const updateCount = () => {
-            const target = parseFloat(counter.getAttribute('data-target'));
             const count = parseFloat(counter.innerText);
-            
-            // For decimal targets (like 87.5)
-            const isDecimal = target % 1 !== 0;
             const increment = target / speed;
 
             if (count < target) {
@@ -414,7 +420,88 @@ document.addEventListener('DOMContentLoaded', () => {
     initSlides();
     loadRecommendationState();
     initFeedbackSystem();
+    
+    // Download PDF Button Click Listener
+    const downloadPdfBtn = document.getElementById('downloadPdfBtn');
+    if (downloadPdfBtn) {
+        downloadPdfBtn.addEventListener('click', generatePdfFromSlides);
+    }
 });
+
+/* ==========================================================================
+   SCREEN-CAPTURE PDF GENERATOR (PIXEL-PERFECT 16:9)
+   ========================================================================== */
+async function generatePdfFromSlides() {
+    const overlay = document.getElementById('pdfLoadingOverlay');
+    if (overlay) overlay.style.display = 'flex';
+
+    // Disable all animations during export to force immediate visibility
+    document.body.classList.add('pdf-export-mode');
+
+    // Hide UI Controls temporarily
+    const topBar = document.querySelector('.top-bar');
+    const sidebarNav = document.querySelector('.sidebar-nav');
+    const bottomControls = document.querySelector('.bottom-controls');
+    const feedbackTriggerBtn = document.getElementById('feedbackTriggerBtn');
+
+    if (topBar) topBar.style.display = 'none';
+    if (sidebarNav) sidebarNav.style.display = 'none';
+    if (bottomControls) bottomControls.style.display = 'none';
+    if (feedbackTriggerBtn) feedbackTriggerBtn.style.display = 'none';
+
+    const originalSlide = currentSlide;
+    const { jsPDF } = window.jspdf;
+    
+    // Lock PDF page size to standard 16:9 widescreen dimensions (Full HD)
+    const pdfWidth = 1920;
+    const pdfHeight = 1080;
+
+    // Initialize landscape PDF with standard 16:9 size
+    const pdf = new jsPDF({
+        orientation: 'landscape',
+        unit: 'px',
+        format: [pdfWidth, pdfHeight]
+    });
+
+    try {
+        for (let i = 0; i < totalSlides; i++) {
+            goToSlide(i);
+            // Wait a tiny moment for the slide swap to settle (no animation wait needed!)
+            await new Promise(resolve => setTimeout(resolve, 250));
+
+            // Capture the entire screen
+            const canvas = await html2canvas(document.body, {
+                useCORS: true,
+                scale: 2, // Double resolution for crystal clear text (prevents blurriness)
+                logging: false,
+                backgroundColor: '#0f172a' // Match dark theme background
+            });
+
+            const imgData = canvas.toDataURL('image/jpeg', 0.85); // High quality (85%) for sharp text and optimized size
+
+            if (i > 0) {
+                pdf.addPage([pdfWidth, pdfHeight], 'landscape');
+            }
+
+            pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+        }
+
+        // Save PDF file
+        pdf.save('Analisis_Hasil_Survey_PPA.pdf');
+    } catch (err) {
+        console.error("Gagal membuat PDF:", err);
+        alert("Gagal membuat PDF: " + err.message);
+    } finally {
+        // Restore original slide, remove export class, and show UI controls again
+        goToSlide(originalSlide);
+        document.body.classList.remove('pdf-export-mode');
+        if (topBar) topBar.style.display = '';
+        if (sidebarNav) sidebarNav.style.display = '';
+        if (bottomControls) bottomControls.style.display = '';
+        if (feedbackTriggerBtn) feedbackTriggerBtn.style.display = '';
+        if (overlay) overlay.style.display = 'none';
+    }
+}
 
 /* ==========================================================================
    FEEDBACK & COMMENTS ENGINE (SUPABASE)
@@ -423,7 +510,8 @@ const slideTitles = [
     "Halaman Utama",
     "Ringkasan Eksekutif",
     "Gambaran Umum",
-    "Tabel Analisis",
+    "Hasil Survey (1)",
+    "Hasil Survey (2)",
     "Analisis Tematik",
     "Masukan Tambahan",
     "Rekomendasi",
