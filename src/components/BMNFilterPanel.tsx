@@ -19,6 +19,8 @@ const BMNFilterPanel: React.FC<BMNFilterPanelProps> = ({ bmnItems, filterHook })
     const {
         jenisBMN,
         setJenisBMN,
+        kodeBarang,
+        setKodeBarang,
         statusBMN,
         setStatusBMN,
         kondisi,
@@ -44,6 +46,15 @@ const BMNFilterPanel: React.FC<BMNFilterPanelProps> = ({ bmnItems, filterHook })
         const unique = Array.from(new Set(
             bmnItems
                 .map(item => item.jenisBMN)
+                .filter((value): value is string => !!value)
+        )).sort();
+        return unique.map(value => ({ value, label: value }));
+    }, [bmnItems]);
+
+    const uniqueKodeBarang = useMemo(() => {
+        const unique = Array.from(new Set(
+            bmnItems
+                .map(item => item.kodeBarang)
                 .filter((value): value is string => !!value)
         )).sort();
         return unique.map(value => ({ value, label: value }));
@@ -93,6 +104,7 @@ const BMNFilterPanel: React.FC<BMNFilterPanelProps> = ({ bmnItems, filterHook })
     const activeFilterCount = useMemo(() => {
         let count = 0;
         if (jenisBMN !== 'All') count++;
+        if (kodeBarang !== 'All') count++;
         if (statusBMN !== 'All') count++;
         if (kondisi !== 'All') count++;
         if (namaSatker !== 'All') count++;
@@ -102,7 +114,7 @@ const BMNFilterPanel: React.FC<BMNFilterPanelProps> = ({ bmnItems, filterHook })
         if (umurAsetMax !== undefined) count++;
         if (tahunPerolehan !== undefined) count++;
         return count;
-    }, [jenisBMN, statusBMN, kondisi, namaSatker, nilaiPerolehanMin, nilaiPerolehanMax, umurAsetMin, umurAsetMax, tahunPerolehan]);
+    }, [jenisBMN, kodeBarang, statusBMN, kondisi, namaSatker, nilaiPerolehanMin, nilaiPerolehanMax, umurAsetMin, umurAsetMax, tahunPerolehan]);
 
     return (
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 mb-6">
@@ -152,6 +164,20 @@ const BMNFilterPanel: React.FC<BMNFilterPanelProps> = ({ bmnItems, filterHook })
                                 value={jenisBMN === 'All' ? '' : jenisBMN}
                                 onChange={(value) => setJenisBMN(value || 'All')}
                                 placeholder="Cari jenis BMN..."
+                                emptyOption="Semua"
+                            />
+                        </div>
+
+                        {/* Kode Barang Filter */}
+                        <div>
+                            <label className="block text-xs font-medium text-slate-500 mb-1">
+                                Kode Barang
+                            </label>
+                            <SearchableSelect
+                                options={uniqueKodeBarang}
+                                value={kodeBarang === 'All' ? '' : kodeBarang}
+                                onChange={(value) => setKodeBarang(value || 'All')}
+                                placeholder="Cari kode barang..."
                                 emptyOption="Semua"
                             />
                         </div>

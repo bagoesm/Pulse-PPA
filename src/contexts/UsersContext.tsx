@@ -99,6 +99,8 @@ export const UsersProvider: React.FC<UsersProviderProps> = ({ children, session 
                     sakuraAnimationEnabled: user.sakura_animation_enabled || false,
                     snowAnimationEnabled: user.snow_animation_enabled || false,
                     moneyAnimationEnabled: user.money_animation_enabled || false,
+                    flowerDecorationEnabled: user.flower_decoration_enabled || false,
+                    header_color: user.header_color || null,
                     profilePhoto: user.profile_photo || undefined,
                     profilePhotoPath: user.profile_photo_path || undefined,
                     divisi: user.divisi || undefined,

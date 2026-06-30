@@ -2,8 +2,8 @@
 // Main page container for BMN (Barang Milik Negara) Inventory Management
 // Validates: Requirements 1.2, 2.1, 6.1, 15.7
 
-import React, { useState, useMemo } from 'react';
-import { LayoutDashboard, List, AlertCircle } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { LayoutDashboard, List, AlertCircle, Plus, Users, Filter, ChevronDown, ChevronUp } from 'lucide-react';
 import { BMNProvider, useBMN } from '../contexts/BMNContext';
 import { useAuth } from '../contexts/AuthContext';
 import BMNDashboard from './BMNDashboard';
@@ -11,12 +11,16 @@ import BMNTable from './BMNTable';
 import BMNFilterPanel from './BMNFilterPanel';
 import BMNUploadModal from './BMNUploadModal';
 import BMNHistoryModal from './BMNHistoryModal';
+import BMNFormModal from './BMNFormModal';
+import BMNEditorManager from './BMNEditorManager';
 import ErrorBoundary from './ErrorBoundary';
 import { useBMNFilters } from '../hooks/useBMNFilters';
 import { useBMNSearch } from '../hooks/useBMNSearch';
+import { useBMNHandlers } from '../hooks/useBMNHandlers';
+import { supabase } from '../lib/supabaseClient';
 import { BMNItem } from '../../types';
 
-type TabView = 'Dashboard' | 'List';
+type TabView = 'Dashboard' | 'List' | 'Editors';
 
 /**
  * BMN Detail Modal - Shows complete information for a single BMN item
@@ -25,9 +29,11 @@ type TabView = 'Dashboard' | 'List';
 interface BMNDetailModalProps {
   item: BMNItem;
   onClose: () => void;
+  onEdit: () => void;
+  isEditor: boolean;
 }
 
-const BMNDetailModal: React.FC<BMNDetailModalProps> = ({ item, onClose }) => {
+const BMNDetailModal: React.FC<BMNDetailModalProps> = ({ item, onClose, onEdit, isEditor }) => {
   // Format currency with Indonesian thousand separators
   const formatCurrency = (value: number | undefined): string => {
     if (value === undefined || value === null) return '-';
@@ -112,7 +118,7 @@ const BMNDetailModal: React.FC<BMNDetailModalProps> = ({ item, onClose }) => {
               <h3 className="text-lg font-bold text-slate-800 mb-4 pb-2 border-b-2 border-gov-200">
                 Status dan Kondisi
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Status BMN</label>
                   <p className="text-sm text-slate-800 mt-1">
@@ -138,6 +144,16 @@ const BMNDetailModal: React.FC<BMNDetailModalProps> = ({ item, onClose }) => {
                         {item.kondisi}
                       </span>
                     ) : '-'}
+                  </p>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Pemegang Barang</label>
+                  <p className="text-sm font-semibold text-slate-800 mt-1">
+                    {item.holder?.name ? (
+                      <span className="text-gov-600 font-bold">{item.holder.name}</span>
+                    ) : (
+                      <span className="text-slate-400 italic">Belum Ditugaskan</span>
+                    )}
                   </p>
                 </div>
               </div>
@@ -200,12 +216,18 @@ const BMNDetailModal: React.FC<BMNDetailModalProps> = ({ item, onClose }) => {
             </div>
 
             {/* Dokumen */}
-            {(item.nomorRegister || item.nomorSertifikat || item.tanggalSertifikat) && (
+            {(item.nup || item.nomorRegister || item.nomorSertifikat || item.tanggalSertifikat) && (
               <div>
                 <h3 className="text-lg font-bold text-slate-800 mb-4 pb-2 border-b-2 border-gov-200">
-                  Dokumen
+                  Dokumen / Registrasi
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {item.nup && (
+                    <div>
+                      <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">NUP (Nomor Urut Pendaftaran)</label>
+                      <p className="text-sm text-slate-800 mt-1">{item.nup}</p>
+                    </div>
+                  )}
                   {item.nomorRegister && (
                     <div>
                       <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Nomor Register</label>
@@ -292,13 +314,26 @@ const BMNDetailModal: React.FC<BMNDetailModalProps> = ({ item, onClose }) => {
         </div>
 
         {/* Footer */}
-        <div className="border-t border-slate-200 px-6 py-4 bg-slate-50 flex justify-end">
-          <button
-            onClick={onClose}
-            className="px-6 py-2.5 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors font-medium"
-          >
-            Tutup
-          </button>
+        <div className="border-t border-slate-200 px-6 py-4 bg-slate-50 flex justify-between items-center flex-shrink-0">
+          <div className="text-xs text-slate-500 font-semibold italic">
+            {isEditor ? 'Anda memiliki akses editor untuk Satker ini.' : 'Akses Baca-Saja. Edit dibatasi oleh hak akses Satker.'}
+          </div>
+          <div className="flex gap-2">
+            {isEditor && (
+              <button
+                onClick={onEdit}
+                className="px-6 py-2.5 bg-gov-600 text-white rounded-lg hover:bg-gov-700 transition-colors font-bold"
+              >
+                Edit Aset
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="px-6 py-2.5 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors font-bold"
+            >
+              Tutup
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -321,6 +356,29 @@ const BMNListView: React.FC<BMNListViewProps> = ({ onItemClick }) => {
   
   // Initialize search hook
   const { searchQuery, setSearchQuery, debouncedSearchQuery } = useBMNSearch();
+  const [searchBy, setSearchBy] = useState<'all' | 'nup' | 'nomorRegister' | 'namaBarang' | 'kodeBarang' | 'merk' | 'alamat'>('all');
+  const [showFilters, setShowFilters] = useState(false);
+
+  // Get placeholder text based on searchBy
+  const getSearchPlaceholder = () => {
+    switch (searchBy) {
+      case 'nup':
+        return 'Cari berdasarkan NUP (Nomor Urut Pendaftaran)...';
+      case 'nomorRegister':
+        return 'Cari berdasarkan Nomor Register...';
+      case 'namaBarang':
+        return 'Cari berdasarkan Nama Barang...';
+      case 'kodeBarang':
+        return 'Cari berdasarkan Kode Barang...';
+      case 'merk':
+        return 'Cari berdasarkan Merk atau Tipe...';
+      case 'alamat':
+        return 'Cari berdasarkan Alamat atau Lokasi...';
+      case 'all':
+      default:
+        return 'Cari berdasarkan nama barang, kode barang, NUP, nomor register, merk, tipe, atau alamat...';
+    }
+  };
 
   // Apply filters and search using the hook's applyFilters function
   const filteredItems = useMemo(() => {
@@ -328,14 +386,49 @@ const BMNListView: React.FC<BMNListViewProps> = ({ onItemClick }) => {
 
     // Apply search first (Requirement 8.1-8.8)
     if (debouncedSearchQuery) {
-      const searchLower = debouncedSearchQuery.toLowerCase();
-      filtered = filtered.filter(item =>
-        item.namaBarang.toLowerCase().includes(searchLower) ||
-        item.kodeBarang.toLowerCase().includes(searchLower) ||
-        item.merk?.toLowerCase().includes(searchLower) ||
-        item.tipe?.toLowerCase().includes(searchLower) ||
-        item.alamat?.toLowerCase().includes(searchLower)
-      );
+      const searchLower = debouncedSearchQuery.toLowerCase().trim();
+      filtered = filtered.filter(item => {
+        if (searchBy === 'all') {
+          return (
+            item.namaBarang.toLowerCase().includes(searchLower) ||
+            item.kodeBarang.toLowerCase().includes(searchLower) ||
+            item.merk?.toLowerCase().includes(searchLower) ||
+            item.tipe?.toLowerCase().includes(searchLower) ||
+            item.alamat?.toLowerCase().includes(searchLower) ||
+            item.nup?.toLowerCase().includes(searchLower) ||
+            item.nomorRegister?.toLowerCase().includes(searchLower)
+          );
+        }
+        
+        if (searchBy === 'nup') {
+          return item.nup?.toLowerCase().includes(searchLower);
+        }
+        
+        if (searchBy === 'nomorRegister') {
+          return item.nomorRegister?.toLowerCase().includes(searchLower);
+        }
+        
+        if (searchBy === 'namaBarang') {
+          return item.namaBarang.toLowerCase().includes(searchLower);
+        }
+        
+        if (searchBy === 'kodeBarang') {
+          return item.kodeBarang.toLowerCase().includes(searchLower);
+        }
+        
+        if (searchBy === 'merk') {
+          return (
+            item.merk?.toLowerCase().includes(searchLower) ||
+            item.tipe?.toLowerCase().includes(searchLower)
+          );
+        }
+        
+        if (searchBy === 'alamat') {
+          return item.alamat?.toLowerCase().includes(searchLower);
+        }
+        
+        return false;
+      });
     }
 
     // Apply all filters using the hook's applyFilters function (Requirement 7.1-7.10)
@@ -343,28 +436,64 @@ const BMNListView: React.FC<BMNListViewProps> = ({ onItemClick }) => {
     filtered = filterHook.applyFilters(filtered);
 
     return filtered;
-  }, [bmnItems, debouncedSearchQuery, filterHook]);
+  }, [bmnItems, debouncedSearchQuery, filterHook, searchBy]);
 
   return (
     <div className="space-y-6">
       {/* Search Bar (Requirement 8.1) */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
-        <div className="relative">
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Cari berdasarkan nama barang, kode barang, merk, tipe, atau alamat..."
-            className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 focus:border-gov-400 outline-none text-sm"
-          />
-          <svg
-            className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
+        <div className="flex flex-col md:flex-row gap-3">
+          <div className="w-full md:w-64">
+            <select
+              value={searchBy}
+              onChange={(e) => setSearchBy(e.target.value as any)}
+              className="w-full px-3 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 focus:border-gov-400 outline-none text-sm bg-white text-slate-700 font-medium"
+            >
+              <option value="all">Semua Kolom</option>
+              <option value="namaBarang">Nama Barang</option>
+              <option value="nup">NUP (No Urut Pendaftaran)</option>
+              <option value="nomorRegister">Nomor Register</option>
+              <option value="kodeBarang">Kode Barang</option>
+              <option value="merk">Merk / Tipe</option>
+              <option value="alamat">Alamat / Lokasi</option>
+            </select>
+          </div>
+          <div className="flex-1 flex gap-3">
+            <div className="flex-1 relative">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={getSearchPlaceholder()}
+                className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 focus:border-gov-400 outline-none text-sm"
+              />
+              <svg
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={`px-4 py-3 border rounded-lg flex items-center justify-center gap-2 font-medium text-sm transition-all whitespace-nowrap outline-none ${
+                showFilters || filterHook.activeFilterCount > 0
+                  ? 'bg-gov-50 border-gov-300 text-gov-700 ring-1 ring-gov-300'
+                  : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <Filter size={18} className={showFilters || filterHook.activeFilterCount > 0 ? 'text-gov-600' : 'text-slate-500'} />
+              <span>Filter</span>
+              {filterHook.activeFilterCount > 0 && (
+                <span className="bg-gov-600 text-white text-xs px-2 py-0.5 rounded-full font-semibold">
+                  {filterHook.activeFilterCount}
+                </span>
+              )}
+              {showFilters ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            </button>
+          </div>
         </div>
         {/* Result count (Requirement 8.6) */}
         <div className="mt-3 text-sm text-slate-600">
@@ -373,7 +502,9 @@ const BMNListView: React.FC<BMNListViewProps> = ({ onItemClick }) => {
       </div>
 
       {/* Filter Panel (Requirement 7.1-7.10) */}
-      <BMNFilterPanel bmnItems={bmnItems} filterHook={filterHook} />
+      {showFilters && (
+        <BMNFilterPanel bmnItems={bmnItems} filterHook={filterHook} />
+      )}
 
       {/* Table (Requirement 6.1-6.8) */}
       <BMNTable
@@ -390,19 +521,52 @@ const BMNListView: React.FC<BMNListViewProps> = ({ onItemClick }) => {
  * Validates: Requirements 1.2, 2.1, 6.1, 15.7
  */
 const InventoriBMNPageContent: React.FC = () => {
-  const { bmnItems, uploadHistory, isLoading, error, fetchBMNItems, fetchUploadHistory } = useBMN();
+  const { bmnItems, setBmnItems, uploadHistory, isLoading, error, fetchBMNItems, fetchUploadHistory } = useBMN();
   const { currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState<TabView>('Dashboard');
   const [selectedItem, setSelectedItem] = useState<BMNItem | null>(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editingItem, setEditingItem] = useState<BMNItem | null>(null);
+  const [userEditableSatkers, setUserEditableSatkers] = useState<string[]>([]);
 
   // Notification handler
   const showNotification = (title: string, message: string, type?: 'success' | 'error' | 'warning' | 'info') => {
-    // You can integrate with your notification system here
     console.log(`[${type?.toUpperCase()}] ${title}: ${message}`);
-    // TODO: Integrate with actual notification system from UIContext
   };
+
+  // Initialize handlers for CRUD operations
+  const { handleSaveBMN } = useBMNHandlers({
+    currentUser,
+    bmnItems,
+    setBmnItems,
+    showNotification,
+    fetchBMNItems,
+    fetchUploadHistory
+  });
+
+  // Fetch editable satkers for the logged-in user
+  useEffect(() => {
+    const fetchUserEditableSatkers = async () => {
+      if (!currentUser) return;
+      if (currentUser.role === 'Super Admin') return;
+      try {
+        const { data, error } = await supabase
+          .from('bmn_editors')
+          .select('nama_satker')
+          .eq('user_id', currentUser.id);
+        
+        if (!error && data) {
+          setUserEditableSatkers(data.map(row => row.nama_satker));
+        }
+      } catch (err) {
+        console.error('Error fetching editable satkers:', err);
+      }
+    };
+    
+    fetchUserEditableSatkers();
+  }, [currentUser]);
 
   // Handle upload success
   const handleUploadSuccess = async () => {
@@ -440,6 +604,15 @@ const InventoriBMNPageContent: React.FC = () => {
 
           {/* Action Buttons */}
           <div className="flex gap-2">
+            {(currentUser?.role === 'Super Admin' || userEditableSatkers.length > 0) && (
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="px-4 py-2 bg-gov-600 text-white rounded-lg hover:bg-gov-700 transition-colors font-medium text-sm flex items-center gap-1.5"
+              >
+                <Plus size={16} />
+                <span>Tambah BMN</span>
+              </button>
+            )}
             <button
               onClick={() => setShowHistoryModal(true)}
               className="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors font-medium text-sm"
@@ -473,6 +646,19 @@ const InventoriBMNPageContent: React.FC = () => {
             <List size={18} />
             Daftar BMN
           </button>
+          {currentUser?.role === 'Super Admin' && (
+            <button
+              onClick={() => setActiveTab('Editors')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all ${
+                activeTab === 'Editors'
+                  ? 'bg-gov-600 text-white shadow-sm'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              <Users size={18} />
+              <span>Editor BMN</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -510,8 +696,10 @@ const InventoriBMNPageContent: React.FC = () => {
           <div className="p-4 sm:p-6">
             {activeTab === 'Dashboard' ? (
               <BMNDashboard onOpenUploadModal={() => setShowUploadModal(true)} />
-            ) : (
+            ) : activeTab === 'List' ? (
               <BMNListView onItemClick={handleItemClick} />
+            ) : (
+              <BMNEditorManager showNotification={showNotification} />
             )}
           </div>
         )}
@@ -543,6 +731,24 @@ const InventoriBMNPageContent: React.FC = () => {
         <BMNDetailModal
           item={selectedItem}
           onClose={handleCloseDetail}
+          onEdit={() => {
+            setEditingItem(selectedItem);
+            setSelectedItem(null);
+          }}
+          isEditor={currentUser?.role === 'Super Admin' || userEditableSatkers.some(s => s.toLowerCase().trim() === selectedItem.namaSatker?.toLowerCase().trim().replace(/^["']|["']$/g, ''))}
+        />
+      )}
+
+      {/* Manual Add/Edit Form Modal */}
+      {(showAddModal || editingItem) && (
+        <BMNFormModal
+          isOpen={showAddModal || !!editingItem}
+          onClose={() => {
+            setShowAddModal(false);
+            setEditingItem(null);
+          }}
+          onSave={handleSaveBMN}
+          item={editingItem}
         />
       )}
     </div>

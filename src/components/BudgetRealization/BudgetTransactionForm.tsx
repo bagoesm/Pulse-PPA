@@ -111,7 +111,8 @@ const BudgetTransactionForm: React.FC<BudgetTransactionFormProps> = ({
 
   const handleSelectMaster = (m: BudgetMaster) => {
     setSelectedMaster(m);
-    setSearchQuery(`${m.kro}.${m.ro} - ${m.detail.slice(0, 45)}...`);
+    const codeStr = (m.kro || m.ro) ? `${m.kro || '-'}.${m.ro || '-'} ` : '';
+    setSearchQuery(`${codeStr}- ${m.detail.slice(0, 45)}...`);
     setShowDropdown(false);
   };
 
@@ -293,7 +294,7 @@ const BudgetTransactionForm: React.FC<BudgetTransactionFormProps> = ({
                     className="w-full text-left px-4 py-3 hover:bg-slate-50 transition-colors flex flex-col gap-1"
                   >
                     <div className="flex justify-between font-bold text-slate-600">
-                      <span>KRO: {m.kro} | RO: {m.ro} | Akun: {m.akun}</span>
+                      <span>KRO: {m.kro || '-'} | RO: {m.ro || '-'} | Akun: {m.akun || '-'}</span>
                       <span className="text-gov-600">{m.sumberDana?.name || 'APBN'}</span>
                     </div>
                     <p className="text-slate-800 leading-normal font-medium">{m.detail}</p>

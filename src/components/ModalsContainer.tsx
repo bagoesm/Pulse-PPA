@@ -55,6 +55,7 @@ interface ModalsContainerProps {
     editingTask: Task | null;
     setEditingTask: (task: Task | null) => void;
     handleSaveTask: (task: Omit<Task, 'id'> | Task) => Promise<void>;
+    handleSaveMultipleTasks?: (tasks: Omit<Task, 'id'>[]) => Promise<void>;
     handleDeleteTask: (taskId: string) => Promise<void>;
     checkDeletePermission: (task: Task) => boolean;
     handleAddMeeting: (fromTask?: boolean) => void;
@@ -185,7 +186,7 @@ const ModalsContainer: React.FC<ModalsContainerProps> = (props) => {
         subtasks, subtaskHandlers,
         // Add Task Modal
         isModalOpen, setIsModalOpen, editingTask, setEditingTask,
-        handleSaveTask, handleDeleteTask, checkDeletePermission, handleAddMeeting,
+        handleSaveTask, handleSaveMultipleTasks, handleDeleteTask, checkDeletePermission, handleAddMeeting,
         // Common
         projects, taskAssignableUsers, allUsers, subCategories,
         masterCategories, masterSubCategories, categorySubcategoryRelations, allTasks,
@@ -305,6 +306,7 @@ const ModalsContainer: React.FC<ModalsContainerProps> = (props) => {
                     isOpen={isModalOpen}
                     onClose={() => setIsModalOpen(false)}
                     onSave={handleSaveTask}
+                    onSaveMultiple={handleSaveMultipleTasks}
                     onDelete={handleDeleteTask}
                     initialData={editingTask}
                     currentUser={currentUser}

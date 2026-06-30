@@ -213,15 +213,15 @@ export class BudgetService {
         tahun: data.tahun || new Date().getFullYear(),
         kegiatan: data.kegiatan,
         nama_kegiatan: data.namaKegiatan,
-        kro: data.kro,
+        kro: data.kro || '',
         nama_kro: data.namaKro,
-        ro: data.ro,
+        ro: data.ro || '',
         nama_ro: data.namaRo,
-        komponen: data.komponen,
+        komponen: data.komponen || '',
         nama_komponen: data.namaKomponen,
         subkomponen: data.subkomponen,
         nama_subkomponen: data.namaSubkomponen,
-        akun: data.akun,
+        akun: data.akun || '',
         nama_akun: data.namaAkun,
         detail: data.detail,
         pagu: data.pagu,
@@ -247,15 +247,15 @@ export class BudgetService {
       if (data.tahun !== undefined) dbPayload.tahun = data.tahun;
       if (data.kegiatan !== undefined) dbPayload.kegiatan = data.kegiatan;
       if (data.namaKegiatan !== undefined) dbPayload.nama_kegiatan = data.namaKegiatan;
-      if (data.kro !== undefined) dbPayload.kro = data.kro;
+      if (data.kro !== undefined) dbPayload.kro = data.kro || '';
       if (data.namaKro !== undefined) dbPayload.nama_kro = data.namaKro;
-      if (data.ro !== undefined) dbPayload.ro = data.ro;
+      if (data.ro !== undefined) dbPayload.ro = data.ro || '';
       if (data.namaRo !== undefined) dbPayload.nama_ro = data.namaRo;
-      if (data.komponen !== undefined) dbPayload.komponen = data.komponen;
+      if (data.komponen !== undefined) dbPayload.komponen = data.komponen || '';
       if (data.namaKomponen !== undefined) dbPayload.nama_komponen = data.namaKomponen;
       if (data.subkomponen !== undefined) dbPayload.subkomponen = data.subkomponen;
       if (data.namaSubkomponen !== undefined) dbPayload.nama_subkomponen = data.namaSubkomponen;
-      if (data.akun !== undefined) dbPayload.akun = data.akun;
+      if (data.akun !== undefined) dbPayload.akun = data.akun || '';
       if (data.namaAkun !== undefined) dbPayload.nama_akun = data.namaAkun;
       if (data.detail !== undefined) dbPayload.detail = data.detail;
       if (data.pagu !== undefined) dbPayload.pagu = data.pagu;
@@ -454,15 +454,15 @@ export class BudgetService {
       sumberDanaId: row.sumber_dana_id,
       kegiatan: row.kegiatan || '',
       namaKegiatan: row.nama_kegiatan || '',
-      kro: row.kro,
+      kro: row.kro || '',
       namaKro: row.nama_kro || '',
-      ro: row.ro,
+      ro: row.ro || '',
       namaRo: row.nama_ro || '',
-      komponen: row.komponen,
+      komponen: row.komponen || '',
       namaKomponen: row.nama_komponen || '',
       subkomponen: row.subkomponen || '',
       namaSubkomponen: row.nama_subkomponen || '',
-      akun: row.akun,
+      akun: row.akun || '',
       namaAkun: row.nama_akun || '',
       detail: row.detail || '',
       pagu: Number(row.pagu),

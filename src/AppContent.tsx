@@ -41,6 +41,7 @@ import { useFeedbackHandlers } from './hooks/useFeedbackHandlers';
 import { useMiscHandlers } from './hooks/useMiscHandlers';
 import { useProjectHelpers } from './hooks/useProjectHelpers';
 import KanbanColumn from './components/KanbanColumn';
+import PublicProjectView from './components/PublicProjectView';
 
 // Lazy loaded heavy components
 const Dashboard = lazy(() => import('./components/Dashboard'));
@@ -60,10 +61,13 @@ const ActivityLogPage = lazy(() => import('./components/ActivityLogPage'));
 const DisposisiListView = lazy(() => import('./components/DisposisiListView'));
 const SatkerVisibilityManagement = lazy(() => import('./components/SatkerVisibilityManagement'));
 const VisibilityAuditTrail = lazy(() => import('./components/VisibilityAuditTrail'));
+const PelayananZoomPage = lazy(() => import('./components/PelayananZoomPage'));
+const ModuleVisibilityManagement = lazy(() => import('./components/ModuleVisibilityManagement'));
 const TaskExportModal = lazy(() => import('./components/TaskExportModal'));
 const AnalitikPage = lazy(() => import('./components/AnalitikPage'));
 const InventoriBMNPage = lazy(() => import('./components/InventoriBMNPage'));
 const BudgetRealizationPage = lazy(() => import('./components/BudgetRealization/BudgetRealizationPage'));
+const PenilaianArsipPage = lazy(() => import('./components/PenilaianArsipPage'));
 
 // Loading fallback
 const PageLoader: React.FC = () => (
@@ -78,6 +82,15 @@ const PageLoader: React.FC = () => (
 
 const AppContent: React.FC = () => {
   const [isPending, startTransition] = useTransition();
+  const [shareToken, setShareToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('share');
+    if (token) {
+      setShareToken(token);
+    }
+  }, []);
 
   // ===== SIDEBAR STATE =====
   const { isCollapsed } = useSidebar();
@@ -475,6 +488,7 @@ const AppContent: React.FC = () => {
     handleDragOver,
     handleDrop,
     handleSaveTask,
+    handleSaveMultipleTasks,
     handleDeleteTask,
     handleStatusChangeFromView,
     handleAddComment,
@@ -745,6 +759,11 @@ const AppContent: React.FC = () => {
 
   // meetingsAsTasks, allTasksWithMeetings, and filteredTasks now come from DataContext
 
+  // Render Public Project View if share token is present in URL
+  if (shareToken) {
+    return <PublicProjectView shareToken={shareToken} />;
+  }
+
   // --- Loading UI & Login rendering ---
   if (isLoadingAuth) {
     return (
@@ -803,7 +822,7 @@ const AppContent: React.FC = () => {
         )}
 
         {/* Top Header / Filter Bar - HIDDEN for special pages */}
-        {activeTab !== 'Dashboard' && activeTab !== 'Analitik' && activeTab !== 'Project' && activeTab !== 'Master Data' && activeTab !== 'Saran Masukan' && activeTab !== 'Pengumuman' && activeTab !== 'Inventori Data' && activeTab !== 'Inventori BMN' && activeTab !== 'Jadwal Kegiatan' && activeTab !== 'Daftar Surat' && activeTab !== 'Activity Log' && activeTab !== 'Daftar Disposisi' && activeTab !== 'Manajemen Visibility' && activeTab !== 'Riwayat Perubahan' && !['Dashboard Realisasi', 'Monitoring Anggaran', 'Daftar Transaksi', 'Laporan Anggaran', 'Master Anggaran'].includes(activeTab) && (
+        {activeTab !== 'Dashboard' && activeTab !== 'Analitik' && activeTab !== 'Project' && activeTab !== 'Master Data' && activeTab !== 'Saran Masukan' && activeTab !== 'Pengumuman' && activeTab !== 'Inventori Data' && activeTab !== 'Inventori BMN' && activeTab !== 'Jadwal Kegiatan' && activeTab !== 'Daftar Surat' && activeTab !== 'Activity Log' && activeTab !== 'Daftar Disposisi' && activeTab !== 'Manajemen Visibility' && activeTab !== 'Riwayat Perubahan' && activeTab !== 'Pelayanan Zoom' && activeTab !== 'Manajemen Modul' && activeTab !== 'Penilaian Arsip' && !['Dashboard Realisasi', 'Monitoring Anggaran', 'Daftar Transaksi', 'Laporan Anggaran', 'Master Anggaran'].includes(activeTab) && (
           <header className="bg-white border-b border-slate-200 px-3 sm:px-6 py-3 sm:py-4 z-20 relative">
             <div className="flex flex-col gap-3 sm:gap-4 mb-3 sm:mb-4">
               {/* Title Section */}
@@ -987,6 +1006,20 @@ const AppContent: React.FC = () => {
                     placeholder="Prioritas"
                     emptyOption="Semua Prioritas"
                     className="min-w-[100px]"
+                  />
+
+                  <SearchableSelect
+                    options={[
+                      { value: 'updated', label: 'Terbaru' },
+                      { value: 'priority', label: 'Prioritas' },
+                      { value: 'deadline', label: 'Tenggat Waktu' },
+                      { value: 'title', label: 'Abjad (A-Z)' }
+                    ]}
+                    value={filters.sortBy || 'updated'}
+                    onChange={(val) => setFilters(prev => ({ ...prev, sortBy: (val || 'updated') as any }))}
+                    placeholder="Urutan"
+                    emptyOption="Urut: Terbaru"
+                    className="min-w-[140px]"
                   />
                 </div>
               </div>
@@ -1182,6 +1215,18 @@ const AppContent: React.FC = () => {
           <Suspense fallback={<PageLoader />}>
             <VisibilityAuditTrail />
           </Suspense>
+        ) : activeTab === 'Pelayanan Zoom' ? (
+          <Suspense fallback={<PageLoader />}>
+            <PelayananZoomPage />
+          </Suspense>
+        ) : activeTab === 'Penilaian Arsip' ? (
+          <Suspense fallback={<PageLoader />}>
+            <PenilaianArsipPage />
+          </Suspense>
+        ) : activeTab === 'Manajemen Modul' ? (
+          <Suspense fallback={<PageLoader />}>
+            <ModuleVisibilityManagement />
+          </Suspense>
         ) : activeTab === 'Master Data' ? (
           <Suspense fallback={<PageLoader />}>
             <UserManagement
@@ -1238,6 +1283,7 @@ const AppContent: React.FC = () => {
                     onTaskClick={handleTaskClick}
                     onTaskShare={openTaskShare}
                     checkEditPermission={checkEditPermission}
+                    sortBy={filters.sortBy || 'updated'}
                   />
                 ))}
               </div>
@@ -1290,6 +1336,7 @@ const AppContent: React.FC = () => {
         editingTask={editingTask}
         setEditingTask={setEditingTask}
         handleSaveTask={handleSaveTask}
+        handleSaveMultipleTasks={handleSaveMultipleTasks}
         handleDeleteTask={handleDeleteTask}
         checkDeletePermission={checkDeletePermission}
         handleAddMeeting={handleAddMeeting}

@@ -28,10 +28,13 @@ import {
   PieChart,
   ChevronsLeft,
   ChevronsRight,
-  Package
+  Package,
+  Video,
+  Layers
 } from 'lucide-react';
 import { SIDEBAR_ITEMS, User } from '../../types';
 import { useSidebar } from '../contexts/SidebarContext';
+import { useModuleVisibility } from '../hooks/useModuleVisibility';
 
 interface SidebarProps {
   activeTab: string;
@@ -66,14 +69,39 @@ const IconMap: Record<string, React.ElementType> = {
   'Settings': Settings,
   'Shield': Shield,
   'Package': Package,
-  'PieChart': PieChart
+  'PieChart': PieChart,
+  'Video': Video,
+  'Layers': Layers
 };
 
 const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser, users, onSwitchUser, onLogout }) => {
   const [openSubmenu, setOpenSubmenu] = useState<string | null>('Surat & Kegiatan'); // Default open
+  const [openNestedSubmenu, setOpenNestedSubmenu] = useState<string | null>(null);
   const { isCollapsed, toggleCollapse } = useSidebar();
   const [tooltipPosition, setTooltipPosition] = useState<{ top: number } | null>(null);
+  const { isModuleVisible } = useModuleVisibility(currentUser);
   
+  // Auto-expand submenus based on activeTab
+  React.useEffect(() => {
+    SIDEBAR_ITEMS.forEach((item: any) => {
+      if (item.submenu) {
+        const isSubActive = item.submenu.some((sub: any) => {
+          if (sub.submenu) {
+            const isNestedActive = sub.submenu.some((nested: any) => nested.name === activeTab);
+            if (isNestedActive) {
+              setOpenNestedSubmenu(sub.name);
+            }
+            return isNestedActive || sub.name === activeTab;
+          }
+          return sub.name === activeTab;
+        });
+        if (isSubActive) {
+          setOpenSubmenu(item.name);
+        }
+      }
+    });
+  }, [activeTab]);
+
   const toggleSubmenu = (menuName: string) => {
     if (isCollapsed) {
       toggleCollapse();
@@ -122,13 +150,25 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser,
           if (item.adminOnly && currentUser.role !== 'Super Admin') {
             return false;
           }
-          return true;
+          // Filter based on Satker module visibility settings
+          if (item.name === 'Informasi Lainnya') {
+            return item.submenu.some((sub: any) => {
+              const dbName = sub.name === 'Monitoring Anggaran' ? 'Realisasi Anggaran' : sub.name;
+              return isModuleVisible(dbName);
+            });
+          }
+          return isModuleVisible(item.name);
         }).map((item: any) => {
           const Icon = IconMap[item.icon];
           const isActive = activeTab === item.name;
           const hasSubmenu = item.submenu && item.submenu.length > 0;
           const isSubmenuOpen = openSubmenu === item.name;
-          const isSubmenuItemActive = hasSubmenu && item.submenu.some((sub: any) => sub.name === activeTab);
+          const isSubmenuItemActive = hasSubmenu && item.submenu.some((sub: any) => {
+            if (sub.submenu) {
+              return sub.name === activeTab || sub.submenu.some((nested: any) => nested.name === activeTab);
+            }
+            return sub.name === activeTab;
+          });
 
           if (hasSubmenu) {
             return (
@@ -181,32 +221,101 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser,
                 {/* Submenu items */}
                 {isSubmenuOpen && !isCollapsed && (
                   <div className="ml-4 mt-1 space-y-1 border-l-2 border-slate-100 pl-2 animate-slideDown">
-                    {item.submenu.map((subItem: any) => {
-                      const SubIcon = IconMap[subItem.icon];
-                      const isSubActive = activeTab === subItem.name;
-                      return (
-                        <button
-                          key={subItem.name}
-                          onClick={() => setActiveTab(subItem.name)}
-                          className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 relative group/sub ${
-                            isSubActive
-                              ? 'bg-gradient-to-r from-gov-50 to-transparent text-gov-700'
-                              : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:translate-x-1'
-                          }`}
-                        >
-                          {isSubActive && (
-                            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-gov-600 rounded-full" />
-                          )}
-                          <SubIcon 
-                            size={16} 
-                            className={`transition-all duration-200 flex-shrink-0 ${
-                              isSubActive ? 'text-gov-600' : 'text-slate-400 group-hover/sub:text-slate-600'
+                    {item.submenu
+                      .filter((subItem: any) => {
+                        if (item.name === 'Surat & Kegiatan') return true;
+                        const dbName = subItem.name === 'Monitoring Anggaran' ? 'Realisasi Anggaran' : subItem.name;
+                        return isModuleVisible(dbName);
+                      })
+                      .map((subItem: any) => {
+                        const SubIcon = IconMap[subItem.icon];
+                        const hasNestedSubmenu = subItem.submenu && subItem.submenu.length > 0;
+                        const isNestedActive = hasNestedSubmenu && subItem.submenu.some((nested: any) => activeTab === nested.name);
+                        const isNestedOpen = openNestedSubmenu === subItem.name;
+
+                        if (hasNestedSubmenu) {
+                          return (
+                            <div key={subItem.name} className="w-full">
+                              <button
+                                onClick={() => setOpenNestedSubmenu(isNestedOpen ? null : subItem.name)}
+                                className={`w-full flex items-center justify-between gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 relative group/sub ${
+                                  isNestedActive
+                                    ? 'bg-gradient-to-r from-gov-50 to-transparent text-gov-700 font-semibold'
+                                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                                }`}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <SubIcon 
+                                    size={16} 
+                                    className={`transition-all duration-200 flex-shrink-0 ${
+                                      isNestedActive ? 'text-gov-600' : 'text-slate-400 group-hover/sub:text-slate-600'
+                                    }`}
+                                  />
+                                  <span className="truncate">{subItem.name}</span>
+                                </div>
+                                <div className={`transition-transform duration-200 ${isNestedOpen ? 'rotate-0' : '-rotate-90'}`}>
+                                  <ChevronDown size={14} className="text-slate-400" />
+                                </div>
+                              </button>
+
+                              {isNestedOpen && (
+                                <div className="ml-4 mt-1 space-y-1 border-l border-slate-200 pl-2 animate-slideDown">
+                                  {subItem.submenu.map((nestedItem: any) => {
+                                    const NestedIcon = IconMap[nestedItem.icon];
+                                    const isNestedItemActive = activeTab === nestedItem.name;
+                                    return (
+                                      <button
+                                        key={nestedItem.name}
+                                        onClick={() => setActiveTab(nestedItem.name)}
+                                        className={`w-full flex items-center gap-3 px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 relative group/nested ${
+                                          isNestedItemActive
+                                            ? 'bg-gradient-to-r from-gov-50/50 to-transparent text-gov-700 font-semibold'
+                                            : 'text-slate-500 hover:bg-slate-50/80 hover:text-slate-800'
+                                        }`}
+                                      >
+                                        {isNestedItemActive && (
+                                          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-1 bg-gov-600 rounded-full" />
+                                        )}
+                                        <NestedIcon 
+                                          size={14} 
+                                          className={`transition-all duration-200 flex-shrink-0 ${
+                                            isNestedItemActive ? 'text-gov-600' : 'text-slate-400 group-hover/nested:text-slate-600'
+                                          }`}
+                                        />
+                                        <span className="truncate">{nestedItem.name}</span>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        }
+
+                        const isSubActive = activeTab === subItem.name;
+                        return (
+                          <button
+                            key={subItem.name}
+                            onClick={() => setActiveTab(subItem.name)}
+                            className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 relative group/sub ${
+                              isSubActive
+                                ? 'bg-gradient-to-r from-gov-50 to-transparent text-gov-700'
+                                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:translate-x-1'
                             }`}
-                          />
-                          <span className="truncate">{subItem.name}</span>
-                        </button>
-                      );
-                    })}
+                          >
+                            {isSubActive && (
+                              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-gov-600 rounded-full" />
+                            )}
+                            <SubIcon 
+                              size={16} 
+                              className={`transition-all duration-200 flex-shrink-0 ${
+                                isSubActive ? 'text-gov-600' : 'text-slate-400 group-hover/sub:text-slate-600'
+                              }`}
+                            />
+                            <span className="truncate">{subItem.name}</span>
+                          </button>
+                        );
+                      })}
                   </div>
                 )}
               </div>
@@ -546,6 +655,28 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser,
                         />
                         <span className="truncate">Riwayat Perubahan</span>
                       </button>
+
+                      {currentUser.role === 'Super Admin' && (
+                        <button
+                          onClick={() => setActiveTab('Manajemen Modul')}
+                          className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 relative group/sub ${
+                            activeTab === 'Manajemen Modul'
+                              ? 'bg-gradient-to-r from-indigo-50 to-transparent text-indigo-700'
+                              : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:translate-x-1'
+                          }`}
+                        >
+                          {activeTab === 'Manajemen Modul' && (
+                            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-indigo-600 rounded-full" />
+                          )}
+                          <Layers 
+                            size={16} 
+                            className={`transition-all duration-200 flex-shrink-0 ${
+                              activeTab === 'Manajemen Modul' ? 'text-indigo-600' : 'text-slate-400 group-hover/sub:text-slate-600'
+                            }`}
+                          />
+                          <span className="truncate">Manajemen Modul</span>
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>

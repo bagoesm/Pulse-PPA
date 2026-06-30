@@ -219,6 +219,7 @@ const TransactionList: React.FC<TransactionListProps> = ({
               <tr>
                 <th className="px-4 py-3">Tanggal</th>
                 <th className="px-3 py-3">KRO / RO</th>
+                <th className="px-3 py-3">Komp / Sub</th>
                 <th className="px-3 py-3">Akun</th>
                 <th className="px-4 py-3 min-w-[200px]">Uraian Penggunaan</th>
                 <th className="px-4 py-3 text-right">Nominal</th>
@@ -232,7 +233,7 @@ const TransactionList: React.FC<TransactionListProps> = ({
             <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
               {loading ? (
                 <tr>
-                  <td colSpan={isEditor ? 10 : 9} className="text-center py-20">
+                  <td colSpan={isEditor ? 11 : 10} className="text-center py-20">
                     <div className="flex justify-center mb-2">
                       <div className="w-6 h-6 border-2 border-slate-300 border-t-gov-600 rounded-full animate-spin"></div>
                     </div>
@@ -241,14 +242,14 @@ const TransactionList: React.FC<TransactionListProps> = ({
                 </tr>
               ) : paginatedTransactions.length === 0 ? (
                 <tr>
-                  <td colSpan={isEditor ? 10 : 9} className="text-center py-20 text-slate-400 text-sm">
+                  <td colSpan={isEditor ? 11 : 10} className="text-center py-20 text-slate-400 text-sm">
                     Tidak ditemukan log transaksi belanja satker.
                   </td>
                 </tr>
               ) : (
                 paginatedTransactions.map((t) => (
                   <tr key={t.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-4 py-3.5 whitespace-nowrap text-sm text-slate-600">
+                    <td className="px-4 py-3.5 whitespace-nowrap text-sm text-slate-600 font-medium">
                       {new Date(t.tanggal).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                     </td>
                     <td className="px-3 py-3.5">
@@ -256,6 +257,16 @@ const TransactionList: React.FC<TransactionListProps> = ({
                         <div>
                           <span className="block font-bold text-slate-700 text-sm">{t.master.kro}</span>
                           <span className="block text-xs text-slate-400 font-medium mt-0.5">{t.master.ro}</span>
+                        </div>
+                      ) : '-'}
+                    </td>
+                    <td className="px-3 py-3.5">
+                      {t.master ? (
+                        <div>
+                          <span className="block font-bold text-slate-700 text-sm">{t.master.komponen}</span>
+                          <span className="block text-xs text-slate-400 font-medium mt-0.5 truncate max-w-[120px]" title={t.master.namaKomponen}>
+                            {t.master.subkomponen || '-'}{t.master.namaKomponen ? ` - ${t.master.namaKomponen}` : ''}
+                          </span>
                         </div>
                       ) : '-'}
                     </td>

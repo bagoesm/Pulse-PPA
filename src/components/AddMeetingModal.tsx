@@ -470,15 +470,16 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
     // Kegiatan bisa dibuat tanpa surat, jadi validasi ini opsional
     // Tidak ada validasi wajib untuk surat
 
-    // Validate Disposisi when linking to existing Surat
-    // Requirements 4.1, 4.2, 9.1, 9.2, 9.3, 9.4, 9.5
+    // Validate Disposisi when linking to existing Surat (optional)
     if (selectedSuratForLinking) {
-      if (!disposisiText.trim()) {
-        showNotification('Disposisi Wajib', 'Mohon isi disposisi saat menghubungkan dengan surat.', 'warning');
-        return;
-      }
-      if (disposisiAssignees.length === 0) {
-        showNotification('Assignee Wajib', 'Mohon pilih minimal 1 assignee untuk disposisi.', 'warning');
+      const hasAssignees = disposisiAssignees.length > 0;
+      const hasText = disposisiText.trim() !== '';
+      if ((hasAssignees && !hasText) || (!hasAssignees && hasText)) {
+        showNotification(
+          'Disposisi Tidak Lengkap', 
+          'Mohon isi penerima (assignee) DAN instruksi disposisi jika ingin membuat disposisi, atau kosongkan keduanya jika tidak diperlukan.', 
+          'warning'
+        );
         return;
       }
     }
@@ -532,23 +533,55 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
 
       // If linking to existing Surat, create the link and Disposisi
       if (selectedSuratForLinking && !initialData && createdMeetingId) {
-        // Use LinkingService to create the link and Disposisi
-        const linkingService = new LinkingService();
-        try {
-          await linkingService.linkSuratToKegiatan(
-            selectedSuratForLinking.id,
-            createdMeetingId,
-            {
-              assignees: disposisiAssignees,
-              disposisiText: disposisiText,
-              deadline: disposisiDeadline || undefined,
-              createdBy: currentUser?.name || 'System'
-            }
-          );
-          showNotification('Berhasil', 'Kegiatan berhasil dibuat dan dihubungkan dengan surat', 'success');
-        } catch (linkError) {
-          console.error('Error linking Surat to Kegiatan:', linkError);
-          showNotification('Peringatan', 'Kegiatan berhasil dibuat, tetapi gagal menghubungkan dengan surat. Silakan hubungkan secara manual.', 'warning');
+        if (disposisiAssignees.length > 0 && disposisiText.trim() !== '') {
+          // Use LinkingService to create the link and Disposisi
+          const linkingService = new LinkingService();
+          try {
+            await linkingService.linkSuratToKegiatan(
+              selectedSuratForLinking.id,
+              createdMeetingId,
+              {
+                assignees: disposisiAssignees,
+                disposisiText: disposisiText,
+                deadline: disposisiDeadline || undefined,
+                createdBy: currentUser?.name || 'System'
+              }
+            );
+            showNotification('Berhasil', 'Kegiatan berhasil dibuat, dihubungkan dengan surat, dan disposisi dibuat.', 'success');
+          } catch (linkError) {
+            console.error('Error linking Surat to Kegiatan:', linkError);
+            showNotification('Peringatan', 'Kegiatan berhasil dibuat, tetapi gagal menghubungkan dengan surat. Silakan hubungkan secara manual.', 'warning');
+          }
+        } else {
+          // No disposisi, just update the references in meetings and surats directly!
+          try {
+            // 1. Update meeting with linkedSuratId
+            const { error: meetingUpdateError } = await supabase
+              .from('meetings')
+              .update({
+                linked_surat_id: selectedSuratForLinking.id,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', createdMeetingId);
+
+            if (meetingUpdateError) throw meetingUpdateError;
+
+            // 2. Update surat with meeting_id
+            const { error: suratUpdateError } = await supabase
+              .from('surats')
+              .update({
+                meeting_id: createdMeetingId,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', selectedSuratForLinking.id);
+
+            if (suratUpdateError) throw suratUpdateError;
+
+            showNotification('Berhasil', 'Kegiatan berhasil dibuat dan dihubungkan dengan surat (tanpa disposisi).', 'success');
+          } catch (linkError) {
+            console.error('Error linking Surat to Kegiatan without disposisi:', linkError);
+            showNotification('Peringatan', 'Kegiatan berhasil dibuat, tetapi gagal menghubungkan dengan surat.', 'warning');
+          }
         }
       } else if (selectedSuratForLinking && !initialData && !createdMeetingId) {
         showNotification('Peringatan', 'Kegiatan berhasil dibuat, tetapi gagal menghubungkan dengan surat. Silakan hubungkan secara manual.', 'warning');
@@ -1239,18 +1272,18 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
                 <div className="flex items-center gap-2 mb-2">
                   <Users size={18} className="text-green-700" />
                   <h3 className="text-sm font-bold text-green-900 uppercase tracking-wider">
-                    Buat Disposisi <span className="text-red-500">*</span>
+                    Buat Disposisi (Opsional)
                   </h3>
                 </div>
                 <p className="text-xs text-green-700 mb-3">
-                  Karena Anda menghubungkan kegiatan ini dengan surat yang ada, disposisi wajib dibuat untuk menugaskan PIC.
+                  Hubungkan kegiatan ini dengan surat, dan opsional buat disposisi untuk menugaskan PIC.
                 </p>
 
                 {/* Disposisi Assignees */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
                     <Users size={12} className="inline mr-1" />
-                    Assignee / Ditugaskan Kepada <span className="text-red-500">*</span>
+                    Assignee / Ditugaskan Kepada (Opsional)
                   </label>
                   <MultiSelectChip
                     options={users.map(u => ({ value: u.name, label: u.name }))}
@@ -1259,19 +1292,19 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
                     placeholder="Pilih user yang ditugaskan..."
                     maxVisibleChips={3}
                   />
-                  <p className="text-xs text-slate-500 mt-1">Pilih satu atau lebih user untuk ditugaskan</p>
+                  <p className="text-xs text-slate-500 mt-1">Pilih satu atau lebih user untuk ditugaskan (opsional)</p>
                 </div>
 
                 {/* Disposisi Text */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
-                    Instruksi Disposisi <span className="text-red-500">*</span>
+                    Instruksi Disposisi (Opsional)
                   </label>
                   <textarea
                     value={disposisiText}
                     onChange={(e) => setDisposisiText(e.target.value)}
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm resize-none"
-                    placeholder="Instruksi atau arahan terkait surat ini..."
+                    placeholder="Instruksi atau arahan terkait surat ini (opsional)..."
                     rows={3}
                   />
                 </div>

@@ -529,6 +529,115 @@ export const useTaskHandlers = ({
         setIsModalOpen(false);
     }, [editingTask, allUsers, currentUser, setTasks, setEditingTask, setIsModalOpen, setProjectRefreshTrigger, showNotification, logTaskActivity, logToActivityLogs, createAssignmentNotification, createMentionNotification]);
 
+    // Save multiple tasks (e.g. from AI generation)
+    const handleSaveMultipleTasks = useCallback(async (newTasksData: Omit<Task, 'id'>[]) => {
+        const { data: { session } } = await supabase.auth.getSession();
+        const userId = session?.user?.id;
+
+        if (!userId) {
+            showNotification('Login Diperlukan', 'Anda harus login untuk membuat task.', 'warning');
+            return;
+        }
+
+        if (newTasksData.length === 0) {
+            showNotification('Tidak ada Task', 'Tidak ada task untuk disimpan.', 'warning');
+            return;
+        }
+
+        const payloads = newTasksData.map(newTaskData => ({
+            title: newTaskData.title,
+            category_id: newTaskData.categoryId || null,
+            sub_category_id: newTaskData.subCategoryId || null,
+            start_date: newTaskData.startDate,
+            deadline: newTaskData.deadline,
+            pic: newTaskData.pic,
+            priority: newTaskData.priority,
+            status: newTaskData.status,
+            description: newTaskData.description,
+            project_id: newTaskData.projectId || null,
+            epic_id: newTaskData.epicId || null,
+            attachments: newTaskData.attachments || [],
+            links: newTaskData.links || [],
+            blocked_by: newTaskData.blockedBy || [],
+            checklists: newTaskData.checklists || [],
+            created_by_id: userId
+        }));
+
+        const { data, error } = await supabase
+            .from('tasks')
+            .insert(payloads)
+            .select('*, master_categories:category_id(name), master_sub_categories:sub_category_id(name)');
+
+        if (error) {
+            showNotification('Gagal Membuat Task', `Gagal membuat task: ${error.message}`, 'error');
+            return;
+        }
+
+        if (data && data.length > 0) {
+            const mappedTasks = data.map((taskData, index) => {
+                const newTaskData = newTasksData[index];
+                const createdByName = allUsers.find(u => u.id === taskData.created_by_id)?.name || currentUser?.name || 'Unknown';
+                
+                // Map PIC from UUID to names
+                let picNames: string[] = [];
+                if (Array.isArray(taskData.pic)) {
+                    picNames = taskData.pic.map((picItem: any) => {
+                        if (typeof picItem === 'string' && !picItem.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+                            return picItem;
+                        }
+                        const user = allUsers.find(u => u.id === picItem);
+                        return user ? user.name : picItem;
+                    });
+                } else if (typeof taskData.pic === 'string') {
+                    if (taskData.pic.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+                        const user = allUsers.find(u => u.id === taskData.pic);
+                        picNames = user ? [user.name] : [taskData.pic];
+                    } else {
+                        picNames = [taskData.pic];
+                    }
+                }
+
+                return {
+                    ...taskData,
+                    category: taskData.master_categories?.name || newTaskData.category || '',
+                    categoryId: taskData.category_id || null,
+                    subCategory: taskData.master_sub_categories?.name || taskData.sub_category || newTaskData.subCategory || '',
+                    subCategoryId: taskData.sub_category_id || null,
+                    startDate: taskData.start_date,
+                    projectId: taskData.project_id,
+                    epicId: taskData.epic_id,
+                    createdBy: createdByName,
+                    pic: picNames,
+                };
+            });
+
+            setTasks(prev => [...prev, ...mappedTasks]);
+
+            // Perform logging and notifications for each task
+            for (let i = 0; i < data.length; i++) {
+                const taskData = data[i];
+                const newTaskData = newTasksData[i];
+                
+                await logTaskActivity(taskData.id, 'created', undefined, newTaskData.title);
+                await logToActivityLogs('create', taskData.id, newTaskData.title, newTaskData.projectId);
+
+                const taskPics = Array.isArray(newTaskData.pic) ? newTaskData.pic : [newTaskData.pic];
+                await createAssignmentNotification(taskData.id, newTaskData.title, currentUser?.name || 'Unknown', taskPics, [], true);
+
+                if (newTaskData.description) {
+                    const mentionedNames = parseMentions(newTaskData.description, allUsers);
+                    if (mentionedNames.length > 0) {
+                        await createMentionNotification(taskData.id, newTaskData.title, currentUser?.name || 'Unknown', mentionedNames);
+                    }
+                }
+            }
+
+            setProjectRefreshTrigger(prev => prev + 1);
+            showNotification('Berhasil', `${data.length} task berhasil dibuat.`, 'success');
+            setIsModalOpen(false);
+        }
+    }, [allUsers, currentUser, setTasks, setIsModalOpen, setProjectRefreshTrigger, showNotification, logTaskActivity, logToActivityLogs, createAssignmentNotification, createMentionNotification]);
+
     // Delete task
     const handleDeleteTask = useCallback(async (id: string) => {
         const taskToDelete = tasks.find(t => t.id === id);
@@ -941,6 +1050,7 @@ export const useTaskHandlers = ({
         handleDragOver,
         handleDrop,
         handleSaveTask,
+        handleSaveMultipleTasks,
         handleDeleteTask,
         handleStatusChangeFromView,
         handleAddComment,

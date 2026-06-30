@@ -70,6 +70,8 @@ export interface User {
   sakuraAnimationEnabled?: boolean; // Setting untuk animasi bunga sakura
   snowAnimationEnabled?: boolean; // Setting untuk animasi salju
   moneyAnimationEnabled?: boolean; // Setting untuk animasi uang
+  flowerDecorationEnabled?: boolean; // Setting untuk dekorasi bunga (bunga.svg)
+  header_color?: string; // Warna header modal task detail untuk user ini
   profilePhoto?: string; // URL foto profil dari Supabase Storage
   profilePhotoPath?: string; // Path file di bucket
 }
@@ -108,6 +110,7 @@ export interface ProjectDefinition {
   targetLiveDate?: string; // ISO Date string - Target go-live date
   status?: ProjectStatus; // Project status
   pinnedLinks?: string[]; // Array of link IDs that are pinned
+  share_token?: string | null; // Token untuk berbagi ke publik
 }
 
 // Epic - Middle layer between Project and Task
@@ -195,6 +198,10 @@ export interface Task {
   checklists?: ChecklistItem[]; // Daftar checklist items
   subtaskCount?: number; // Jumlah subtask (denormalized for display)
   subtaskDoneCount?: number; // Jumlah subtask yang Done (denormalized for display)
+  created_at?: string;
+  updated_at?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 // Subtask - Mini-task di bawah Task (1 level saja, tidak bisa nested)
@@ -227,6 +234,7 @@ export interface FilterState {
   projectId: string | 'All';
   epicId: string | 'All';
   divisi: string | 'All'; // Filter by division
+  sortBy?: 'updated' | 'priority' | 'deadline' | 'title';
 }
 
 export interface Comment {
@@ -381,18 +389,26 @@ export const SIDEBAR_ITEMS = [
     ]
   },
   {
-    name: 'Realisasi Anggaran',
-    icon: 'FileSpreadsheet',
+    name: 'Informasi Lainnya',
+    icon: 'MoreHorizontal',
     submenu: [
-      { name: 'Dashboard Realisasi', icon: 'LayoutDashboard' },
-      { name: 'Monitoring Anggaran', icon: 'PieChart' },
-      { name: 'Daftar Transaksi', icon: 'ClipboardList' },
-      { name: 'Laporan Anggaran', icon: 'FileText' },
-      { name: 'Master Anggaran', icon: 'Database' },
+      { name: 'Inventori BMN', icon: 'Package' },
+      { name: 'Inventori Data', icon: 'Database' },
+      { name: 'Pelayanan Zoom', icon: 'Video' },
+      { name: 'Penilaian Arsip', icon: 'ClipboardCheck' },
+      {
+        name: 'Monitoring Anggaran',
+        icon: 'PieChart',
+        submenu: [
+          { name: 'Dashboard Realisasi', icon: 'LayoutDashboard' },
+          { name: 'Monitoring Anggaran', icon: 'PieChart' },
+          { name: 'Daftar Transaksi', icon: 'ClipboardList' },
+          { name: 'Laporan Anggaran', icon: 'FileText' },
+          { name: 'Master Anggaran', icon: 'Database' },
+        ]
+      }
     ]
-  },
-  { name: 'Inventori Data', icon: 'Database' },
-  { name: 'Inventori BMN', icon: 'Package' },
+  }
 ];
 
 // Disposisi - Disposition workflow for Surat-Kegiatan integration
@@ -595,6 +611,7 @@ export interface BMNItem {
   
   // Document Information
   nomorRegister?: string;       // Registration number
+  nup?: string;                 // Nomor Urut Pendaftaran (NUP)
   nomorSertifikat?: string;     // Certificate number
   tanggalSertifikat?: string;   // ISO Date - Certificate date
   
@@ -613,7 +630,40 @@ export interface BMNItem {
   createdAt: string;            // ISO Date - Creation timestamp
   updatedAt?: string;           // ISO Date - Last update timestamp
   uploadBatchId?: string;       // Reference to upload batch
+  
+  // Assignment Tracking
+  heldBy?: string | null;       // UUID references profiles(id)
+  holder?: {
+    id: string;
+    name: string;
+  } | null;
 }
+
+/**
+ * BMNEditor - Designates BMN edit permissions for specific Satkers
+ */
+export interface BMNEditor {
+  id: string;
+  userId: string;
+  namaSatker: string;
+  createdAt: string;
+  userName?: string;
+  userEmail?: string;
+}
+
+/**
+ * ArchiveEditor - Designates Archive edit permissions for specific Satkers (Divisions)
+ */
+export interface ArchiveEditor {
+  id: string;
+  userId: string;
+  divisiId: string;
+  createdAt: string;
+  userName?: string;
+  userEmail?: string;
+  namaDivisi?: string;
+}
+
 
 /**
  * BMNUploadHistory - Tracks BMN data upload operations
@@ -660,6 +710,7 @@ export interface BMNFilters {
   
   // Category filters
   jenisBMN?: string | 'All';    // Filter by BMN type
+  kodeBarang?: string | 'All';   // Filter by Kode Barang
   statusBMN?: BMNStatus | 'All'; // Filter by status
   kondisi?: BMNKondisi | 'All'; // Filter by condition
   namaSatker?: string | 'All';  // Filter by organizational unit
@@ -818,4 +869,106 @@ export interface BudgetTransaction {
   updatedAt?: string;
   master?: BudgetMaster;
 }
+
+// ============================================================================
+// Zoom Service & Module Visibility Types
+// ============================================================================
+
+export interface ZoomAccount {
+  id: string;
+  name: string;
+  email?: string;
+  password?: string;
+  kapasitas: number;
+  isActive: boolean;
+  divisi: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ZoomEditor {
+  id: string;
+  userId: string;
+  divisi: string;
+  createdAt: string;
+  userName?: string;
+  userEmail?: string;
+}
+
+export interface ZoomRoom {
+  id: string;
+  name: string;
+  createdAt: string;
+}
+
+export interface ZoomMeetingType {
+  id: string;
+  name: string;
+  createdAt: string;
+}
+
+export interface ZoomMeeting {
+  id: string;
+  zoomAccountId: string | null;
+  tanggal: string;
+  waktuMulai: string;
+  waktuSelesai: string;
+  kegiatan: string;
+  operatorId: string | null;
+  lokasi: string;
+  unitKerja: string;
+  jenisRapat: string;
+  status: 'Scheduled' | 'Completed' | 'Cancelled';
+  zoomLink?: string;
+  meetingId?: string;
+  passcode?: string;
+  undanganText?: string;
+  createdAt: string;
+  updatedAt: string;
+  zoomAccount?: ZoomAccount;
+  operator?: User;
+  operatorIds?: string[];
+}
+
+export interface ModuleVisibility {
+  id: string;
+  moduleName: string;
+  divisiId: string;
+  isVisible: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PenilaianArsip {
+  id?: string;
+  divisiId: string;
+  divisiName?: string;
+  tahun: number;
+  nilai_1_1: number;
+  nilai_1_2: number;
+  nilai_1_3: number;
+  nilai_1_4: number;
+  nilai_2_1: number;
+  nilai_2_2: number;
+  standar_1_1: number;
+  standar_1_2: number;
+  standar_1_3: number;
+  standar_1_4: number;
+  standar_2_1: number;
+  standar_2_2: number;
+  bobot_1_1: number;
+  bobot_1_2: number;
+  bobot_1_3: number;
+  bobot_1_4: number;
+  bobot_2_1: number;
+  bobot_2_2: number;
+  bobot_aspek_1: number;
+  bobot_aspek_2: number;
+  lakiLink?: string;
+  createdBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+
 

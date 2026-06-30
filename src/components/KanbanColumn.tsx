@@ -15,6 +15,7 @@ interface KanbanColumnProps {
   checkEditPermission: (task: Task) => boolean;
   users?: any[];
   subtasks?: any[]; // Allow subtasks to be passed down
+  sortBy?: 'updated' | 'priority' | 'deadline' | 'title';
 }
 
 const TASKS_PER_PAGE = 20;
@@ -32,28 +33,45 @@ const KanbanColumn: React.FC<KanbanColumnProps> = React.memo(({
   onTaskClick,
   onTaskShare,
   checkEditPermission,
-  subtasks = []
+  subtasks = [],
+  sortBy = 'updated'
 }) => {
   const [visibleTasks, setVisibleTasks] = useState<Task[]>([]);
   const [currentPage, setCurrentPage] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Sort tasks by priority and date
+  // Sort tasks based on selected sortBy criteria
   const sortedTasks = useMemo(() => {
     return [...tasks].sort((a, b) => {
-      // Priority order: Urgent > High > Medium > Low
-      const priorityOrder = { 'Urgent': 0, 'High': 1, 'Medium': 2, 'Low': 3 };
-      const aPriority = priorityOrder[a.priority as keyof typeof priorityOrder] ?? 4;
-      const bPriority = priorityOrder[b.priority as keyof typeof priorityOrder] ?? 4;
+      if (sortBy === 'priority') {
+        // Priority order: Urgent > High > Medium > Low
+        const priorityOrder = { 'Urgent': 0, 'High': 1, 'Medium': 2, 'Low': 3 };
+        const aPriority = priorityOrder[a.priority as keyof typeof priorityOrder] ?? 4;
+        const bPriority = priorityOrder[b.priority as keyof typeof priorityOrder] ?? 4;
 
-      if (aPriority !== bPriority) {
-        return aPriority - bPriority;
+        if (aPriority !== bPriority) {
+          return aPriority - bPriority;
+        }
+        // Fallback to deadline (earliest first)
+        return new Date(a.deadline || 0).getTime() - new Date(b.deadline || 0).getTime();
       }
 
-      // Then by deadline (earliest first)
-      return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+      if (sortBy === 'deadline') {
+        const aTime = a.deadline ? new Date(a.deadline).getTime() : Infinity;
+        const bTime = b.deadline ? new Date(b.deadline).getTime() : Infinity;
+        return aTime - bTime; // Earliest deadline first
+      }
+
+      if (sortBy === 'title') {
+        return (a.title || '').localeCompare(b.title || '');
+      }
+
+      // Default: 'updated' (Terbaru)
+      const aTime = new Date(a.updated_at || a.updatedAt || a.created_at || a.createdAt || a.startDate || 0).getTime();
+      const bTime = new Date(b.updated_at || b.updatedAt || b.created_at || b.createdAt || b.startDate || 0).getTime();
+      return bTime - aTime; // Newest first
     });
-  }, [tasks]);
+  }, [tasks, sortBy]);
 
   // Load initial tasks
   useEffect(() => {

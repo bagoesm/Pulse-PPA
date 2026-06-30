@@ -89,6 +89,14 @@ const BudgetMasterEditor: React.FC<BudgetMasterEditorProps> = ({
   // Excel importer state
   const [isImporting, setIsImporting] = useState<boolean>(false);
 
+  const selectedSumberDana = useMemo(() => {
+    return sumberDanaList.find(s => s.id === sumberDanaId);
+  }, [sumberDanaList, sumberDanaId]);
+
+  const isAPBN = useMemo(() => {
+    return selectedSumberDana ? selectedSumberDana.name.toUpperCase() === 'APBN' : true;
+  }, [selectedSumberDana]);
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(20);
@@ -194,9 +202,16 @@ const BudgetMasterEditor: React.FC<BudgetMasterEditorProps> = ({
     e.preventDefault();
     if (!isEditor) return;
 
-    if (!kro.trim() || !ro.trim() || !komponen.trim() || !akun.trim() || !detail.trim() || !pagu || !tahun) {
-      showNotification('Input Tidak Lengkap', 'Silakan isi kolom KRO, RO, Komponen, Akun, Detail Belanja, Pagu, dan Tahun.', 'warning');
-      return;
+    if (isAPBN) {
+      if (!kro.trim() || !ro.trim() || !komponen.trim() || !akun.trim() || !detail.trim() || !pagu || !tahun) {
+        showNotification('Input Tidak Lengkap', 'Silakan isi kolom KRO, RO, Komponen, Akun, Detail Belanja, Pagu, dan Tahun.', 'warning');
+        return;
+      }
+    } else {
+      if (!detail.trim() || !pagu || !tahun) {
+        showNotification('Input Tidak Lengkap', 'Silakan isi kolom Detail Belanja, Pagu, dan Tahun.', 'warning');
+        return;
+      }
     }
 
     setSaving(true);
@@ -205,19 +220,19 @@ const BudgetMasterEditor: React.FC<BudgetMasterEditorProps> = ({
         divisi: selectedDivisi,
         sumberDanaId,
         tahun: Number(tahun),
-        kegiatan,
-        namaKegiatan,
-        kro,
-        namaKro,
-        ro,
-        namaRo,
-        komponen,
-        namaKomponen,
-        subkomponen,
-        namaSubkomponen,
-        akun,
-        namaAkun,
-        detail,
+        kegiatan: kegiatan.trim(),
+        namaKegiatan: namaKegiatan.trim(),
+        kro: kro.trim(),
+        namaKro: namaKro.trim(),
+        ro: ro.trim(),
+        namaRo: namaRo.trim(),
+        komponen: komponen.trim(),
+        namaKomponen: namaKomponen.trim(),
+        subkomponen: subkomponen.trim(),
+        namaSubkomponen: namaSubkomponen.trim(),
+        akun: akun.trim(),
+        namaAkun: namaAkun.trim(),
+        detail: detail.trim(),
         pagu: Number(pagu),
         createdBy: currentUser.name
       };
@@ -373,11 +388,6 @@ const BudgetMasterEditor: React.FC<BudgetMasterEditorProps> = ({
           const excelSdName = String(row['Sumber Dana'] || 'APBN').trim();
           const excelTahun = Number(row['Tahun'] || selectedTahun);
 
-          if (!excelKro || !excelRo || !excelKomponen || !excelAkun || !excelDetail) {
-            failCount++;
-            continue;
-          }
-
           // Lookup Sumber Dana ID by name
           let sd = sumberDanaList.find(s => s.name.toLowerCase() === excelSdName.toLowerCase());
           if (!sd && sumberDanaList.length > 0) {
@@ -387,6 +397,20 @@ const BudgetMasterEditor: React.FC<BudgetMasterEditorProps> = ({
           if (!sd) {
             failCount++;
             continue;
+          }
+
+          const excelIsAPBN = sd.name.toUpperCase() === 'APBN';
+
+          if (excelIsAPBN) {
+            if (!excelKro || !excelRo || !excelKomponen || !excelAkun || !excelDetail) {
+              failCount++;
+              continue;
+            }
+          } else {
+            if (!excelDetail) {
+              failCount++;
+              continue;
+            }
           }
 
           await budgetService.createBudgetMaster({
@@ -579,7 +603,13 @@ const BudgetMasterEditor: React.FC<BudgetMasterEditorProps> = ({
                     </tr>
                   ) : (
                     paginatedMasters.map((m, index) => {
-                      const kodeLengkap = `${m.kro}.${m.ro.toString().padStart(3, '0')}.${m.komponen.toString().padStart(3, '0')}.${m.subkomponen || '0'}.${m.akun}`;
+                      const isItemAPBN = m.sumberDana ? m.sumberDana.name.toUpperCase() === 'APBN' : true;
+                      const hasCodes = m.kro || m.ro || m.komponen || m.akun;
+                      const kodeLengkap = isItemAPBN
+                        ? `${m.kro}.${m.ro.toString().padStart(3, '0')}.${m.komponen.toString().padStart(3, '0')}.${m.subkomponen || '0'}.${m.akun}`
+                        : hasCodes
+                          ? `${m.kro || '-'}.${m.ro || '-'}.${m.komponen || '-'}.${m.subkomponen || '0'}.${m.akun || '-'}`
+                          : '-';
                       return (
                         <tr key={m.id} className="hover:bg-slate-50/50 transition-colors">
                           <td className="px-4 py-3.5 text-slate-400 font-bold">{startIndex + index + 1}</td>
@@ -932,14 +962,14 @@ const BudgetMasterEditor: React.FC<BudgetMasterEditorProps> = ({
               {/* Row 3: KRO & Nama KRO */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-slate-500 font-bold">Kode KRO (Klasifikasi Rincian Output) *</label>
+                  <label className="text-slate-500 font-bold">Kode KRO (Klasifikasi Rincian Output) {isAPBN && '*'}</label>
                   <input
                     type="text"
                     placeholder="e.g. EBA"
                     value={kro}
                     onChange={(e) => setKro(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gov-300 focus:bg-white"
-                    required
+                    required={isAPBN}
                   />
                 </div>
                 <div className="space-y-1">
@@ -957,14 +987,14 @@ const BudgetMasterEditor: React.FC<BudgetMasterEditorProps> = ({
               {/* Row 4: RO & Nama RO */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-slate-500 font-bold">Kode RO (Rincian Output) *</label>
+                  <label className="text-slate-500 font-bold">Kode RO (Rincian Output) {isAPBN && '*'}</label>
                   <input
                     type="text"
                     placeholder="e.g. 994"
                     value={ro}
                     onChange={(e) => setRo(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gov-300 focus:bg-white"
-                    required
+                    required={isAPBN}
                   />
                 </div>
                 <div className="space-y-1">
@@ -982,14 +1012,14 @@ const BudgetMasterEditor: React.FC<BudgetMasterEditorProps> = ({
               {/* Row 5: Komponen & Nama Komponen */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-slate-500 font-bold">Kode Komponen *</label>
+                  <label className="text-slate-500 font-bold">Kode Komponen {isAPBN && '*'}</label>
                   <input
                     type="text"
                     placeholder="e.g. 001"
                     value={komponen}
                     onChange={(e) => setKomponen(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gov-300 focus:bg-white"
-                    required
+                    required={isAPBN}
                   />
                 </div>
                 <div className="space-y-1">
@@ -1031,14 +1061,14 @@ const BudgetMasterEditor: React.FC<BudgetMasterEditorProps> = ({
               {/* Row 7: Akun & Nama Akun */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-slate-500 font-bold">Kode Akun *</label>
+                  <label className="text-slate-500 font-bold">Kode Akun {isAPBN && '*'}</label>
                   <input
                     type="text"
                     placeholder="e.g. 521211"
                     value={akun}
                     onChange={(e) => setAkun(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gov-300 focus:bg-white"
-                    required
+                    required={isAPBN}
                   />
                 </div>
                 <div className="space-y-1">

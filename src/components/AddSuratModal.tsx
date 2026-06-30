@@ -219,35 +219,8 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
     if (!file) return;
 
     setIsExtracting(true);
-    setIsUploading(true);
     
-    let uploadedFilePath: string | null = null;
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-      const filePath = `${fileName}`;
-      uploadedFilePath = filePath;
-
-      const { error: uploadError } = await supabase.storage
-        .from('attachment')
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('attachment')
-        .getPublicUrl(filePath);
-
-      setSuratFile({
-        id: `file_${Date.now()}`,
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        path: filePath,
-        url: publicUrl,
-        isLink: false
-      });
-
       let extractedData: any;
       try {
         extractedData = await aiExtractorService.extractSuratData(file, {
@@ -281,15 +254,9 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
       
       showNotification('Ekstraksi Selesai', 'Data berhasil dianalisis dengan AI Gemini, silakan review.', 'success');
     } catch (error: any) {
-      if (uploadedFilePath) {
-        try {
-          await supabase.storage.from('attachment').remove([uploadedFilePath]);
-        } catch (cleanupError) {}
-      }
       showNotification('Gagal Smart Upload', error.message, 'error');
     } finally {
       setIsExtracting(false);
-      setIsUploading(false);
     }
   };
 
@@ -388,12 +355,14 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
 
     // Validate Disposisi when linking to Kegiatan (existing)
     if (linkToKegiatan && kegiatanMode === 'existing' && selectedKegiatan) {
-      if (!disposisiText.trim()) {
-        showNotification('Disposisi Wajib Diisi', 'Disposisi harus diisi saat menghubungkan Surat dengan Kegiatan', 'warning');
-        return;
-      }
-      if (selectedAssignees.length === 0) {
-        showNotification('Assignee Belum Dipilih', 'Pilih minimal satu assignee untuk Disposisi', 'warning');
+      const hasAssignees = selectedAssignees.length > 0;
+      const hasText = disposisiText.trim() !== '';
+      if ((hasAssignees && !hasText) || (!hasAssignees && hasText)) {
+        showNotification(
+          'Disposisi Tidak Lengkap', 
+          'Mohon isi penerima (assignee) DAN instruksi disposisi jika ingin membuat disposisi, atau kosongkan keduanya jika tidak diperlukan.', 
+          'warning'
+        );
         return;
       }
     }
@@ -419,12 +388,15 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
           return;
         }
       }
-      if (!disposisiText.trim()) {
-        showNotification('Disposisi Wajib Diisi', 'Disposisi harus diisi saat membuat Kegiatan baru', 'warning');
-        return;
-      }
-      if (selectedAssignees.length === 0) {
-        showNotification('Assignee Belum Dipilih', 'Pilih minimal satu assignee untuk Disposisi (akan menjadi PIC)', 'warning');
+      
+      const hasAssignees = selectedAssignees.length > 0;
+      const hasText = disposisiText.trim() !== '';
+      if ((hasAssignees && !hasText) || (!hasAssignees && hasText)) {
+        showNotification(
+          'Disposisi Tidak Lengkap', 
+          'Mohon isi penerima (assignee) DAN instruksi disposisi jika ingin membuat disposisi, atau kosongkan keduanya jika tidak diperlukan.', 
+          'warning'
+        );
         return;
       }
     }
@@ -502,25 +474,32 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
 
           if (updateError) throw updateError;
 
-          // Create Disposisi via service (ensures validation, audit trail, and notifications)
-          await disposisiService.createMultiUserDisposisi(
-            suratData.id,
-            selectedKegiatan.id,
-            selectedAssignees,
-            disposisiText,
-            currentUser?.id || currentUserName,
-            currentUser,
-            disposisiDeadline || undefined,
-            currentUser?.name || currentUserName,
-            nomorSurat,
-            selectedKegiatan.title
-          );
-
-          showNotification(
-            'Surat & Link Berhasil Dibuat',
-            `Surat ${nomorSurat} berhasil dibuat dan dihubungkan dengan Kegiatan "${selectedKegiatan.title}"`,
-            'success'
-          );
+          // Create Disposisi via service (ensures validation, audit trail, and notifications) ONLY if provided
+          if (selectedAssignees.length > 0 && disposisiText.trim() !== '') {
+            await disposisiService.createMultiUserDisposisi(
+              suratData.id,
+              selectedKegiatan.id,
+              selectedAssignees,
+              disposisiText,
+              currentUser?.id || currentUserName,
+              currentUser,
+              disposisiDeadline || undefined,
+              currentUser?.name || currentUserName,
+              nomorSurat,
+              selectedKegiatan.title
+            );
+            showNotification(
+              'Surat & Link Berhasil Dibuat',
+              `Surat ${nomorSurat} berhasil dibuat, dihubungkan dengan Kegiatan "${selectedKegiatan.title}", dan disposisi dikirim.`,
+              'success'
+            );
+          } else {
+            showNotification(
+              'Surat & Link Berhasil Dibuat',
+              `Surat ${nomorSurat} berhasil dibuat dan dihubungkan dengan Kegiatan "${selectedKegiatan.title}" (tanpa disposisi)`,
+              'success'
+            );
+          }
         } catch (linkError: any) {
           console.error('Error linking to Kegiatan:', linkError);
           showNotification(
@@ -581,25 +560,32 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
             .update({ meeting_id: meetingData.id, updated_at: new Date().toISOString() })
             .eq('id', suratData.id);
 
-          // Create Disposisi via service (ensures validation, audit trail, and notifications)
-          await disposisiService.createMultiUserDisposisi(
-            suratData.id,
-            meetingData.id,
-            selectedAssignees,
-            disposisiText,
-            currentUser?.id || currentUserName,
-            currentUser,
-            disposisiDeadline || undefined,
-            currentUser?.name || currentUserName,
-            nomorSurat,
-            newKegiatanTitle
-          );
-
-          showNotification(
-            'Surat & Kegiatan Berhasil Dibuat',
-            `Surat ${nomorSurat} dan Kegiatan "${newKegiatanTitle}" berhasil dibuat dengan ${selectedAssignees.length} disposisi`,
-            'success'
-          );
+          // Create Disposisi via service (ensures validation, audit trail, and notifications) ONLY if provided
+          if (selectedAssignees.length > 0 && disposisiText.trim() !== '') {
+            await disposisiService.createMultiUserDisposisi(
+              suratData.id,
+              meetingData.id,
+              selectedAssignees,
+              disposisiText,
+              currentUser?.id || currentUserName,
+              currentUser,
+              disposisiDeadline || undefined,
+              currentUser?.name || currentUserName,
+              nomorSurat,
+              newKegiatanTitle
+            );
+            showNotification(
+              'Surat & Kegiatan Berhasil Dibuat',
+              `Surat ${nomorSurat} dan Kegiatan "${newKegiatanTitle}" berhasil dibuat dengan ${selectedAssignees.length} disposisi`,
+              'success'
+            );
+          } else {
+            showNotification(
+              'Surat & Kegiatan Berhasil Dibuat',
+              `Surat ${nomorSurat} dan Kegiatan "${newKegiatanTitle}" berhasil dibuat (tanpa disposisi)`,
+              'success'
+            );
+          }
         } catch (createError: any) {
           console.error('Error creating new Kegiatan:', createError);
           const errorMessage = createError?.message || createError?.error_description || JSON.stringify(createError);
@@ -1392,7 +1378,7 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
               <p className="text-xs text-blue-800">
                 <strong>Info:</strong> Hubungkan surat dengan Kegiatan (existing atau buat baru).
-                Jika dihubungkan, Anda wajib mengisi Disposisi. User yang didisposisi akan otomatis menjadi PIC.
+                Anda dapat mengisi Disposisi secara opsional. User yang didisposisi akan otomatis menjadi PIC.
               </p>
             </div>
 
@@ -1540,24 +1526,24 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
                       </div>
                     )}
 
-                    {/* Disposisi Form (Required when linking) */}
+                    {/* Disposisi Form (Opsional) */}
                     {selectedKegiatan && (
                       <div className="space-y-4 pt-4 border-t border-slate-300">
                         <h5 className="text-sm font-bold text-slate-700">
-                          Disposisi <span className="text-red-500">*</span>
+                          Disposisi (Opsional)
                         </h5>
 
                         {/* Disposisi Text */}
                         <div>
                           <label className="block text-sm font-semibold text-slate-700 mb-2">
-                            Isi Disposisi <span className="text-red-500">*</span>
+                            Isi Disposisi
                           </label>
                           <textarea
                             value={disposisiText}
                             onChange={(e) => setDisposisiText(e.target.value)}
                             rows={3}
                             className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 focus:border-gov-400 outline-none resize-none"
-                            placeholder="Instruksi atau arahan terkait surat dan kegiatan ini..."
+                            placeholder="Instruksi atau arahan terkait surat dan kegiatan ini (opsional)..."
                           />
                         </div>
 
@@ -1569,7 +1555,7 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
                             value={selectedAssignees}
                             onChange={setSelectedAssignees}
                             placeholder="Pilih assignee untuk disposisi..."
-                            label="Ditugaskan Kepada *"
+                            label="Ditugaskan Kepada (Opsional)"
                             maxVisibleChips={5}
                           />
                         </div>
@@ -1710,23 +1696,23 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
                       )}
                     </div>
 
-                    {/* Disposisi Form for New Kegiatan */}
+                    {/* Disposisi Form for New Kegiatan (Opsional) */}
                     <div className="space-y-4 pt-4 border-t border-slate-300">
                       <h5 className="text-sm font-bold text-slate-700">
-                        Disposisi <span className="text-red-500">*</span>
+                        Disposisi (Opsional)
                       </h5>
 
                       {/* Disposisi Text */}
                       <div>
                         <label className="block text-sm font-semibold text-slate-700 mb-2">
-                          Isi Disposisi <span className="text-red-500">*</span>
+                          Isi Disposisi
                         </label>
                         <textarea
                           value={disposisiText}
                           onChange={(e) => setDisposisiText(e.target.value)}
                           rows={3}
                           className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 focus:border-gov-400 outline-none resize-none"
-                          placeholder="Instruksi atau arahan terkait surat dan kegiatan ini..."
+                          placeholder="Instruksi atau arahan terkait surat dan kegiatan ini (opsional)..."
                         />
                       </div>
 
@@ -1738,7 +1724,7 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
                           value={selectedAssignees}
                           onChange={setSelectedAssignees}
                           placeholder="Pilih assignee untuk disposisi..."
-                          label="Ditugaskan Kepada (akan menjadi PIC) *"
+                          label="Ditugaskan Kepada (opsional, akan menjadi PIC)"
                           maxVisibleChips={5}
                         />
                       </div>

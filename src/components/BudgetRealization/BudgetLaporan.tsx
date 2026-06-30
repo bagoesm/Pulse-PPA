@@ -282,6 +282,8 @@ const BudgetLaporan: React.FC<BudgetLaporanProps> = ({
                 <th className="px-3 py-3">Sumber Dana</th>
                 <th className="px-3 py-3">KRO</th>
                 <th className="px-3 py-3">RO</th>
+                <th className="px-3 py-3">Komponen</th>
+                <th className="px-3 py-3">Subkomponen</th>
                 <th className="px-4 py-3 min-w-[220px]">Detail Uraian Penggunaan</th>
                 <th className="px-3 py-3 text-center">Status</th>
                 <th className="px-4 py-3 text-right">Nominal</th>
@@ -290,13 +292,13 @@ const BudgetLaporan: React.FC<BudgetLaporanProps> = ({
             <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-20 text-slate-400 text-sm">
+                  <td colSpan={9} className="text-center py-20 text-slate-400 text-sm">
                     Memproses laporan...
                   </td>
                 </tr>
               ) : paginatedReportData.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-20 text-slate-400 text-sm">
+                  <td colSpan={9} className="text-center py-20 text-slate-400 text-sm">
                     Tidak ditemukan data realisasi yang cocok dengan filter tanggal/KRO.
                   </td>
                 </tr>
@@ -311,6 +313,14 @@ const BudgetLaporan: React.FC<BudgetLaporanProps> = ({
                     </td>
                     <td className="px-3 py-3.5 text-sm">{item.master?.kro}</td>
                     <td className="px-3 py-3.5 text-sm">{item.master?.ro}</td>
+                    <td className="px-3 py-3.5 text-sm">
+                      <span className="block font-bold">{item.master?.komponen}</span>
+                      {item.master?.namaKomponen && <span className="block text-[10px] text-slate-400 font-medium truncate max-w-[120px]" title={item.master.namaKomponen}>{item.master.namaKomponen}</span>}
+                    </td>
+                    <td className="px-3 py-3.5 text-sm">
+                      <span className="block font-bold">{item.master?.subkomponen || '-'}</span>
+                      {item.master?.namaSubkomponen && <span className="block text-[10px] text-slate-400 font-medium truncate max-w-[120px]" title={item.master.namaSubkomponen}>{item.master.namaSubkomponen}</span>}
+                    </td>
                     <td className="px-4 py-3.5 font-medium break-words">
                       <div>
                         <span className="block font-bold text-slate-800 text-sm">
@@ -339,19 +349,19 @@ const BudgetLaporan: React.FC<BudgetLaporanProps> = ({
             </tbody>
             <tfoot className="bg-slate-50 border-t border-slate-200 text-xs font-extrabold text-slate-800">
               <tr>
-                <td colSpan={6} className="px-4 py-2 uppercase text-left">Total Realisasi (Terbayar)</td>
+                <td colSpan={8} className="px-4 py-2 uppercase text-left">Total Realisasi (Terbayar)</td>
                 <td className="px-4 py-2 text-right text-emerald-600 font-black text-sm">
                   {formatCurrency(reportTotals.realisasi)}
                 </td>
               </tr>
               <tr>
-                <td colSpan={6} className="px-4 py-2 uppercase text-left">Total Outstanding (Belum Terbayar)</td>
+                <td colSpan={8} className="px-4 py-2 uppercase text-left">Total Outstanding (Belum Terbayar)</td>
                 <td className="px-4 py-2 text-right text-amber-600 font-black text-sm">
                   {formatCurrency(reportTotals.outstanding)}
                 </td>
               </tr>
-              <tr className="border-t border-slate-200 bg-slate-100">
-                <td colSpan={6} className="px-4 py-3.5 uppercase text-left">Total Akumulasi Belanja</td>
+              <tr>
+                <td colSpan={8} className="px-4 py-2 uppercase text-left">Total Anggaran Belanja</td>
                 <td className="px-4 py-3.5 text-right text-slate-900 font-black text-sm">
                   {formatCurrency(reportTotals.total)}
                 </td>

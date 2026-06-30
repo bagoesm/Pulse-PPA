@@ -1,10 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { X, FileText, Download, AlertCircle, CheckCircle, Eye } from 'lucide-react';
+import { X, FileText, Download, AlertCircle, CheckCircle, Eye, Trash2, Upload } from 'lucide-react';
 import { SURAT_TEMPLATES, SuratTemplate, SuratTemplateField, SuratTemplateType } from '../types/suratOtomatis';
 import { SuratOtomatisService } from '../services/SuratOtomatisService';
 import { useAuth } from '../contexts/AuthContext';
 import { useUsers } from '../contexts/UsersContext';
 import SearchableSelect from './SearchableSelect';
+
+interface PartnerLogo {
+  id: string;
+  base64: string;
+  aspect: number;
+  format: string;
+  name: string;
+}
 
 interface SuratOtomatisModalProps {
   isOpen: boolean;
@@ -22,6 +30,7 @@ export const SuratOtomatisModal: React.FC<SuratOtomatisModalProps> = ({ isOpen, 
   const [showPreview, setShowPreview] = useState(false);
   const [previewContent, setPreviewContent] = useState<string>('');
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+  const [logos, setLogos] = useState<PartnerLogo[]>([]);
 
   // Get users by role
   const atasanUsers = allUsers.filter(u => u.role === 'Atasan');
@@ -33,6 +42,7 @@ export const SuratOtomatisModal: React.FC<SuratOtomatisModalProps> = ({ isOpen, 
       setSelectedTemplate(null);
       setFormData({});
       setErrors([]);
+      setLogos([]);
       setSuccessMessage('');
       setShowPreview(false);
       setPreviewContent('');
@@ -106,6 +116,62 @@ export const SuratOtomatisModal: React.FC<SuratOtomatisModalProps> = ({ isOpen, 
     }
   };
 
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    const newLogosCount = files.length;
+    if (logos.length + newLogosCount > 3) {
+      setErrors(['Maksimal 3 logo partner yang dapat diunggah']);
+      return;
+    }
+
+    Array.from(files).forEach(file => {
+      if (!file.type.startsWith('image/')) {
+        setErrors(['File harus berupa gambar']);
+        return;
+      }
+
+      if (file.size > 2 * 1024 * 1024) {
+        setErrors(['Ukuran file tidak boleh lebih dari 2MB']);
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const base64 = event.target?.result as string;
+        
+        let format = 'PNG';
+        if (file.type === 'image/jpeg' || file.type === 'image/jpg') {
+          format = 'JPEG';
+        } else if (file.type === 'image/webp') {
+          format = 'WEBP';
+        }
+
+        const img = new Image();
+        img.onload = () => {
+          const aspect = img.width / img.height;
+          setLogos(prev => [
+            ...prev,
+            {
+              id: Math.random().toString(36).substring(2, 9),
+              base64,
+              aspect,
+              format,
+              name: file.name
+            }
+          ]);
+        };
+        img.src = base64;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleRemoveLogo = (id: string) => {
+    setLogos(prev => prev.filter(logo => logo.id !== id));
+  };
+
   const handlePreview = async () => {
     if (!selectedTemplate) return;
 
@@ -129,12 +195,16 @@ export const SuratOtomatisModal: React.FC<SuratOtomatisModalProps> = ({ isOpen, 
         return;
       }
 
-      const preview = await SuratOtomatisService.generatePreview(
-        selectedTemplate.id,
-        formData
-      );
-      setPreviewContent(preview);
-      setShowPreview(true);
+      if (selectedTemplate.id === 'daftar-hadir') {
+        setShowPreview(true);
+      } else {
+        const preview = await SuratOtomatisService.generatePreview(
+          selectedTemplate.id,
+          formData
+        );
+        setPreviewContent(preview);
+        setShowPreview(true);
+      }
     } catch (error: any) {
       setErrors([error.message || 'Gagal membuat preview. Silakan coba lagi.']);
     } finally {
@@ -166,20 +236,24 @@ export const SuratOtomatisModal: React.FC<SuratOtomatisModalProps> = ({ isOpen, 
     setIsGenerating(true);
 
     try {
-      await SuratOtomatisService.generateSurat(
-        selectedTemplate.id,
-        formData
-      );
-
-      setSuccessMessage('Surat berhasil dibuat dan diunduh!');
+      if (selectedTemplate.id === 'daftar-hadir') {
+        await SuratOtomatisService.generateDaftarHadirPDF(formData, logos);
+        setSuccessMessage('Daftar hadir berhasil dibuat dan diunduh!');
+      } else {
+        await SuratOtomatisService.generateSurat(
+          selectedTemplate.id,
+          formData
+        );
+        setSuccessMessage('Surat berhasil dibuat dan diunduh!');
+      }
       
-      // Reset form after 2 seconds
+      // Clear success message after 4 seconds (without closing the modal)
       setTimeout(() => {
-        onClose();
-      }, 2000);
+        setSuccessMessage('');
+      }, 4000);
 
     } catch (error: any) {
-      setErrors([error.message || 'Gagal membuat surat. Silakan coba lagi.']);
+      setErrors([error.message || 'Gagal membuat dokumen. Silakan coba lagi.']);
     } finally {
       setIsGenerating(false);
     }
@@ -236,6 +310,71 @@ export const SuratOtomatisModal: React.FC<SuratOtomatisModalProps> = ({ isOpen, 
             className={baseInputClass}
           />
         );
+
+      case 'multi-date': {
+        const dates = value ? String(value).split(',') : [new Date().toISOString().split('T')[0]];
+        
+        const updateDates = (newDates: string[]) => {
+          handleFieldChange(field.id, newDates.filter(Boolean).join(','));
+        };
+
+        const handleDateChange = (idx: number, val: string) => {
+          const updated = [...dates];
+          updated[idx] = val;
+          updateDates(updated);
+        };
+
+        const addDateRow = () => {
+          const today = new Date().toISOString().split('T')[0];
+          updateDates([...dates, today]);
+        };
+
+        const removeDateRow = (idx: number) => {
+          if (dates.length <= 1) return;
+          const updated = dates.filter((_, i) => i !== idx);
+          updateDates(updated);
+        };
+
+        return (
+          <div className="space-y-2">
+            {dates.map((dateVal, idx) => (
+              <div key={idx} className="flex items-center gap-2">
+                <input
+                  type="date"
+                  value={dateVal}
+                  onChange={(e) => handleDateChange(idx, e.target.value)}
+                  readOnly={field.readOnly}
+                  className={`${baseInputClass} flex-1`}
+                />
+                {!field.readOnly && dates.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeDateRow(idx)}
+                    className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors border border-red-200"
+                    title="Hapus tanggal"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+            ))}
+            {!field.readOnly && (
+              <button
+                type="button"
+                onClick={addDateRow}
+                className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-3 py-1.5 rounded-lg border border-dashed border-blue-300 transition-colors mt-1 font-semibold"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                </svg>
+                Tambah Tanggal
+              </button>
+            )}
+          </div>
+        );
+      }
 
       case 'time':
         return (
@@ -306,7 +445,7 @@ export const SuratOtomatisModal: React.FC<SuratOtomatisModalProps> = ({ isOpen, 
               </div>
               <div>
                 <h2 className="text-xl font-semibold text-gray-900">
-                  Preview Surat
+                  Preview Dokumen
                 </h2>
                 <p className="text-sm text-gray-500">
                   {selectedTemplate?.name}
@@ -323,108 +462,229 @@ export const SuratOtomatisModal: React.FC<SuratOtomatisModalProps> = ({ isOpen, 
 
           {/* Preview Content - Document Style */}
           <div className="flex-1 overflow-y-auto p-6 bg-gray-100">
-            <div className="max-w-[210mm] mx-auto bg-white shadow-lg" style={{ minHeight: '297mm' }}>
-              {/* A4 Paper Simulation */}
-              <div className="p-12" style={{ fontFamily: 'Times New Roman, serif' }}>
-                {/* Header Kementerian */}
-                <div className="text-center mb-8 border-b-2 border-black pb-4">
-                  <div className="font-bold text-lg mb-1">KEMENTERIAN PEMBERDAYAAN PEREMPUAN</div>
-                  <div className="font-bold text-lg mb-1">DAN PERLINDUNGAN ANAK</div>
-                  <div className="font-bold text-lg">REPUBLIK INDONESIA</div>
-                </div>
+            <div 
+              className="mx-auto bg-white shadow-lg" 
+              style={{ 
+                maxWidth: selectedTemplate?.id === 'daftar-hadir' ? '297mm' : '210mm',
+                minHeight: selectedTemplate?.id === 'daftar-hadir' ? '210mm' : '297mm'
+              }}
+            >
+              {selectedTemplate?.id === 'daftar-hadir' ? (
+                /* CUSTOM PREVIEW FOR DAFTAR HADIR */
+                <div className="p-10" style={{ fontFamily: 'Arial, sans-serif' }}>
+                  {/* Header */}
+                  <div className="relative flex justify-between items-center pb-4 mb-6" style={{ minHeight: '90px' }}>
+                    {/* Left: KPPPA Logo */}
+                    <div className="w-16 h-16 flex items-center justify-start">
+                      <img src="/Logo.svg" alt="Logo KPPPA" className="max-w-full max-h-full object-contain" />
+                    </div>
 
-                {/* Title */}
-                <div className="text-center mb-6">
-                  <div className="font-bold text-xl mb-2">SURAT KETERANGAN</div>
-                  <div className="text-sm">Nomor: ${'{nomor_naskah}'}</div>
-                </div>
+                    {/* Center: Title & Details */}
+                    <div className="flex-1 text-center px-4">
+                      <h1 className="font-bold text-sm leading-tight text-black m-0 mb-1">
+                        DAFTAR HADIR {String(formData.tipe_daftar_hadir || 'PESERTA').toUpperCase()}
+                      </h1>
+                      <h2 className="font-bold text-sm leading-tight text-black m-0 mb-1 whitespace-pre-wrap">
+                        {String(formData.nama_kegiatan || 'NAMA KEGIATAN').toUpperCase()}
+                      </h2>
+                      <p className="font-bold text-sm leading-tight text-black m-0">
+                        {formData.tempat_kegiatan ? `${formData.tempat_kegiatan.toString().toUpperCase()}, ` : ''}
+                        {formData.tanggal_kegiatan 
+                          ? SuratOtomatisService.formatMultipleDates(formData.tanggal_kegiatan.toString()).toUpperCase()
+                          : 'TANGGAL KEGIATAN'}
+                      </p>
+                    </div>
 
-                {/* Content */}
-                <div className="space-y-4 text-justify leading-relaxed">
-                  <p className="mb-4">Yang bertanda tangan di bawah ini:</p>
-                  
-                  <table className="w-full mb-4">
-                    <tbody>
-                      <tr>
-                        <td className="py-1 align-top" style={{ width: '30%' }}>Nama</td>
-                        <td className="py-1 align-top" style={{ width: '5%' }}>:</td>
-                        <td className="py-1 align-top">{formData.penandatangan_nama || '-'}</td>
-                      </tr>
-                      <tr>
-                        <td className="py-1 align-top">NIP</td>
-                        <td className="py-1 align-top">:</td>
-                        <td className="py-1 align-top">{formData.penandatangan_nip || '-'}</td>
-                      </tr>
-                      <tr>
-                        <td className="py-1 align-top">Jabatan</td>
-                        <td className="py-1 align-top">:</td>
-                        <td className="py-1 align-top">{formData.penandatangan_jabatan || '-'}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-
-                  <p className="mb-4">Dengan ini menerangkan bahwa:</p>
-
-                  <table className="w-full mb-4">
-                    <tbody>
-                      <tr>
-                        <td className="py-1 align-top" style={{ width: '30%' }}>Nama</td>
-                        <td className="py-1 align-top" style={{ width: '5%' }}>:</td>
-                        <td className="py-1 align-top">{formData.nama_lengkap || '-'}</td>
-                      </tr>
-                      <tr>
-                        <td className="py-1 align-top">NIP</td>
-                        <td className="py-1 align-top">:</td>
-                        <td className="py-1 align-top">{formData.nip || '-'}</td>
-                      </tr>
-                      <tr>
-                        <td className="py-1 align-top">Pangkat/Golongan</td>
-                        <td className="py-1 align-top">:</td>
-                        <td className="py-1 align-top">{formData.pangkat_golongan || '-'}</td>
-                      </tr>
-                      <tr>
-                        <td className="py-1 align-top">Jabatan</td>
-                        <td className="py-1 align-top">:</td>
-                        <td className="py-1 align-top">{formData.jabatan || '-'}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-
-                  <p className="mb-2">
-                    Pada hari <strong>{formData.hari || '-'}</strong> tanggal{' '}
-                    <strong>
-                      {formData.tanggal_kejadian 
-                        ? new Date(formData.tanggal_kejadian.toString()).toLocaleDateString('id-ID', { 
-                            day: 'numeric', 
-                            month: 'long', 
-                            year: 'numeric' 
-                          })
-                        : '-'}
-                    </strong>
-                    , yang bersangkutan:
-                  </p>
-
-                  <div className="mb-4 pl-4">
-                    <p className="whitespace-pre-wrap">{formData.keterangan || '-'}</p>
+                    {/* Right: Partner Logos */}
+                    <div className="w-40 flex justify-end items-center gap-2 h-16">
+                      {logos.map((logo) => (
+                        <img
+                          key={logo.id}
+                          src={logo.base64}
+                          alt="Logo Partner"
+                          className="max-h-full max-w-[35px] object-contain"
+                        />
+                      ))}
+                    </div>
                   </div>
 
-                  <p className="mb-8">
-                    Demikian surat keterangan ini dibuat untuk dapat dipergunakan sebagaimana mestinya.
-                  </p>
+                  {/* Table */}
+                  {formData.perlu_rekening === 'Ya' ? (
+                    <table className="w-full border-collapse border border-black text-[10px] text-black mb-4">
+                      <thead>
+                        <tr className="bg-gray-100">
+                          <th className="border border-black p-1.5 text-center font-bold" style={{ width: '4%' }}>No.</th>
+                          <th className="border border-black p-1.5 text-center font-bold" style={{ width: '15%' }}>Nama</th>
+                          <th className="border border-black p-1.5 text-center font-bold" style={{ width: '15%' }}>Instansi</th>
+                          <th className="border border-black p-1.5 text-center font-bold" style={{ width: '13%' }}>Jabatan</th>
+                          <th className="border border-black p-1.5 text-center font-bold" style={{ width: '11%' }}>Nomor Telepon</th>
+                          <th className="border border-black p-1.5 text-center font-bold" style={{ width: '11%' }}>Nama Bank</th>
+                          <th className="border border-black p-1.5 text-center font-bold" style={{ width: '11%' }}>Nomor Rekening</th>
+                          <th className="border border-black p-1.5 text-center font-bold" style={{ width: '11%' }}>Nama Pemilik Rekening</th>
+                          <th className="border border-black p-1.5 text-center font-bold" style={{ width: '9%' }}>Tanda Tangan</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {Array.from({ length: 10 }).map((_, index) => {
+                          const rowNum = index + 1;
+                          return (
+                            <tr key={index} style={{ height: '42px' }}>
+                              <td className="border border-black p-1 text-center font-semibold">{rowNum}</td>
+                              <td className="border border-black p-1"></td>
+                              <td className="border border-black p-1"></td>
+                              <td className="border border-black p-1"></td>
+                              <td className="border border-black p-1"></td>
+                              <td className="border border-black p-1"></td>
+                              <td className="border border-black p-1"></td>
+                              <td className="border border-black p-1"></td>
+                              <td className="border border-black p-1.5 align-middle text-left font-bold">
+                                <span>{rowNum}.</span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <table className="w-full border-collapse border border-black text-xs text-black mb-4">
+                      <thead>
+                        <tr className="bg-gray-100">
+                          <th className="border border-black p-2 text-center font-bold" style={{ width: '5%' }}>No.</th>
+                          <th className="border border-black p-2 text-center font-bold" style={{ width: '22%' }}>Nama</th>
+                          <th className="border border-black p-2 text-center font-bold" style={{ width: '22%' }}>Instansi</th>
+                          <th className="border border-black p-2 text-center font-bold" style={{ width: '19%' }}>Jabatan</th>
+                          <th className="border border-black p-2 text-center font-bold" style={{ width: '17%' }}>Nomor Telepon</th>
+                          <th className="border border-black p-2 text-center font-bold" style={{ width: '15%' }}>Tanda Tangan</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {Array.from({ length: 10 }).map((_, index) => {
+                          const rowNum = index + 1;
+                          return (
+                            <tr key={index} style={{ height: '42px' }}>
+                              <td className="border border-black p-1 text-center font-semibold">{rowNum}</td>
+                              <td className="border border-black p-1"></td>
+                              <td className="border border-black p-1"></td>
+                              <td className="border border-black p-1"></td>
+                              <td className="border border-black p-1"></td>
+                              <td className="border border-black p-2 align-middle text-left font-bold">
+                                <span>{rowNum}.</span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  )}
 
-                  {/* Signature Section */}
-                  <div className="mt-12">
-                    <div className="float-right text-center" style={{ width: '40%' }}>
-                      <p className="mb-1">Dibuat di Jakarta</p>
-                      <p className="mb-12">Pada tanggal ${'{tanggal_naskah}'}</p>
-                      <p className="mb-1">${'{jabatan_pengirim}'}</p>
-                      <div className="my-12 text-gray-400 italic">(Tanda Tangan)</div>
-                      <p className="font-bold mb-1">{formData.penandatangan_nama || '-'}</p>
-                      <p>NIP. {formData.penandatangan_nip || '-'}</p>
+                  {/* Footer */}
+                  <div className="text-right text-[10px] text-gray-500 mt-4">
+                    Halaman 1 dari {Math.ceil(Number(formData.jumlah_baris || 20) / 10)}
+                  </div>
+                </div>
+              ) : (
+                /* EXISTING PREVIEW FOR SURAT KETERANGAN */
+                <div className="p-12" style={{ fontFamily: 'Times New Roman, serif' }}>
+                  {/* Header Kementerian */}
+                  <div className="text-center mb-8 border-b-2 border-black pb-4">
+                    <div className="font-bold text-lg mb-1">KEMENTERIAN PEMBERDAYAAN PEREMPUAN</div>
+                    <div className="font-bold text-lg mb-1">DAN PERLINDUNGAN ANAK</div>
+                    <div className="font-bold text-lg">REPUBLIK INDONESIA</div>
+                  </div>
+
+                  {/* Title */}
+                  <div className="text-center mb-6">
+                    <div className="font-bold text-xl mb-2">SURAT KETERANGAN</div>
+                    <div className="text-sm">Nomor: ${'{nomor_naskah}'}</div>
+                  </div>
+
+                  {/* Content */}
+                  <div className="space-y-4 text-justify leading-relaxed">
+                    <p className="mb-4">Yang bertanda tangan di bawah ini:</p>
+                    
+                    <table className="w-full mb-4">
+                      <tbody>
+                        <tr>
+                          <td className="py-1 align-top" style={{ width: '30%' }}>Nama</td>
+                          <td className="py-1 align-top" style={{ width: '5%' }}>:</td>
+                          <td className="py-1 align-top">{formData.penandatangan_nama || '-'}</td>
+                        </tr>
+                        <tr>
+                          <td className="py-1 align-top">NIP</td>
+                          <td className="py-1 align-top">:</td>
+                          <td className="py-1 align-top">{formData.penandatangan_nip || '-'}</td>
+                        </tr>
+                        <tr>
+                          <td className="py-1 align-top">Jabatan</td>
+                          <td className="py-1 align-top">:</td>
+                          <td className="py-1 align-top">{formData.penandatangan_jabatan || '-'}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+
+                    <p className="mb-4">Dengan ini menerangkan bahwa:</p>
+
+                    <table className="w-full mb-4">
+                      <tbody>
+                        <tr>
+                          <td className="py-1 align-top" style={{ width: '30%' }}>Nama</td>
+                          <td className="py-1 align-top" style={{ width: '5%' }}>:</td>
+                          <td className="py-1 align-top">{formData.nama_lengkap || '-'}</td>
+                        </tr>
+                        <tr>
+                          <td className="py-1 align-top">NIP</td>
+                          <td className="py-1 align-top">:</td>
+                          <td className="py-1 align-top">{formData.nip || '-'}</td>
+                        </tr>
+                        <tr>
+                          <td className="py-1 align-top">Pangkat/Golongan</td>
+                          <td className="py-1 align-top">:</td>
+                          <td className="py-1 align-top">{formData.pangkat_golongan || '-'}</td>
+                        </tr>
+                        <tr>
+                          <td className="py-1 align-top">Jabatan</td>
+                          <td className="py-1 align-top">:</td>
+                          <td className="py-1 align-top">{formData.jabatan || '-'}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+
+                    <p className="mb-2">
+                      Pada hari <strong>{formData.hari || '-'}</strong> tanggal{' '}
+                      <strong>
+                        {formData.tanggal_kejadian 
+                          ? new Date(formData.tanggal_kejadian.toString()).toLocaleDateString('id-ID', { 
+                              day: 'numeric', 
+                              month: 'long', 
+                              year: 'numeric' 
+                            })
+                          : '-'}
+                      </strong>
+                      , yang bersangkutan:
+                    </p>
+
+                    <div className="mb-4 pl-4">
+                      <p className="whitespace-pre-wrap">{formData.keterangan || '-'}</p>
+                    </div>
+
+                    <p className="mb-8">
+                      Demikian surat keterangan ini dibuat untuk dapat dipergunakan sebagaimana mestinya.
+                    </p>
+
+                    {/* Signature Section */}
+                    <div className="mt-12">
+                      <div className="float-right text-center" style={{ width: '40%' }}>
+                        <p className="mb-1">Dibuat di Jakarta</p>
+                        <p className="mb-12">Pada tanggal ${'{tanggal_naskah}'}</p>
+                        <p className="mb-1">${'{jabatan_pengirim}'}</p>
+                        <div className="my-12 text-gray-400 italic">(Tanda Tangan)</div>
+                        <p className="font-bold mb-1">{formData.penandatangan_nama || '-'}</p>
+                        <p>NIP. {formData.penandatangan_nip || '-'}</p>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
             
             {selectedTemplate?.previewInstructions && (
@@ -580,100 +840,189 @@ export const SuratOtomatisModal: React.FC<SuratOtomatisModalProps> = ({ isOpen, 
               )}
 
               {/* Form Fields */}
-              <div className="space-y-8">
-                {/* Section 1: Data Penandatangan */}
-                <div>
-                  <h4 className="text-md font-semibold text-gray-800 mb-4 pb-2 border-b-2 border-blue-200">
-                    📝 Data Penandatangan
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {selectedTemplate.fields.slice(0, 4).map(field => (
-                      <div
-                        key={field.id}
-                        className={field.type === 'textarea' ? 'md:col-span-2' : ''}
-                      >
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          {field.label}
-                          {field.required && !field.readOnly && (
-                            <span className="text-red-500 ml-1">*</span>
+              {selectedTemplate.id === 'daftar-hadir' ? (
+                /* CUSTOM FORM FOR DAFTAR HADIR */
+                <div className="space-y-8">
+                  <div>
+                    <h4 className="text-md font-semibold text-gray-800 mb-4 pb-2 border-b-2 border-blue-200">
+                      📋 Informasi Kegiatan & Daftar Hadir
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {selectedTemplate.fields.map(field => (
+                        <div
+                          key={field.id}
+                          className={field.id === 'nama_kegiatan' ? 'md:col-span-2' : ''}
+                        >
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            {field.label}
+                            {field.required && <span className="text-red-500 ml-1">*</span>}
+                          </label>
+                          {renderField(field)}
+                          {field.helpText && (
+                            <p className="mt-1 text-xs text-gray-500">
+                              {field.helpText}
+                            </p>
                           )}
-                          {field.readOnly && (
-                            <span className="text-gray-400 ml-1 text-xs">(otomatis)</span>
-                          )}
-                        </label>
-                        {renderField(field)}
-                        {field.helpText && (
-                          <p className="mt-1 text-xs text-gray-500">
-                            {field.helpText}
-                          </p>
-                        )}
-                      </div>
-                    ))}
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
 
-                {/* Section 2: Data Pegawai */}
-                <div>
-                  <h4 className="text-md font-semibold text-gray-800 mb-4 pb-2 border-b-2 border-green-200">
-                    👤 Data Pegawai
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {selectedTemplate.fields.slice(4, 9).map(field => (
-                      <div
-                        key={field.id}
-                        className={field.type === 'textarea' ? 'md:col-span-2' : ''}
-                      >
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          {field.label}
-                          {field.required && !field.readOnly && (
-                            <span className="text-red-500 ml-1">*</span>
-                          )}
-                          {field.readOnly && (
-                            <span className="text-gray-400 ml-1 text-xs">(otomatis)</span>
-                          )}
-                        </label>
-                        {renderField(field)}
-                        {field.helpText && (
-                          <p className="mt-1 text-xs text-gray-500">
-                            {field.helpText}
-                          </p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                  <div>
+                    <h4 className="text-md font-semibold text-gray-800 mb-4 pb-2 border-b-2 border-purple-200">
+                      🖼️ Logo Partner / Pendukung (Maksimal 3)
+                    </h4>
+                    <div className="space-y-4">
+                      {/* Logo Uploader */}
+                      {logos.length < 3 && (
+                        <div className="flex items-center justify-center w-full">
+                          <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
+                            <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                              <Upload className="w-8 h-8 mb-3 text-gray-400" />
+                              <p className="mb-2 text-sm text-gray-500">
+                                <span className="font-semibold">Klik untuk unggah logo partner</span> atau seret gambar ke sini
+                              </p>
+                              <p className="text-xs text-gray-400">
+                                PNG, JPG, JPEG, atau WEBP (Maksimal 2MB per file)
+                              </p>
+                            </div>
+                            <input
+                              type="file"
+                              multiple
+                              accept="image/*"
+                              className="hidden"
+                              onChange={handleLogoUpload}
+                            />
+                          </label>
+                        </div>
+                      )}
 
-                {/* Section 3: Keterangan */}
-                <div>
-                  <h4 className="text-md font-semibold text-gray-800 mb-4 pb-2 border-b-2 border-orange-200">
-                    📋 Keterangan
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {selectedTemplate.fields.slice(9).map(field => (
-                      <div
-                        key={field.id}
-                        className={field.type === 'textarea' ? 'md:col-span-2' : ''}
-                      >
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          {field.label}
-                          {field.required && !field.readOnly && (
-                            <span className="text-red-500 ml-1">*</span>
-                          )}
-                          {field.readOnly && (
-                            <span className="text-gray-400 ml-1 text-xs">(otomatis)</span>
-                          )}
-                        </label>
-                        {renderField(field)}
-                        {field.helpText && (
-                          <p className="mt-1 text-xs text-gray-500">
-                            {field.helpText}
-                          </p>
-                        )}
-                      </div>
-                    ))}
+                      {/* Uploaded Logos Grid */}
+                      {logos.length > 0 && (
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                          {logos.map((logo) => (
+                            <div key={logo.id} className="relative border border-gray-200 rounded-lg p-3 bg-white flex flex-col items-center justify-center group">
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveLogo(logo.id)}
+                                className="absolute top-2 right-2 p-1.5 bg-red-50 text-red-600 rounded-full hover:bg-red-100 transition-colors"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                              <div className="w-24 h-24 flex items-center justify-center mb-2">
+                                <img
+                                  src={logo.base64}
+                                  alt={logo.name}
+                                  className="max-w-full max-h-full object-contain"
+                                />
+                              </div>
+                              <p className="text-xs text-gray-500 text-center truncate w-full px-2">
+                                {logo.name}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                /* EXISTING THREE-SECTION FORM */
+                <div className="space-y-8">
+                  {/* Section 1: Data Penandatangan */}
+                  <div>
+                    <h4 className="text-md font-semibold text-gray-800 mb-4 pb-2 border-b-2 border-blue-200">
+                      📝 Data Penandatangan
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {selectedTemplate.fields.slice(0, 4).map(field => (
+                        <div
+                          key={field.id}
+                          className={field.type === 'textarea' ? 'md:col-span-2' : ''}
+                        >
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            {field.label}
+                            {field.required && !field.readOnly && (
+                              <span className="text-red-500 ml-1">*</span>
+                            )}
+                            {field.readOnly && (
+                              <span className="text-gray-400 ml-1 text-xs">(otomatis)</span>
+                            )}
+                          </label>
+                          {renderField(field)}
+                          {field.helpText && (
+                            <p className="mt-1 text-xs text-gray-500">
+                              {field.helpText}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Section 2: Data Pegawai */}
+                  <div>
+                    <h4 className="text-md font-semibold text-gray-800 mb-4 pb-2 border-b-2 border-green-200">
+                      👤 Data Pegawai
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {selectedTemplate.fields.slice(4, 9).map(field => (
+                        <div
+                          key={field.id}
+                          className={field.type === 'textarea' ? 'md:col-span-2' : ''}
+                        >
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            {field.label}
+                            {field.required && !field.readOnly && (
+                              <span className="text-red-500 ml-1">*</span>
+                            )}
+                            {field.readOnly && (
+                              <span className="text-gray-400 ml-1 text-xs">(otomatis)</span>
+                            )}
+                          </label>
+                          {renderField(field)}
+                          {field.helpText && (
+                            <p className="mt-1 text-xs text-gray-500">
+                              {field.helpText}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Section 3: Keterangan */}
+                  <div>
+                    <h4 className="text-md font-semibold text-gray-800 mb-4 pb-2 border-b-2 border-orange-200">
+                      📋 Keterangan
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {selectedTemplate.fields.slice(9).map(field => (
+                        <div
+                          key={field.id}
+                          className={field.type === 'textarea' ? 'md:col-span-2' : ''}
+                        >
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            {field.label}
+                            {field.required && !field.readOnly && (
+                              <span className="text-red-500 ml-1">*</span>
+                            )}
+                            {field.readOnly && (
+                              <span className="text-gray-400 ml-1 text-xs">(otomatis)</span>
+                            )}
+                          </label>
+                          {renderField(field)}
+                          {field.helpText && (
+                            <p className="mt-1 text-xs text-gray-500">
+                              {field.helpText}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

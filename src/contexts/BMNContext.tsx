@@ -69,7 +69,7 @@ export const BMNProvider: React.FC<BMNProviderProps> = ({ children, session }) =
         try {
             const { data, error: fetchError } = await supabase
                 .from('bmn_items')
-                .select('*')
+                .select('*, profiles:held_by(id, name)')
                 .order('created_at', { ascending: false });
 
             if (fetchError) {
@@ -99,6 +99,7 @@ export const BMNProvider: React.FC<BMNProviderProps> = ({ children, session }) =
                     kota: item.kota,
                     provinsi: item.provinsi,
                     nomorRegister: item.nomor_register,
+                    nup: item.nup,
                     nomorSertifikat: item.nomor_sertifikat,
                     tanggalSertifikat: item.tanggal_sertifikat,
                     tanggalPengapusan: item.tanggal_pengapusan,
@@ -108,7 +109,9 @@ export const BMNProvider: React.FC<BMNProviderProps> = ({ children, session }) =
                     createdBy: item.created_by,
                     createdAt: item.created_at,
                     updatedAt: item.updated_at,
-                    uploadBatchId: item.upload_batch_id
+                    uploadBatchId: item.upload_batch_id,
+                    heldBy: item.held_by,
+                    holder: item.profiles ? { id: item.profiles.id, name: item.profiles.name } : null
                 }));
 
                 setBmnItems(mappedItems);
@@ -232,19 +235,21 @@ export const BMNProvider: React.FC<BMNProviderProps> = ({ children, session }) =
                 kota: item.kota,
                 provinsi: item.provinsi,
                 nomor_register: item.nomorRegister,
+                nup: item.nup,
                 nomor_sertifikat: item.nomorSertifikat,
                 tanggal_sertifikat: item.tanggalSertifikat,
                 tanggal_pengapusan: item.tanggalPengapusan,
                 alasan_pengapusan: item.alasanPengapusan,
                 keterangan: item.keterangan,
                 created_by: item.createdBy,
-                upload_batch_id: item.uploadBatchId
+                upload_batch_id: item.uploadBatchId,
+                held_by: item.heldBy
             };
 
             const { data, error: createError } = await supabase
                 .from('bmn_items')
                 .insert([dbItem])
-                .select()
+                .select('*, profiles:held_by(id, name)')
                 .single();
 
             if (createError) {
@@ -277,6 +282,7 @@ export const BMNProvider: React.FC<BMNProviderProps> = ({ children, session }) =
                 kota: data.kota,
                 provinsi: data.provinsi,
                 nomorRegister: data.nomor_register,
+                nup: data.nup,
                 nomorSertifikat: data.nomor_sertifikat,
                 tanggalSertifikat: data.tanggal_sertifikat,
                 tanggalPengapusan: data.tanggal_pengapusan,
@@ -285,7 +291,9 @@ export const BMNProvider: React.FC<BMNProviderProps> = ({ children, session }) =
                 createdBy: data.created_by,
                 createdAt: data.created_at,
                 updatedAt: data.updated_at,
-                uploadBatchId: data.upload_batch_id
+                uploadBatchId: data.upload_batch_id,
+                heldBy: data.held_by,
+                holder: data.profiles ? { id: data.profiles.id, name: data.profiles.name } : null
             };
 
             // Update local state
@@ -335,12 +343,14 @@ export const BMNProvider: React.FC<BMNProviderProps> = ({ children, session }) =
             if (updates.kota !== undefined) dbUpdates.kota = updates.kota;
             if (updates.provinsi !== undefined) dbUpdates.provinsi = updates.provinsi;
             if (updates.nomorRegister !== undefined) dbUpdates.nomor_register = updates.nomorRegister;
+            if (updates.nup !== undefined) dbUpdates.nup = updates.nup;
             if (updates.nomorSertifikat !== undefined) dbUpdates.nomor_sertifikat = updates.nomorSertifikat;
             if (updates.tanggalSertifikat !== undefined) dbUpdates.tanggal_sertifikat = updates.tanggalSertifikat;
             if (updates.tanggalPengapusan !== undefined) dbUpdates.tanggal_pengapusan = updates.tanggalPengapusan;
             if (updates.alasanPengapusan !== undefined) dbUpdates.alasan_pengapusan = updates.alasanPengapusan;
             if (updates.keterangan !== undefined) dbUpdates.keterangan = updates.keterangan;
             if (updates.uploadBatchId !== undefined) dbUpdates.upload_batch_id = updates.uploadBatchId;
+            if (updates.heldBy !== undefined) dbUpdates.held_by = updates.heldBy;
 
             // Always update the updated_at timestamp
             dbUpdates.updated_at = new Date().toISOString();

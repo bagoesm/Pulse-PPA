@@ -16,6 +16,8 @@ export interface UseBMNFiltersResult {
     // Category filters
     jenisBMN: string | 'All';
     setJenisBMN: (value: string | 'All') => void;
+    kodeBarang: string | 'All';
+    setKodeBarang: (value: string | 'All') => void;
     statusBMN: BMNStatus | 'All';
     setStatusBMN: (value: BMNStatus | 'All') => void;
     kondisi: BMNKondisi | 'All';
@@ -45,6 +47,7 @@ export interface UseBMNFiltersResult {
     resetFilters: () => void;
     applyFilters: (items: BMNItem[]) => BMNItem[];
     hasActiveFilters: boolean;
+    activeFilterCount: number;
 }
 
 const DEBOUNCE_MS = 500; // 500ms as per requirement 8.2
@@ -56,6 +59,7 @@ export function useBMNFilters(): UseBMNFiltersResult {
     
     // Category filter states
     const [jenisBMN, setJenisBMN] = useState<string | 'All'>('All');
+    const [kodeBarang, setKodeBarang] = useState<string | 'All'>('All');
     const [statusBMN, setStatusBMN] = useState<BMNStatus | 'All'>('All');
     const [kondisi, setKondisi] = useState<BMNKondisi | 'All'>('All');
     const [namaSatker, setNamaSatker] = useState<string | 'All'>('All');
@@ -83,13 +87,14 @@ export function useBMNFilters(): UseBMNFiltersResult {
     // Reset page when filters change
     useEffect(() => {
         setCurrentPage(1);
-    }, [debouncedSearch, jenisBMN, statusBMN, kondisi, namaSatker, 
+    }, [debouncedSearch, jenisBMN, kodeBarang, statusBMN, kondisi, namaSatker, 
         nilaiPerolehanMin, nilaiPerolehanMax, umurAsetMin, umurAsetMax, tahunPerolehan]);
     
     // Combine all filters into BMNFilters object
     const filters: BMNFilters = useMemo(() => ({
         search: debouncedSearch || undefined,
         jenisBMN: jenisBMN !== 'All' ? jenisBMN : undefined,
+        kodeBarang: kodeBarang !== 'All' ? kodeBarang : undefined,
         statusBMN: statusBMN !== 'All' ? statusBMN : undefined,
         kondisi: kondisi !== 'All' ? kondisi : undefined,
         namaSatker: namaSatker !== 'All' ? namaSatker : undefined,
@@ -98,7 +103,7 @@ export function useBMNFilters(): UseBMNFiltersResult {
         umurAsetMin,
         umurAsetMax,
         tahunPerolehan
-    }), [debouncedSearch, jenisBMN, statusBMN, kondisi, namaSatker, 
+    }), [debouncedSearch, jenisBMN, kodeBarang, statusBMN, kondisi, namaSatker, 
         nilaiPerolehanMin, nilaiPerolehanMax, umurAsetMin, umurAsetMax, tahunPerolehan]);
     
     // Check if any filters are active
@@ -106,6 +111,7 @@ export function useBMNFilters(): UseBMNFiltersResult {
         return !!(
             debouncedSearch ||
             jenisBMN !== 'All' ||
+            kodeBarang !== 'All' ||
             statusBMN !== 'All' ||
             kondisi !== 'All' ||
             namaSatker !== 'All' ||
@@ -115,13 +121,30 @@ export function useBMNFilters(): UseBMNFiltersResult {
             umurAsetMax !== undefined ||
             tahunPerolehan !== undefined
         );
-    }, [debouncedSearch, jenisBMN, statusBMN, kondisi, namaSatker, 
+    }, [debouncedSearch, jenisBMN, kodeBarang, statusBMN, kondisi, namaSatker, 
         nilaiPerolehanMin, nilaiPerolehanMax, umurAsetMin, umurAsetMax, tahunPerolehan]);
+
+    // Count active filters
+    const activeFilterCount = useMemo(() => {
+        let count = 0;
+        if (jenisBMN !== 'All') count++;
+        if (kodeBarang !== 'All') count++;
+        if (statusBMN !== 'All') count++;
+        if (kondisi !== 'All') count++;
+        if (namaSatker !== 'All') count++;
+        if (nilaiPerolehanMin !== undefined) count++;
+        if (nilaiPerolehanMax !== undefined) count++;
+        if (umurAsetMin !== undefined) count++;
+        if (umurAsetMax !== undefined) count++;
+        if (tahunPerolehan !== undefined) count++;
+        return count;
+    }, [jenisBMN, kodeBarang, statusBMN, kondisi, namaSatker, nilaiPerolehanMin, nilaiPerolehanMax, umurAsetMin, umurAsetMax, tahunPerolehan]);
     
     // Reset all filters (Requirement 7.9)
     const resetFilters = useCallback(() => {
         setSearch('');
         setJenisBMN('All');
+        setKodeBarang('All');
         setStatusBMN('All');
         setKondisi('All');
         setNamaSatker('All');
@@ -152,13 +175,19 @@ export function useBMNFilters(): UseBMNFiltersResult {
                 item.kodeBarang?.toLowerCase().includes(searchLower) ||
                 item.merk?.toLowerCase().includes(searchLower) ||
                 item.tipe?.toLowerCase().includes(searchLower) ||
-                item.alamat?.toLowerCase().includes(searchLower)
+                item.alamat?.toLowerCase().includes(searchLower) ||
+                item.nomorRegister?.toLowerCase().includes(searchLower)
             );
         }
         
         // Jenis BMN filter (Requirement 7.1)
         if (jenisBMN !== 'All') {
             filtered = filtered.filter(item => item.jenisBMN === jenisBMN);
+        }
+        
+        // Kode Barang filter
+        if (kodeBarang !== 'All') {
+            filtered = filtered.filter(item => item.kodeBarang === kodeBarang);
         }
         
         // Status BMN filter (Requirement 7.2)
@@ -213,7 +242,7 @@ export function useBMNFilters(): UseBMNFiltersResult {
         }
         
         return filtered;
-    }, [debouncedSearch, jenisBMN, statusBMN, kondisi, namaSatker, 
+    }, [debouncedSearch, jenisBMN, kodeBarang, statusBMN, kondisi, namaSatker, 
         nilaiPerolehanMin, nilaiPerolehanMax, umurAsetMin, umurAsetMax, 
         tahunPerolehan, calculateAssetAge]);
     
@@ -229,6 +258,8 @@ export function useBMNFilters(): UseBMNFiltersResult {
         // Category filters
         jenisBMN,
         setJenisBMN,
+        kodeBarang,
+        setKodeBarang,
         statusBMN,
         setStatusBMN,
         kondisi,
@@ -257,6 +288,7 @@ export function useBMNFilters(): UseBMNFiltersResult {
         // Actions
         resetFilters,
         applyFilters,
-        hasActiveFilters
+        hasActiveFilters,
+        activeFilterCount
     };
 }

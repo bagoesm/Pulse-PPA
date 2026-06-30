@@ -109,7 +109,11 @@ export const TasksProvider: React.FC<TasksProviderProps> = ({ children, session 
                 attachments: meeting.attachments || [],
                 links: meeting.links || [],
                 isMeeting: true,
-                meetingId: meeting.id
+                meetingId: meeting.id,
+                created_at: meeting.createdAt,
+                updated_at: meeting.updatedAt || meeting.createdAt,
+                createdAt: meeting.createdAt,
+                updatedAt: meeting.updatedAt || meeting.createdAt
             };
         });
     }, []);

@@ -34,28 +34,57 @@ export const useBMNHandlers = ({
      * Check if user can upload BMN data
      * All logged-in users (Staff, Atasan, Super Admin) can upload
      */
-    const canUploadBMN = useCallback((): boolean => {
+    /**
+     * Check if a user is BMN Editor for a specific Satker
+     */
+    const checkIsBMNEditor = useCallback(async (userId: string, satkerName: string): Promise<boolean> => {
         if (!currentUser) return false;
-        return true; // All logged-in users can upload
+        if (currentUser.role === 'Super Admin') return true;
+        if (!satkerName) return false;
+        
+        try {
+            const { count, error } = await supabase
+                .from('bmn_editors')
+                .select('id', { count: 'exact', head: true })
+                .eq('user_id', userId)
+                .eq('nama_satker', satkerName);
+                
+            if (error) return false;
+            return (count || 0) > 0;
+        } catch {
+            return false;
+        }
     }, [currentUser]);
+
+    /**
+     * Check if user can upload BMN data
+     */
+    const canUploadBMN = useCallback(async (satkerName?: string): Promise<boolean> => {
+        if (!currentUser) return false;
+        if (currentUser.role === 'Super Admin') return true;
+        if (!satkerName) return false;
+        return checkIsBMNEditor(currentUser.id, satkerName);
+    }, [currentUser, checkIsBMNEditor]);
 
     /**
      * Check if user can edit BMN item
-     * All logged-in users (Staff, Atasan, Super Admin) can edit
      */
-    const canEditBMN = useCallback((): boolean => {
+    const canEditBMN = useCallback(async (satkerName?: string): Promise<boolean> => {
         if (!currentUser) return false;
-        return true; // All logged-in users can edit
-    }, [currentUser]);
+        if (currentUser.role === 'Super Admin') return true;
+        if (!satkerName) return false;
+        return checkIsBMNEditor(currentUser.id, satkerName);
+    }, [currentUser, checkIsBMNEditor]);
 
     /**
      * Check if user can delete BMN item
-     * All logged-in users (Staff, Atasan, Super Admin) can delete
      */
-    const canDeleteBMN = useCallback((): boolean => {
+    const canDeleteBMN = useCallback(async (satkerName?: string): Promise<boolean> => {
         if (!currentUser) return false;
-        return true; // All logged-in users can delete
-    }, [currentUser]);
+        if (currentUser.role === 'Super Admin') return true;
+        if (!satkerName) return false;
+        return checkIsBMNEditor(currentUser.id, satkerName);
+    }, [currentUser, checkIsBMNEditor]);
 
     // ==================== FILE UPLOAD HANDLER ====================
     // Validates: Requirements 3.1, 3.2, 3.3, 3.4
@@ -68,10 +97,11 @@ export const useBMNHandlers = ({
      */
     const handleUploadFile = useCallback(async (file: File, targetSatker: string): Promise<void> => {
         // Check permission
-        if (!canUploadBMN()) {
+        const hasPermission = await canUploadBMN(targetSatker);
+        if (!hasPermission) {
             showNotification(
                 'Akses Ditolak',
-                'Anda tidak memiliki izin untuk mengupload data BMN. Silakan login terlebih dahulu.',
+                `Anda tidak memiliki izin untuk mengupload data BMN untuk Satker ${targetSatker}.`,
                 'error'
             );
             return;
@@ -176,7 +206,7 @@ export const useBMNHandlers = ({
             // Get all items for this satker (case-insensitive match)
             const { data: existingItems, error: fetchError } = await supabase
                 .from('bmn_items')
-                .select('id, nama_satker');
+                .select('id, nama_satker, kode_barang, nomor_register, nup, held_by');
             
             if (fetchError) {
                 console.error('Fetch error:', fetchError);
@@ -192,6 +222,16 @@ export const useBMNHandlers = ({
             const itemsToDelete = existingItems?.filter(item => 
                 normalizeSatkerName(item.nama_satker || '') === normalizedTargetSatker
             ) || [];
+            
+            // Save current assignments for restoration
+            const savedAssignments = itemsToDelete
+                .filter(item => item.held_by !== null && item.held_by !== undefined)
+                .map(item => ({
+                    kodeBarang: item.kode_barang,
+                    nomorRegister: item.nomor_register,
+                    nup: item.nup,
+                    heldBy: item.held_by
+                }));
             
             if (itemsToDelete.length > 0) {
                 const idsToDelete = itemsToDelete.map(item => item.id);
@@ -266,35 +306,46 @@ export const useBMNHandlers = ({
                 return name.replace(/^["']|["']$/g, '').trim();
             };
             
-            const dbItems = itemsWithBatchId.map(item => ({
-                kode_barang: item.kodeBarang,
-                nama_barang: item.namaBarang,
-                jenis_bmn: item.jenisBMN,
-                merk: item.merk,
-                tipe: item.tipe,
-                status_bmn: item.statusBMN,
-                kondisi: item.kondisi,
-                nilai_perolehan: item.nilaiPerolehan,
-                tahun_perolehan: item.tahunPerolehan,
-                tanggal_perolehan: item.tanggalPerolehan,
-                umur_aset: item.umurAset,
-                jumlah: item.jumlah,
-                satuan: item.satuan,
-                luas: item.luas,
-                nama_satker: normalizeSatkerForStorage(item.namaSatker), // Normalize before saving
-                alamat: item.alamat,
-                kota: item.kota,
-                provinsi: item.provinsi,
-                nomor_register: item.nomorRegister,
-                nomor_sertifikat: item.nomorSertifikat,
-                tanggal_sertifikat: item.tanggalSertifikat,
-                tanggal_pengapusan: item.tanggalPengapusan,
-                alasan_pengapusan: item.alasanPengapusan,
-                keterangan: item.keterangan,
-                raw_data: item.rawData, // Store complete Excel data as JSON
-                created_by: item.createdBy,
-                upload_batch_id: uploadBatchId // Use UUID from history record
-            }));
+            const dbItems = itemsWithBatchId.map(item => {
+                const matchingAssignment = savedAssignments.find(saved => 
+                    saved.kodeBarang === item.kodeBarang && (
+                        (saved.nup && item.nup && saved.nup === item.nup) ||
+                        (saved.nomorRegister && item.nomorRegister && saved.nomorRegister === item.nomorRegister) ||
+                        (!saved.nup && !item.nup && !saved.nomorRegister && !item.nomorRegister)
+                    )
+                );
+                return {
+                    kode_barang: item.kodeBarang,
+                    nama_barang: item.namaBarang,
+                    jenis_bmn: item.jenisBMN,
+                    merk: item.merk,
+                    tipe: item.tipe,
+                    status_bmn: item.statusBMN,
+                    kondisi: item.kondisi,
+                    nilai_perolehan: item.nilaiPerolehan,
+                    tahun_perolehan: item.tahunPerolehan,
+                    tanggal_perolehan: item.tanggalPerolehan,
+                    umur_aset: item.umurAset,
+                    jumlah: item.jumlah,
+                    satuan: item.satuan,
+                    luas: item.luas,
+                    nama_satker: normalizeSatkerForStorage(item.namaSatker), // Normalize before saving
+                    alamat: item.alamat,
+                    kota: item.kota,
+                    provinsi: item.provinsi,
+                    nomor_register: item.nomorRegister,
+                    nup: item.nup,
+                    nomor_sertifikat: item.nomorSertifikat,
+                    tanggal_sertifikat: item.tanggalSertifikat,
+                    tanggal_pengapusan: item.tanggalPengapusan,
+                    alasan_pengapusan: item.alasanPengapusan,
+                    keterangan: item.keterangan,
+                    raw_data: item.rawData, // Store complete Excel data as JSON
+                    created_by: item.createdBy,
+                    upload_batch_id: uploadBatchId, // Use UUID from history record
+                    held_by: matchingAssignment ? matchingAssignment.heldBy : null
+                };
+            });
 
             const { data: insertedData, error: insertError } = await supabase
                 .from('bmn_items')
@@ -356,14 +407,16 @@ export const useBMNHandlers = ({
      * Handle save BMN (create or update)
      */
     const handleSaveBMN = useCallback(async (
-        bmnData: Omit<BMNItem, 'id' | 'createdAt' | 'updatedAt'>,
+        bmnData: Partial<BMNItem>,
         editingId?: string
     ): Promise<void> => {
         // Check permission
-        if (!canEditBMN()) {
+        const satkerToCheck = bmnData.namaSatker || '';
+        const hasPermission = await canEditBMN(satkerToCheck);
+        if (!hasPermission) {
             showNotification(
                 'Akses Ditolak',
-                'Anda tidak memiliki izin untuk mengedit data BMN.',
+                `Anda tidak memiliki izin untuk mengedit data BMN untuk Satker ${satkerToCheck || '(belum ditentukan)'}.`,
                 'error'
             );
             return;
@@ -406,13 +459,15 @@ export const useBMNHandlers = ({
                 kota: bmnData.kota,
                 provinsi: bmnData.provinsi,
                 nomor_register: bmnData.nomorRegister,
+                nup: bmnData.nup,
                 nomor_sertifikat: bmnData.nomorSertifikat,
                 tanggal_sertifikat: bmnData.tanggalSertifikat,
                 tanggal_pengapusan: bmnData.tanggalPengapusan,
                 alasan_pengapusan: bmnData.alasanPengapusan,
                 keterangan: bmnData.keterangan,
                 created_by: bmnData.createdBy || currentUser.id,
-                upload_batch_id: bmnData.uploadBatchId
+                upload_batch_id: bmnData.uploadBatchId,
+                held_by: bmnData.heldBy
             };
 
             if (editingId) {
@@ -460,20 +515,24 @@ export const useBMNHandlers = ({
                         kota: updatedData.kota,
                         provinsi: updatedData.provinsi,
                         nomorRegister: updatedData.nomor_register,
+                        nup: updatedData.nup,
                         nomorSertifikat: updatedData.nomor_sertifikat,
                         tanggalSertifikat: updatedData.tanggal_sertifikat,
                         tanggalPengapusan: updatedData.tanggal_pengapusan,
                         alasanPengapusan: updatedData.alasan_pengapusan,
                         keterangan: updatedData.keterangan,
+                        rawData: updatedData.raw_data,
                         createdBy: updatedData.created_by,
                         createdAt: updatedData.created_at,
                         updatedAt: updatedData.updated_at,
-                        uploadBatchId: updatedData.upload_batch_id
+                        uploadBatchId: updatedData.upload_batch_id,
+                        heldBy: updatedData.held_by,
+                        holder: updatedData.held_by ? bmnData.holder : null
                     };
 
-                    // Update local state
+                    // Update local state preserving existing properties not returned by DB (e.g. holder info if already fetched/cached)
                     setBmnItems(prev => prev.map(item => 
-                        item.id === editingId ? mappedItem : item
+                        item.id === editingId ? { ...item, ...mappedItem } : item
                     ));
 
                     showNotification(
@@ -523,15 +582,19 @@ export const useBMNHandlers = ({
                         kota: insertedData.kota,
                         provinsi: insertedData.provinsi,
                         nomorRegister: insertedData.nomor_register,
+                        nup: insertedData.nup,
                         nomorSertifikat: insertedData.nomor_sertifikat,
                         tanggalSertifikat: insertedData.tanggal_sertifikat,
                         tanggalPengapusan: insertedData.tanggal_pengapusan,
                         alasanPengapusan: insertedData.alasan_pengapusan,
                         keterangan: insertedData.keterangan,
+                        rawData: insertedData.raw_data,
                         createdBy: insertedData.created_by,
                         createdAt: insertedData.created_at,
                         updatedAt: insertedData.updated_at,
-                        uploadBatchId: insertedData.upload_batch_id
+                        uploadBatchId: insertedData.upload_batch_id,
+                        heldBy: insertedData.held_by,
+                        holder: insertedData.held_by ? bmnData.holder : null
                     };
 
                     // Update local state
@@ -553,17 +616,20 @@ export const useBMNHandlers = ({
                 'error'
             );
         }
-    }, [currentUser, canEditBMN, showNotification, setBmnItems]);
+    }, [currentUser, canEditBMN, showNotification, setBmnItems, checkIsBMNEditor]);
 
     /**
      * Handle delete BMN with confirmation
      */
     const handleDeleteBMN = useCallback(async (id: string): Promise<void> => {
         // Check permission
-        if (!canDeleteBMN()) {
+        const targetItem = bmnItems.find(item => item.id === id);
+        const satkerToCheck = targetItem?.namaSatker || '';
+        const hasPermission = await canDeleteBMN(satkerToCheck);
+        if (!hasPermission) {
             showNotification(
                 'Akses Ditolak',
-                'Anda tidak memiliki izin untuk menghapus data BMN.',
+                `Anda tidak memiliki izin untuk menghapus data BMN untuk Satker ${satkerToCheck || '(belum ditentukan)'}.`,
                 'error'
             );
             return;
@@ -607,7 +673,7 @@ export const useBMNHandlers = ({
                 'error'
             );
         }
-    }, [currentUser, canDeleteBMN, showNotification, setBmnItems]);
+    }, [currentUser, canDeleteBMN, showNotification, setBmnItems, bmnItems, checkIsBMNEditor]);
 
     // ==================== EXPORT OPERATIONS ====================
     // Validates: Requirements 11.1, 11.2
