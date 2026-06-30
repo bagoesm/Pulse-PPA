@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useDivision } from '../contexts/DivisionContext';
 import { useAuth } from '../contexts/AuthContext';
 import { PenilaianArsip } from '../../types';
@@ -34,6 +34,8 @@ import {
   Area,
   BarChart, 
   Bar, 
+  LineChart,
+  Line,
   XAxis, 
   YAxis, 
   CartesianGrid, 
@@ -74,6 +76,16 @@ const PenilaianArsipPage: React.FC = () => {
   // Editor and Tab states
   const [activeTab, setActiveTab] = useState<'Dashboard' | 'Editor'>('Dashboard');
   const [isUserEditor, setIsUserEditor] = useState<boolean>(false);
+
+  // Sub-aspect visibility state for YoY Trend Chart
+  const [activeSubAspects, setActiveSubAspects] = useState<Record<string, boolean>>({
+    'Penciptaan (1.1)': true,
+    'Penggunaan (1.2)': true,
+    'Pemeliharaan (1.3)': true,
+    'Penyusutan (1.4)': true,
+    'SDM (2.1)': true,
+    'Prasarana (2.2)': true,
+  });
 
   // Close year dropdown on click outside
   useEffect(() => {
@@ -534,6 +546,31 @@ const PenilaianArsipPage: React.FC = () => {
   // Chronologically sorted data for trend charts (ascending order)
   const chartHistoricalScores = [...historicalScores].sort((a, b) => a.tahun - b.tahun);
 
+  // Prepare trend data for sub-aspects (chronological)
+  const subAspectsTrendData = useMemo(() => {
+    return chartHistoricalScores.map(item => {
+      const rec = allEvaluations.find(ev => ev.tahun === item.tahun);
+      if (!rec) return { tahun: item.tahun };
+      
+      const s11 = rec.standar_1_1 || 700;
+      const s12 = rec.standar_1_2 || 200;
+      const s13 = rec.standar_1_3 || 1100;
+      const s14 = rec.standar_1_4 || 200;
+      const s21 = rec.standar_2_1 || 300;
+      const s22 = rec.standar_2_2 || 100;
+
+      return {
+        tahun: item.tahun,
+        'Penciptaan (1.1)': Number(((rec.nilai_1_1 / s11) * 100).toFixed(1)),
+        'Penggunaan (1.2)': Number(((rec.nilai_1_2 / s12) * 100).toFixed(1)),
+        'Pemeliharaan (1.3)': Number(((rec.nilai_1_3 / s13) * 100).toFixed(1)),
+        'Penyusutan (1.4)': Number(((rec.nilai_1_4 / s14) * 100).toFixed(1)),
+        'SDM (2.1)': Number(((rec.nilai_2_1 / s21) * 100).toFixed(1)),
+        'Prasarana (2.2)': Number(((rec.nilai_2_2 / s22) * 100).toFixed(1))
+      };
+    });
+  }, [chartHistoricalScores, allEvaluations]);
+
   // Derive scores for currently selected year
   const currentScores = evaluation ? getCalculatedScoresForRecord(evaluation) : null;
   const currentCatInfo = currentScores ? getCategoryInfo(currentScores.total_nilai_akhir) : null;
@@ -964,6 +1001,74 @@ const PenilaianArsipPage: React.FC = () => {
                     </div>
                   ) : (
                     <span className="text-sm text-slate-400 italic">Belum ada data</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Chart 5: Sub-aspect Trend Comparison YoY */}
+              <div className="lg:col-span-12 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex flex-col">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-5">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp size={18} className="text-violet-600" />
+                    <h4 className="font-bold text-slate-800 text-base">Perbandingan Tren Sub-aspek Kearsipan YoY (%)</h4>
+                  </div>
+                  
+                  {/* Interactive Toggle Pills */}
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { name: 'Penciptaan (1.1)', color: '#6366f1', bg: 'bg-indigo-50 border-indigo-200 text-indigo-700' },
+                      { name: 'Penggunaan (1.2)', color: '#3b82f6', bg: 'bg-blue-50 border-blue-200 text-blue-700' },
+                      { name: 'Pemeliharaan (1.3)', color: '#0d9488', bg: 'bg-teal-50 border-teal-200 text-teal-700' },
+                      { name: 'Penyusutan (1.4)', color: '#f97316', bg: 'bg-orange-50 border-orange-200 text-orange-700' },
+                      { name: 'SDM (2.1)', color: '#8b5cf6', bg: 'bg-violet-50 border-violet-200 text-violet-700' },
+                      { name: 'Prasarana (2.2)', color: '#ec4899', bg: 'bg-rose-50 border-rose-200 text-rose-700' }
+                    ].map(aspect => {
+                      const isActive = activeSubAspects[aspect.name];
+                      return (
+                        <button
+                          key={aspect.name}
+                          onClick={() => setActiveSubAspects(prev => ({ ...prev, [aspect.name]: !prev[aspect.name] }))}
+                          className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border transition-all ${
+                            isActive 
+                              ? `${aspect.bg} shadow-sm` 
+                              : 'bg-slate-50 border-slate-200 text-slate-400 opacity-60 hover:opacity-80'
+                          }`}
+                        >
+                          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: isActive ? aspect.color : '#94a3b8' }}></span>
+                          {aspect.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="flex-1 min-h-[320px]">
+                  {subAspectsTrendData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart
+                        data={subAspectsTrendData}
+                        margin={{ top: 10, right: 20, left: -20, bottom: 0 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                        <XAxis dataKey="tahun" tick={{ fontSize: 11, fontWeight: '600', fill: '#475569' }} />
+                        <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: '#475569' }} tickFormatter={(val) => `${val}%`} />
+                        <ChartTooltip 
+                          contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '12px' }}
+                          formatter={(value: any, name: any) => [`${value}%`, name]}
+                          labelFormatter={(label) => `Tahun ${label}`}
+                        />
+                        <Legend verticalAlign="top" height={40} iconType="circle" iconSize={8} wrapperStyle={{ fontSize: '11px', fontWeight: '600' }} />
+                        {activeSubAspects['Penciptaan (1.1)'] && <Line type="monotone" dataKey="Penciptaan (1.1)" stroke="#6366f1" strokeWidth={3} activeDot={{ r: 6 }} dot={{ r: 4 }} />}
+                        {activeSubAspects['Penggunaan (1.2)'] && <Line type="monotone" dataKey="Penggunaan (1.2)" stroke="#3b82f6" strokeWidth={3} activeDot={{ r: 6 }} dot={{ r: 4 }} />}
+                        {activeSubAspects['Pemeliharaan (1.3)'] && <Line type="monotone" dataKey="Pemeliharaan (1.3)" stroke="#0d9488" strokeWidth={3} activeDot={{ r: 6 }} dot={{ r: 4 }} />}
+                        {activeSubAspects['Penyusutan (1.4)'] && <Line type="monotone" dataKey="Penyusutan (1.4)" stroke="#f97316" strokeWidth={3} activeDot={{ r: 6 }} dot={{ r: 4 }} />}
+                        {activeSubAspects['SDM (2.1)'] && <Line type="monotone" dataKey="SDM (2.1)" stroke="#8b5cf6" strokeWidth={3} activeDot={{ r: 6 }} dot={{ r: 4 }} />}
+                        {activeSubAspects['Prasarana (2.2)'] && <Line type="monotone" dataKey="Prasarana (2.2)" stroke="#ec4899" strokeWidth={3} activeDot={{ r: 6 }} dot={{ r: 4 }} />}
+                      </LineChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full flex items-center justify-center text-slate-400 italic">
+                      Tidak ada data riwayat untuk membuat tren perbandingan.
+                    </div>
                   )}
                 </div>
               </div>
