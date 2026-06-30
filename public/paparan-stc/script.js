@@ -72,6 +72,22 @@ function goToSlide(index) {
     prevBtn.disabled = currentSlide === 0;
     nextBtn.disabled = currentSlide === totalSlides - 1;
 
+    // Update feedback form if open
+    if (typeof updateFormSlideDisplay === 'function') {
+        updateFormSlideDisplay();
+    }
+
+    // Send message to parent window if inside iframe
+    if (window.parent && window.parent !== window) {
+        const activeDot = document.querySelector(`.nav-dot[data-slide="${index}"]`);
+        const slideTitle = activeDot ? activeDot.getAttribute('title') : `Slide ${index + 1}`;
+        window.parent.postMessage({
+            type: 'SLIDE_CHANGED',
+            slideIndex: index,
+            slideTitle: slideTitle
+        }, '*');
+    }
+
     // Trigger animations based on active slide
     if (currentSlide === 0) {
         animateCounters();
@@ -397,4 +413,358 @@ function loadRecommendationState() {
 document.addEventListener('DOMContentLoaded', () => {
     initSlides();
     loadRecommendationState();
+    initFeedbackSystem();
 });
+
+/* ==========================================================================
+   FEEDBACK & COMMENTS ENGINE (SUPABASE)
+   ========================================================================== */
+const slideTitles = [
+    "Halaman Utama",
+    "Ringkasan Eksekutif",
+    "Gambaran Umum",
+    "Tabel Analisis",
+    "Analisis Tematik",
+    "Masukan Tambahan",
+    "Rekomendasi",
+    "Terima Kasih"
+];
+
+let supabaseClient = null;
+let updateFormSlideDisplay = null;
+
+function initFeedbackSystem() {
+    // 1. Initialize Supabase Client
+    const supabaseUrl = 'https://klesjialuuacvzijzgbt.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtsZXNqaWFsdXVhY3Z6aWp6Z2J0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1NTAxNzUsImV4cCI6MjA4MTEyNjE3NX0.CATbY68wKsepTxU96Q8oX3lGDV-c1VqA5WxJHmEVZhE';
+    
+    if (window.supabase) {
+        supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
+    } else {
+        console.error("Supabase CDN failed to load!");
+    }
+
+    // 2. DOM Elements
+    const feedbackTriggerBtn = document.getElementById('feedbackTriggerBtn');
+    const feedbackDrawer = document.getElementById('feedbackDrawer');
+    const closeDrawerBtn = document.getElementById('closeDrawerBtn');
+    const drawerOverlay = document.getElementById('drawerOverlay');
+    
+    const tabLogBtn = document.getElementById('tabLogBtn');
+    const tabListBtn = document.getElementById('tabListBtn');
+    const tabLogContent = document.getElementById('tabLogContent');
+    const tabListContent = document.getElementById('tabListContent');
+    
+    const feedbackForm = document.getElementById('feedbackForm');
+    const feedbackAuthor = document.getElementById('feedbackAuthor');
+    const feedbackText = document.getElementById('feedbackText');
+    const formSlideVal = document.getElementById('formSlideVal');
+    const submitFeedbackBtn = document.getElementById('submitFeedbackBtn');
+    
+    const filterAllBtn = document.getElementById('filterAllBtn');
+    const filterCurrentBtn = document.getElementById('filterCurrentBtn');
+    const notesListContainer = document.getElementById('notesListContainer');
+    const notesCountText = document.getElementById('notesCountText');
+    const feedbackBadgeCount = document.getElementById('feedbackBadgeCount');
+
+    let currentFilter = 'all'; // 'all' or 'current'
+    let allNotes = [];
+
+    // 3. Toggle Drawer
+    feedbackTriggerBtn.addEventListener('click', () => {
+        feedbackDrawer.classList.add('open');
+        updateFormSlideDisplay();
+        fetchNotes();
+    });
+
+    const closeDrawer = () => {
+        feedbackDrawer.classList.remove('open');
+    };
+
+    closeDrawerBtn.addEventListener('click', closeDrawer);
+    drawerOverlay.addEventListener('click', closeDrawer);
+
+    // 4. Tab Switching
+    tabLogBtn.addEventListener('click', () => {
+        tabLogBtn.classList.add('active');
+        tabListBtn.classList.remove('active');
+        tabLogContent.classList.add('active');
+        tabListContent.classList.remove('active');
+    });
+
+    tabListBtn.addEventListener('click', () => {
+        tabListBtn.classList.add('active');
+        tabLogBtn.classList.remove('active');
+        tabListContent.classList.add('active');
+        tabLogContent.classList.remove('active');
+        fetchNotes();
+    });
+
+    // 5. Update Slide Display
+    updateFormSlideDisplay = function() {
+        if (formSlideVal) {
+            const numStr = String(currentSlide + 1).padStart(2, '0');
+            const title = slideTitles[currentSlide] || `Slide ${currentSlide + 1}`;
+            formSlideVal.textContent = `${numStr} - ${title}`;
+        }
+    };
+
+    // 6. Submit Comment
+    feedbackForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const author = feedbackAuthor.value.trim() || 'Anonim';
+        const content = feedbackText.value.trim();
+        if (!content) return;
+
+        submitFeedbackBtn.disabled = true;
+        submitFeedbackBtn.textContent = "Menyimpan...";
+
+        const slideIndex = currentSlide;
+        const slideTitle = slideTitles[slideIndex] || `Slide ${slideIndex + 1}`;
+
+        if (supabaseClient) {
+            try {
+                const { error } = await supabaseClient
+                    .from('presentation_notes')
+                    .insert([
+                        {
+                            slide_index: slideIndex,
+                            slide_title: slideTitle,
+                            content: content,
+                            author: author,
+                            is_resolved: false,
+                            project_id: 'STC'
+                        }
+                    ]);
+
+                if (error) throw error;
+
+                // Success
+                feedbackText.value = '';
+                // Switch to list tab
+                tabListBtn.click();
+            } catch (err) {
+                console.error("Gagal menyimpan ke Supabase, simpan ke LocalStorage:", err);
+                saveToLocalStorage(slideIndex, slideTitle, content, author);
+            }
+        } else {
+            saveToLocalStorage(slideIndex, slideTitle, content, author);
+        }
+
+        submitFeedbackBtn.disabled = false;
+        submitFeedbackBtn.textContent = "Simpan Catatan";
+    });
+
+    // Helper: LocalStorage Fallback
+    function saveToLocalStorage(slideIndex, slideTitle, content, author) {
+        const localNote = {
+            id: 'local_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now(),
+            created_at: new Date().toISOString(),
+            slide_index: slideIndex,
+            slide_title: slideTitle,
+            content: content,
+            author: author,
+            is_resolved: false,
+            project_id: 'STC'
+        };
+
+        let localNotes = [];
+        const saved = localStorage.getItem('pulse_presentation_notes_stc');
+        if (saved) {
+            try { localNotes = JSON.parse(saved); } catch (e) {}
+        }
+        localNotes.push(localNote);
+        localStorage.setItem('pulse_presentation_notes_stc', JSON.stringify(localNotes));
+
+        feedbackText.value = '';
+        tabListBtn.click();
+    }
+
+    // 7. Fetch Comments
+    async function fetchNotes() {
+        notesListContainer.innerHTML = '<div class="loading-notes">Memuat catatan...</div>';
+        let notes = [];
+
+        if (supabaseClient) {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('presentation_notes')
+                    .select('*')
+                    .eq('project_id', 'STC')
+                    .order('created_at', { ascending: false });
+
+                if (error) throw error;
+                notes = data || [];
+            } catch (err) {
+                console.warn("Gagal fetch dari Supabase, baca dari LocalStorage:", err);
+                notes = getLocalStorageNotes();
+            }
+        } else {
+            notes = getLocalStorageNotes();
+        }
+
+        allNotes = notes;
+        renderNotes();
+    }
+
+    function getLocalStorageNotes() {
+        const saved = localStorage.getItem('pulse_presentation_notes_stc');
+        if (saved) {
+            try {
+                const parsed = JSON.parse(saved);
+                return parsed.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+            } catch (e) {
+                return [];
+            }
+        }
+        return [];
+    }
+
+    // 8. Render Comments
+    function renderNotes() {
+        let filtered = allNotes;
+        if (currentFilter === 'current') {
+            filtered = allNotes.filter(n => n.slide_index === currentSlide);
+        }
+
+        // Update counts
+        const unresolvedCount = allNotes.filter(n => !n.is_resolved).length;
+        notesCountText.textContent = allNotes.length;
+        
+        if (unresolvedCount > 0) {
+            feedbackBadgeCount.textContent = unresolvedCount;
+            feedbackBadgeCount.style.display = 'flex';
+        } else {
+            feedbackBadgeCount.style.display = 'none';
+        }
+
+        if (filtered.length === 0) {
+            notesListContainer.innerHTML = `
+                <div class="empty-notes">
+                    <p>Tidak ada catatan.</p>
+                    <p style="font-size:0.75rem; color:#475569; margin-top:0.25rem;">
+                        ${currentFilter === 'current' ? 'Tulis catatan pertama untuk slide ini!' : 'Tulis catatan masukan di tab sebelah.'}
+                    </p>
+                </div>
+            `;
+            return;
+        }
+
+        notesListContainer.innerHTML = '';
+        filtered.forEach(note => {
+            const card = document.createElement('div');
+            card.className = `note-card ${note.is_resolved ? 'resolved' : ''}`;
+            
+            const formattedDate = new Date(note.created_at).toLocaleString('id-ID', {
+                day: 'numeric',
+                month: 'short',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            card.innerHTML = `
+                <div class="note-card-header">
+                    <div>
+                        <span class="note-card-slide-badge">Slide ${note.slide_index + 1}</span>
+                        <div class="note-card-meta">
+                            <span class="note-card-author">${note.author}</span>
+                            <span>•</span>
+                            <span>${formattedDate}</span>
+                        </div>
+                    </div>
+                    <button class="note-delete-btn" data-id="${note.id}" title="Hapus Catatan">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                    </button>
+                </div>
+                <div class="note-card-body">${escapeHTML(note.content)}</div>
+            `;
+
+            // Delete event listener
+            card.querySelector('.note-delete-btn').addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const noteId = e.currentTarget.getAttribute('data-id');
+                if (confirm("Hapus catatan ini?")) {
+                    await deleteNote(noteId);
+                }
+            });
+
+            notesListContainer.appendChild(card);
+        });
+    }
+
+    // 9. Delete Comment
+    async function deleteNote(noteId) {
+        if (noteId.startsWith('local_')) {
+            let localNotes = getLocalStorageNotes();
+            localNotes = localNotes.filter(n => n.id !== noteId);
+            localStorage.setItem('pulse_presentation_notes_stc', JSON.stringify(localNotes));
+            allNotes = localNotes;
+            renderNotes();
+        } else if (supabaseClient) {
+            try {
+                const { error } = await supabaseClient
+                    .from('presentation_notes')
+                    .delete()
+                    .eq('id', noteId);
+
+                if (error) throw error;
+                allNotes = allNotes.filter(n => n.id !== noteId);
+                renderNotes();
+            } catch (err) {
+                alert("Gagal menghapus dari server: " + err.message);
+            }
+        }
+    }
+
+    // 10. Filters Event Listeners
+    filterAllBtn.addEventListener('click', () => {
+        filterAllBtn.classList.add('active');
+        filterCurrentBtn.classList.remove('active');
+        currentFilter = 'all';
+        renderNotes();
+    });
+
+    filterCurrentBtn.addEventListener('click', () => {
+        filterCurrentBtn.classList.add('active');
+        filterAllBtn.classList.remove('active');
+        currentFilter = 'current';
+        renderNotes();
+    });
+
+    // Initial Badge Count Load
+    fetchBadgeCountOnly();
+    async function fetchBadgeCountOnly() {
+        let notes = [];
+        if (supabaseClient) {
+            try {
+                const { data } = await supabaseClient
+                    .from('presentation_notes')
+                    .select('id, is_resolved')
+                    .eq('project_id', 'STC');
+                notes = data || [];
+            } catch (e) {
+                notes = getLocalStorageNotes();
+            }
+        } else {
+            notes = getLocalStorageNotes();
+        }
+        const unresolvedCount = notes.filter(n => !n.is_resolved).length;
+        if (unresolvedCount > 0) {
+            feedbackBadgeCount.textContent = unresolvedCount;
+            feedbackBadgeCount.style.display = 'flex';
+        }
+    }
+}
+
+// Utility to escape HTML
+function escapeHTML(str) {
+    return str
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}

@@ -36,6 +36,7 @@ export default defineConfig(({ mode }) => {
         registerType: 'autoUpdate',
         workbox: {
           globIgnores: ['**/version.json'],
+          navigateFallbackDenylist: [/^\/paparan-stc/], // Prevent PWA from hijacking the presentation path
           // Aggressive cache cleanup
           cleanupOutdatedCaches: true,
           // Skip waiting and claim clients immediately

@@ -939,7 +939,69 @@
         </div>
     </footer>
 
+    <!-- Floating Feedback Button -->
+    <button id="feedbackTriggerBtn" class="floating-feedback-btn" title="Berikan Masukan / Catatan">
+        <svg class="feedback-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+        </svg>
+        <span class="feedback-badge" id="feedbackBadgeCount" style="display: none;">0</span>
+    </button>
+
+    <!-- Feedback Drawer -->
+    <div id="feedbackDrawer" class="feedback-drawer">
+        <div class="drawer-overlay" id="drawerOverlay"></div>
+        <div class="drawer-content">
+            <div class="drawer-header">
+                <h3>Catatan & Masukan</h3>
+                <button id="closeDrawerBtn" class="close-btn">&times;</button>
+            </div>
+            
+            <div class="drawer-body">
+                <!-- Tab Navigation -->
+                <div class="drawer-tabs">
+                    <button id="tabLogBtn" class="drawer-tab active">Tambah Catatan</button>
+                    <button id="tabListBtn" class="drawer-tab">Daftar Catatan (<span id="notesCountText">0</span>)</button>
+                </div>
+
+                <!-- Tab 1: Form -->
+                <div id="tabLogContent" class="tab-content active">
+                    <form id="feedbackForm" class="feedback-form">
+                        <div class="form-group current-slide-display">
+                            <label>Slide Aktif</label>
+                            <div class="slide-val" id="formSlideVal">01 - Halaman Utama</div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="feedbackAuthor">Nama Anda (Opsional / Anonim)</label>
+                            <input type="text" id="feedbackAuthor" placeholder="Masukkan nama Anda atau kosongkan untuk Anonim" />
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="feedbackText">Isi Catatan / Masukan</label>
+                            <textarea id="feedbackText" placeholder="Tulis masukan, koreksi data, atau catatan rapat untuk slide ini..." required rows="4"></textarea>
+                        </div>
+                        
+                        <button type="submit" id="submitFeedbackBtn" class="submit-btn">Simpan Catatan</button>
+                    </form>
+                </div>
+
+                <!-- Tab 2: List -->
+                <div id="tabListContent" class="tab-content">
+                    <div class="list-filters">
+                        <button class="filter-btn active" id="filterAllBtn">Semua</button>
+                        <button class="filter-btn" id="filterCurrentBtn">Slide Ini</button>
+                    </div>
+                    <div class="notes-list" id="notesListContainer">
+                        <!-- Notes will be loaded here dynamically -->
+                        <div class="loading-notes">Memuat catatan...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="script.js"></script>
 </body>
 </html>

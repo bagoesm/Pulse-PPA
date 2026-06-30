@@ -30,7 +30,8 @@ import {
   ChevronsRight,
   Package,
   Video,
-  Layers
+  Layers,
+  Presentation
 } from 'lucide-react';
 import { SIDEBAR_ITEMS, User } from '../../types';
 import { useSidebar } from '../contexts/SidebarContext';
@@ -71,7 +72,8 @@ const IconMap: Record<string, React.ElementType> = {
   'Package': Package,
   'PieChart': PieChart,
   'Video': Video,
-  'Layers': Layers
+  'Layers': Layers,
+  'Presentation': Presentation
 };
 
 const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser, users, onSwitchUser, onLogout }) => {
