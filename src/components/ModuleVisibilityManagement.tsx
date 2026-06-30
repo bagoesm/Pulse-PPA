@@ -15,7 +15,8 @@ const ModuleVisibilityManagement: React.FC = () => {
     'Realisasi Anggaran',
     'Inventori Data',
     'Inventori BMN',
-    'Pelayanan Zoom'
+    'Pelayanan Zoom',
+    'Penilaian Arsip'
   ];
 
   // States

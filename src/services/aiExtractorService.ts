@@ -317,6 +317,183 @@ PENTING: Kembalikan HANYA JSON. JANGAN sertakan markdown block seperti \`\`\`jso
       console.error('Failed to extract tasks from text:', e);
       throw new Error('Gagal mengekstrak task dengan AI: ' + e.message);
     }
+  },
+
+  async extractArchiveEvaluation(text: string): Promise<any> {
+    const prompt = `
+Anda adalah asisten AI kearsipan yang sangat cerdas. Tugas Anda adalah mengekstrak nilai perolehan (jumlah skor), nilai standar, dan bobot kearsipan dari teks laporan atau ringkasan hasil audit kearsipan berikut.
+
+Teks input sering kali berasal dari copy-paste tabel PDF atau Word yang rusak secara vertikal (baris terpotong/patah dan angka terpisah). Anda harus merekonstruksinya terlebih dahulu.
+
+Teks input:
+"""
+${text}
+"""
+
+---
+
+### PANDUAN REKONSTRUKSI TEKS RUSAK / VERTIKAL:
+1. **Gabungkan Angka yang Terpotong**:
+   - Jika ada angka terpisah seperti "3" di satu baris dan "00" di baris berikutnya, gabungkan menjadi "300".
+   - Jika ada desimal yang terpisah seperti "1000" dan ".00", gabungkan menjadi "1000.00".
+   - Jika ada "70" dan "0.00", periksa konteksnya: jika subaspek tersebut memiliki standar default 700, maka gabungkan menjadi "700.00".
+2. **Urutan Kolom Subaspek**:
+   Dalam satu subaspek, angka yang muncul biasanya berurutan sebagai:
+   \`[Nilai Perolehan / Jumlah Skor]\` -> \`[Nilai Standar]\` -> \`[Bobot Sub-Aspek]\` -> \`[Nilai Akhir]\`
+   *Catatan*: Gunakan logika bahwa Nilai Perolehan biasanya lebih kecil atau sama dengan Nilai Standar. Bobot biasanya berupa desimal (0.2, 0.25, 0.35, 0.5) atau persentase (20%, 25%, 35%, 50%).
+3. **Konversi Bobot Desimal ke Persen**:
+   - Jika bobot di dalam teks tertulis dalam bentuk desimal (seperti "0.2", "0.25", "0.35", "0.5", "0.7"), Anda **WAJIB mengalikan angka tersebut dengan 100** sebelum dimasukkan ke JSON (misalnya: "0.2" menjadi 20, "0.35" menjadi 35, "0.7" menjadi 70). Jika sudah tertulis dalam persen (seperti "20%" atau "20"), gunakan angka tersebut langsung.
+
+---
+
+### CONTOH ANALISIS (FEW-SHOT EXAMPLE):
+
+Jika teks input adalah:
+"""
+1.1
+Subaspek
+Penciptaan Arsip
+700
+70
+0.00
+0.2
+20
+1.2
+Subaspek
+Penggunaan
+Arsip
+200
+200.00
+0.2
+20
+1.3
+Subaspek
+Pemeliharaan
+Arsip
+1100
+1000
+.00
+0.35
+35
+1.4
+Subaspek
+Penyusutan
+Arsip
+200
+120
+.00
+0.25
+15
+2
+.
+ASPEK   SUMBER
+DAYA KEARSIPAN
+300
+61,67
+0,3
+18,5
+2.1
+Subaspek
+Sumber   Daya
+Manusia
+Kearsipan
+ 
+3
+00
+70
+.00
+0.5
+11,67
+2.2
+Subaspek
+Prasarana   dan
+Saranan
+Kearsipan
+100
+100.00
+0.5
+50
+"""
+
+Maka hasil JSON yang Anda kembalikan harus tepat seperti ini:
+{
+  "nilai_1_1": 700,
+  "standar_1_1": 700,
+  "bobot_1_1": 20,
+  "nilai_1_2": 200,
+  "standar_1_2": 200,
+  "bobot_1_2": 20,
+  "nilai_1_3": 1000,
+  "standar_1_3": 1100,
+  "bobot_1_3": 35,
+  "nilai_1_4": 120,
+  "standar_1_4": 200,
+  "bobot_1_4": 25,
+  "nilai_2_1": 70,
+  "standar_2_1": 300,
+  "bobot_2_1": 50,
+  "nilai_2_2": 100,
+  "standar_2_2": 100,
+  "bobot_2_2": 50,
+  "bobot_aspek_1": 70,
+  "bobot_aspek_2": 30
+}
+
+---
+
+### SUBASPEK & NILAI DEFAULT SEBAGAI ACUAN (JIKA TIDAK DISEBUTKAN):
+1. **Penciptaan Arsip (Subaspek 1.1)**: Standar default 700, Bobot default 25
+2. **Penggunaan Arsip (Subaspek 1.2)**: Standar default 200, Bobot default 25
+3. **Pemeliharaan Arsip (Subaspek 1.3)**: Standar default 1100, Bobot default 25
+4. **Penyusutan Arsip (Subaspek 1.4)**: Standar default 200, Bobot default 25
+5. **Sumber Daya Manusia Kearsipan (Subaspek 2.1)**: Standar default 300, Bobot default 50
+6. **Prasarana dan Sarana Kearsipan (Subaspek 2.2)**: Standar default 100, Bobot default 50
+
+---
+
+### OUTPUT FORMAT:
+Kembalikan HANYA dalam format JSON berikut (tanpa markdown, tanpa penjelasan):
+{
+  "nilai_1_1": number,
+  "standar_1_1": number,
+  "bobot_1_1": number,
+  
+  "nilai_1_2": number,
+  "standar_1_2": number,
+  "bobot_1_2": number,
+  
+  "nilai_1_3": number,
+  "standar_1_3": number,
+  "bobot_1_3": number,
+  
+  "nilai_1_4": number,
+  "standar_1_4": number,
+  "bobot_1_4": number,
+  
+  "nilai_2_1": number,
+  "standar_2_1": number,
+  "bobot_2_1": number,
+  
+  "nilai_2_2": number,
+  "standar_2_2": number,
+  "bobot_2_2": number,
+  
+  "bobot_aspek_1": number,
+  "bobot_aspek_2": number
+}
+    `;
+
+    try {
+      if (!genAI) throw new Error('API Key Google tidak ditemukan di .env (VITE_GEMINI_API_KEY)');
+      
+      const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-lite-preview' });
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      return cleanAndParseJson(response.text());
+    } catch (geminiError: any) {
+      console.error('Gemini Archive Evaluation Extraction failed:', geminiError);
+      throw new Error('Gagal menganalisis teks dengan AI: ' + geminiError.message);
+    }
   }
 };
 

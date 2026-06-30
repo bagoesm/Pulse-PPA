@@ -146,7 +146,8 @@ export class ModuleVisibilityService {
         'Realisasi Anggaran',
         'Inventori Data',
         'Inventori BMN',
-        'Pelayanan Zoom'
+        'Pelayanan Zoom',
+        'Penilaian Arsip'
       ];
 
       // Filter visible modules

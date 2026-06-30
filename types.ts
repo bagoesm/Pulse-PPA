@@ -389,19 +389,26 @@ export const SIDEBAR_ITEMS = [
     ]
   },
   {
-    name: 'Realisasi Anggaran',
-    icon: 'FileSpreadsheet',
+    name: 'Informasi Lainnya',
+    icon: 'MoreHorizontal',
     submenu: [
-      { name: 'Dashboard Realisasi', icon: 'LayoutDashboard' },
-      { name: 'Monitoring Anggaran', icon: 'PieChart' },
-      { name: 'Daftar Transaksi', icon: 'ClipboardList' },
-      { name: 'Laporan Anggaran', icon: 'FileText' },
-      { name: 'Master Anggaran', icon: 'Database' },
+      { name: 'Inventori BMN', icon: 'Package' },
+      { name: 'Inventori Data', icon: 'Database' },
+      { name: 'Pelayanan Zoom', icon: 'Video' },
+      { name: 'Penilaian Arsip', icon: 'ClipboardCheck' },
+      {
+        name: 'Monitoring Anggaran',
+        icon: 'PieChart',
+        submenu: [
+          { name: 'Dashboard Realisasi', icon: 'LayoutDashboard' },
+          { name: 'Monitoring Anggaran', icon: 'PieChart' },
+          { name: 'Daftar Transaksi', icon: 'ClipboardList' },
+          { name: 'Laporan Anggaran', icon: 'FileText' },
+          { name: 'Master Anggaran', icon: 'Database' },
+        ]
+      }
     ]
-  },
-  { name: 'Inventori Data', icon: 'Database' },
-  { name: 'Inventori BMN', icon: 'Package' },
-  { name: 'Pelayanan Zoom', icon: 'Video' },
+  }
 ];
 
 // Disposisi - Disposition workflow for Surat-Kegiatan integration
@@ -642,6 +649,19 @@ export interface BMNEditor {
   createdAt: string;
   userName?: string;
   userEmail?: string;
+}
+
+/**
+ * ArchiveEditor - Designates Archive edit permissions for specific Satkers (Divisions)
+ */
+export interface ArchiveEditor {
+  id: string;
+  userId: string;
+  divisiId: string;
+  createdAt: string;
+  userName?: string;
+  userEmail?: string;
+  namaDivisi?: string;
 }
 
 
@@ -918,5 +938,37 @@ export interface ModuleVisibility {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface PenilaianArsip {
+  id?: string;
+  divisiId: string;
+  divisiName?: string;
+  tahun: number;
+  nilai_1_1: number;
+  nilai_1_2: number;
+  nilai_1_3: number;
+  nilai_1_4: number;
+  nilai_2_1: number;
+  nilai_2_2: number;
+  standar_1_1: number;
+  standar_1_2: number;
+  standar_1_3: number;
+  standar_1_4: number;
+  standar_2_1: number;
+  standar_2_2: number;
+  bobot_1_1: number;
+  bobot_1_2: number;
+  bobot_1_3: number;
+  bobot_1_4: number;
+  bobot_2_1: number;
+  bobot_2_2: number;
+  bobot_aspek_1: number;
+  bobot_aspek_2: number;
+  lakiLink?: string;
+  createdBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 
 
