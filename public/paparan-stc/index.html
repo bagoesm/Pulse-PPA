@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analisis Hasil Survey & Tindak Lanjut Direktori PPA</title>
+    <meta name="description" content="Laporan Analisis Hasil Survey dan Tindak Lanjut Direktori PPA - Evaluasi Data, Kendala, dan Rekomendasi">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="dark-theme">
+    <!-- Background Glows -->
+    <div class="glow-bg">
+        <div class="glow-sphere glow-1"></div>
+        <div class="glow-sphere glow-2"></div>
+    </div>
+
+    <!-- Top Navigation Bar -->
+    <header class="top-bar">
+        <div class="logo-area">
+            <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+            </svg>
+            <span class="logo-text">Direktori <span class="accent-text">PPA</span></span>
+        </div>
+        
+        <!-- Progress Tracker -->
+        <div class="progress-container">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+
+        <div class="top-controls">
+            <!-- Theme Toggle -->
+            <button id="themeToggle" class="icon-btn" title="Ubah Tema" aria-label="Ubah Tema">
+                <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="5"></circle>
+                    <line x1="12" y1="1" x2="12" y2="3"></line>
+                    <line x1="12" y1="21" x2="12" y2="23"></line>
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                    <line x1="1" y1="12" x2="3" y2="12"></line>
+                    <line x1="21" y1="12" x2="23" y2="12"></line>
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                </svg>
+                <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                </svg>
+            </button>
+        </div>
+    </header>
+
+    <!-- Sidebar Navigation (Quick Jump) -->
+    <aside class="sidebar-nav">
+        <nav class="nav-dots">
+            <button class="nav-dot active" data-slide="0" title="Halaman Utama">
+                <span class="dot-num">01</span>
+                <span class="dot-label">Halaman Utama</span>
+            </button>
+            <button class="nav-dot" data-slide="1" title="Ringkasan Eksekutif">
+                <span class="dot-num">02</span>
+                <span class="dot-label">Ringkasan Eksekutif</span>
+            </button>
+            <button class="nav-dot" data-slide="2" title="Gambaran Umum">
+                <span class="dot-num">03</span>
+                <span class="dot-label">Gambaran Umum</span>
+            </button>
+            <button class="nav-dot" data-slide="3" title="Tabel Analisis">
+                <span class="dot-num">04</span>
+                <span class="dot-label">Tabel Analisis</span>
+            </button>
+            <button class="nav-dot" data-slide="4" title="Analisis Tematik">
+                <span class="dot-num">05</span>
+                <span class="dot-label">Analisis Tematik</span>
+            </button>
+            <button class="nav-dot" data-slide="5" title="Masukan Tambahan">
+                <span class="dot-num">06</span>
+                <span class="dot-label">Masukan Tambahan</span>
+            </button>
+            <button class="nav-dot" data-slide="6" title="Rekomendasi Tindak Lanjut">
+                <span class="dot-num">07</span>
+                <span class="dot-label">Rekomendasi</span>
+            </button>
+            <button class="nav-dot" data-slide="7" title="Terima Kasih">
+                <span class="dot-num">08</span>
+                <span class="dot-label">Terima Kasih</span>
+            </button>
+        </nav>
+    </aside>
+
+    <!-- Main Slides Container -->
+    <main class="slides-container" id="slidesContainer">
+        
+        <!-- SLIDE 1: HERO / TITLE -->
+        <section class="slide active" id="slide-0">
+            <div class="slide-content hero-layout">
+                <div class="hero-text">
+                    <div class="badge">Laporan Evaluasi & Perencanaan</div>
+                    <h1 class="hero-title">Analisis Hasil Survey & Tindak Lanjut <span class="gradient-text">Direktori PPA</span></h1>
+                    <p class="hero-subtitle">Identifikasi Data, Hambatan Operasional, Kebutuhan Khusus Instansi, dan Rekomendasi Rencana Aksi Integrasi Layanan Perlindungan Perempuan dan Anak.</p>
+                    <div class="hero-actions">
+                        <button class="btn btn-primary" onclick="nextSlide()">
+                            Mulai Presentasi
+                            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                                <polyline points="12 5 19 12 12 19"></polyline>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="hero-stats-grid">
+                    <div class="stat-card glass">
+                        <div class="stat-num counter" data-target="8">0</div>
+                        <div class="stat-label">Baris Data</div>
+                    </div>
+                    <div class="stat-card glass">
+                        <div class="stat-num counter" data-target="4">0</div>
+                        <div class="stat-label">Submission</div>
+                    </div>
+                    <div class="stat-card glass">
+                        <div class="stat-num counter" data-target="4">0</div>
+                        <div class="stat-label">Instansi Terlibat</div>
+                    </div>
+                    <div class="stat-card glass">
+                        <div class="stat-num highlight counter" data-target="87.5">0</div>
+                        <div class="stat-label">Kesesuaian (%)</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 2: EXECUTIVE SUMMARY -->
+        <section class="slide" id="slide-1">
+            <div class="slide-content">
+                <div class="slide-header">
+                    <span class="slide-number">02</span>
+                    <h2 class="slide-title">Ringkasan Eksekutif</h2>
+                </div>
+                <div class="grid-2col">
+                    <div class="summary-left-card glass">
+                        <div class="large-badge">Kesesuaian Data</div>
+                        <div class="highlight-percent">
+                            <span class="big-num">87.5%</span>
+                            <span class="percent-label">Memenuhi Kriteria Dasar</span>
+                        </div>
+                        <p class="summary-highlight-text">
+                            Hasil rekap survey identifikasi data Direktori PPA menunjukkan bahwa dari <strong>8 item data</strong> yang masuk, <strong>7 item</strong> telah sesuai format dan sesuai jenis layanan, sedangkan <strong>1 item</strong> masih belum sesuai.
+                        </p>
+                        <div class="summary-pill-container">
+                            <span class="status-pill success">7 Sesuai</span>
+                            <span class="status-pill danger">1 Belum Sesuai</span>
+                        </div>
+                    </div>
+                    <div class="summary-details">
+                        <div class="summary-point-card glass">
+                            <div class="point-icon-wrapper blue">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                                    <circle cx="9" cy="7" r="4"></circle>
+                                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                                </svg>
+                            </div>
+                            <div class="point-content">
+                                <h3>Kontribusi Lembaga & Kualitas</h3>
+                                <p>Data berasal dari 4 submission dan 4 responden dari instansi yang berbeda, dengan kontribusi terbesar berasal dari <strong>BKKBN</strong> yang mengirimkan 5 item data. Secara umum, kualitas data yang diterima cukup baik, namun masih diperlukan penyempurnaan pada klasifikasi layanan, pemutakhiran referensi, dan standardisasi format input agar integrasi data ke dalam Direktori PPA berjalan lebih konsisten.</p>
+                            </div>
+                        </div>
+                        <div class="summary-point-card glass">
+                            <div class="point-icon-wrapper purple">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                                    <circle cx="12" cy="10" r="3"></circle>
+                                </svg>
+                            </div>
+                            <div class="point-content">
+                                <h3>Cakupan Wilayah & Kendala</h3>
+                                <p>Dari sisi cakupan, mayoritas data masih berada pada <strong>tingkat pusat</strong>, hanya sebagian kecil mencakup tingkat provinsi dan kecamatan. Hal ini menunjukkan representasi data lintas wilayah masih terbatas. Beberapa instansi menyampaikan kendala operasional seperti pembaruan data oleh pihak ketiga, proses validasi yang memakan waktu, keterbatasan akses dan jaringan internet di daerah, serta kebutuhan rekap manual.</p>
+                            </div>
+                        </div>
+                        <div class="summary-point-card glass">
+                            <div class="point-icon-wrapper orange">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                </svg>
+                            </div>
+                            <div class="point-content">
+                                <h3>Temuan Penting & Prioritas</h3>
+                                <p>Terdapat satu item, yaitu <strong>KPAD (Komisi Perlindungan Anak Daerah)</strong>, yang belum sesuai format dan belum sesuai jenis layanan karena belum tercantum dalam daftar layanan yang tersedia. Ini mengindikasikan perlunya evaluasi dan pembaruan master referensi jenis layanan. Prioritas tindak lanjut adalah memperbaiki daftar referensi layanan, menstandarkan format input, dan mendorong pembaruan otomatis.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 3: OVERVIEW IDENTIFICATION -->
+        <section class="slide" id="slide-2">
+            <div class="slide-content">
+                <div class="slide-header">
+                    <span class="slide-number">03</span>
+                    <h2 class="slide-title">Gambaran Umum Hasil Identifikasi</h2>
+                </div>
+                <div class="grid-3col">
+                    <!-- Card 1 -->
+                    <div class="feature-card glass">
+                        <div class="feature-icon blue">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                                <circle cx="9" cy="7" r="4"></circle>
+                                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                            </svg>
+                        </div>
+                        <h3>Partisipasi & Kontribusi</h3>
+                        <p class="feature-desc">Terdapat <strong>8 baris data</strong> yang mewakili <strong>4 submission</strong> dari <strong>4 responden</strong>, berasal dari 4 instansi/unit kerja yang berbeda.</p>
+                        <div class="chart-container">
+                            <div class="mini-bar-chart">
+                                <div class="bar-item" style="height: 100%;" title="BKKBN (5 item)">
+                                    <span class="bar-value">5</span>
+                                    <span class="bar-label">BKKBN</span>
+                                </div>
+                                <div class="bar-item" style="height: 20%;" title="ECPAT Indonesia (1 item)">
+                                    <span class="bar-value">1</span>
+                                    <span class="bar-label">ECPAT</span>
+                                </div>
+                                <div class="bar-item" style="height: 20%;" title="Kemendikdasmen (1 item)">
+                                    <span class="bar-value">1</span>
+                                    <span class="bar-label">Kemendik</span>
+                                </div>
+                                <div class="bar-item" style="height: 20%;" title="KemenPPPA (1 item)">
+                                    <span class="bar-value">1</span>
+                                    <span class="bar-label">KemenPPPA</span>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="card-caption">Submission terbanyak berasal dari BKKBN (5 item data). Hal ini menunjukkan kontribusi data masih belum merata antarlembaga, sehingga perlu perluasan partisipasi agar representasi direktori lebih seimbang.</p>
+                    </div>
+
+                    <!-- Card 2 -->
+                    <div class="feature-card glass">
+                        <div class="feature-icon green">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="9 11 12 14 22 4"></polyline>
+                                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+                            </svg>
+                        </div>
+                        <h3>Analisis Kuantitatif</h3>
+                        <p class="feature-desc">Tingkat kesesuaian data yang dikirimkan oleh instansi pengampu layanan terhadap standar Direktori PPA:</p>
+                        
+                        <div class="radial-progress-container">
+                            <div class="radial-gauge" style="--percent: 87.5;">
+                                <svg viewBox="0 0 36 36" class="circular-chart">
+                                    <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                    <path class="circle" stroke-dasharray="87.5, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                    <text x="18" y="20.35" class="percentage">87.5%</text>
+                                </svg>
+                            </div>
+                            <div class="radial-labels">
+                                <div><span class="indicator-dot green"></span> Kesesuaian Format (7/8)</div>
+                                <div><span class="indicator-dot green"></span> Kesesuaian Layanan (7/8)</div>
+                            </div>
+                        </div>
+                        <p class="card-caption">Mayoritas data (87,5%) telah memenuhi kriteria dasar untuk diproses, tetapi masih terdapat kebutuhan penyempurnaan pada referensi layanan, struktur profil layanan, dan metadata pendukung.</p>
+                    </div>
+
+                    <!-- Card 3 -->
+                    <div class="feature-card glass">
+                        <div class="feature-icon purple">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                                <polyline points="2 17 12 22 22 17"></polyline>
+                                <polyline points="2 12 12 17 22 12"></polyline>
+                            </svg>
+                        </div>
+                        <h3>Rangkuman Temuan</h3>
+                        <p class="feature-desc">Berdasarkan hasil identifikasi awal, poin penting yang menjadi perhatian meliputi:</p>
+                        
+                        <ul class="needs-list">
+                            <li>
+                                <div class="list-num">1</div>
+                                <span><strong>Kualitas Data Cukup Baik:</strong> Data terstruktur dengan baik dan mayoritas siap diintegrasikan.</span>
+                            </li>
+                            <li>
+                                <div class="list-num">2</div>
+                                <span><strong>Kesenjangan Partisipasi:</strong> Dominasi satu instansi (BKKBN) memerlukan dorongan aktif bagi instansi lain.</span>
+                            </li>
+                            <li>
+                                <div class="list-num">3</div>
+                                <span><strong>Pembaruan Master:</strong> Kasus KPAD menunjukkan master referensi harus diperbarui secara berkala.</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 4: BENTO GRID SURVEY RESULTS -->
+        <section class="slide" id="slide-3">
+            <div class="slide-content bento-layout">
+                <div class="slide-header">
+                    <span class="slide-number">04</span>
+                    <h2 class="slide-title">Hasil Survey Identifikasi Data (Bento Grid)</h2>
+                    <div class="slide-subtitle-right">Menyajikan 8 item data survey beserta analisis lengkap secara langsung</div>
+                </div>
+                
+                <div class="bento-grid">
+                    <!-- Card 1: ECPAT -->
+                    <div class="bento-card glass">
+                        <div class="bento-card-header">
+                            <span class="bento-num">01</span>
+                            <span class="instansi-badge lpsk">ECPAT</span>
+                        </div>
+                        <h3 class="bento-card-title">Layanan Pengaduan Eksploitasi Seksual pada Anak</h3>
+                        <div class="bento-badges">
+                            <span class="bento-badge-item format-ok">Format: Sesuai</span>
+                            <span class="bento-badge-item format-ok">Layanan: Sesuai</span>
+                            <span class="bento-badge-item type-excel">Excel</span>
+                        </div>
+                        <div class="bento-details-list">
+                            <div class="bento-detail-row">
+                                <span class="bento-detail-label">Responden</span>
+                                <span class="bento-detail-val">Alfi Fadhillah</span>
+                            </div>
+                            <div class="bento-detail-row">
+                                <span class="bento-detail-label">Cakupan</span>
+                                <span class="bento-detail-val">Tingkat pusat</span>
+                            </div>
+                            <div class="bento-detail-row">
+                                <span class="bento-detail-label">Pembaruan</span>
+                                <span class="bento-detail-val">Per bulan</span>
+                            </div>
+                        </div>
+                        <div class="bento-notes">
+                            <strong>Alternatif / Catatan:</strong>
+                            <p>Tidak ada kendala operasional yang dilaporkan. Data dikirimkan secara mandiri.</p>
+                        </div>
+                        <div class="bento-analysis">
+                            <strong>Analisis Tim:</strong>
+                            <p>Data sesuai dan relatif siap integrasi, dengan pola pemutakhiran bulanan yang cukup rutin.</p>
+                        </div>
+                    </div>
+
+                    <!-- Card 2: Kemendikdasmen -->
+                    <div class="bento-card glass">
+                        <div class="bento-card-header">
+                            <span class="bento-num">02</span>
+                            <span class="instansi-badge lpsk">Kemendikdasmen</span>
+                        </div>
+                        <h3 class="bento-card-title">Unit Layanan Terpadu</h3>
+                        <div class="bento-badges">
+                            <span class="bento-badge-item format-ok">Format: Sesuai</span>
+                            <span class="bento-badge-item format-ok">Layanan: Sesuai</span>
+                            <span class="bento-badge-item type-excel">Excel</span>
+                        </div>
+                        <div class="bento-details-list">
+                            <div class="bento-detail-row">
+                                <span class="bento-detail-label">Responden</span>
+                                <span class="bento-detail-val">Fany Budiman (Itjen)</span>
+                            </div>
+                            <div class="bento-detail-row">
+                                <span class="bento-detail-label">Cakupan</span>
+                                <span class="bento-detail-val">Tingkat pusat</span>
+                            </div>
+                            <div class="bento-detail-row">
+                                <span class="bento-detail-label">Pembaruan</span>
+                                <span class="bento-detail-val">Per bulan dari pusat</span>
+                            </div>
+                        </div>
+                        <div class="bento-notes">
+                            <strong>Alternatif / Catatan:</strong>
+                            <p>Proses validasi internal kementerian memakan waktu lebih lama sebelum data siap diunggah.</p>
+                        </div>
+                        <div class="bento-analysis">
+                            <strong>Analisis Tim:</strong>
+                            <p>Data sesuai, tetapi ada catatan bahwa proses validasi masih lambat sehingga perlu perhatian pada efisiensi pembaruan.</p>
+                        </div>
+                    </div>
+
+                    <!-- Card 3: BKKBN Satyagatra -->
+                    <div class="bento-card glass">
+                        <div class="bento-card-header">
+                            <span class="bento-num">03</span>
+                            <span class="instansi-badge bkkbn">BKKBN / Satyagatra</span>
+                        </div>
+                        <h3 class="bento-card-title">Pusat Pelayanan Keluarga Sejahtera (Satyagatra)</h3>
+                        <div class="bento-badges">
+                            <span class="bento-badge-item format-ok">Format: Sesuai</span>
+                            <span class="bento-badge-item format-ok">Layanan: Sesuai</span>
+                            <span class="bento-badge-item type-excel">Excel</span>
+                        </div>
+                        <div class="bento-details-list">
+                            <div class="bento-detail-row">
+                                <span class="bento-detail-label">Responden</span>
+                                <span class="bento-detail-val">Intan Amanda</span>
+                            </div>
+                            <div class="bento-detail-row">
+                                <span class="bento-detail-label">Cakupan</span>
+                                <span class="bento-detail-val">Pusat, Prov, Kec</span>
+                            </div>
+                            <div class="bento-detail-row">
+                                <span class="bento-detail-label">Pembaruan</span>
+                                <span class="bento-detail-val">Per bulan (Aplikasi SIGA)</span>
+                            </div>
+                        </div>
+                        <div class="bento-notes">
+                            <strong>Alternatif / Catatan:</strong>
+                            <p>Data diupdate secara berkala langsung pada sistem Aplikasi SIGA BKKBN.</p>
+                        </div>
+                        <div class="bento-analysis">
+                            <strong>Analisis Tim:</strong>
+                            <p>Data sangat baik karena cakupannya berlapis hingga tingkat kecamatan dan pembaruannya dilakukan secara rutin.</p>
+                        </div>
+                    </div>
+
+                    <!-- Card 4: BKKBN Tamasya -->
+                    <div class="bento-card glass">
+                        <div class="bento-card-header">
+                            <span class="bento-num">04</span>
+                            <span class="instansi-badge bkkbn">BKKBN / TAMASYA</span>
+                        </div>
+                        <h3 class="bento-card-title">Aplikasi Taman Asuh Sayang Anak (TAMASYA)</h3>
+                        <div class="bento-badges">
+                            <span class="bento-badge-item format-ok">Format: Sesuai</span>
+                            <span class="bento-badge-item format-ok">Layanan: Sesuai</span>
+                            <span class="bento-badge-item type-app">Aplikasi</span>
+                        </div>
+                        <div class="bento-details-list">
+                            <div class="bento-detail-row">
+                                <span class="bento-detail-label">Responden</span>
+                                <span class="bento-detail-val">Intan Amanda</span>
+                            </div>
+                            <div class="bento-detail-row">
+                                <span class="bento-detail-label">Cakupan</span>
+                                <span class="bento-detail-val">Pusat, Prov, Kec</span>
+                            </div>
+                            <div class="bento-detail-row">
+                                <span class="bento-detail-label">Pembaruan</span>
+                                <span class="bento-detail-val">Setiap bulan</span>
+                            </div>
+                        </div>
+                        <div class="bento-notes">
+                            <strong>Alternatif / Catatan:</strong>
+                            <p>Data lokasi Tempat Penitipan Anak (TPA) yang tertera langsung pada aplikasi.</p>
+                        </div>
+                        <div class="bento-analysis">
+                            <strong>Analisis Tim:</strong>
+                            <p>Data sesuai, tetapi format sumber berasal dari aplikasi sehingga perlu standardisasi ekstraksi agar mudah direkap.</p>
+                        </div>
+                    </div>
+
+                    <!-- Card 5: BKKBN Siap Nikah -->
+                    <div class="bento-card glass">
+                        <div class="bento-card-header">
+                            <span class="bento-num">05</span>
+                            <span class="instansi-badge bkkbn">BKKBN / Siap Nikah</span>
+                        </div>
+                        <h3 class="bento-card-title">Website Siap Nikah</h3>
+                        <div class="bento-badges">
+                            <span class="bento-badge-item format-ok">Format: Sesuai</span>
+                            <span class="bento-badge-item format-ok">Layanan: Sesuai</span>
+                            <span class="bento-badge-item type-excel">Excel</span>
+                        </div>
+                        <div class="bento-details-list">
+                            <div class="bento-detail-row">
+                                <span class="bento-detail-label">Responden</span>
+                                <span class="bento-detail-val">Intan Amanda</span>
+                            </div>
+                            <div class="bento-detail-row">
+                                <span class="bento-detail-label">Cakupan</span>
+                                <span class="bento-detail-val">Tingkat pusat</span>
+                            </div>
+                            <div class="bento-detail-row">
+                                <span class="bento-detail-label">Pembaruan</span>
+                                <span class="bento-detail-val">Oleh Pihak Ketiga</span>
+                            </div>
+                        </div>
+                        <div class="bento-notes">
+                            <strong>Alternatif / Catatan:</strong>
+                            <p>Kendala: Pemeliharaan dan update data website dilakukan sepenuhnya oleh pihak ketiga.</p>
+                        </div>
+                        <div class="bento-analysis">
+                            <strong>Analisis Tim:</strong>
+                            <p>Data sesuai, namun ada ketergantungan pada pihak ketiga yang berisiko menghambat ketepatan waktu pembaruan.</p>
+                        </div>
+                    </div>
+
+                    <!-- Card 6: BKKBN Elsimil -->
+                    <div class="bento-card glass">
+                        <div class="bento-card-header">
+                            <span class="bento-num">06</span>
+                            <span class="instansi-badge bkkbn">BKKBN / Elsimil</span>
+                        </div>
+                        <h3 class="bento-card-title">Aplikasi Elsimil</h3>
+                        <div class="bento-badges">
+                            <span class="bento-badge-item format-ok">Format: Sesuai</span>
+                            <span class="bento-badge-item format-ok">Layanan: Sesuai</span>
+                            <span class="bento-badge-item type-excel">Excel</span>
+                        </div>
+                        <div class="bento-details-list">
+                            <div class="bento-detail-row">
+                                <span class="bento-detail-label">Responden</span>
+                                <span class="bento-detail-val">Intan Amanda</span>
+                            </div>
+                            <div class="bento-detail-row">
+                                <span class="bento-detail-label">Cakupan</span>
+                                <span class="bento-detail-val">Tingkat pusat</span>
+                            </div>
+                            <div class="bento-detail-row">
+                                <span class="bento-detail-label">Pembaruan</span>
+                                <span class="bento-detail-val">Per bulan</span>
+                            </div>
+                        </div>
+                        <div class="bento-notes">
+                            <strong>Alternatif / Catatan:</strong>
+                            <p>Keterbatasan akses, sarana pendukung, dan kestabilan jaringan internet di beberapa daerah.</p>
+                        </div>
+                        <div class="bento-analysis">
+                            <strong>Analisis Tim:</strong>
+                            <p>Data sesuai, tetapi terdapat kendala teknis di daerah yang dapat memengaruhi proses verval dan keterkinian data.</p>
+                        </div>
+                    </div>
+
+                    <!-- Card 7: BKKBN Halo GATI -->
+                    <div class="bento-card glass">
+                        <div class="bento-card-header">
+                            <span class="bento-num">07</span>
+                            <span class="instansi-badge bkkbn">BKKBN / Halo GATI</span>
+                        </div>
+                        <h3 class="bento-card-title">Layanan Konsultasi - Halo GATI & Halo Remaja</h3>
+                        <div class="bento-badges">
+                            <span class="bento-badge-item format-ok">Format: Sesuai</span>
+                            <span class="bento-badge-item format-ok">Layanan: Sesuai</span>
+                            <span class="bento-badge-item type-excel">Excel</span>
+                        </div>
+                        <div class="bento-details-list">
+                            <div class="bento-detail-row">
+                                <span class="bento-detail-label">Responden</span>
+                                <span class="bento-detail-val">Intan Amanda</span>
+                            </div>
+                            <div class="bento-detail-row">
+                                <span class="bento-detail-label">Cakupan</span>
+                                <span class="bento-detail-val">Tingkat pusat</span>
+                            </div>
+                            <div class="bento-detail-row">
+                                <span class="bento-detail-label">Pembaruan</span>
+                                <span class="bento-detail-val">Maks. 30 Hari</span>
+                            </div>
+                        </div>
+                        <div class="bento-notes">
+                            <strong>Alternatif / Catatan:</strong>
+                            <p>Data hanya dapat diakses maksimal 30 hari; harus melakukan rekap manual jika data triwulan/semester diperlukan.</p>
+                        </div>
+                        <div class="bento-analysis">
+                            <strong>Analisis Tim:</strong>
+                            <p>Data sesuai, tetapi keterbatasan periode akses dan kebutuhan rekap manual menjadi hambatan operasional.</p>
+                        </div>
+                    </div>
+
+                    <!-- Card 8: KPAD (Spans 2 columns) -->
+                    <div class="bento-card glass critical bento-col-2">
+                        <div class="bento-card-header">
+                            <span class="bento-num text-danger">08</span>
+                            <span class="instansi-badge api">KemenPPPA / Sek. KPAI</span>
+                        </div>
+                        <h3 class="bento-card-title">KPAD (Komisi Perlindungan Anak Daerah)</h3>
+                        <div class="bento-badges">
+                            <span class="bento-badge-item format-err">Format: Belum Sesuai</span>
+                            <span class="bento-badge-item format-err">Layanan: Belum Sesuai</span>
+                            <span class="bento-badge-item type-excel">Excel</span>
+                        </div>
+                        <div class="grid-2col" style="gap: 1.5rem; margin-bottom: 1rem;">
+                            <div class="bento-details-list" style="margin-bottom: 0;">
+                                <div class="bento-detail-row">
+                                    <span class="bento-detail-label">Responden</span>
+                                    <span class="bento-detail-val">Afni Fahtima</span>
+                                </div>
+                                <div class="bento-detail-row">
+                                    <span class="bento-detail-label">Cakupan</span>
+                                    <span class="bento-detail-val">Tingkat provinsi</span>
+                                </div>
+                                <div class="bento-detail-row">
+                                    <span class="bento-detail-label">Pembaruan</span>
+                                    <span class="bento-detail-val">Tahunan (Berkala)</span>
+                                </div>
+                            </div>
+                            <div class="bento-notes" style="margin-bottom: 0; border-top: 0; padding-top: 0;">
+                                <strong>Alternatif / Catatan:</strong>
+                                <p>KPAD belum tercantum dalam daftar pilihan jenis layanan yang tersedia pada sistem Direktori PPA.</p>
+                            </div>
+                        </div>
+                        <div class="bento-analysis">
+                            <strong>Analisis Tim:</strong>
+                            <p>Ini satu-satunya item yang belum sesuai. Perlu evaluasi referensi layanan dan kemungkinan penyesuaian klasifikasi agar layanan KPAD dapat diakomodasi ke dalam master referensi sistem.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 5: THEMATIC ANALYSIS -->
+        <section class="slide" id="slide-4">
+            <div class="slide-content">
+                <div class="slide-header">
+                    <span class="slide-number">06</span>
+                    <h2 class="slide-title">Analisis Tematik</h2>
+                </div>
+                <div class="grid-3col">
+                    <div class="thematic-card glass">
+                        <div class="thematic-icon-wrapper blue">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                                <path d="M2 12h20"></path>
+                            </svg>
+                        </div>
+                        <h3>1. Keterbatasan Cakupan Wilayah</h3>
+                        <p class="thematic-p">
+                            Mayoritas data berada pada tingkat pusat, sedangkan representasi tingkat provinsi dan kecamatan masih terbatas pada sebagian layanan tertentu. Kondisi ini menunjukkan bahwa perluasan cakupan wilayah menjadi agenda penting agar Direktori PPA tidak hanya kuat di pusat, tetapi juga relevan untuk kebutuhan akses layanan di daerah.
+                        </p>
+                        <div class="thematic-conclusion">
+                            <strong>Implikasi:</strong> Direktori harus memprioritaskan penarikan data dari tingkat daerah untuk memastikan ketersediaan kontak dan lokasi layanan lokal yang akurat bagi masyarakat.
+                        </div>
+                    </div>
+
+                    <div class="thematic-card glass">
+                        <div class="thematic-icon-wrapper green">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                <polyline points="14 2 14 8 20 8"></polyline>
+                                <line x1="16" y1="13" x2="8" y2="13"></line>
+                                <line x1="16" y1="17" x2="8" y2="17"></line>
+                            </svg>
+                        </div>
+                        <h3>2. Pola Ketersediaan Format</h3>
+                        <p class="thematic-p">
+                            Dari sisi format, hampir seluruh data disampaikan dalam bentuk Excel, kecuali satu layanan yang menggunakan format lain karena berbasis aplikasi. Pola ini menunjukkan bahwa standar input berbasis file tabular masih dominan, namun sistem juga perlu mengakomodasi sumber layanan yang berasal dari aplikasi, website, atau API agar pengelolaan data lebih adaptif.
+                        </p>
+                        <div class="thematic-conclusion">
+                            <strong>Implikasi:</strong> Pengelola sistem Direktori PPA perlu menyediakan dua jalur pengunggahan: pengunggahan berkas Excel standar dan integrasi otomatis via modul API.
+                        </div>
+                    </div>
+
+                    <div class="thematic-card glass">
+                        <div class="thematic-icon-wrapper orange">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
+                                <line x1="12" y1="2" x2="12" y2="12"></line>
+                            </svg>
+                        </div>
+                        <h3>3. Kendala Operasional Sistemik</h3>
+                        <p class="thematic-p">
+                            Kendala utama yang muncul mencakup proses validasi yang memakan waktu, ketergantungan pada pihak ketiga, keterbatasan akses dan jaringan internet di daerah, pembatasan periode penarikan laporan, serta kebutuhan rekap manual untuk periode tertentu. Secara manajerial, temuan ini menandakan bahwa tantangan utama bukan sekadar mengumpulkan data, tetapi memastikan data tersebut mutakhir, mudah diakses, dan dapat direkap secara konsisten.
+                        </p>
+                        <div class="thematic-conclusion">
+                            <strong>Implikasi:</strong> Diperlukan otomasi validasi data untuk memangkas waktu verifikasi dan perancangan modul sinkronisasi berkala dengan pihak ketiga.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 6: ADDITIONAL INPUTS -->
+        <section class="slide" id="slide-5">
+            <div class="slide-content">
+                <div class="slide-header">
+                    <span class="slide-number">06</span>
+                    <h2 class="slide-title">Tambahan Masukan Tindak Lanjut</h2>
+                </div>
+                <div class="grid-2col-unequal">
+                    <!-- Left Side: LPSK -->
+                    <div class="input-card lpsk-theme glass">
+                        <div class="input-card-header">
+                            <div class="instansi-badge lpsk">LPSK</div>
+                            <h3>Masukan Lembaga Perlindungan Saksi & Korban</h3>
+                        </div>
+                        <div class="input-content-scroll">
+                            <div class="input-item">
+                                <span class="input-label">Penambahan Jenis Layanan</span>
+                                <p>Diperlukan penambahan jenis layanan baru khusus untuk <strong>restitusi</strong> agar layanan pemenuhan hak ganti rugi bagi korban tindak pidana tersebut dapat diklasifikasikan secara tepat dan terukur dalam sistem Direktori PPA.</p>
+                            </div>
+                            <div class="input-item">
+                                <span class="input-label">Model Profil Layanan Tunggal</span>
+                                <p>Terdapat kebutuhan agar hasil pencarian di sistem hanya menampilkan <strong>satu profil layanan LPSK pusat</strong>. Namun, dalam profil tunggal tersebut harus memuat informasi detail mengenai 5 kantor wilayah/daerah layanannya. Mekanisme akses layanan tetap diarahkan melalui kantor pusat karena seluruh proses penanganan harus melalui disposisi pusat.</p>
+                            </div>
+                            <div class="input-item">
+                                <span class="input-label">Kebutuhan Field Baru</span>
+                                <p>Untuk mendukung struktur profil tunggal tersebut, diperlukan penambahan field baru dalam database berupa <strong>"Kanwil"</strong> (Kantor Wilayah) dan/atau <strong>"Deskripsi Layanan"</strong>, mengingat saat ini field deskripsi belum tersedia di dalam sistem.</p>
+                            </div>
+                            <div class="input-item">
+                                <span class="input-label">Nama Tampilan Search Bar</span>
+                                <p>Nama yang tampil pada search bar sebaiknya menggunakan <strong>nama lengkap layanan atau profil</strong> secara informatif (misal: "Lembaga Perlindungan Saksi dan Korban"), bukan hanya singkatan "LPSK", agar lebih mudah dipahami oleh pengguna umum.</p>
+                            </div>
+                            <div class="input-item">
+                                <span class="input-label">Mekanisme Tindak Lanjut</span>
+                                <p>Apabila terdapat kebutuhan informasi atau permintaan lebih lanjut dari instansi pengampu, pengguna dapat diarahkan untuk mengisi <strong>form identifikasi</strong> sebagai saluran tindak lanjut resmi agar seluruh komunikasi terdokumentasi dalam satu mekanisme seragam.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Side: Dukbangga & API -->
+                    <div class="right-inputs">
+                        <!-- Dukbangga -->
+                        <div class="input-card dukbangga-theme glass">
+                            <div class="input-card-header">
+                                <div class="instansi-badge bkkbn">Dukbangga</div>
+                                <h3>Masukan Kementerian Kependudukan/BKKBN</h3>
+                            </div>
+                            <div class="input-content">
+                                <div class="input-item-inline">
+                                    <div class="input-icon">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <strong>Pemanfaatan URL Layanan Website:</strong>
+                                        <p>Terdapat layanan yang hanya dapat diakses melalui website. Karena pada sistem sudah tersedia opsi <em>"mengisi formulir"</em> yang memunculkan field URL saat menambahkan layanan, field tersebut dapat dimanfaatkan untuk mengarahkan pengguna secara langsung ke website resmi layanan yang didaftarkan, sepanjang sesuai dengan proses bisnis Direktori PPA.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- API & Time Extension -->
+                        <div class="input-card api-theme glass">
+                            <div class="input-card-header">
+                                <div class="instansi-badge api">Integrasi & Regulasi</div>
+                                <h3>Kebijakan Integrasi API & Pengisian Data</h3>
+                            </div>
+                            <div class="input-content">
+                                <div class="input-item-inline">
+                                    <div class="input-icon">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <polyline points="16 18 22 12 16 6"></polyline>
+                                            <polyline points="8 6 2 12 8 18"></polyline>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <strong>Format API & Endpoint:</strong>
+                                        <p>Terkait layanan yang menggunakan API, format yang diarahkan untuk diunggah adalah <strong>JSON beserta endpoint API</strong> jika sudah tersedia. Apabila endpoint belum tersedia saat pengisian, instansi tetap dapat memilih jenis layanan API pada form identifikasi untuk ditindaklanjuti kemudian.</p>
+                                    </div>
+                                </div>
+                                <div class="input-item-inline">
+                                    <div class="input-icon">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <circle cx="12" cy="12" r="10"></circle>
+                                            <polyline points="12 6 12 12 16 14"></polyline>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <strong>Usulan Perpanjangan Waktu:</strong>
+                                        <p>Terdapat usulan untuk memperpanjang batas waktu pengisian form identifikasi data (yang semula dibatasi hingga tanggal 19). Hal ini penting agar tingkat partisipasi instansi dan kelengkapan data yang dihimpun dapat lebih optimal.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 7: RECOMMENDATIONS / ACTION PLAN (BENTO GRID) -->
+        <section class="slide" id="slide-6">
+            <div class="slide-content bento-layout">
+                <div class="slide-header">
+                    <span class="slide-number">07</span>
+                    <h2 class="slide-title">Rencana Tindak Lanjut (Rekomendasi)</h2>
+                    <div class="slide-subtitle-right">Klik pada kartu rekomendasi untuk menyetujui rencana aksi</div>
+                </div>
+                
+                <div class="reco-bento-grid">
+                    <!-- Card 1: Description & Progress (Spans 1 col, 2 rows) -->
+                    <div class="reco-bento-card desc-card glass">
+                        <h3>Rencana Aksi Prioritas</h3>
+                        <p>Berdasarkan hasil analisis survei identifikasi data dan masukan lanjutan dari berbagai instansi pengampu layanan, berikut adalah 8 rencana rekomendasi tindak lanjut.</p>
+                        
+                        <div class="reco-progress">
+                            <div class="reco-progress-text">Rekomendasi Disetujui: <span id="checkedCount">0</span> dari 8</div>
+                            <div class="reco-progress-bar-bg">
+                                <div class="reco-progress-bar-fill" id="recoProgressFill"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="reco-action-buttons">
+                            <button class="btn btn-secondary btn-full" id="selectAllRecBtn">Setujui Semua</button>
+                            <button class="btn btn-outline btn-full hidden" id="resetRecBtn">Reset Pilihan</button>
+                        </div>
+                        <p class="reco-footnote">Klik kartu di sebelah kanan dan bawah untuk menyetujui rencana aksi. Kartu yang disetujui akan berubah warna secara dinamis.</p>
+                    </div>
+
+                    <!-- Card 2: Rec 1 -->
+                    <div class="reco-bento-card clickable-card glass" data-index="0">
+                        <div class="reco-card-header">
+                            <span class="reco-num">01</span>
+                            <span class="reco-status-badge">Belum Disetujui</span>
+                        </div>
+                        <h4>Memperbarui Master Referensi Layanan</h4>
+                        <p>Menambahkan jenis layanan <strong>restitusi</strong> ke dalam sistem dan meninjau kembali kategori layanan lain yang belum terakomodasi, termasuk klasifikasi untuk KPAD.</p>
+                    </div>
+
+                    <!-- Card 3: Rec 2 -->
+                    <div class="reco-bento-card clickable-card glass" data-index="1">
+                        <div class="reco-card-header">
+                            <span class="reco-num">02</span>
+                            <span class="reco-status-badge">Belum Disetujui</span>
+                        </div>
+                        <h4>Menyusun Model Profil Tunggal LPSK</h4>
+                        <p>Membuat satu entri profil tunggal untuk LPSK yang memuat informasi beberapa wilayah layanan (5 kanwil) dalam satu tampilan, dengan rujukan kontak tetap terpusat.</p>
+                    </div>
+
+                    <!-- Card 4: Rec 3 -->
+                    <div class="reco-bento-card clickable-card glass" data-index="2">
+                        <div class="reco-card-header">
+                            <span class="reco-num">03</span>
+                            <span class="reco-status-badge">Belum Disetujui</span>
+                        </div>
+                        <h4>Menambahkan Field Kanwil & Deskripsi</h4>
+                        <p>Menambahkan field baru berupa <strong>"Kanwil"</strong> dan <strong>"Deskripsi Layanan"</strong> pada database agar informasi profil lebih lengkap menerangkan jangkauan dan alur disposisi.</p>
+                    </div>
+
+                    <!-- Card 5: Rec 4 -->
+                    <div class="reco-bento-card clickable-card glass" data-index="3">
+                        <div class="reco-card-header">
+                            <span class="reco-num">04</span>
+                            <span class="reco-status-badge">Belum Disetujui</span>
+                        </div>
+                        <h4>Mengubah Tampilan Search Bar</h4>
+                        <p>Mengonfigurasi mesin pencarian agar menampilkan nama lengkap instansi/profil layanan (bukan singkatan "LPSK") sehingga lebih ramah dan informatif bagi masyarakat.</p>
+                    </div>
+
+                    <!-- Card 6: Rec 5 -->
+                    <div class="reco-bento-card clickable-card glass" data-index="4">
+                        <div class="reco-card-header">
+                            <span class="reco-num">05</span>
+                            <span class="reco-status-badge">Belum Disetujui</span>
+                        </div>
+                        <h4>Memanfaatkan Field URL Layanan Website</h4>
+                        <p>Mengaktifkan redirect langsung ke situs resmi layanan menggunakan field URL yang sudah tersedia untuk layanan berbasis website (khususnya Dukbangga).</p>
+                    </div>
+
+                    <!-- Card 7: Rec 6 -->
+                    <div class="reco-bento-card clickable-card glass" data-index="5">
+                        <div class="reco-card-header">
+                            <span class="reco-num">06</span>
+                            <span class="reco-status-badge">Belum Disetujui</span>
+                        </div>
+                        <h4>Menetapkan Pedoman Input Layanan API</h4>
+                        <p>Menyusun standar pendaftaran menggunakan skema <strong>JSON dan endpoint API</strong>, serta membuka alur tindak lanjut bagi instansi yang belum memiliki endpoint aktif.</p>
+                    </div>
+
+                    <!-- Card 8: Rec 7 -->
+                    <div class="reco-bento-card clickable-card glass" data-index="6">
+                        <div class="reco-card-header">
+                            <span class="reco-num">07</span>
+                            <span class="reco-status-badge">Belum Disetujui</span>
+                        </div>
+                        <h4>Memperpanjang Batas Waktu Pengisian</h4>
+                        <p>Memperpanjang tenggat waktu pengisian formulir identifikasi data melewati tanggal 19 demi mengoptimalkan partisipasi instansi pengampu layanan lainnya.</p>
+                    </div>
+
+                    <!-- Card 9: Rec 8 (Spans 3 columns) -->
+                    <div class="reco-bento-card clickable-card glass reco-col-3" data-index="7">
+                        <div class="reco-card-header">
+                            <span class="reco-num">08</span>
+                            <span class="reco-status-badge">Belum Disetujui</span>
+                        </div>
+                        <h4>Mengarahkan Komunikasi via Form Identifikasi</h4>
+                        <p>Mewajibkan seluruh pengajuan kebutuhan data tambahan atau informasi lanjutan menggunakan form identifikasi agar terdokumentasi secara sistematis.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 8: THANK YOU -->
+        <section class="slide" id="slide-7">
+            <div class="slide-content thank-you-layout">
+                <div class="thank-you-card glass">
+                    <div class="thank-you-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                        </svg>
+                    </div>
+                    <h1 class="thank-you-title">Terima Kasih</h1>
+                    <p class="thank-you-subtitle">Direktori Perlindungan Perempuan & Anak (PPA)</p>
+                    <hr class="thank-you-divider">
+                    <p class="thank-you-text">Kolaborasi Lintas Lembaga untuk Pelayanan yang Lebih Responsif, Terintegrasi, dan Terpercaya.</p>
+                    <div class="thank-you-footer">
+                        <span>Kementerian Pemberdayaan Perempuan dan Perlindungan Anak</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Bottom Navigation Controls -->
+    <footer class="bottom-controls">
+        <div class="keyboard-hint">
+            <svg class="keyboard-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect>
+                <line x1="6" y1="8" x2="6" y2="8"></line>
+                <line x1="10" y1="8" x2="10" y2="8"></line>
+                <line x1="14" y1="8" x2="14" y2="8"></line>
+                <line x1="18" y1="8" x2="18" y2="8"></line>
+                <line x1="6" y1="12" x2="6" y2="12"></line>
+                <line x1="18" y1="12" x2="18" y2="12"></line>
+                <line x1="7" y1="16" x2="17" y2="16"></line>
+                <polyline points="10 12 12 12 14 12"></polyline>
+            </svg>
+            <span>Gunakan tombol <strong>Kiri / Kanan</strong> atau <strong>Space</strong></span>
+        </div>
+
+        <div class="nav-buttons">
+            <button id="prevBtn" class="btn btn-nav" onclick="prevSlide()" disabled>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="19" y1="12" x2="5" y2="12"></line>
+                    <polyline points="12 19 5 12 12 5"></polyline>
+                </svg>
+                Sebelumnya
+            </button>
+            
+            <div class="slide-indicator">
+                <span id="currentSlideNum">01</span> <span class="indicator-sep">/</span> <span id="totalSlidesNum">08</span>
+            </div>
+
+            <button id="nextBtn" class="btn btn-nav" onclick="nextSlide()">
+                Berikutnya
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                    <polyline points="12 5 19 12 12 19"></polyline>
+                </svg>
+            </button>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="script.js"></script>
+</body>
+</html>
