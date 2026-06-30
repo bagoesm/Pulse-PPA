@@ -219,35 +219,8 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
     if (!file) return;
 
     setIsExtracting(true);
-    setIsUploading(true);
     
-    let uploadedFilePath: string | null = null;
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-      const filePath = `${fileName}`;
-      uploadedFilePath = filePath;
-
-      const { error: uploadError } = await supabase.storage
-        .from('attachment')
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('attachment')
-        .getPublicUrl(filePath);
-
-      setSuratFile({
-        id: `file_${Date.now()}`,
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        path: filePath,
-        url: publicUrl,
-        isLink: false
-      });
-
       let extractedData: any;
       try {
         extractedData = await aiExtractorService.extractSuratData(file, {
@@ -281,15 +254,9 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
       
       showNotification('Ekstraksi Selesai', 'Data berhasil dianalisis dengan AI Gemini, silakan review.', 'success');
     } catch (error: any) {
-      if (uploadedFilePath) {
-        try {
-          await supabase.storage.from('attachment').remove([uploadedFilePath]);
-        } catch (cleanupError) {}
-      }
       showNotification('Gagal Smart Upload', error.message, 'error');
     } finally {
       setIsExtracting(false);
-      setIsUploading(false);
     }
   };
 

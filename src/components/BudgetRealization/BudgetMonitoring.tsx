@@ -371,6 +371,8 @@ const BudgetMonitoring: React.FC<BudgetMonitoringProps> = ({
                 <th className="px-4 py-3.5">Sumber</th>
                 <th className="px-3.5 py-3.5">KRO</th>
                 <th className="px-3.5 py-3.5">RO</th>
+                <th className="px-3.5 py-3.5">Komponen</th>
+                <th className="px-3.5 py-3.5">Subkomponen</th>
                 <th className="px-3.5 py-3.5">Akun</th>
                 <th className="px-4 py-3.5 min-w-[200px]">Detail Belanja</th>
                 <th className="px-4 py-3.5 text-right">Pagu</th>
@@ -384,7 +386,7 @@ const BudgetMonitoring: React.FC<BudgetMonitoringProps> = ({
             <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
               {loading ? (
                 <tr>
-                  <td colSpan={11} className="text-center py-20">
+                  <td colSpan={13} className="text-center py-20">
                     <div className="flex justify-center mb-2">
                       <div className="w-6 h-6 border-2 border-slate-300 border-t-gov-600 rounded-full animate-spin"></div>
                     </div>
@@ -393,7 +395,7 @@ const BudgetMonitoring: React.FC<BudgetMonitoringProps> = ({
                 </tr>
               ) : paginatedData.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="text-center py-20 text-slate-400">
+                  <td colSpan={13} className="text-center py-20 text-slate-400">
                     Tidak ada data anggaran belanja yang sesuai filter.
                   </td>
                 </tr>
@@ -407,7 +409,7 @@ const BudgetMonitoring: React.FC<BudgetMonitoringProps> = ({
                   let cellBg = '';
                   let hoverBg = 'group-hover:bg-slate-50/50';
                   let textCol = 'text-slate-700';
-
+ 
                   if (isOver) {
                     cellBg = 'bg-red-50/60';
                     textCol = 'text-red-900';
@@ -421,7 +423,7 @@ const BudgetMonitoring: React.FC<BudgetMonitoringProps> = ({
                     textCol = 'text-blue-900';
                     hoverBg = 'group-hover:bg-blue-100/50';
                   }
-
+ 
                   return (
                     <tr key={item.id} className="group transition-colors">
                       <td className={`px-4 py-3.5 font-bold text-slate-500 ${cellBg} ${hoverBg} transition-colors`}>
@@ -429,8 +431,16 @@ const BudgetMonitoring: React.FC<BudgetMonitoringProps> = ({
                       </td>
                       <td className={`px-3 py-3.5 ${textCol} ${cellBg} ${hoverBg} transition-colors`}>{item.kro}</td>
                       <td className={`px-3 py-3.5 ${textCol} ${cellBg} ${hoverBg} transition-colors`}>{item.ro}</td>
+                      <td className={`px-3 py-3.5 ${textCol} ${cellBg} ${hoverBg} transition-colors`}>
+                        <span className="block font-bold">{item.komponen}</span>
+                        {item.namaKomponen && <span className="block text-[10px] text-slate-400 font-medium truncate max-w-[120px]" title={item.namaKomponen}>{item.namaKomponen}</span>}
+                      </td>
+                      <td className={`px-3 py-3.5 ${textCol} ${cellBg} ${hoverBg} transition-colors`}>
+                        <span className="block font-bold">{item.subkomponen || '-'}</span>
+                        {item.namaSubkomponen && <span className="block text-[10px] text-slate-400 font-medium truncate max-w-[120px]" title={item.namaSubkomponen}>{item.namaSubkomponen}</span>}
+                      </td>
                       <td className={`px-3 py-3.5 font-semibold text-slate-600 ${cellBg} ${hoverBg} transition-colors`}>{item.akun}</td>
-                      <td className={`px-4 py-3.5 max-w-[280px] break-words ${textCol} ${cellBg} ${hoverBg} transition-colors`}>{item.detail}</td>
+                      <td className={`px-4 py-3.5 max-w-[200px] break-words ${textCol} ${cellBg} ${hoverBg} transition-colors`}>{item.detail}</td>
                       <td className={`px-4 py-3.5 text-right font-semibold text-slate-900 ${cellBg} ${hoverBg} transition-colors`}>
                         {formatCurrency(item.pagu)}
                       </td>

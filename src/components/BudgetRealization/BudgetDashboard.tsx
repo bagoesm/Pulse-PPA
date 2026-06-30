@@ -448,15 +448,6 @@ const BudgetDashboard: React.FC<BudgetDashboardProps> = ({
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                   <XAxis dataKey="name" fontSize={11} tickLine={false} axisLine={false} />
                   <YAxis 
-                    yAxisId="left"
-                    fontSize={10} 
-                    tickLine={false} 
-                    axisLine={false} 
-                    tickFormatter={(val) => `Rp ${(val / 1000000).toLocaleString('id-ID')}jt`}
-                  />
-                  <YAxis 
-                    yAxisId="right"
-                    orientation="right"
                     fontSize={10} 
                     tickLine={false} 
                     axisLine={false} 
@@ -467,9 +458,9 @@ const BudgetDashboard: React.FC<BudgetDashboardProps> = ({
                     cursor={{ fill: '#f8fafc' }}
                   />
                   <Legend verticalAlign="top" height={36} iconSize={10} wrapperStyle={{ fontSize: '11px', fontWeight: 'bold' }} />
-                  <Bar yAxisId="left" dataKey="Realisasi" fill="#10b981" stackId="a" />
-                  <Bar yAxisId="left" dataKey="Outstanding" fill="#f59e0b" stackId="a" radius={[4, 4, 0, 0]} />
-                  <Line yAxisId="right" type="monotone" dataKey="Kumulatif" name="Kumulatif Belanja" stroke="#3b82f6" strokeWidth={2.5} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+                  <Bar dataKey="Realisasi" fill="#10b981" stackId="a" />
+                  <Bar dataKey="Outstanding" fill="#f59e0b" stackId="a" radius={[4, 4, 0, 0]} />
+                  <Line type="monotone" dataKey="Kumulatif" name="Kumulatif Belanja" stroke="#3b82f6" strokeWidth={2.5} dot={{ r: 3 }} activeDot={{ r: 5 }} />
                 </ComposedChart>
               </ResponsiveContainer>
             ) : (
