@@ -217,6 +217,53 @@ const AddZoomScheduleModal: React.FC<AddZoomScheduleModalProps> = ({
     }
   };
 
+  // Delete Room Inline
+  const handleDeleteRoom = async (roomName: string) => {
+    if (roomName === 'Full Online') return;
+    if (!window.confirm(`Apakah Anda yakin ingin menghapus ruangan "${roomName}"?`)) return;
+
+    try {
+      const matchedRoom = rooms.find(r => r.name === roomName);
+      if (!matchedRoom) return;
+
+      await zoomService.deleteRoom(matchedRoom.id);
+      setRooms(prev => prev.filter(r => r.id !== matchedRoom.id));
+      if (lokasi === roomName) {
+        setLokasi('Full Online');
+      }
+    } catch (err) {
+      console.error('Gagal menghapus ruangan:', err);
+      setError('Gagal menghapus ruangan.');
+    }
+  };
+
+  // Delete Unit Kerja Inline
+  const handleDeleteUnitKerja = async (unitName: string) => {
+    if (!window.confirm(`Apakah Anda yakin ingin menghapus unit kerja "${unitName}"?`)) return;
+
+    const targetTable = unitKerjaType === 'Internal' ? 'master_unit_internal' : 'master_unit_eksternal';
+    try {
+      const { error: deleteErr } = await supabase
+        .from(targetTable)
+        .delete()
+        .eq('name', unitName);
+
+      if (deleteErr) throw deleteErr;
+
+      if (unitKerjaType === 'Internal') {
+        setUnitInternalList(prev => prev.filter(u => u !== unitName));
+      } else {
+        setUnitEksternalList(prev => prev.filter(u => u !== unitName));
+      }
+      if (unitKerja === unitName) {
+        setUnitKerja('');
+      }
+    } catch (err) {
+      console.error('Gagal menghapus unit kerja:', err);
+      setError('Gagal menghapus unit kerja.');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!kegiatan.trim() || !tanggal || !waktuMulai || !waktuSelesai || !unitKerja || !jenisRapat) {
@@ -425,7 +472,7 @@ const AddZoomScheduleModal: React.FC<AddZoomScheduleModalProps> = ({
                     <button
                       type="button"
                       onClick={handleAddUnitKerja}
-                      className="p-1.5 bg-green-550 text-white rounded-lg hover:bg-green-600 flex-shrink-0"
+                      className="p-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex-shrink-0 transition-colors"
                     >
                       <Check size={14} />
                     </button>
@@ -469,13 +516,14 @@ const AddZoomScheduleModal: React.FC<AddZoomScheduleModalProps> = ({
                         Eksternal
                       </button>
                     </div>
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                       <SearchableSelect
                         options={(unitKerjaType === 'Internal' ? unitInternalList : unitEksternalList).map(unit => ({ value: unit, label: unit }))}
                         value={unitKerja}
                         onChange={setUnitKerja}
                         placeholder={unitKerjaType === 'Internal' ? "Cari unit internal..." : "Cari unit eksternal..."}
                         emptyOption={unitKerjaType === 'Internal' ? "-- Pilih Unit Internal --" : "-- Pilih Unit Eksternal --"}
+                        onDeleteOption={handleDeleteUnitKerja}
                       />
                     </div>
                   </div>
@@ -549,7 +597,7 @@ const AddZoomScheduleModal: React.FC<AddZoomScheduleModalProps> = ({
                     <button
                       type="button"
                       onClick={handleAddRoom}
-                      className="p-1.5 bg-green-550 text-white rounded-lg hover:bg-green-600 flex-shrink-0"
+                      className="p-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex-shrink-0 transition-colors"
                     >
                       <Check size={14} />
                     </button>
@@ -574,6 +622,7 @@ const AddZoomScheduleModal: React.FC<AddZoomScheduleModalProps> = ({
                     onChange={setLokasi}
                     placeholder="Cari lokasi/ruangan..."
                     emptyOption="-- Pilih Lokasi --"
+                    onDeleteOption={handleDeleteRoom}
                   />
                 )}
               </div>

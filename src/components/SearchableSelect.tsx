@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, ChevronDown, X } from 'lucide-react';
+import { Search, ChevronDown, X, Trash2 } from 'lucide-react';
 
 interface Option {
     value: string;
@@ -16,6 +16,7 @@ interface SearchableSelectProps {
     emptyOption?: string;
     className?: string; // Class for the trigger container
     dropdownClassName?: string; // Class for the dropdown portal content
+    onDeleteOption?: (value: string) => void;
 }
 
 const SearchableSelect: React.FC<SearchableSelectProps> = ({
@@ -26,7 +27,8 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
     disabled = false,
     emptyOption = '-- Pilih --',
     className = '',
-    dropdownClassName = ''
+    dropdownClassName = '',
+    onDeleteOption
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
@@ -171,14 +173,13 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
 
     return (
         <div ref={containerRef} className={`relative ${className}`}>
-            {/* Trigger Button */}
             <button
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
-                className={`w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm text-slate-700 bg-white flex items-center justify-between gap-2 ${isOpen ? 'ring-2 ring-gov-400' : ''}`}
+                className={`w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm text-slate-700 bg-white flex items-center justify-between gap-2 min-w-0 ${isOpen ? 'ring-2 ring-gov-400' : ''}`}
             >
-                <div className="flex-1 truncate text-left">
-                    <span className={selectedLabel ? 'text-slate-700' : 'text-slate-400'}>
+                <div className="flex-1 truncate text-left min-w-0">
+                    <span className={`block truncate ${selectedLabel ? 'text-slate-700' : 'text-slate-400'}`}>
                         {selectedLabel || emptyOption}
                     </span>
                 </div>
@@ -252,14 +253,31 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
                         {/* Filtered Options */}
                         {filteredOptions.length > 0 ? (
                             filteredOptions.map(opt => (
-                                <button
+                                <div
                                     key={opt.value}
-                                    type="button"
-                                    onClick={() => handleSelect(opt.value)}
-                                    className={`w-full px-3 py-2 text-left text-sm rounded-md hover:bg-slate-50 transition-colors ${opt.value === value ? 'bg-gov-50 text-gov-700 font-medium' : 'text-slate-700'}`}
+                                    className={`group flex items-center justify-between px-2 py-1 rounded-md hover:bg-slate-50 transition-colors ${opt.value === value ? 'bg-gov-50' : ''}`}
                                 >
-                                    {opt.label}
-                                </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleSelect(opt.value)}
+                                        className={`flex-1 text-left text-sm py-1 px-2 rounded transition-colors ${opt.value === value ? 'text-gov-700 font-medium' : 'text-slate-700'}`}
+                                    >
+                                        {opt.label}
+                                    </button>
+                                    {onDeleteOption && (
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                onDeleteOption(opt.value);
+                                            }}
+                                            className="opacity-0 group-hover:opacity-100 p-1.5 text-slate-400 hover:text-red-650 hover:bg-red-50 rounded-lg transition-all ml-1 flex-shrink-0"
+                                            title="Hapus Opsi"
+                                        >
+                                            <Trash2 size={12} />
+                                        </button>
+                                    )}
+                                </div>
                             ))
                         ) : (
                             <div className="px-3 py-4 text-center text-sm text-slate-400">

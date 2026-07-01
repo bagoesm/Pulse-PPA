@@ -283,6 +283,26 @@ export class ZoomService {
     }
   }
 
+  async deleteRoom(id: string): Promise<void> {
+    try {
+      await handleDatabaseOperation(
+        async () => {
+          const result = await this.supabase
+            .from('zoom_rooms')
+            .delete()
+            .eq('id', id);
+
+          if (result.error) throw result.error;
+          return result;
+        },
+        'deleteRoom'
+      );
+    } catch (error) {
+      console.error('Error deleting zoom room:', error);
+      throw error;
+    }
+  }
+
   // ============================================================================
   // 4. Meeting Types
   // ============================================================================
