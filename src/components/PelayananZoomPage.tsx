@@ -15,7 +15,8 @@ import SearchableSelect from './SearchableSelect';
 import { exportZoomMeetingsToExcel } from '../utils/exportZoomExcel';
 import { 
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, 
-  Tooltip, Cell, PieChart, Pie, Legend 
+  Tooltip, Cell, PieChart, Pie, Legend, LabelList,
+  ComposedChart, Line
 } from 'recharts';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabaseClient';
@@ -24,6 +25,41 @@ import ImportZoomScheduleModal from './ImportZoomScheduleModal';
 interface PelayananZoomPageProps {
   showNotification?: (title: string, message: string, type?: 'success' | 'error' | 'warning' | 'info') => void;
 }
+
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    const total = payload.reduce((sum: number, entry: any) => sum + (entry.value || 0), 0);
+    const isSingleVal = payload.length === 1 && (payload[0].name === 'value' || payload[0].name === 'Jumlah Rapat');
+    
+    return (
+      <div className="bg-white border border-slate-200 p-3 rounded-xl shadow-md text-slate-800 text-xs space-y-1">
+        <p className="font-bold text-slate-900 border-b border-slate-100 pb-1 mb-1">{label}</p>
+        <div className="space-y-0.5">
+          {payload.map((entry: any, index: number) => {
+            const displayName = entry.name === 'value' ? 'Jumlah Rapat' : entry.name;
+            return (
+              <div key={index} className="flex items-center justify-between gap-4">
+                <span className="flex items-center gap-1.5 font-medium text-slate-600">
+                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: entry.color || entry.fill }} />
+                  {displayName}:
+                </span>
+                <span className="font-bold text-slate-900">{entry.value}</span>
+              </div>
+            );
+          })}
+        </div>
+        {!isSingleVal && (
+          <div className="border-t border-slate-100 pt-1.5 mt-1.5 flex items-center justify-between font-bold text-slate-900">
+            <span>Total:</span>
+            <span>{total} Rapat</span>
+          </div>
+        )}
+      </div>
+    );
+  }
+  return null;
+};
+
 
 const PelayananZoomPage: React.FC<PelayananZoomPageProps> = ({ showNotification }) => {
   const { currentUser } = useAuth();
@@ -34,6 +70,64 @@ const PelayananZoomPage: React.FC<PelayananZoomPageProps> = ({ showNotification 
   // Data states
   const [meetings, setMeetings] = useState<ZoomMeeting[]>([]);
   const [accounts, setAccounts] = useState<ZoomAccount[]>([]);
+  const [chartYearFilter, setChartYearFilter] = useState<string>('All');
+
+  // Month formatter helper
+  const formatMonthLabel = useCallback((yearMonth: string) => {
+    const [year, month] = yearMonth.split('-');
+    const monthNames = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
+      'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
+    ];
+    const monthIdx = parseInt(month, 10) - 1;
+    return `${monthNames[monthIdx]} ${year}`;
+  }, []);
+
+  // Extract unique years present in meetings
+  const availableYears = useMemo(() => {
+    const yearsSet = new Set<string>();
+    meetings.forEach(m => {
+      if (m.tanggal) {
+        yearsSet.add(m.tanggal.substring(0, 4));
+      }
+    });
+    return Array.from(yearsSet).sort((a, b) => b.localeCompare(a));
+  }, [meetings]);
+
+  // Display months calculation
+  const displayMonths = useMemo(() => {
+    const monthsSet = new Set<string>();
+    meetings.forEach(m => {
+      if (m.tanggal) {
+        const yMonth = m.tanggal.substring(0, 7); // 'YYYY-MM'
+        if (chartYearFilter === 'All' || yMonth.startsWith(chartYearFilter)) {
+          monthsSet.add(yMonth);
+        }
+      }
+    });
+    const sorted = Array.from(monthsSet).sort();
+    if (sorted.length === 0) {
+      const currentYearMonth = new Date().toLocaleDateString('en-CA').substring(0, 7);
+      if (chartYearFilter === 'All' || currentYearMonth.startsWith(chartYearFilter)) {
+        sorted.push(currentYearMonth);
+      } else {
+        sorted.push(`${chartYearFilter}-01`);
+      }
+    }
+    // If "All" (Last 12 Months), we slice to the last 12
+    if (chartYearFilter === 'All') {
+      return sorted.slice(-12);
+    }
+    return sorted;
+  }, [meetings, chartYearFilter]);
+
+  // Extract unique years present in displayMonths for title suffix
+  const activeYearsString = useMemo(() => {
+    const years = Array.from(new Set(displayMonths.map(m => m.split('-')[0]))).sort();
+    if (years.length === 0) return '';
+    return ` (${years.join(', ')})`;
+  }, [displayMonths]);
+
   const [usersMap, setUsersMap] = useState<Record<string, string>>({});
   const [zoomEditors, setZoomEditors] = useState<ZoomEditor[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,6 +139,7 @@ const PelayananZoomPage: React.FC<PelayananZoomPageProps> = ({ showNotification 
   const [accountFilter, setAccountFilter] = useState<string>('All');
   const [startDateFilter, setStartDateFilter] = useState<string>('');
   const [endDateFilter, setEndDateFilter] = useState<string>('');
+  const [dateRangePreset, setDateRangePreset] = useState<'All' | 'Today' | 'Week' | 'Month' | 'Custom'>('All');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
@@ -52,6 +147,59 @@ const PelayananZoomPage: React.FC<PelayananZoomPageProps> = ({ showNotification 
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, statusFilter, accountFilter, startDateFilter, endDateFilter]);
+
+  // Sync date pickers with selected preset
+  useEffect(() => {
+    if (dateRangePreset === 'All') {
+      setStartDateFilter('');
+      setEndDateFilter('');
+    } else if (dateRangePreset === 'Today') {
+      const todayStr = new Date().toLocaleDateString('en-CA');
+      setStartDateFilter(todayStr);
+      setEndDateFilter(todayStr);
+    } else if (dateRangePreset === 'Week') {
+      const now = new Date();
+      const day = now.getDay();
+      const diff = now.getDate() - day + (day === 0 ? -6 : 1); // Monday
+      const monday = new Date(now.setDate(diff));
+      const sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 6); // Sunday
+
+      setStartDateFilter(monday.toLocaleDateString('en-CA'));
+      setEndDateFilter(sunday.toLocaleDateString('en-CA'));
+    } else if (dateRangePreset === 'Month') {
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+      setStartDateFilter(startOfMonth.toLocaleDateString('en-CA'));
+      setEndDateFilter(endOfMonth.toLocaleDateString('en-CA'));
+    }
+  }, [dateRangePreset]);
+
+  const [chartViewMode, setChartViewMode] = useState<'summary' | 'monthly'>('summary');
+
+  // Chart month detail modal states
+  const [clickedMonthMeetings, setClickedMonthMeetings] = useState<ZoomMeeting[]>([]);
+  const [clickedMonthLabel, setClickedMonthLabel] = useState<string>('');
+  const [isMonthDetailModalOpen, setIsMonthDetailModalOpen] = useState(false);
+  const [clickedChartType, setClickedChartType] = useState<'unit' | 'operator' | 'status' | 'jenis' | 'account' | null>(null);
+  const [modalDynamicFilter, setModalDynamicFilter] = useState<string>('All');
+
+  const handleChartMonthClick = useCallback((chartType: 'unit' | 'operator' | 'status' | 'jenis' | 'account', state: any) => {
+    if (state && state.activeLabel) {
+      const monthLabel = state.activeLabel;
+      const clickedMonthStr = displayMonths.find(m => formatMonthLabel(m) === monthLabel);
+      if (clickedMonthStr) {
+        const monthMeetings = meetings.filter(m => m.tanggal?.startsWith(clickedMonthStr));
+        setClickedMonthMeetings(monthMeetings);
+        setClickedMonthLabel(monthLabel);
+        setClickedChartType(chartType);
+        setModalDynamicFilter('All');
+        setIsMonthDetailModalOpen(true);
+      }
+    }
+  }, [displayMonths, formatMonthLabel, meetings]);
 
   // Modals state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -191,9 +339,19 @@ const PelayananZoomPage: React.FC<PelayananZoomPageProps> = ({ showNotification 
     // Refresh data
     fetchData();
     // Update active details if it was edited
-    if (selectedMeetingDetail && selectedMeetingDetail.id === meeting.id) {
+    if (editingMeeting) {
       setSelectedMeetingDetail(meeting);
     }
+    setIsAddModalOpen(false);
+    setEditingMeeting(null);
+  };
+
+  const handleCloseAddEditModal = () => {
+    setIsAddModalOpen(false);
+    if (editingMeeting) {
+      setSelectedMeetingDetail(editingMeeting);
+    }
+    setEditingMeeting(null);
   };
 
   const handleDeleteMeeting = async (id: string) => {
@@ -308,7 +466,7 @@ const PelayananZoomPage: React.FC<PelayananZoomPageProps> = ({ showNotification 
     });
   }, [meetings]);
 
-  // 1. Top 5 Satker / Unit Kerja
+  // 1. Top 10 Satker / Unit Kerja
   const unitStats = useMemo(() => {
     const filtered = getFilteredMeetingsForChart(unitFilter, unitCustomStart, unitCustomEnd);
     const counts: Record<string, number> = {};
@@ -319,7 +477,7 @@ const PelayananZoomPage: React.FC<PelayananZoomPageProps> = ({ showNotification 
     return Object.entries(counts)
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value)
-      .slice(0, 5);
+      .slice(0, 10);
   }, [getFilteredMeetingsForChart, unitFilter, unitCustomStart, unitCustomEnd]);
 
   // 2. Akun Zoom Usage
@@ -335,7 +493,7 @@ const PelayananZoomPage: React.FC<PelayananZoomPageProps> = ({ showNotification 
       .sort((a, b) => b.value - a.value);
   }, [getFilteredMeetingsForChart, accountFilterState, accountCustomStart, accountCustomEnd]);
 
-  // 3. Top 5 Petugas/Operator Teraktif
+  // 3. Top 10 Petugas/Operator Teraktif
   const operatorStats = useMemo(() => {
     const filtered = getFilteredMeetingsForChart(operatorFilter, operatorCustomStart, operatorCustomEnd);
     const counts: Record<string, number> = {};
@@ -352,7 +510,7 @@ const PelayananZoomPage: React.FC<PelayananZoomPageProps> = ({ showNotification 
     return Object.entries(counts)
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value)
-      .slice(0, 5);
+      .slice(0, 10);
   }, [getFilteredMeetingsForChart, operatorFilter, operatorCustomStart, operatorCustomEnd, usersMap]);
 
   // 4. Distribusi Status Rapat
@@ -394,6 +552,253 @@ const PelayananZoomPage: React.FC<PelayananZoomPageProps> = ({ showNotification 
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value);
   }, [getFilteredMeetingsForChart, meetingTypeFilter, meetingTypeCustomStart, meetingTypeCustomEnd]);
+
+
+  // 1. Monthly Unit Kerja Dataset
+  const monthlyUnitStats = useMemo(() => {
+    const topUnits = unitStats.slice(0, 5).map(u => u.name);
+    return displayMonths.map(month => {
+      const row: any = { month: formatMonthLabel(month) };
+      topUnits.forEach(u => { row[u] = 0; });
+      row['Lainnya'] = 0;
+      let total = 0;
+
+      meetings
+        .filter(m => m.tanggal?.startsWith(month))
+        .forEach(m => {
+          total++;
+          const uName = m.unitKerja || 'Lainnya';
+          if (topUnits.includes(uName)) {
+            row[uName] = (row[uName] || 0) + 1;
+          } else {
+            row['Lainnya'] = (row['Lainnya'] || 0) + 1;
+          }
+        });
+      row.totalCount = total;
+      return row;
+    });
+  }, [displayMonths, meetings, unitStats, formatMonthLabel]);
+
+  // 2. Monthly Operator Dataset
+  const monthlyOperatorStats = useMemo(() => {
+    const topOperators = operatorStats.slice(0, 5).map(o => o.name);
+    return displayMonths.map(month => {
+      const row: any = { month: formatMonthLabel(month) };
+      topOperators.forEach(o => { row[o] = 0; });
+      row['Lainnya'] = 0;
+      let total = 0;
+
+      meetings
+        .filter(m => m.tanggal?.startsWith(month))
+        .forEach(m => {
+          total++;
+          const ids = m.operatorIds && m.operatorIds.length > 0 
+            ? m.operatorIds 
+            : (m.operatorId ? [m.operatorId] : []);
+          
+          ids.forEach(id => {
+            const name = usersMap[id] || 'Lainnya';
+            if (topOperators.includes(name)) {
+              row[name] = (row[name] || 0) + 1;
+            } else {
+              row['Lainnya'] = (row['Lainnya'] || 0) + 1;
+            }
+          });
+        });
+      row.totalCount = total;
+      return row;
+    });
+  }, [displayMonths, meetings, operatorStats, usersMap, formatMonthLabel]);
+
+  // 3. Monthly Status Dataset
+  const monthlyStatusStats = useMemo(() => {
+    return displayMonths.map(month => {
+      const row = {
+        month: formatMonthLabel(month),
+        'Terjadwal': 0,
+        'Selesai': 0,
+        'Batal': 0,
+        totalCount: 0
+      };
+      let total = 0;
+      meetings
+        .filter(m => m.tanggal?.startsWith(month))
+        .forEach(m => {
+          total++;
+          if (m.status === 'Scheduled') row['Terjadwal']++;
+          else if (m.status === 'Completed') row['Selesai']++;
+          else if (m.status === 'Cancelled') row['Batal']++;
+        });
+      row.totalCount = total;
+      return row;
+    });
+  }, [displayMonths, meetings, formatMonthLabel]);
+
+  // 4. Monthly Jenis Rapat Dataset
+  const monthlyJenisStats = useMemo(() => {
+    return displayMonths.map(month => {
+      const row = {
+        month: formatMonthLabel(month),
+        'Pendampingan Zoom': 0,
+        'Peminjaman Zoom': 0,
+        totalCount: 0
+      };
+      let total = 0;
+      meetings
+        .filter(m => m.tanggal?.startsWith(month))
+        .forEach(m => {
+          total++;
+          if (m.jenisRapat === 'Pendampingan Zoom') row['Pendampingan Zoom']++;
+          else if (m.jenisRapat === 'Peminjaman Zoom') row['Peminjaman Zoom']++;
+        });
+      row.totalCount = total;
+      return row;
+    });
+  }, [displayMonths, meetings, formatMonthLabel]);
+
+  // 5. Monthly Akun Zoom Dataset
+  const monthlyAccountStats = useMemo(() => {
+    const topAccounts = accountStats.slice(0, 5).map(a => a.name);
+    return displayMonths.map(month => {
+      const row: any = { month: formatMonthLabel(month) };
+      topAccounts.forEach(a => { row[a] = 0; });
+      row['Lainnya'] = 0;
+      row['Belum Diatur'] = 0;
+      let total = 0;
+
+      meetings
+        .filter(m => m.tanggal?.startsWith(month))
+        .forEach(m => {
+          total++;
+          const accName = m.zoomAccount?.name;
+          if (!accName) {
+            row['Belum Diatur'] = (row['Belum Diatur'] || 0) + 1;
+          } else if (topAccounts.includes(accName)) {
+            row[accName] = (row[accName] || 0) + 1;
+          } else {
+            row['Lainnya'] = (row['Lainnya'] || 0) + 1;
+          }
+        });
+      row.totalCount = total;
+      return row;
+    });
+  }, [displayMonths, meetings, accountStats, formatMonthLabel]);
+
+  // Filtered meetings options inside month details modal
+  const filterOptions = useMemo(() => {
+    if (!clickedChartType || clickedMonthMeetings.length === 0) return [];
+
+    const options: { value: string; label: string; count: number }[] = [
+      { value: 'All', label: 'Semua', count: clickedMonthMeetings.length }
+    ];
+
+    if (clickedChartType === 'unit') {
+      const unitsMap = new Map<string, number>();
+      clickedMonthMeetings.forEach(m => {
+        const u = m.unitKerja || 'Lainnya';
+        unitsMap.set(u, (unitsMap.get(u) || 0) + 1);
+      });
+      Array.from(unitsMap.entries())
+        .sort((a, b) => b[1] - a[1])
+        .forEach(([name, count]) => {
+          options.push({ value: name, label: name, count });
+        });
+    } else if (clickedChartType === 'operator') {
+      const opMap = new Map<string, number>();
+      clickedMonthMeetings.forEach(m => {
+        const ids = m.operatorIds && m.operatorIds.length > 0 
+          ? m.operatorIds 
+          : (m.operatorId ? [m.operatorId] : []);
+        
+        if (ids.length === 0) {
+          opMap.set('Belum Ditugaskan', (opMap.get('Belum Ditugaskan') || 0) + 1);
+        } else {
+          const uniqueNames = new Set(ids.map(id => usersMap[id] || 'Lainnya'));
+          uniqueNames.forEach(name => {
+            opMap.set(name, (opMap.get(name) || 0) + 1);
+          });
+        }
+      });
+      Array.from(opMap.entries())
+        .sort((a, b) => b[1] - a[1])
+        .forEach(([name, count]) => {
+          options.push({ value: name, label: name, count });
+        });
+    } else if (clickedChartType === 'status') {
+      const statusMap = {
+        'Completed': { label: 'Selesai', count: 0 },
+        'Scheduled': { label: 'Terjadwal', count: 0 },
+        'Cancelled': { label: 'Batal', count: 0 }
+      };
+      clickedMonthMeetings.forEach(m => {
+        if (m.status === 'Completed' || m.status === 'Scheduled' || m.status === 'Cancelled') {
+          statusMap[m.status].count++;
+        }
+      });
+      Object.entries(statusMap).forEach(([val, info]) => {
+        if (info.count > 0) {
+          options.push({ value: val, label: info.label, count: info.count });
+        }
+      });
+    } else if (clickedChartType === 'jenis') {
+      const jenisMap = {
+        'Pendampingan Zoom': 0,
+        'Peminjaman Zoom': 0
+      };
+      clickedMonthMeetings.forEach(m => {
+        if (m.jenisRapat === 'Pendampingan Zoom') jenisMap['Pendampingan Zoom']++;
+        else if (m.jenisRapat === 'Peminjaman Zoom') jenisMap['Peminjaman Zoom']++;
+      });
+      Object.entries(jenisMap).forEach(([name, count]) => {
+        if (count > 0) {
+          options.push({ value: name, label: name, count });
+        }
+      });
+    } else if (clickedChartType === 'account') {
+      const accMap = new Map<string, number>();
+      clickedMonthMeetings.forEach(m => {
+        const name = m.zoomAccount?.name || 'Belum Diatur';
+        accMap.set(name, (accMap.get(name) || 0) + 1);
+      });
+      Array.from(accMap.entries())
+        .sort((a, b) => b[1] - a[1])
+        .forEach(([name, count]) => {
+          options.push({ value: name, label: name, count });
+        });
+    }
+
+    return options;
+  }, [clickedChartType, clickedMonthMeetings, usersMap]);
+
+  // Filtered meetings inside month details modal
+  const filteredModalMeetings = useMemo(() => {
+    if (modalDynamicFilter === 'All') return clickedMonthMeetings;
+
+    return clickedMonthMeetings.filter(m => {
+      if (clickedChartType === 'unit') {
+        return (m.unitKerja || 'Lainnya') === modalDynamicFilter;
+      }
+      if (clickedChartType === 'operator') {
+        if (modalDynamicFilter === 'Belum Ditugaskan') {
+          return !m.operatorId && (!m.operatorIds || m.operatorIds.length === 0);
+        }
+        const ids = m.operatorIds && m.operatorIds.length > 0 
+          ? m.operatorIds 
+          : (m.operatorId ? [m.operatorId] : []);
+        return ids.some(id => (usersMap[id] || 'Lainnya') === modalDynamicFilter);
+      }
+      if (clickedChartType === 'status') {
+        return m.status === modalDynamicFilter;
+      }
+      if (clickedChartType === 'jenis') {
+        return m.jenisRapat === modalDynamicFilter;
+      }
+      if (clickedChartType === 'account') {
+        return (m.zoomAccount?.name || 'Belum Diatur') === modalDynamicFilter;
+      }
+      return true;
+    });
+  }, [clickedMonthMeetings, modalDynamicFilter, clickedChartType, usersMap]);
 
   // Summary statistics
   const stats = {
@@ -582,170 +987,370 @@ const PelayananZoomPage: React.FC<PelayananZoomPageProps> = ({ showNotification 
             </div>
           </div>
 
-          {/* Visualizations Section */}
+          {/* Visualizations Controls & Section */}
           {meetings.length > 0 && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Chart 1: Satker Usage (Top 5 Unit Kerja Teraktif) */}
-              <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
-                  <div>
-                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Top 5 Unit Kerja Teraktif</h4>
-                    <p className="text-sm font-bold text-slate-800 mt-0.5">Frekuensi penggunaan Zoom per unit kerja.</p>
-                  </div>
-                  {renderChartFilter(unitFilter, setUnitFilter, unitCustomStart, setUnitCustomStart, unitCustomEnd, setUnitCustomEnd)}
+            <>
+              {/* Toggle Bar */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white p-4 border border-slate-200 rounded-2xl mb-6 gap-3 shadow-2xs">
+                <div>
+                  <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                    <BarChart2 className="text-gov-600 animate-pulse" size={18} />
+                    Visualisasi & Tren Pelayanan
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">Analisis statistik penggunaan akun Zoom dan operator.</p>
                 </div>
-                <div className="h-64">
-                  {unitStats.length === 0 ? (
-                    <div className="h-full flex items-center justify-center text-xs text-slate-400 italic">Tidak ada data untuk periode ini.</div>
-                  ) : (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={unitStats} margin={{ top: 10, right: 10, left: -25, bottom: 5 }}>
-                        <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
-                        <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
-                        <Tooltip
-                          contentStyle={{ background: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff', fontSize: '12px' }}
-                          labelStyle={{ fontWeight: 'bold' }}
-                        />
-                        <Bar dataKey="value" fill="#0f766e" radius={[6, 6, 0, 0]} maxBarSize={40} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  )}
-                </div>
-              </div>
-
-              {/* Chart 2: Top 5 Petugas Teraktif */}
-              <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
-                  <div>
-                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Top 5 Petugas Teraktif</h4>
-                    <p className="text-sm font-bold text-slate-800 mt-0.5">Operator paling sering ditugaskan.</p>
-                  </div>
-                  {renderChartFilter(operatorFilter, setOperatorFilter, operatorCustomStart, setOperatorCustomStart, operatorCustomEnd, setOperatorCustomEnd)}
-                </div>
-                <div className="h-64">
-                  {operatorStats.length === 0 ? (
-                    <div className="h-full flex items-center justify-center text-xs text-slate-400 italic">Tidak ada data untuk periode ini.</div>
-                  ) : (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={operatorStats} margin={{ top: 10, right: 10, left: -25, bottom: 5 }}>
-                        <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
-                        <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
-                        <Tooltip
-                          contentStyle={{ background: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff', fontSize: '12px' }}
-                          labelStyle={{ fontWeight: 'bold' }}
-                        />
-                        <Bar dataKey="value" fill="#4f46e5" radius={[6, 6, 0, 0]} maxBarSize={40} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  )}
-                </div>
-              </div>
-
-              {/* Chart 3: Distribusi Status Rapat */}
-              <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
-                  <div>
-                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Distribusi Status Rapat</h4>
-                    <p className="text-sm font-bold text-slate-800 mt-0.5">Perbandingan status seluruh jadwal rapat.</p>
-                  </div>
-                  {renderChartFilter(statusFilterState, setStatusFilterState, statusCustomStart, setStatusCustomStart, statusCustomEnd, setStatusCustomEnd)}
-                </div>
-                <div className="h-64 flex items-center justify-center">
-                  {meetings.length === 0 ? (
-                    <div className="h-full flex items-center justify-center text-xs text-slate-400 italic">Tidak ada data untuk periode ini.</div>
-                  ) : (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={statusStats}
-                          cx="50%"
-                          cy="48%"
-                          innerRadius={60}
-                          outerRadius={80}
-                          paddingAngle={5}
-                          dataKey="value"
-                        >
-                          {statusStats.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={STATUS_COLORS[entry.name as keyof typeof STATUS_COLORS] || '#cbd5e1'} />
-                          ))}
-                        </Pie>
-                        <Tooltip
-                          contentStyle={{ background: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff', fontSize: '12px' }}
-                        />
-                        <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '12px', marginTop: '10px' }} />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  )}
-                </div>
-              </div>
-
-              {/* Chart 4: Perbandingan Jenis Rapat */}
-              <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
-                  <div>
-                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Perbandingan Jenis Rapat</h4>
-                    <p className="text-sm font-bold text-slate-800 mt-0.5">Distribusi penggunaan berdasarkan jenis layanan Zoom.</p>
-                  </div>
-                  {renderChartFilter(meetingTypeFilter, setMeetingTypeFilter, meetingTypeCustomStart, setMeetingTypeCustomStart, meetingTypeCustomEnd, setMeetingTypeCustomEnd)}
-                </div>
-                <div className="h-64">
-                  {meetingTypeStats.length === 0 ? (
-                    <div className="h-full flex items-center justify-center text-xs text-slate-400 italic">Tidak ada data untuk periode ini.</div>
-                  ) : (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart
-                        layout="vertical"
-                        data={meetingTypeStats}
-                        margin={{ top: 10, right: 20, left: 30, bottom: 5 }}
+                <div className="flex items-center gap-2.5 self-start sm:self-auto">
+                  {chartViewMode === 'monthly' && availableYears.length > 1 && (
+                    <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-xl shadow-3xs">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tahun:</span>
+                      <select
+                        value={chartYearFilter}
+                        onChange={(e) => setChartYearFilter(e.target.value)}
+                        className="text-xs bg-transparent text-slate-700 font-bold focus:outline-none cursor-pointer pr-1"
                       >
-                        <XAxis type="number" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
-                        <YAxis type="category" dataKey="name" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} width={130} />
-                        <Tooltip
-                          contentStyle={{ background: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff', fontSize: '12px' }}
-                          labelStyle={{ fontWeight: 'bold' }}
-                        />
-                        <Bar dataKey="value" radius={[0, 6, 6, 0]} maxBarSize={30}>
-                          {meetingTypeStats.map((entry, index) => (
-                            <Cell 
-                              key={`cell-${index}`} 
-                              fill={entry.name === 'Pendampingan Zoom' ? '#6366f1' : entry.name === 'Peminjaman Zoom' ? '#3b82f6' : '#94a3b8'} 
-                            />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
+                        <option value="All">Semua Tahun</option>
+                        {availableYears.map(year => (
+                          <option key={year} value={year}>{year}</option>
+                        ))}
+                      </select>
+                    </div>
                   )}
+                  <div className="flex bg-slate-100 p-0.5 rounded-xl border border-slate-200/60">
+                    <button
+                      onClick={() => setChartViewMode('summary')}
+                      className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        chartViewMode === 'summary'
+                          ? 'bg-white text-gov-750 shadow-sm'
+                          : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      Akumulasi Total
+                    </button>
+                    <button
+                      onClick={() => setChartViewMode('monthly')}
+                      className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        chartViewMode === 'monthly'
+                          ? 'bg-white text-gov-750 shadow-sm'
+                          : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      Banding Bulanan (Tren)
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              {/* Chart 5: Tingkat Utilisasi Akun Zoom (Lebar Penuh) */}
-              <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs space-y-4 lg:col-span-2">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
-                  <div>
-                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Tingkat Utilisasi Akun Zoom</h4>
-                    <p className="text-sm font-bold text-slate-800 mt-0.5">Jumlah penggunaan rapat untuk masing-masing akun.</p>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Chart 1: Satker Usage (Top 10 Unit Kerja Teraktif) */}
+                <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                        {chartViewMode === 'summary' ? 'Top 10 Unit Kerja Teraktif' : `Tren Bulanan Unit Kerja${activeYearsString}`}
+                      </h4>
+                      <p className="text-sm font-bold text-slate-800 mt-0.5">
+                        {chartViewMode === 'summary' ? 'Frekuensi penggunaan Zoom per unit kerja.' : 'Grafik tren penggunaan Zoom per bulan.'}
+                      </p>
+                    </div>
+                    {chartViewMode === 'summary' && renderChartFilter(unitFilter, setUnitFilter, unitCustomStart, setUnitCustomStart, unitCustomEnd, setUnitCustomEnd)}
                   </div>
-                  {renderChartFilter(accountFilterState, setAccountFilterState, accountCustomStart, setAccountCustomStart, accountCustomEnd, setAccountCustomEnd)}
+                  <div className="h-80">
+                    {chartViewMode === 'summary' ? (
+                      unitStats.length === 0 ? (
+                        <div className="h-full flex items-center justify-center text-xs text-slate-400 italic">Tidak ada data untuk periode ini.</div>
+                      ) : (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={unitStats} margin={{ top: 10, right: 10, left: -25, bottom: 45 }}>
+                            <XAxis 
+                              dataKey="name" 
+                              stroke="#94a3b8" 
+                              fontSize={10} 
+                              tickLine={false} 
+                              axisLine={false} 
+                              interval={0}
+                              angle={-35}
+                              textAnchor="end"
+                              tickFormatter={(value) => value.length > 15 ? `${value.substring(0, 12)}...` : value}
+                            />
+                            <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
+                            <Tooltip content={<CustomTooltip />} />
+                            <Bar dataKey="value" name="Jumlah Rapat" fill="#0f766e" radius={[6, 6, 0, 0]} maxBarSize={30}>
+                              <LabelList dataKey="value" position="top" fontSize={10} fill="#475569" fontWeight="bold" />
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      )
+                    ) : (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <ComposedChart onClick={(state) => handleChartMonthClick('unit', state)} style={{ cursor: 'pointer' }} data={monthlyUnitStats} margin={{ top: 20, right: 15, left: -20, bottom: 5 }}>
+                          <XAxis dataKey="month" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
+                          <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
+                          <Tooltip content={<CustomTooltip />} />
+                          <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ fontSize: '10px' }} />
+                          {unitStats.slice(0, 5).map((u, i) => {
+                            const colors = ['#0f766e', '#0d9488', '#14b8a6', '#2dd4bf', '#99f6e4'];
+                            return (
+                              <Bar 
+                                key={u.name} 
+                                dataKey={u.name} 
+                                name={u.name}
+                                stackId="a" 
+                                fill={colors[i % colors.length]} 
+                              />
+                            );
+                          })}
+                          <Bar dataKey="Lainnya" name="Lainnya" stackId="a" fill="#cbd5e1" />
+                          <Line type="monotone" dataKey="totalCount" stroke="transparent" legendType="none" activeDot={false} dot={false}>
+                            <LabelList dataKey="totalCount" position="top" fontSize={10} fill="#475569" fontWeight="bold" />
+                          </Line>
+                        </ComposedChart>
+                      </ResponsiveContainer>
+                    )}
+                  </div>
                 </div>
-                <div className="h-72">
-                  {accountStats.length === 0 ? (
-                    <div className="h-full flex items-center justify-center text-xs text-slate-400 italic">Tidak ada data untuk periode ini.</div>
-                  ) : (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={accountStats} margin={{ top: 10, right: 10, left: -25, bottom: 5 }}>
-                        <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
-                        <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
-                        <Tooltip
-                          contentStyle={{ background: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff', fontSize: '12px' }}
-                          labelStyle={{ fontWeight: 'bold' }}
-                        />
-                        <Bar dataKey="value" fill="#ea580c" radius={[6, 6, 0, 0]} maxBarSize={45} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  )}
+
+                {/* Chart 2: Top 10 Petugas Teraktif */}
+                <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                        {chartViewMode === 'summary' ? 'Top 10 Petugas Teraktif' : `Tren Bulanan Petugas${activeYearsString}`}
+                      </h4>
+                      <p className="text-sm font-bold text-slate-800 mt-0.5">
+                        {chartViewMode === 'summary' ? 'Operator paling sering ditugaskan.' : 'Frekuensi penugasan operator per bulan.'}
+                      </p>
+                    </div>
+                    {chartViewMode === 'summary' && renderChartFilter(operatorFilter, setOperatorFilter, operatorCustomStart, setOperatorCustomStart, operatorCustomEnd, setOperatorCustomEnd)}
+                  </div>
+                  <div className="h-80">
+                    {chartViewMode === 'summary' ? (
+                      operatorStats.length === 0 ? (
+                        <div className="h-full flex items-center justify-center text-xs text-slate-400 italic">Tidak ada data untuk periode ini.</div>
+                      ) : (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={operatorStats} margin={{ top: 10, right: 10, left: -25, bottom: 45 }}>
+                            <XAxis 
+                              dataKey="name" 
+                              stroke="#94a3b8" 
+                              fontSize={10} 
+                              tickLine={false} 
+                              axisLine={false} 
+                              interval={0}
+                              angle={-35}
+                              textAnchor="end"
+                              tickFormatter={(value) => value.length > 15 ? `${value.substring(0, 12)}...` : value}
+                            />
+                            <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
+                            <Tooltip content={<CustomTooltip />} />
+                            <Bar dataKey="value" name="Jumlah Rapat" fill="#4f46e5" radius={[6, 6, 0, 0]} maxBarSize={30}>
+                              <LabelList dataKey="value" position="top" fontSize={10} fill="#475569" fontWeight="bold" />
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      )
+                    ) : (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <ComposedChart onClick={(state) => handleChartMonthClick('operator', state)} style={{ cursor: 'pointer' }} data={monthlyOperatorStats} margin={{ top: 20, right: 15, left: -20, bottom: 5 }}>
+                          <XAxis dataKey="month" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
+                          <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
+                          <Tooltip content={<CustomTooltip />} />
+                          <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ fontSize: '10px' }} />
+                          {operatorStats.slice(0, 5).map((op, i) => {
+                            const colors = ['#4f46e5', '#6366f1', '#818cf8', '#a5b4fc', '#c7d2fe'];
+                            return (
+                              <Bar 
+                                key={op.name} 
+                                dataKey={op.name} 
+                                name={op.name}
+                                stackId="a" 
+                                fill={colors[i % colors.length]} 
+                              />
+                            );
+                          })}
+                          <Bar dataKey="Lainnya" name="Lainnya" stackId="a" fill="#cbd5e1" />
+                          <Line type="monotone" dataKey="totalCount" stroke="transparent" legendType="none" activeDot={false} dot={false}>
+                            <LabelList dataKey="totalCount" position="top" fontSize={10} fill="#475569" fontWeight="bold" />
+                          </Line>
+                        </ComposedChart>
+                      </ResponsiveContainer>
+                    )}
+                  </div>
+                </div>
+
+                {/* Chart 3: Distribusi Status Rapat */}
+                <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                        {chartViewMode === 'summary' ? 'Distribusi Status Rapat' : `Tren Bulanan Status Rapat${activeYearsString}`}
+                      </h4>
+                      <p className="text-sm font-bold text-slate-800 mt-0.5">
+                        {chartViewMode === 'summary' ? 'Perbandingan status seluruh jadwal rapat.' : 'Penyebaran status penyelesaian rapat per bulan.'}
+                      </p>
+                    </div>
+                    {chartViewMode === 'summary' && renderChartFilter(statusFilterState, setStatusFilterState, statusCustomStart, setStatusCustomStart, statusCustomEnd, setStatusCustomEnd)}
+                  </div>
+                  <div className="h-80 flex items-center justify-center">
+                    {chartViewMode === 'summary' ? (
+                      meetings.length === 0 ? (
+                        <div className="h-full flex items-center justify-center text-xs text-slate-400 italic">Tidak ada data untuk periode ini.</div>
+                      ) : (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={statusStats}
+                              cx="50%"
+                              cy="48%"
+                              innerRadius={60}
+                              outerRadius={80}
+                              paddingAngle={5}
+                              dataKey="value"
+                            >
+                              {statusStats.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={STATUS_COLORS[entry.name as keyof typeof STATUS_COLORS] || '#cbd5e1'} />
+                              ))}
+                            </Pie>
+                            <Tooltip content={<CustomTooltip />} />
+                            <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '12px', marginTop: '10px' }} />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      )
+                    ) : (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <ComposedChart onClick={(state) => handleChartMonthClick('status', state)} style={{ cursor: 'pointer' }} data={monthlyStatusStats} margin={{ top: 20, right: 15, left: -20, bottom: 5 }}>
+                          <XAxis dataKey="month" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
+                          <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
+                          <Tooltip content={<CustomTooltip />} />
+                          <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ fontSize: '10px' }} />
+                          <Bar dataKey="Selesai" name="Selesai" stackId="a" fill="#10b981" />
+                          <Bar dataKey="Terjadwal" name="Terjadwal" stackId="a" fill="#3b82f6" />
+                          <Bar dataKey="Batal" name="Batal" stackId="a" fill="#ef4444" />
+                          <Line type="monotone" dataKey="totalCount" stroke="transparent" legendType="none" activeDot={false} dot={false}>
+                            <LabelList dataKey="totalCount" position="top" fontSize={10} fill="#475569" fontWeight="bold" />
+                          </Line>
+                        </ComposedChart>
+                      </ResponsiveContainer>
+                    )}
+                  </div>
+                </div>
+
+                {/* Chart 4: Perbandingan Jenis Rapat */}
+                <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                        {chartViewMode === 'summary' ? 'Perbandingan Jenis Rapat' : `Tren Bulanan Jenis Rapat${activeYearsString}`}
+                      </h4>
+                      <p className="text-sm font-bold text-slate-800 mt-0.5">
+                        {chartViewMode === 'summary' ? 'Distribusi penggunaan berdasarkan jenis layanan Zoom.' : 'Jumlah layanan Pendampingan vs Peminjaman per bulan.'}
+                      </p>
+                    </div>
+                    {chartViewMode === 'summary' && renderChartFilter(meetingTypeFilter, setMeetingTypeFilter, meetingTypeCustomStart, setMeetingTypeCustomStart, meetingTypeCustomEnd, setMeetingTypeCustomEnd)}
+                  </div>
+                  <div className="h-80">
+                    {chartViewMode === 'summary' ? (
+                      meetingTypeStats.length === 0 ? (
+                        <div className="h-full flex items-center justify-center text-xs text-slate-400 italic">Tidak ada data untuk periode ini.</div>
+                      ) : (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart
+                            layout="vertical"
+                            data={meetingTypeStats}
+                            margin={{ top: 10, right: 20, left: 30, bottom: 5 }}
+                          >
+                            <XAxis type="number" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
+                            <YAxis type="category" dataKey="name" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} width={130} />
+                            <Tooltip content={<CustomTooltip />} />
+                            <Bar dataKey="value" name="Jumlah Rapat" radius={[0, 6, 6, 0]} maxBarSize={30}>
+                              <LabelList dataKey="value" position="right" fontSize={10} fill="#475569" fontWeight="bold" />
+                              {meetingTypeStats.map((entry, index) => (
+                                <Cell 
+                                  key={`cell-${index}`} 
+                                  fill={entry.name === 'Pendampingan Zoom' ? '#6366f1' : entry.name === 'Peminjaman Zoom' ? '#3b82f6' : '#94a3b8'} 
+                                />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      )
+                    ) : (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <ComposedChart onClick={(state) => handleChartMonthClick('jenis', state)} style={{ cursor: 'pointer' }} data={monthlyJenisStats} margin={{ top: 20, right: 15, left: -20, bottom: 5 }}>
+                          <XAxis dataKey="month" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
+                          <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
+                          <Tooltip content={<CustomTooltip />} />
+                          <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ fontSize: '10px' }} />
+                          <Bar dataKey="Pendampingan Zoom" name="Pendampingan Zoom" stackId="a" fill="#6366f1" />
+                          <Bar dataKey="Peminjaman Zoom" name="Peminjaman Zoom" stackId="a" fill="#3b82f6" />
+                          <Line type="monotone" dataKey="totalCount" stroke="transparent" legendType="none" activeDot={false} dot={false}>
+                            <LabelList dataKey="totalCount" position="top" fontSize={10} fill="#475569" fontWeight="bold" />
+                          </Line>
+                        </ComposedChart>
+                      </ResponsiveContainer>
+                    )}
+                  </div>
+                </div>
+
+                {/* Chart 5: Tingkat Utilisasi Akun Zoom (Lebar Penuh) */}
+                <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs space-y-4 lg:col-span-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                        {chartViewMode === 'summary' ? 'Tingkat Utilisasi Akun Zoom' : `Tren Bulanan Utilisasi Akun Zoom${activeYearsString}`}
+                      </h4>
+                      <p className="text-sm font-bold text-slate-800 mt-0.5">
+                        {chartViewMode === 'summary' ? 'Jumlah penggunaan rapat untuk masing-masing akun.' : 'Grafik penggunaan masing-masing akun Zoom per bulan.'}
+                      </p>
+                    </div>
+                    {chartViewMode === 'summary' && renderChartFilter(accountFilterState, setAccountFilterState, accountCustomStart, setAccountCustomStart, accountCustomEnd, setAccountCustomEnd)}
+                  </div>
+                  <div className="h-80">
+                    {chartViewMode === 'summary' ? (
+                      accountStats.length === 0 ? (
+                        <div className="h-full flex items-center justify-center text-xs text-slate-400 italic">Tidak ada data untuk periode ini.</div>
+                      ) : (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={accountStats} margin={{ top: 10, right: 10, left: -25, bottom: 5 }}>
+                            <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
+                            <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
+                            <Tooltip content={<CustomTooltip />} />
+                            <Bar dataKey="value" name="Jumlah Rapat" fill="#ea580c" radius={[6, 6, 0, 0]} maxBarSize={45}>
+                              <LabelList dataKey="value" position="top" fontSize={10} fill="#475569" fontWeight="bold" />
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      )
+                    ) : (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <ComposedChart onClick={(state) => handleChartMonthClick('account', state)} style={{ cursor: 'pointer' }} data={monthlyAccountStats} margin={{ top: 20, right: 15, left: -20, bottom: 5 }}>
+                          <XAxis dataKey="month" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
+                          <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
+                          <Tooltip content={<CustomTooltip />} />
+                          <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ fontSize: '10px' }} />
+                          {accountStats.slice(0, 5).map((acc, i) => {
+                            const colors = ['#ea580c', '#f97316', '#fb923c', '#ffcaa5', '#ffe5d9'];
+                            return (
+                              <Bar 
+                                key={acc.name} 
+                                dataKey={acc.name} 
+                                name={acc.name}
+                                stackId="a" 
+                                fill={colors[i % colors.length]} 
+                              />
+                            );
+                          })}
+                          <Bar dataKey="Lainnya" name="Lainnya" stackId="a" fill="#cbd5e1" />
+                          <Bar dataKey="Belum Diatur" name="Belum Diatur" stackId="a" fill="#e2e8f0" />
+                          <Line type="monotone" dataKey="totalCount" stroke="transparent" legendType="none" activeDot={false} dot={false}>
+                            <LabelList dataKey="totalCount" position="top" fontSize={10} fill="#475569" fontWeight="bold" />
+                          </Line>
+                        </ComposedChart>
+                      </ResponsiveContainer>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
+            </>
           )}
         </div>
       ) : activeSubTab === 'schedules' ? (
@@ -788,7 +1393,7 @@ const PelayananZoomPage: React.FC<PelayananZoomPageProps> = ({ showNotification 
             </div>
 
             {/* Filters Row */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+            <div className={`grid grid-cols-1 sm:grid-cols-2 ${startDateFilter || endDateFilter || dateRangePreset === 'Custom' ? 'lg:grid-cols-5' : 'md:grid-cols-3'} gap-4`}>
               {/* Status Filter */}
               <div className="space-y-1">
                 <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Status Rapat</span>
@@ -821,27 +1426,53 @@ const PelayananZoomPage: React.FC<PelayananZoomPageProps> = ({ showNotification 
                 />
               </div>
 
-              {/* Start Date Filter */}
+              {/* Date Preset Filter */}
               <div className="space-y-1">
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Mulai Tanggal</span>
-                <input
-                  type="date"
-                  value={startDateFilter}
-                  onChange={(e) => setStartDateFilter(e.target.value)}
-                  className="w-full text-sm bg-slate-50 text-slate-800 p-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-gov-500"
-                />
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Periode Rapat</span>
+                <select
+                  value={dateRangePreset}
+                  onChange={(e) => setDateRangePreset(e.target.value as any)}
+                  className="w-full text-sm bg-slate-50 text-slate-800 px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-gov-500 font-semibold cursor-pointer h-[38px]"
+                >
+                  <option value="All">Semua Waktu</option>
+                  <option value="Today">Hari Ini</option>
+                  <option value="Week">Minggu Ini</option>
+                  <option value="Month">Bulan Ini</option>
+                  <option value="Custom">Kustom Tanggal</option>
+                </select>
               </div>
 
-              {/* End Date Filter */}
-              <div className="space-y-1">
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Sampai Tanggal</span>
-                <input
-                  type="date"
-                  value={endDateFilter}
-                  onChange={(e) => setEndDateFilter(e.target.value)}
-                  className="w-full text-sm bg-slate-50 text-slate-800 p-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-gov-500"
-                />
-              </div>
+              {/* Start Date Filter (Conditional) */}
+              {(dateRangePreset === 'Custom' || startDateFilter || endDateFilter) && (
+                <div className="space-y-1 animate-fadeIn">
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Mulai Tanggal</span>
+                  <input
+                    type="date"
+                    value={startDateFilter}
+                    onChange={(e) => {
+                      setStartDateFilter(e.target.value);
+                      setDateRangePreset('Custom');
+                    }}
+                    className="w-full text-sm bg-slate-50 text-slate-800 p-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-gov-500 h-[38px]"
+                  />
+                </div>
+              )}
+
+              {/* End Date Filter (Conditional) */}
+              {(dateRangePreset === 'Custom' || startDateFilter || endDateFilter) && (
+                <div className="space-y-1 animate-fadeIn">
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Sampai Tanggal</span>
+                  <input
+                    type="date"
+                    value={endDateFilter}
+                    onChange={(e) => {
+                      setEndDateFilter(e.target.value);
+                      setDateRangePreset('Custom');
+                    }}
+                    className="w-full text-sm bg-slate-50 text-slate-800 p-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-gov-500 h-[38px]"
+                  />
+                </div>
+              )}
             </div>
           </div>
 
@@ -889,7 +1520,7 @@ const PelayananZoomPage: React.FC<PelayananZoomPageProps> = ({ showNotification 
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                          <div className="font-bold text-slate-800 max-w-[200px] truncate" title={m.kegiatan}>
+                          <div className="font-bold text-slate-800 max-w-md truncate" title={m.kegiatan}>
                             {m.kegiatan}
                           </div>
                           <div className="text-slate-400 text-xs mt-0.5 flex items-center gap-1">
@@ -1019,7 +1650,7 @@ const PelayananZoomPage: React.FC<PelayananZoomPageProps> = ({ showNotification 
 
       {/* Detail Meeting Modal */}
       {selectedMeetingDetail && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col border border-slate-100 max-h-[85vh] animate-fadeIn">
             
             {/* Header */}
@@ -1181,6 +1812,7 @@ const PelayananZoomPage: React.FC<PelayananZoomPageProps> = ({ showNotification 
                   <button
                     onClick={() => {
                       setEditingMeeting(selectedMeetingDetail);
+                      setSelectedMeetingDetail(null);
                       setIsAddModalOpen(true);
                     }}
                     className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold rounded-xl text-sm transition-colors"
@@ -1233,7 +1865,7 @@ const PelayananZoomPage: React.FC<PelayananZoomPageProps> = ({ showNotification 
       {/* Add/Edit Schedule Modal */}
       <AddZoomScheduleModal
         isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
+        onClose={handleCloseAddEditModal}
         onSave={handleSaveMeeting}
         initialData={editingMeeting}
       />
@@ -1355,6 +1987,140 @@ const PelayananZoomPage: React.FC<PelayananZoomPageProps> = ({ showNotification 
               >
                 <FileSpreadsheet size={16} />
                 Unduh Laporan Excel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Month Detail Modal */}
+      {isMonthDetailModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div 
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity animate-fadeIn" 
+            onClick={() => setIsMonthDetailModalOpen(false)}
+          />
+          <div className="bg-white rounded-3xl shadow-xl w-full max-w-4xl max-h-[85vh] flex flex-col z-10 overflow-hidden border border-slate-100 animate-in fade-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 shrink-0">
+              <div>
+                <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                  <Calendar size={18} className="text-gov-600" />
+                  Daftar Rapat - {clickedMonthLabel}
+                </h3>
+                <p className="text-xs text-slate-400 mt-1">
+                  {clickedChartType === 'unit' && 'Saringan berdasarkan Unit Kerja yang aktif pada bulan ini.'}
+                  {clickedChartType === 'operator' && 'Saringan berdasarkan Petugas / Operator yang bertugas pada bulan ini.'}
+                  {clickedChartType === 'status' && 'Saringan berdasarkan Status Penyelesaian rapat pada bulan ini.'}
+                  {clickedChartType === 'jenis' && 'Saringan berdasarkan Jenis Rapat Zoom pada bulan ini.'}
+                  {clickedChartType === 'account' && 'Saringan berdasarkan Akun Zoom yang digunakan pada bulan ini.'}
+                </p>
+              </div>
+              <button
+                onClick={() => setIsMonthDetailModalOpen(false)}
+                className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Contextual Pills Filter */}
+            <div className="flex gap-2 overflow-x-auto px-6 py-3 bg-slate-50/20 border-b border-slate-100 shrink-0 scrollbar-none">
+              {filterOptions.map(option => (
+                <button
+                  key={option.value}
+                  onClick={() => setModalDynamicFilter(option.value)}
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${
+                    modalDynamicFilter === option.value
+                      ? 'bg-gov-600 border-gov-600 text-white shadow-xs'
+                      : 'bg-white border-slate-200 text-slate-500 hover:text-slate-800 hover:border-slate-300'
+                  }`}
+                >
+                  {option.label} ({option.count})
+                </button>
+              ))}
+            </div>
+            
+            {/* Table Area */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {filteredModalMeetings.length === 0 ? (
+                <div className="text-center py-12 text-slate-400 italic text-sm">Tidak ada data rapat pada saringan ini.</div>
+              ) : (
+                <div className="border border-slate-150 rounded-2xl overflow-x-auto shadow-2xs">
+                  <table className="w-full text-left border-collapse min-w-[700px]">
+                    <thead>
+                      <tr className="bg-slate-50 text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-150">
+                        <th className="px-5 py-3">Tanggal & Waktu</th>
+                        <th className="px-5 py-3">Nama Kegiatan</th>
+                        <th className="px-5 py-3">Akun Zoom</th>
+                        <th className="px-5 py-3">Operator</th>
+                        <th className="px-5 py-3">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {filteredModalMeetings.map((m) => (
+                        <tr
+                          key={m.id}
+                          onClick={() => {
+                            setSelectedMeetingDetail(m);
+                          }}
+                          className="hover:bg-slate-50/70 transition-colors cursor-pointer text-xs"
+                        >
+                          <td className="px-5 py-3.5 whitespace-nowrap">
+                            <div className="font-bold text-slate-800">{formatDateStr(m.tanggal)}</div>
+                            <div className="text-slate-400 mt-0.5 flex items-center gap-1.5">
+                              <Clock size={12} className="text-slate-400" />
+                              {m.waktuMulai} - {m.waktuSelesai}
+                            </div>
+                          </td>
+                          <td className="px-5 py-3.5">
+                            <div className="font-bold text-slate-800 max-w-xs truncate" title={m.kegiatan}>
+                              {m.kegiatan}
+                            </div>
+                            <div className="text-slate-400 text-[10px] mt-0.5 flex items-center gap-1">
+                              <Briefcase size={11} className="text-slate-400" /> {m.unitKerja} | {m.jenisRapat}
+                            </div>
+                          </td>
+                          <td className="px-5 py-3.5 whitespace-nowrap text-slate-600">
+                            <span className="font-semibold text-gov-700 bg-gov-50 px-2 py-0.5 rounded border border-gov-100">
+                              {m.zoomAccount?.name || 'Belum Diatur'}
+                            </span>
+                          </td>
+                          <td className="px-5 py-3.5 whitespace-nowrap text-slate-600">
+                            <span>
+                              {m.operatorIds && m.operatorIds.length > 0
+                                ? m.operatorIds.map(id => usersMap[id] || 'Memuat...').join(', ')
+                                : (m.operatorId ? (usersMap[m.operatorId] || 'Memuat...') : 'Belum Ditugaskan')}
+                            </span>
+                          </td>
+                          <td className="px-5 py-3.5 whitespace-nowrap">
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              m.status === 'Completed'
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                : m.status === 'Cancelled'
+                                ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                                : 'bg-blue-50 text-blue-700 border border-blue-200'
+                            }`}>
+                              {m.status === 'Completed' ? 'Selesai' : m.status === 'Cancelled' ? 'Batal' : 'Terjadwal'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+            
+            {/* Footer */}
+            <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between bg-slate-50/50 shrink-0">
+              <span className="text-xs text-slate-400 font-semibold">Menampilkan {filteredModalMeetings.length} dari {clickedMonthMeetings.length} Rapat</span>
+              <button
+                type="button"
+                onClick={() => setIsMonthDetailModalOpen(false)}
+                className="px-4 py-2 bg-slate-150 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs transition-colors shadow-sm"
+              >
+                Tutup
               </button>
             </div>
           </div>
