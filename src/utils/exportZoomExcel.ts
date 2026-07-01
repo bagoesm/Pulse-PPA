@@ -168,7 +168,8 @@ export const exportZoomMeetingsToExcel = (
       'Status Rapat': m.status === 'Scheduled' ? 'Terjadwal' : m.status === 'Completed' ? 'Selesai' : 'Batal',
       'Link Zoom': m.zoomLink || '-',
       'Meeting ID': m.meetingId || '-',
-      'Passcode': m.passcode || '-'
+      'Passcode': m.passcode || '-',
+      'Teks Undangan': m.undanganText || '-'
     };
   });
 
@@ -187,7 +188,8 @@ export const exportZoomMeetingsToExcel = (
     { wch: 15 },  // Status Rapat
     { wch: 35 },  // Link Zoom
     { wch: 20 },  // Meeting ID
-    { wch: 15 }   // Passcode
+    { wch: 15 },  // Passcode
+    { wch: 40 }   // Teks Undangan
   ];
 
   // Append sheets

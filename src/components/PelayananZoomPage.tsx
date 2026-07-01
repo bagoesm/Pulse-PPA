@@ -5,7 +5,7 @@ import {
   Search, Filter, Plus, FileText, CheckCircle2, XCircle, 
   AlertCircle, Copy, Check, ExternalLink, SlidersHorizontal, 
   ChevronRight, RefreshCw, BarChart2, Briefcase, Activity, X,
-  FileSpreadsheet
+  FileSpreadsheet, Upload
 } from 'lucide-react';
 import { ZoomMeeting, ZoomAccount, ZoomEditor } from '../../types';
 import { zoomService } from '../services/ZoomService';
@@ -19,8 +19,13 @@ import {
 } from 'recharts';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabaseClient';
+import ImportZoomScheduleModal from './ImportZoomScheduleModal';
 
-const PelayananZoomPage: React.FC = () => {
+interface PelayananZoomPageProps {
+  showNotification?: (title: string, message: string, type?: 'success' | 'error' | 'warning' | 'info') => void;
+}
+
+const PelayananZoomPage: React.FC<PelayananZoomPageProps> = ({ showNotification }) => {
   const { currentUser } = useAuth();
 
   // Navigation state
@@ -77,8 +82,9 @@ const PelayananZoomPage: React.FC = () => {
   const [meetingTypeCustomStart, setMeetingTypeCustomStart] = useState('');
   const [meetingTypeCustomEnd, setMeetingTypeCustomEnd] = useState('');
 
-  // Export to Excel Modal States
+  // Export/Import Modal States
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [exportStartDate, setExportStartDate] = useState('');
   const [exportEndDate, setExportEndDate] = useState('');
 
@@ -372,18 +378,21 @@ const PelayananZoomPage: React.FC = () => {
     'Batal': '#ef4444'      // red-500
   };
 
-  // 5. Top 5 Jenis Rapat Terbanyak
+  // 5. Perbandingan Jenis Rapat
   const meetingTypeStats = useMemo(() => {
     const filtered = getFilteredMeetingsForChart(meetingTypeFilter, meetingTypeCustomStart, meetingTypeCustomEnd);
-    const counts: Record<string, number> = {};
+    const counts: Record<string, number> = {
+      'Pendampingan Zoom': 0,
+      'Peminjaman Zoom': 0
+    };
     filtered.forEach(m => {
-      const name = m.jenisRapat || 'Lainnya';
-      counts[name] = (counts[name] || 0) + 1;
+      const name = m.jenisRapat || 'Lainnya (Legacy)';
+      const displayName = (name === 'Pendampingan Zoom' || name === 'Peminjaman Zoom') ? name : 'Lainnya (Legacy)';
+      counts[displayName] = (counts[displayName] || 0) + 1;
     });
     return Object.entries(counts)
       .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 5);
+      .sort((a, b) => b.value - a.value);
   }, [getFilteredMeetingsForChart, meetingTypeFilter, meetingTypeCustomStart, meetingTypeCustomEnd]);
 
   // Summary statistics
@@ -670,12 +679,12 @@ const PelayananZoomPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Chart 4: Top 5 Jenis Rapat Terbanyak */}
+              {/* Chart 4: Perbandingan Jenis Rapat */}
               <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
                   <div>
-                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Top 5 Jenis Rapat Terbanyak</h4>
-                    <p className="text-sm font-bold text-slate-800 mt-0.5">Kategori rapat paling sering diselenggarakan.</p>
+                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Perbandingan Jenis Rapat</h4>
+                    <p className="text-sm font-bold text-slate-800 mt-0.5">Distribusi penggunaan berdasarkan jenis layanan Zoom.</p>
                   </div>
                   {renderChartFilter(meetingTypeFilter, setMeetingTypeFilter, meetingTypeCustomStart, setMeetingTypeCustomStart, meetingTypeCustomEnd, setMeetingTypeCustomEnd)}
                 </div>
@@ -690,12 +699,19 @@ const PelayananZoomPage: React.FC = () => {
                         margin={{ top: 10, right: 20, left: 30, bottom: 5 }}
                       >
                         <XAxis type="number" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
-                        <YAxis type="category" dataKey="name" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} width={80} />
+                        <YAxis type="category" dataKey="name" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} width={130} />
                         <Tooltip
                           contentStyle={{ background: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff', fontSize: '12px' }}
                           labelStyle={{ fontWeight: 'bold' }}
                         />
-                        <Bar dataKey="value" fill="#8b5cf6" radius={[0, 6, 6, 0]} maxBarSize={30} />
+                        <Bar dataKey="value" radius={[0, 6, 6, 0]} maxBarSize={30}>
+                          {meetingTypeStats.map((entry, index) => (
+                            <Cell 
+                              key={`cell-${index}`} 
+                              fill={entry.name === 'Pendampingan Zoom' ? '#6366f1' : entry.name === 'Peminjaman Zoom' ? '#3b82f6' : '#94a3b8'} 
+                            />
+                          ))}
+                        </Bar>
                       </BarChart>
                     </ResponsiveContainer>
                   )}
@@ -737,7 +753,7 @@ const PelayananZoomPage: React.FC = () => {
           
           {/* Search, Filter, and Controls */}
           <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-2xs space-y-4">
-            {/* Search Bar & Export Button */}
+            {/* Search Bar & Export/Import Buttons */}
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="relative flex-1">
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
@@ -749,14 +765,26 @@ const PelayananZoomPage: React.FC = () => {
                   className="w-full text-sm bg-slate-50 text-slate-800 placeholder-slate-400 pl-11 pr-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-gov-500 focus:border-gov-500"
                 />
               </div>
-              <button
-                type="button"
-                onClick={handleOpenExportModal}
-                className="flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm shadow-md shadow-emerald-600/10 hover:shadow-lg transition-all"
-              >
-                <FileSpreadsheet size={16} />
-                <span>Ekspor ke Excel</span>
-              </button>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleOpenExportModal}
+                  className="flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm shadow-md shadow-emerald-600/10 hover:shadow-lg transition-all whitespace-nowrap"
+                >
+                  <FileSpreadsheet size={16} />
+                  <span>Ekspor ke Excel</span>
+                </button>
+                {isDatinOrAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => setIsImportModalOpen(true)}
+                    className="flex items-center justify-center gap-2 px-5 py-2.5 bg-gov-600 hover:bg-gov-700 text-white rounded-xl font-bold text-sm shadow-md shadow-gov-600/10 hover:shadow-lg transition-all whitespace-nowrap"
+                  >
+                    <Upload size={16} />
+                    <span>Impor Excel</span>
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Filters Row */}
@@ -1208,6 +1236,15 @@ const PelayananZoomPage: React.FC = () => {
         onClose={() => setIsAddModalOpen(false)}
         onSave={handleSaveMeeting}
         initialData={editingMeeting}
+      />
+
+      {/* Import Schedule Modal */}
+      <ImportZoomScheduleModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onSuccess={fetchData}
+        currentUser={currentUser}
+        showNotification={showNotification || (() => {})}
       />
 
       {/* Export to Excel Modal */}
