@@ -200,3 +200,199 @@ export const exportZoomMeetingsToExcel = (
   const filename = `Laporan_Pelayanan_Zoom_${startDate.replace(/-/g, '')}_to_${endDate.replace(/-/g, '')}.xlsx`;
   XLSX.writeFile(wb, filename);
 };
+
+/**
+ * Generates and downloads an Excel workbook containing accumulated statistics
+ * and monthly comparison (trend) statistics for Zoom service dashboard.
+ */
+export const exportZoomDashboardToExcel = (
+  accumulationData: {
+    unit: { name: string; value: number }[];
+    operator: { name: string; value: number }[];
+    status: { name: string; value: number }[];
+    type: { name: string; value: number }[];
+    account: { name: string; value: number }[];
+  },
+  monthlyData: {
+    unit: any[];
+    operator: any[];
+    status: any[];
+    type: any[];
+    account: any[];
+  },
+  yearFilter: string,
+  periodStr: string
+) => {
+  const wb = XLSX.utils.book_new();
+
+  // --- SHEET 1: AKUMULASI STATISTIK ---
+  const wsAccum: XLSX.WorkSheet = {};
+  let accumRowIdx = 1;
+
+  const writeCellAccum = (col: string, row: number, val: any, isFormula = false) => {
+    const cellRef = `${col}${row}`;
+    if (isFormula) {
+      wsAccum[cellRef] = { t: 's', f: val };
+    } else if (typeof val === 'number') {
+      wsAccum[cellRef] = { t: 'n', v: val };
+    } else {
+      wsAccum[cellRef] = { t: 's', v: String(val) };
+    }
+  };
+
+  // Titles
+  writeCellAccum('A', accumRowIdx, 'LAPORAN AKUMULASI STATISTIK GRAFIK ZOOM');
+  accumRowIdx++;
+  writeCellAccum('A', accumRowIdx, `Tahun/Periode: ${periodStr}`);
+  accumRowIdx += 2;
+
+  const writeAccumTable = (
+    title: string,
+    headers: string[],
+    data: { name: string; value: number }[]
+  ) => {
+    writeCellAccum('A', accumRowIdx, title);
+    accumRowIdx++;
+
+    // Headers
+    headers.forEach((h, i) => {
+      const col = String.fromCharCode(65 + i);
+      writeCellAccum(col, accumRowIdx, h);
+    });
+    const headerRow = accumRowIdx;
+    accumRowIdx++;
+
+    // Data rows
+    data.forEach(item => {
+      writeCellAccum('A', accumRowIdx, item.name);
+      writeCellAccum('B', accumRowIdx, item.value);
+      writeCellAccum('C', accumRowIdx, `REPT("█", B${accumRowIdx})`, true);
+      accumRowIdx++;
+    });
+
+    // Total row
+    writeCellAccum('A', accumRowIdx, 'Total');
+    const startRow = headerRow + 1;
+    const endRow = accumRowIdx - 1;
+    if (endRow >= startRow) {
+      writeCellAccum('B', accumRowIdx, `SUM(B${startRow}:B${endRow})`, true);
+    } else {
+      writeCellAccum('B', accumRowIdx, 0);
+    }
+
+    accumRowIdx += 3;
+  };
+
+  // Write accumulation tables
+  writeAccumTable('1. Top 10 Unit Kerja Teraktif', ['Unit Kerja', 'Jumlah Rapat', 'Visualisasi Grafik (Excel Chart)'], accumulationData.unit);
+  writeAccumTable('2. Top 10 Petugas/Operator Teraktif', ['Nama Petugas', 'Jumlah Rapat', 'Visualisasi Grafik (Excel Chart)'], accumulationData.operator);
+  writeAccumTable('3. Distribusi Status Rapat', ['Status Rapat', 'Jumlah Rapat', 'Visualisasi Grafik (Excel Chart)'], accumulationData.status);
+  writeAccumTable('4. Perbandingan Jenis Rapat', ['Jenis Rapat', 'Jumlah Rapat', 'Visualisasi Grafik (Excel Chart)'], accumulationData.type);
+  writeAccumTable('5. Tingkat Utilisasi Akun Zoom', ['Akun Zoom', 'Jumlah Rapat', 'Visualisasi Grafik (Excel Chart)'], accumulationData.account);
+
+  wsAccum['!ref'] = `A1:C${accumRowIdx}`;
+  wsAccum['!cols'] = [{ wch: 35 }, { wch: 15 }, { wch: 35 }];
+
+
+  // --- SHEET 2: BANDING BULANAN (TREN) ---
+  const wsMonthly: XLSX.WorkSheet = {};
+  let monthlyRowIdx = 1;
+
+  const writeCellMonthly = (col: string, row: number, val: any, isFormula = false) => {
+    const cellRef = `${col}${row}`;
+    if (isFormula) {
+      wsMonthly[cellRef] = { t: 's', f: val };
+    } else if (typeof val === 'number') {
+      wsMonthly[cellRef] = { t: 'n', v: val };
+    } else {
+      wsMonthly[cellRef] = { t: 's', v: String(val) };
+    }
+  };
+
+  // Titles
+  writeCellMonthly('A', monthlyRowIdx, 'LAPORAN TREN & BANDING BULANAN GRAFIK ZOOM');
+  monthlyRowIdx++;
+  writeCellMonthly('A', monthlyRowIdx, `Tahun/Periode: ${periodStr}`);
+  monthlyRowIdx += 2;
+
+  const writeMonthlyTable = (
+    title: string,
+    data: any[]
+  ) => {
+    if (!data || data.length === 0) {
+      writeCellMonthly('A', monthlyRowIdx, title);
+      monthlyRowIdx++;
+      writeCellMonthly('A', monthlyRowIdx, '(Tidak ada data)');
+      monthlyRowIdx += 3;
+      return;
+    }
+
+    writeCellMonthly('A', monthlyRowIdx, title);
+    monthlyRowIdx++;
+
+    // Find headers dynamically
+    const sample = data[0];
+    const keys = Object.keys(sample);
+    const sortedKeys = ['month', ...keys.filter(k => k !== 'month' && k !== 'totalCount'), 'totalCount'].filter(k => keys.includes(k));
+
+    const headers = sortedKeys.map(k => {
+      if (k === 'month') return 'Bulan';
+      if (k === 'totalCount') return 'Total';
+      return k;
+    });
+
+    // Headers
+    headers.forEach((h, i) => {
+      const col = String.fromCharCode(65 + i);
+      writeCellMonthly(col, monthlyRowIdx, h);
+    });
+    const headerRow = monthlyRowIdx;
+    monthlyRowIdx++;
+
+    // Data rows
+    data.forEach(item => {
+      sortedKeys.forEach((key, colIdx) => {
+        const col = String.fromCharCode(65 + colIdx);
+        const val = item[key] !== undefined ? item[key] : 0;
+        writeCellMonthly(col, monthlyRowIdx, val);
+      });
+      monthlyRowIdx++;
+    });
+
+    // Total row
+    writeCellMonthly('A', monthlyRowIdx, 'Total Keseluruhan');
+    const startRow = headerRow + 1;
+    const endRow = monthlyRowIdx - 1;
+
+    for (let colIdx = 1; colIdx < sortedKeys.length; colIdx++) {
+      const col = String.fromCharCode(65 + colIdx);
+      if (endRow >= startRow) {
+        writeCellMonthly(col, monthlyRowIdx, `SUM(${col}${startRow}:${col}${endRow})`, true);
+      } else {
+        writeCellMonthly(col, monthlyRowIdx, 0);
+      }
+    }
+
+    monthlyRowIdx += 3;
+  };
+
+  // Write monthly trend tables
+  writeMonthlyTable('1. Tren Bulanan Unit Kerja (Top 5 & Lainnya)', monthlyData.unit);
+  writeMonthlyTable('2. Tren Bulanan Petugas/Operator (Top 5 & Lainnya)', monthlyData.operator);
+  writeMonthlyTable('3. Tren Bulanan Status Rapat', monthlyData.status);
+  writeMonthlyTable('4. Tren Bulanan Jenis Rapat', monthlyData.type);
+  writeMonthlyTable('5. Tren Bulanan Akun Zoom (Top 5 & Lainnya)', monthlyData.account);
+
+  wsMonthly['!ref'] = `A1:K${monthlyRowIdx}`;
+  wsMonthly['!cols'] = Array.from({ length: 11 }, (_, i) => ({ wch: i === 0 ? 15 : 20 }));
+
+  // Append sheets
+  XLSX.utils.book_append_sheet(wb, wsAccum, 'Akumulasi Statistik');
+  XLSX.utils.book_append_sheet(wb, wsMonthly, 'Banding Bulanan');
+
+  // Save file
+  const sanitizedPeriod = periodStr.replace(/[\s,]+/g, '_');
+  const filename = `Laporan_Statistik_Grafik_Zoom_${sanitizedPeriod}.xlsx`;
+  XLSX.writeFile(wb, filename);
+};
+

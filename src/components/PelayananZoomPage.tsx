@@ -5,14 +5,14 @@ import {
   Search, Filter, Plus, FileText, CheckCircle2, XCircle, 
   AlertCircle, Copy, Check, ExternalLink, SlidersHorizontal, 
   ChevronRight, RefreshCw, BarChart2, Briefcase, Activity, X,
-  FileSpreadsheet, Upload
+  FileSpreadsheet, Upload, Download
 } from 'lucide-react';
 import { ZoomMeeting, ZoomAccount, ZoomEditor } from '../../types';
 import { zoomService } from '../services/ZoomService';
 import AddZoomScheduleModal from './AddZoomScheduleModal';
 import ZoomAccountManager from './ZoomAccountManager';
 import SearchableSelect from './SearchableSelect';
-import { exportZoomMeetingsToExcel } from '../utils/exportZoomExcel';
+import { exportZoomMeetingsToExcel, exportZoomDashboardToExcel } from '../utils/exportZoomExcel';
 import { 
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, 
   Tooltip, Cell, PieChart, Pie, Legend, LabelList,
@@ -21,6 +21,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabaseClient';
 import ImportZoomScheduleModal from './ImportZoomScheduleModal';
+import html2canvas from 'html2canvas';
 
 interface PelayananZoomPageProps {
   showNotification?: (title: string, message: string, type?: 'success' | 'error' | 'warning' | 'info') => void;
@@ -800,6 +801,112 @@ const PelayananZoomPage: React.FC<PelayananZoomPageProps> = ({ showNotification 
     });
   }, [clickedMonthMeetings, modalDynamicFilter, clickedChartType, usersMap]);
 
+  const exportChartToPng = useCallback((containerId: string, filename: string) => {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    html2canvas(container, {
+      backgroundColor: '#ffffff',
+      scale: 2, // High-quality resolution
+      logging: false,
+      useCORS: true,
+      scrollX: 0,
+      scrollY: -window.scrollY, // Correct offset scroll bug in html2canvas
+    }).then((canvas) => {
+      const footerHeight = 28;
+      const width = canvas.width;
+      const height = canvas.height;
+
+      // Create final canvas to hold the chart and the watermark footer
+      const finalCanvas = document.createElement('canvas');
+      finalCanvas.width = width;
+      finalCanvas.height = height + (footerHeight * 2);
+
+      const context = finalCanvas.getContext('2d');
+      if (context) {
+        // Draw white background
+        context.fillStyle = '#ffffff';
+        context.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
+        
+        // Draw the captured chart canvas
+        context.drawImage(canvas, 0, 0);
+
+        // Add a subtle line separator before the watermark
+        context.strokeStyle = '#f1f5f9'; // slate-100
+        context.lineWidth = 2; // scaled
+        context.beginPath();
+        context.moveTo(30, height + 8);
+        context.lineTo(width - 30, height + 8);
+        context.stroke();
+
+        // Render the watermark text
+        context.fillStyle = '#94a3b8'; // slate-400
+        context.font = '500 20px Arial, sans-serif';
+        context.textAlign = 'right';
+        context.fillText('Dibuat di Pulse PPA, Manajemen Kerja Kemen PPPA', width - 30, height + 36);
+
+        const png = finalCanvas.toDataURL('image/png');
+        const downloadLink = document.createElement('a');
+        downloadLink.href = png;
+        downloadLink.download = `${filename}.png`;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+      }
+    }).catch((error) => {
+      console.error('Error exporting chart to PNG using html2canvas:', error);
+    });
+  }, []);
+
+  const handleExportDashboardData = useCallback(() => {
+    const accumulationData = {
+      unit: unitStats,
+      operator: operatorStats,
+      status: statusStats,
+      type: meetingTypeStats,
+      account: accountStats,
+    };
+
+    const monthlyData = {
+      unit: monthlyUnitStats,
+      operator: monthlyOperatorStats,
+      status: monthlyStatusStats,
+      type: monthlyJenisStats,
+      account: monthlyAccountStats,
+    };
+
+    const activeYears = Array.from(new Set(displayMonths.map(m => m.split('-')[0]))).sort();
+    const periodStr = activeYears.length > 0 ? activeYears.join(', ') : new Date().getFullYear().toString();
+
+    exportZoomDashboardToExcel(
+      accumulationData,
+      monthlyData,
+      chartYearFilter,
+      periodStr
+    );
+  }, [
+    unitStats, operatorStats, statusStats, meetingTypeStats, accountStats,
+    monthlyUnitStats, monthlyOperatorStats, monthlyStatusStats, monthlyJenisStats, monthlyAccountStats,
+    displayMonths, chartYearFilter
+  ]);
+
+  const handleExportAllChartsToPng = useCallback(() => {
+    const isSummary = chartViewMode === 'summary';
+    const charts = [
+      { id: 'chart-unit-kerja', name: isSummary ? 'Top_10_Unit_Kerja_Teraktif' : 'Tren_Bulanan_Unit_Kerja' },
+      { id: 'chart-petugas', name: isSummary ? 'Top_10_Petugas_Teraktif' : 'Tren_Bulanan_Petugas' },
+      { id: 'chart-status', name: isSummary ? 'Distribusi_Status_Rapat' : 'Tren_Bulanan_Status_Rapat' },
+      { id: 'chart-jenis-rapat', name: isSummary ? 'Perbandingan_Jenis_Rapat' : 'Tren_Bulanan_Jenis_Rapat' },
+      { id: 'chart-utilisasi-akun', name: isSummary ? 'Tingkat_Utilisasi_Akun_Zoom' : 'Tren_Bulanan_Utilisasi_Akun_Zoom' }
+    ];
+
+    charts.forEach((chart, index) => {
+      setTimeout(() => {
+        exportChartToPng(chart.id, chart.name);
+      }, index * 300);
+    });
+  }, [chartViewMode, exportChartToPng]);
+
   // Summary statistics
   const stats = {
     total: meetings.length,
@@ -999,7 +1106,7 @@ const PelayananZoomPage: React.FC<PelayananZoomPageProps> = ({ showNotification 
                   </h3>
                   <p className="text-xs text-slate-400 mt-0.5">Analisis statistik penggunaan akun Zoom dan operator.</p>
                 </div>
-                <div className="flex items-center gap-2.5 self-start sm:self-auto">
+                <div className="flex flex-wrap items-center gap-2.5 self-start sm:self-auto">
                   {chartViewMode === 'monthly' && availableYears.length > 1 && (
                     <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-xl shadow-3xs">
                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tahun:</span>
@@ -1037,6 +1144,22 @@ const PelayananZoomPage: React.FC<PelayananZoomPageProps> = ({ showNotification 
                       Banding Bulanan (Tren)
                     </button>
                   </div>
+                  <button
+                    onClick={handleExportDashboardData}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-3xs cursor-pointer ml-1"
+                    title="Ekspor Seluruh Data Grafik ke Excel"
+                  >
+                    <FileSpreadsheet size={13} />
+                    <span>Ekspor Excel</span>
+                  </button>
+                  <button
+                    onClick={handleExportAllChartsToPng}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-3xs cursor-pointer ml-1"
+                    title="Ekspor Semua Grafik sebagai Gambar PNG"
+                  >
+                    <Download size={13} />
+                    <span>Ekspor Gambar</span>
+                  </button>
                 </div>
               </div>
 
@@ -1052,9 +1175,18 @@ const PelayananZoomPage: React.FC<PelayananZoomPageProps> = ({ showNotification 
                         {chartViewMode === 'summary' ? 'Frekuensi penggunaan Zoom per unit kerja.' : 'Grafik tren penggunaan Zoom per bulan.'}
                       </p>
                     </div>
-                    {chartViewMode === 'summary' && renderChartFilter(unitFilter, setUnitFilter, unitCustomStart, setUnitCustomStart, unitCustomEnd, setUnitCustomEnd)}
+                    <div className="flex items-center gap-2 self-end sm:self-auto">
+                      {chartViewMode === 'summary' && renderChartFilter(unitFilter, setUnitFilter, unitCustomStart, setUnitCustomStart, unitCustomEnd, setUnitCustomEnd)}
+                      <button
+                        onClick={() => exportChartToPng('chart-unit-kerja', chartViewMode === 'summary' ? 'Top_10_Unit_Kerja_Teraktif' : 'Tren_Bulanan_Unit_Kerja')}
+                        className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+                        title="Unduh Grafik (PNG)"
+                      >
+                        <Download size={15} />
+                      </button>
+                    </div>
                   </div>
-                  <div className="h-80">
+                  <div id="chart-unit-kerja" className="h-80">
                     {chartViewMode === 'summary' ? (
                       unitStats.length === 0 ? (
                         <div className="h-full flex items-center justify-center text-xs text-slate-400 italic">Tidak ada data untuk periode ini.</div>
@@ -1120,9 +1252,18 @@ const PelayananZoomPage: React.FC<PelayananZoomPageProps> = ({ showNotification 
                         {chartViewMode === 'summary' ? 'Operator paling sering ditugaskan.' : 'Frekuensi penugasan operator per bulan.'}
                       </p>
                     </div>
-                    {chartViewMode === 'summary' && renderChartFilter(operatorFilter, setOperatorFilter, operatorCustomStart, setOperatorCustomStart, operatorCustomEnd, setOperatorCustomEnd)}
+                    <div className="flex items-center gap-2 self-end sm:self-auto">
+                      {chartViewMode === 'summary' && renderChartFilter(operatorFilter, setOperatorFilter, operatorCustomStart, setOperatorCustomStart, operatorCustomEnd, setOperatorCustomEnd)}
+                      <button
+                        onClick={() => exportChartToPng('chart-petugas', chartViewMode === 'summary' ? 'Top_10_Petugas_Teraktif' : 'Tren_Bulanan_Petugas')}
+                        className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+                        title="Unduh Grafik (PNG)"
+                      >
+                        <Download size={15} />
+                      </button>
+                    </div>
                   </div>
-                  <div className="h-80">
+                  <div id="chart-petugas" className="h-80">
                     {chartViewMode === 'summary' ? (
                       operatorStats.length === 0 ? (
                         <div className="h-full flex items-center justify-center text-xs text-slate-400 italic">Tidak ada data untuk periode ini.</div>
@@ -1188,9 +1329,18 @@ const PelayananZoomPage: React.FC<PelayananZoomPageProps> = ({ showNotification 
                         {chartViewMode === 'summary' ? 'Perbandingan status seluruh jadwal rapat.' : 'Penyebaran status penyelesaian rapat per bulan.'}
                       </p>
                     </div>
-                    {chartViewMode === 'summary' && renderChartFilter(statusFilterState, setStatusFilterState, statusCustomStart, setStatusCustomStart, statusCustomEnd, setStatusCustomEnd)}
+                    <div className="flex items-center gap-2 self-end sm:self-auto">
+                      {chartViewMode === 'summary' && renderChartFilter(statusFilterState, setStatusFilterState, statusCustomStart, setStatusCustomStart, statusCustomEnd, setStatusCustomEnd)}
+                      <button
+                        onClick={() => exportChartToPng('chart-status', chartViewMode === 'summary' ? 'Distribusi_Status_Rapat' : 'Tren_Bulanan_Status_Rapat')}
+                        className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+                        title="Unduh Grafik (PNG)"
+                      >
+                        <Download size={15} />
+                      </button>
+                    </div>
                   </div>
-                  <div className="h-80 flex items-center justify-center">
+                  <div id="chart-status" className="h-80 flex items-center justify-center">
                     {chartViewMode === 'summary' ? (
                       meetings.length === 0 ? (
                         <div className="h-full flex items-center justify-center text-xs text-slate-400 italic">Tidak ada data untuk periode ini.</div>
@@ -1245,9 +1395,18 @@ const PelayananZoomPage: React.FC<PelayananZoomPageProps> = ({ showNotification 
                         {chartViewMode === 'summary' ? 'Distribusi penggunaan berdasarkan jenis layanan Zoom.' : 'Jumlah layanan Pendampingan vs Peminjaman per bulan.'}
                       </p>
                     </div>
-                    {chartViewMode === 'summary' && renderChartFilter(meetingTypeFilter, setMeetingTypeFilter, meetingTypeCustomStart, setMeetingTypeCustomStart, meetingTypeCustomEnd, setMeetingTypeCustomEnd)}
+                    <div className="flex items-center gap-2 self-end sm:self-auto">
+                      {chartViewMode === 'summary' && renderChartFilter(meetingTypeFilter, setMeetingTypeFilter, meetingTypeCustomStart, setMeetingTypeCustomStart, meetingTypeCustomEnd, setMeetingTypeCustomEnd)}
+                      <button
+                        onClick={() => exportChartToPng('chart-jenis-rapat', chartViewMode === 'summary' ? 'Perbandingan_Jenis_Rapat' : 'Tren_Bulanan_Jenis_Rapat')}
+                        className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+                        title="Unduh Grafik (PNG)"
+                      >
+                        <Download size={15} />
+                      </button>
+                    </div>
                   </div>
-                  <div className="h-80">
+                  <div id="chart-jenis-rapat" className="h-80">
                     {chartViewMode === 'summary' ? (
                       meetingTypeStats.length === 0 ? (
                         <div className="h-full flex items-center justify-center text-xs text-slate-400 italic">Tidak ada data untuk periode ini.</div>
@@ -1302,9 +1461,18 @@ const PelayananZoomPage: React.FC<PelayananZoomPageProps> = ({ showNotification 
                         {chartViewMode === 'summary' ? 'Jumlah penggunaan rapat untuk masing-masing akun.' : 'Grafik penggunaan masing-masing akun Zoom per bulan.'}
                       </p>
                     </div>
-                    {chartViewMode === 'summary' && renderChartFilter(accountFilterState, setAccountFilterState, accountCustomStart, setAccountCustomStart, accountCustomEnd, setAccountCustomEnd)}
+                    <div className="flex items-center gap-2 self-end sm:self-auto">
+                      {chartViewMode === 'summary' && renderChartFilter(accountFilterState, setAccountFilterState, accountCustomStart, setAccountCustomStart, accountCustomEnd, setAccountCustomEnd)}
+                      <button
+                        onClick={() => exportChartToPng('chart-utilisasi-akun', chartViewMode === 'summary' ? 'Tingkat_Utilisasi_Akun_Zoom' : 'Tren_Bulanan_Utilisasi_Akun_Zoom')}
+                        className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+                        title="Unduh Grafik (PNG)"
+                      >
+                        <Download size={15} />
+                      </button>
+                    </div>
                   </div>
-                  <div className="h-80">
+                  <div id="chart-utilisasi-akun" className="h-80">
                     {chartViewMode === 'summary' ? (
                       accountStats.length === 0 ? (
                         <div className="h-full flex items-center justify-center text-xs text-slate-400 italic">Tidak ada data untuk periode ini.</div>
