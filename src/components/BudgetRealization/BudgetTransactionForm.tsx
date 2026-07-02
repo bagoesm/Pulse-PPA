@@ -11,9 +11,12 @@ import {
   DollarSign,
   FileText,
   AlertCircle,
-  X
+  X,
+  Sparkles,
+  Loader2
 } from 'lucide-react';
 import SearchableSelect from '../SearchableSelect';
+import { aiExtractorService } from '../../services/aiExtractorService';
 
 interface BudgetTransactionFormProps {
   selectedDivisi: string;
@@ -52,6 +55,50 @@ const BudgetTransactionForm: React.FC<BudgetTransactionFormProps> = ({
 
   // Loaded realisasi tracking to calculate sisa before insert
   const [masterRealisasiMap, setMasterRealisasiMap] = useState<Map<string, number>>(new Map());
+
+  // AI states
+  const [aiInputText, setAiInputText] = useState<string>('');
+  const [isExtracting, setIsExtracting] = useState<boolean>(false);
+
+  const handleAiExtract = async () => {
+    if (!aiInputText.trim()) {
+      showNotification('Input Kosong', 'Silakan masukkan deskripsi transaksi terlebih dahulu.', 'warning');
+      return;
+    }
+    
+    setIsExtracting(true);
+    try {
+      const result = await aiExtractorService.extractBudgetTransaction(aiInputText, masters);
+      
+      if (result) {
+        if (result.tanggal) setTanggal(result.tanggal);
+        if (result.status) setStatus(result.status);
+        if (result.nominal !== undefined && result.nominal !== null) setNominal(result.nominal.toString());
+        if (result.uraian) setUraian(result.uraian);
+        if (result.bukti) setBukti(result.bukti || '');
+        if (result.keterangan) setKeterangan(result.keterangan || '');
+        
+        if (result.masterId) {
+          const matched = masters.find(m => m.id === result.masterId);
+          if (matched) {
+            handleSelectMaster(matched);
+            showNotification('Berhasil Mengisi Form', 'Data transaksi dan Master Anggaran berhasil dicocokkan otomatis oleh AI.', 'success');
+          } else {
+            showNotification('Berhasil Mengisi Form', 'Data transaksi berhasil diisi, namun Master Anggaran tidak ditemukan yang cocok.', 'info');
+          }
+        } else {
+          showNotification('Berhasil Mengisi Form', 'Data transaksi berhasil diisi, silakan pilih Master Anggaran secara manual.', 'info');
+        }
+      } else {
+        showNotification('Ekstraksi Kosong', 'AI tidak dapat mendeteksi informasi transaksi yang valid.', 'warning');
+      }
+    } catch (err: any) {
+      console.error('AI transaction extraction failed:', err);
+      showNotification('Gagal Ekstraksi AI', err.message || 'Terjadi kesalahan saat mengekstrak data dengan AI.', 'error');
+    } finally {
+      setIsExtracting(false);
+    }
+  };
 
   const loadMastersAndRealisasi = useCallback(async () => {
     setLoading(true);
@@ -218,6 +265,63 @@ const BudgetTransactionForm: React.FC<BudgetTransactionFormProps> = ({
 
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           
+          {/* AI Autofill Assistant */}
+          <div className="bg-gradient-to-r from-violet-50 to-indigo-50 border border-violet-100 rounded-xl p-4 space-y-3 relative overflow-hidden">
+            {/* Background decoration */}
+            <div className="absolute right-0 bottom-0 translate-x-4 translate-y-4 opacity-10 pointer-events-none">
+              <Sparkles size={120} className="text-violet-600" />
+            </div>
+
+            <div className="flex items-center justify-between relative z-10">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-violet-600 text-white rounded-lg shadow-sm shadow-violet-200">
+                  <Sparkles size={14} className="animate-pulse" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-slate-800 text-xs">Asisten Input AI</h4>
+                  <p className="text-[10px] text-slate-500 font-medium">Tulis detail transaksi untuk mengisi form secara otomatis</p>
+                </div>
+              </div>
+              
+              {aiInputText && (
+                <button
+                  type="button"
+                  onClick={() => setAiInputText('')}
+                  className="text-[10px] font-bold text-slate-400 hover:text-slate-650 transition-colors"
+                >
+                  Bersihkan
+                </button>
+              )}
+            </div>
+
+            <div className="relative z-10 flex gap-2">
+              <textarea
+                placeholder="Contoh: Bayar konsumsi rapat koordinasi dinas Datin Rp 450.000 tanggal 1 Juli 2026, bukti link: https://gdrive.com/kwitansi1"
+                value={aiInputText}
+                onChange={(e) => setAiInputText(e.target.value)}
+                className="flex-1 min-h-[50px] max-h-[120px] bg-white border border-slate-200 rounded-lg text-xs px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-300 transition-all placeholder-slate-400 font-medium text-slate-700 resize-y"
+              />
+              <button
+                type="button"
+                disabled={isExtracting || !aiInputText.trim()}
+                onClick={handleAiExtract}
+                className="px-3 bg-violet-600 hover:bg-violet-700 disabled:bg-slate-200 text-white disabled:text-slate-400 rounded-lg text-xs font-bold transition-all shadow-sm shadow-violet-100 flex items-center justify-center gap-1.5 self-stretch whitespace-nowrap min-w-[100px]"
+              >
+                {isExtracting ? (
+                  <>
+                    <Loader2 size={13} className="animate-spin" />
+                    <span>Memproses...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={13} />
+                    <span>Isi Form</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
           {/* Tanggal & Status */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1">
