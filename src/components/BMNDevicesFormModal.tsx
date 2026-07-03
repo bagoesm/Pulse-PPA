@@ -112,7 +112,7 @@ const BMNDevicesFormModal: React.FC<BMNDevicesFormModalProps> = ({
 
       const { data: items } = await supabase
         .from('bmn_items')
-        .select('id, kode_barang, nup, merk, tipe')
+        .select('id, kode_barang, nup, merk, tipe, tahun_perolehan')
         .eq('held_by', profileId)
         .limit(1);
 
@@ -126,6 +126,11 @@ const BMNDevicesFormModal: React.FC<BMNDevicesFormModalProps> = ({
         const brandType = [items[0].merk, items[0].tipe].filter(Boolean).join(' ');
         if (brandType) {
           setMerkType(brandType);
+        }
+
+        // Auto-fill Tahun Perolehan
+        if (items[0].tahun_perolehan) {
+          setTahunPerolehan(items[0].tahun_perolehan.toString());
         }
       }
     } catch (err) {
@@ -152,6 +157,11 @@ const BMNDevicesFormModal: React.FC<BMNDevicesFormModalProps> = ({
         const brandType = [item.merk, item.tipe].filter(Boolean).join(' ');
         if (brandType) {
           setMerkType(brandType);
+        }
+
+        // Auto-fill Tahun Perolehan
+        if (item.tahun_perolehan) {
+          setTahunPerolehan(item.tahun_perolehan.toString());
         }
 
         const registeredName = item.profiles?.name || '';
@@ -1279,27 +1289,7 @@ const BMNDevicesFormModal: React.FC<BMNDevicesFormModalProps> = ({
             </div>
           </div>
 
-          {/* Naming code layout */}
-          {['Laptop', 'PC'].includes(namaPerangkat) && compiledLaptopName && (
-            <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-sm text-indigo-900 animate-slide-up">
-              <div>
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-indigo-500 block mb-0.5">
-                  Kode Penyeragaman Nama Laptop:
-                </span>
-                <span className="font-mono text-base font-semibold text-indigo-850 tracking-wide break-all">
-                  {compiledLaptopName}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={handleCopyCompiledName}
-                className="bg-white hover:bg-slate-50 border border-indigo-200 text-indigo-700 text-xs px-4 py-2 rounded-xl font-semibold transition-all shadow-sm flex items-center justify-center gap-1.5 shrink-0"
-              >
-                <Copy size={13} />
-                <span>{copiedName ? 'Tersalin' : 'Salin Kode'}</span>
-              </button>
-            </div>
-          )}
+
         </form>
 
         {/* Footer */}

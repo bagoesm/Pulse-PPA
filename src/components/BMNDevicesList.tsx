@@ -162,12 +162,12 @@ const BMNDevicesList: React.FC<BMNDevicesListProps> = ({
     try {
       if (editingDevice) {
         // Edit mode
-        await BMNDevicesService.updateDevice(editingDevice.id, deviceData);
-        showNotification('Berhasil', 'Data perangkat berhasil diperbarui.', 'success');
+        const saved = await BMNDevicesService.updateDevice(editingDevice.id, deviceData);
+        showNotification('Berhasil', `Data perangkat berhasil diperbarui. Nama Laptop: ${saved.penyeragamanNamaLaptop || '-'}`, 'success');
       } else {
         // Add mode
-        await BMNDevicesService.createDevice(deviceData);
-        showNotification('Berhasil', 'Data perangkat baru berhasil ditambahkan.', 'success');
+        const saved = await BMNDevicesService.createDevice(deviceData);
+        showNotification('Berhasil', `Data perangkat baru berhasil ditambahkan. Nama Laptop: ${saved.penyeragamanNamaLaptop || '-'}`, 'success');
       }
       setIsFormOpen(false);
       setEditingDevice(null);

@@ -106,7 +106,7 @@ const PublicDeviceForm: React.FC = () => {
 
       const { data: items } = await supabase
         .from('bmn_items')
-        .select('id, kode_barang, nup, merk, tipe')
+        .select('id, kode_barang, nup, merk, tipe, tahun_perolehan')
         .eq('held_by', profileId)
         .limit(1);
 
@@ -120,6 +120,11 @@ const PublicDeviceForm: React.FC = () => {
         const brandType = [items[0].merk, items[0].tipe].filter(Boolean).join(' ');
         if (brandType) {
           setMerkType(brandType);
+        }
+
+        // Auto-fill Tahun Perolehan
+        if (items[0].tahun_perolehan) {
+          setTahunPerolehan(items[0].tahun_perolehan.toString());
         }
       }
     } catch (err) {
@@ -146,6 +151,11 @@ const PublicDeviceForm: React.FC = () => {
         const brandType = [item.merk, item.tipe].filter(Boolean).join(' ');
         if (brandType) {
           setMerkType(brandType);
+        }
+
+        // Auto-fill Tahun Perolehan
+        if (item.tahun_perolehan) {
+          setTahunPerolehan(item.tahun_perolehan.toString());
         }
         
         const registeredName = item.profiles?.name || '';
@@ -1333,27 +1343,7 @@ const PublicDeviceForm: React.FC = () => {
             </div>
           </div>
 
-          {/* Sticky compilation panel for Laptops/PC */}
-          {['Laptop', 'PC'].includes(namaPerangkat) && compiledLaptopName && (
-            <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-6 shadow-md sticky bottom-6 z-30 text-indigo-900 animate-slide-up flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div>
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-indigo-500 block mb-0.5">
-                  Kode Penyeragaman Nama Laptop:
-                </span>
-                <span className="font-mono text-base font-semibold text-indigo-850 tracking-wide break-all">
-                  {compiledLaptopName}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={handleCopyCompiledName}
-                className="bg-white hover:bg-slate-50 border border-indigo-200 text-indigo-700 text-xs px-5 py-2.5 rounded-xl font-semibold transition-all shadow-sm flex items-center justify-center gap-1.5 shrink-0"
-              >
-                <Copy size={13} />
-                <span>{copiedName ? 'Tersalin' : 'Salin Kode'}</span>
-              </button>
-            </div>
-          )}
+
 
           {/* Submit Button */}
           <button
