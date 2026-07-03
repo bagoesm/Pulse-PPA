@@ -285,21 +285,21 @@ const PublicDeviceForm: React.FC = () => {
 
   if (isSubmitted) {
     return (
-      <div className="min-h-screen bg-slate-50 text-slate-800 flex items-center justify-center p-4">
-        <div className="bg-white border border-slate-200 p-8 rounded-2xl w-full max-w-md text-center shadow-lg animate-fade-in">
+      <div className="min-h-screen bg-slate-50 text-slate-800 flex items-center justify-center p-6 sm:p-8">
+        <div className="bg-white border border-slate-200 p-8 sm:p-12 rounded-3xl w-full max-w-lg text-center shadow-lg animate-fade-in">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 text-green-600 rounded-full mb-6">
             <CheckCircle size={36} />
           </div>
-          <h2 className="text-2xl font-bold mb-2 tracking-tight text-slate-900">Data Terkirim</h2>
+          <h2 className="text-2xl font-semibold mb-2 tracking-tight text-slate-900">Data Terkirim</h2>
           <p className="text-slate-500 mb-6 text-sm">Terima kasih atas partisipasi Anda dalam pengisian inventori perangkat.</p>
           
           {submittedName && (
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-6 text-left">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 mb-8 text-left">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 block mb-1">
                 KODE LAPTOP SERAGAM ANDA:
               </span>
               <div className="flex items-center justify-between gap-3">
-                <span className="font-mono text-lg text-indigo-700 font-extrabold tracking-wide break-all">
+                <span className="font-mono text-lg text-indigo-750 font-semibold tracking-wide break-all">
                   {submittedName}
                 </span>
                 <button
@@ -308,7 +308,7 @@ const PublicDeviceForm: React.FC = () => {
                     setCopiedName(true);
                     setTimeout(() => setCopiedName(false), 2000);
                   }}
-                  className="bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 text-xs px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 shrink-0"
+                  className="bg-slate-100 hover:bg-slate-200 border border-slate-350 text-slate-700 text-xs px-3.5 py-2.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 shrink-0"
                 >
                   <Copy size={13} />
                   <span>{copiedName ? 'Tersalin' : 'Salin'}</span>
@@ -322,7 +322,7 @@ const PublicDeviceForm: React.FC = () => {
 
           <button
             onClick={handleResetForm}
-            className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition-all shadow-sm flex items-center justify-center gap-2"
+            className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold transition-all shadow-sm flex items-center justify-center gap-2"
           >
             <Plus size={16} />
             <span>Input Perangkat Lain</span>
@@ -333,43 +333,43 @@ const PublicDeviceForm: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 pb-12 font-sans">
+    <div className="min-h-screen bg-slate-50 text-slate-800 pb-16 font-sans">
       {/* Minimalist Header */}
-      <div className="bg-white border-b border-slate-200 py-4 px-4 sticky top-0 z-40 shadow-sm">
-        <div className="max-w-2xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="bg-indigo-50 p-2 rounded-xl text-indigo-600 border border-indigo-100">
-              <Laptop size={20} />
+      <div className="bg-white border-b border-slate-200 py-6 px-6 sticky top-0 z-40 shadow-sm">
+        <div className="max-w-3xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="bg-indigo-50 p-3 rounded-2xl text-indigo-650 border border-indigo-100 shrink-0">
+              <Laptop size={26} />
             </div>
             <div>
-              <h1 className="text-md font-bold tracking-tight text-slate-900">Formulir Inventori Perangkat</h1>
-              <p className="text-[11px] text-slate-500">Pendataan laptop, PC, dan perangkat pendukung kerja</p>
+              <h1 className="text-lg sm:text-xl font-semibold tracking-tight text-slate-900 leading-tight">Formulir Inventori Perangkat</h1>
+              <p className="text-xs sm:text-sm text-slate-500 mt-0.5">Pendataan laptop, PC, dan perangkat pendukung kerja</p>
             </div>
           </div>
-          <span className="text-[10px] bg-slate-100 text-slate-600 font-semibold px-2.5 py-1 rounded-full border border-slate-200">
+          <span className="text-xs bg-slate-100 text-slate-650 font-semibold px-4 py-2 rounded-full border border-slate-200 w-fit self-start sm:self-center">
             Akses Publik
           </span>
         </div>
       </div>
 
-      <div className="max-w-2xl mx-auto px-4 mt-6">
+      <div className="max-w-3xl mx-auto px-6 mt-10">
         {errorMessage && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 flex items-start gap-3">
-            <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={18} />
-            <p className="text-sm text-red-800">{errorMessage}</p>
+          <div className="bg-red-50 border border-red-200 rounded-2xl p-6 mb-8 flex items-start gap-4">
+            <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={20} />
+            <p className="text-sm text-red-800 font-medium">{errorMessage}</p>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-8">
           {/* CARD 1: Identitas User & Unit */}
-          <div className="bg-white border border-slate-200 p-6 rounded-2xl space-y-4 shadow-sm">
-            <h3 className="text-sm font-bold text-indigo-600 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+          <div className="bg-white border border-slate-200/80 p-8 sm:p-10 rounded-3xl space-y-6 shadow-sm">
+            <h3 className="text-sm font-semibold text-indigo-600 uppercase tracking-wider mb-2 flex items-center gap-1.5">
               <span>1.</span> Lokasi Kerja & Identitas
             </h3>
 
             {/* Cascading Selector: 1. Satker (Parent) */}
             <div className="relative">
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
                 Pilih Satker (Induk) <span className="text-red-500">*</span>
               </label>
               
@@ -384,12 +384,12 @@ const PublicDeviceForm: React.FC = () => {
                   onFocus={() => setIsParentDropdownOpen(true)}
                   placeholder={isLoadingSatkers ? "Memuat satker..." : "Ketik untuk mencari Satker..."}
                   disabled={isLoadingSatkers}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all text-sm font-medium"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-3 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all text-sm font-medium"
                 />
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-450" size={16} />
                 {selectedParentSatker && (
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 bg-indigo-50 text-indigo-600 text-[10px] font-bold px-2 py-0.5 rounded border border-indigo-150">
-                    <Check size={10} /> Terpilih
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 bg-indigo-50 text-indigo-600 text-xs font-semibold px-2.5 py-1 rounded border border-indigo-150">
+                    <Check size={12} /> Terpilih
                   </div>
                 )}
               </div>
@@ -415,20 +415,20 @@ const PublicDeviceForm: React.FC = () => {
                             setNamaPegawai('');
                             setUnitKerja('');
                           }}
-                          className={`w-full text-left px-4 py-2.5 hover:bg-slate-50 text-xs transition-all border-b border-slate-100 flex items-center justify-between ${
+                          className={`w-full text-left px-4 py-3 hover:bg-slate-50 text-xs transition-all border-b border-slate-100 flex items-center justify-between ${
                             isSelected ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-700'
                           }`}
                         >
                           <div>
-                            <div>{s.name}</div>
-                            {s.code && <span className="text-[9px] text-slate-450 font-mono">Kode: {s.code}</span>}
+                            <div className="text-sm font-semibold text-slate-800">{s.name}</div>
+                            {s.code && <span className="text-[10px] text-slate-450 font-mono mt-0.5 block">Kode: {s.code}</span>}
                           </div>
-                          {isSelected && <Check size={12} className="text-indigo-600" />}
+                          {isSelected && <Check size={14} className="text-indigo-600" />}
                         </button>
                       );
                     })
                   ) : (
-                    <div className="p-3 text-center text-xs text-slate-400">
+                    <div className="p-3.5 text-center text-xs text-slate-400">
                       Satker tidak ditemukan
                     </div>
                   )}
@@ -443,7 +443,7 @@ const PublicDeviceForm: React.FC = () => {
 
             {/* Cascading Selector: 2. Unit Kerja (Anak Satker) */}
             <div className="relative">
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
                 Pilih Unit Kerja (Anak Satker) <span className="text-red-500">*</span>
               </label>
               
@@ -464,12 +464,12 @@ const PublicDeviceForm: React.FC = () => {
                       : "Ketik untuk mencari Unit Kerja..."
                   }
                   disabled={!parentSatkerId}
-                  className="w-full bg-slate-50 disabled:bg-slate-100 disabled:cursor-not-allowed border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all text-sm font-medium"
+                  className="w-full bg-slate-50 disabled:bg-slate-100 disabled:cursor-not-allowed border border-slate-200 rounded-xl pl-10 pr-4 py-3 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all text-sm font-medium"
                 />
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-450" size={16} />
                 {selectedChildSatker && (
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 bg-indigo-50 text-indigo-600 text-[10px] font-bold px-2 py-0.5 rounded border border-indigo-150">
-                    <Check size={10} /> Terpilih
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 bg-indigo-50 text-indigo-600 text-xs font-semibold px-2.5 py-1 rounded border border-indigo-150">
+                    <Check size={12} /> Terpilih
                   </div>
                 )}
               </div>
@@ -493,20 +493,20 @@ const PublicDeviceForm: React.FC = () => {
                             // Reset employee search
                             setNamaPegawai('');
                           }}
-                          className={`w-full text-left px-4 py-2.5 hover:bg-slate-50 text-xs transition-all border-b border-slate-100 flex items-center justify-between ${
+                          className={`w-full text-left px-4 py-3 hover:bg-slate-50 text-xs transition-all border-b border-slate-100 flex items-center justify-between ${
                             isSelected ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-700'
                           }`}
                         >
                           <div>
-                            <div>{s.name}</div>
-                            <span className="text-[9px] text-slate-450 font-mono">Kode: {s.code} • Lantai: {s.floor || '01'}</span>
+                            <div className="text-sm font-semibold text-slate-800">{s.name}</div>
+                            <span className="text-[10px] text-slate-450 font-mono mt-0.5 block">Kode: {s.code} • Lantai: {s.floor || '01'}</span>
                           </div>
-                          {isSelected && <Check size={12} className="text-indigo-600" />}
+                          {isSelected && <Check size={14} className="text-indigo-600" />}
                         </button>
                       );
                     })
                   ) : (
-                    <div className="p-3 text-center text-xs text-slate-400">
+                    <div className="p-3.5 text-center text-xs text-slate-400">
                       Unit kerja tidak ditemukan
                     </div>
                   )}
@@ -521,7 +521,7 @@ const PublicDeviceForm: React.FC = () => {
 
             {/* Searchable Combobox: Nama Pegawai */}
             <div className="relative">
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
                 Nama Lengkap Pegawai <span className="text-red-500">*</span>
               </label>
               
@@ -543,11 +543,11 @@ const PublicDeviceForm: React.FC = () => {
                       : "Ketik nama Anda (klik dari daftar atau input baru jika tidak ada)"
                   }
                   disabled={!satkerId}
-                  className="w-full bg-slate-50 disabled:bg-slate-100 disabled:cursor-not-allowed border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all text-sm font-medium"
+                  className="w-full bg-slate-50 disabled:bg-slate-100 disabled:cursor-not-allowed border border-slate-200 rounded-xl pl-10 pr-4 py-3 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all text-sm font-medium"
                 />
-                <UserIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <UserIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-450" size={16} />
                 {isLoadingEmployees && (
-                  <RefreshCw className="absolute right-3.5 top-1/2 -translate-y-1/2 animate-spin text-slate-400" size={14} />
+                  <RefreshCw className="absolute right-3.5 top-1/2 -translate-y-1/2 animate-spin text-slate-450" size={14} />
                 )}
               </div>
 
@@ -565,17 +565,17 @@ const PublicDeviceForm: React.FC = () => {
                             setNamaPegawai(emp.name);
                             setIsEmployeeDropdownOpen(false);
                           }}
-                          className={`w-full text-left px-4 py-2.5 hover:bg-slate-50 text-xs transition-all border-b border-slate-100 flex items-center justify-between ${
-                            isSelected ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-700'
+                          className={`w-full text-left px-4 py-3 hover:bg-slate-50 text-sm transition-all border-b border-slate-100 flex items-center justify-between ${
+                            isSelected ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-700 font-medium'
                           }`}
                         >
                           <span>{emp.name}</span>
-                          {isSelected && <Check size={12} className="text-indigo-600" />}
+                          {isSelected && <Check size={14} className="text-indigo-600" />}
                         </button>
                       );
                     })
                   ) : (
-                    <div className="p-3 text-slate-500 text-xs">
+                    <div className="p-4 text-slate-500 text-xs leading-relaxed border-b border-slate-150">
                       Nama tidak ditemukan di Unit Kerja ini. Anda dapat meneruskan mengetik secara manual untuk **mendaftarkan nama baru**.
                     </div>
                   )}
@@ -590,7 +590,7 @@ const PublicDeviceForm: React.FC = () => {
 
             {/* Nomor Telepon */}
             <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-550 mb-1.5">
                 Nomor HP / WhatsApp
               </label>
               <input
@@ -598,20 +598,20 @@ const PublicDeviceForm: React.FC = () => {
                 value={nomorTelepon}
                 onChange={(e) => setNomorTelepon(e.target.value)}
                 placeholder="Contoh: 0812xxxxxxxx"
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all text-sm font-medium"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all text-sm font-medium"
               />
             </div>
           </div>
 
           {/* CARD 2: Info Perangkat */}
-          <div className="bg-white border border-slate-200 p-6 rounded-2xl space-y-4 shadow-sm">
-            <h3 className="text-sm font-bold text-indigo-600 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+          <div className="bg-white border border-slate-200/80 p-8 sm:p-10 rounded-3xl space-y-6 shadow-sm">
+            <h3 className="text-sm font-semibold text-indigo-600 uppercase tracking-wider mb-2 flex items-center gap-1.5">
               <span>2.</span> Informasi Perangkat
             </h3>
 
             {/* Segmented controls for Perangkat */}
             <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
                 Jenis Perangkat
               </label>
               <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
@@ -622,18 +622,18 @@ const PublicDeviceForm: React.FC = () => {
                       key={type}
                       type="button"
                       onClick={() => setNamaPerangkat(type)}
-                      className={`py-2 rounded-xl text-xs font-semibold transition-all border flex flex-col items-center gap-1 ${
+                      className={`py-3.5 rounded-xl text-xs font-semibold transition-all border flex flex-col items-center gap-1.5 ${
                         isActive
-                          ? 'bg-indigo-50 border-indigo-250 text-indigo-700 font-bold shadow-sm'
-                          : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-600'
+                          ? 'bg-indigo-50 border-indigo-300 text-indigo-700 font-semibold shadow-sm'
+                          : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-650'
                       }`}
                     >
-                      {type === 'Laptop' && <Laptop size={14} />}
-                      {type === 'PC' && <Monitor size={14} />}
-                      {type === 'Printer' && <Printer size={14} />}
-                      {type === 'Scanner' && <FileText size={14} />}
-                      {type === 'Lainnya' && <Sparkles size={14} />}
-                      <span>{type}</span>
+                      {type === 'Laptop' && <Laptop size={16} />}
+                      {type === 'PC' && <Monitor size={16} />}
+                      {type === 'Printer' && <Printer size={16} />}
+                      {type === 'Scanner' && <FileText size={16} />}
+                      {type === 'Lainnya' && <Sparkles size={16} />}
+                      <span className="text-[11px] uppercase tracking-wide">{type}</span>
                     </button>
                   );
                 })}
@@ -641,9 +641,9 @@ const PublicDeviceForm: React.FC = () => {
             </div>
 
             {/* Segmented control for Kepemilikan */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
                   Jenis Kepemilikan
                 </label>
                 <div className="flex bg-slate-100 border border-slate-250/50 rounded-xl p-1">
@@ -652,9 +652,9 @@ const PublicDeviceForm: React.FC = () => {
                       key={opt}
                       type="button"
                       onClick={() => setJenisKepemilikan(opt)}
-                      className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                      className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${
                         jenisKepemilikan === opt
-                          ? 'bg-white text-indigo-700 shadow-sm border border-slate-200/50'
+                          ? 'bg-white text-indigo-750 text-indigo-700 shadow-sm border border-slate-200/50 font-semibold'
                           : 'text-slate-600 hover:text-slate-900'
                       }`}
                     >
@@ -665,7 +665,7 @@ const PublicDeviceForm: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-550 mb-2">
                   Tahun Perolehan
                 </label>
                 <input
@@ -682,7 +682,7 @@ const PublicDeviceForm: React.FC = () => {
             {/* BMN Code */}
             {jenisKepemilikan === 'Kantor' && (
               <div className="animate-slide-down">
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
                   Kode BMN
                 </label>
                 <input
@@ -690,14 +690,14 @@ const PublicDeviceForm: React.FC = () => {
                   value={kodeBMN}
                   onChange={(e) => setKodeBMN(e.target.value)}
                   placeholder="3.05.02.01.003..."
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 placeholder-slate-450 focus:outline-none focus:border-indigo-500 focus:bg-white text-sm font-mono font-medium"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-800 placeholder-slate-450 focus:outline-none focus:border-indigo-500 focus:bg-white text-sm font-mono font-medium"
                 />
               </div>
             )}
 
             {/* Brand/Type */}
             <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
                 Merk / Type Perangkat
               </label>
               <input
@@ -705,21 +705,21 @@ const PublicDeviceForm: React.FC = () => {
                 value={merkType}
                 onChange={(e) => setMerkType(e.target.value)}
                 placeholder="Contoh: Asus ExpertBook / Lenovo ThinkPad L13"
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all text-sm font-medium"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all text-sm font-medium"
               />
             </div>
           </div>
 
           {/* CARD 3: Specs (Laptop/PC only) */}
           {['Laptop', 'PC'].includes(namaPerangkat) && (
-            <div className="bg-white border border-slate-200 p-6 rounded-2xl space-y-4 shadow-sm animate-fade-in">
-              <h3 className="text-sm font-bold text-indigo-600 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <div className="bg-white border border-slate-200/80 p-8 sm:p-10 rounded-3xl space-y-6 shadow-sm animate-fade-in">
+              <h3 className="text-sm font-semibold text-indigo-600 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                 <span>3.</span> Spesifikasi Hardware
               </h3>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
                     Processor
                   </label>
                   <input
@@ -727,24 +727,32 @@ const PublicDeviceForm: React.FC = () => {
                     value={processor}
                     onChange={(e) => setProcessor(e.target.value)}
                     placeholder="Contoh: Intel Core i5 / Apple M2"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white text-sm font-medium"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white text-sm font-medium mb-2.5"
                   />
-                  <div className="flex flex-wrap gap-1.5 mt-2">
-                    {['Intel i5', 'Intel i7', 'Ryzen 5', 'Ryzen 7', 'Apple M1', 'Apple M2'].map(p => (
-                      <button
-                        key={p}
-                        type="button"
-                        onClick={() => setProcessor(p)}
-                        className="text-[9px] bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-600 rounded px-2 py-0.5 font-semibold transition-all"
-                      >
-                        {p}
-                      </button>
-                    ))}
+                  {/* Clean modern presets */}
+                  <div className="flex flex-wrap gap-2">
+                    {['Intel i5', 'Intel i7', 'Ryzen 5', 'Ryzen 7', 'Apple M1', 'Apple M2'].map(p => {
+                      const isSelected = processor === p;
+                      return (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => setProcessor(p)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                            isSelected
+                              ? 'bg-indigo-50 border-indigo-300 text-indigo-750 text-indigo-700 font-semibold shadow-sm'
+                              : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-900 shadow-sm'
+                          }`}
+                        >
+                          {p}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
                     Kapasitas RAM
                   </label>
                   <input
@@ -752,24 +760,31 @@ const PublicDeviceForm: React.FC = () => {
                     value={ram}
                     onChange={(e) => setRam(e.target.value)}
                     placeholder="Contoh: 8 GB / 16 GB"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white text-sm font-medium"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white text-sm font-medium mb-2.5"
                   />
-                  <div className="flex gap-1.5 mt-2">
-                    {['4 GB', '8 GB', '16 GB', '32 GB'].map(r => (
-                      <button
-                        key={r}
-                        type="button"
-                        onClick={() => setRam(r)}
-                        className="text-[9px] bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-600 rounded px-2 py-0.5 font-semibold transition-all"
-                      >
-                        {r}
-                      </button>
-                    ))}
+                  <div className="flex flex-wrap gap-2">
+                    {['4 GB', '8 GB', '16 GB', '32 GB'].map(r => {
+                      const isSelected = ram === r;
+                      return (
+                        <button
+                          key={r}
+                          type="button"
+                          onClick={() => setRam(r)}
+                          className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                            isSelected
+                              ? 'bg-indigo-50 border-indigo-300 text-indigo-750 text-indigo-700 font-semibold shadow-sm'
+                              : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-900 shadow-sm'
+                          }`}
+                        >
+                          {r}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
                     VGA / Kartu Grafis
                   </label>
                   <input
@@ -782,7 +797,7 @@ const PublicDeviceForm: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-550 mb-1.5">
                     Harddisk / SSD (Penyimpanan)
                   </label>
                   <input
@@ -790,19 +805,26 @@ const PublicDeviceForm: React.FC = () => {
                     value={hddSsd}
                     onChange={(e) => setHddSsd(e.target.value)}
                     placeholder="Contoh: SSD 512 GB / HDD 1 TB"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white text-sm font-medium"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white text-sm font-medium mb-2.5"
                   />
-                  <div className="flex flex-wrap gap-1.5 mt-2">
-                    {['SSD 256 GB', 'SSD 512 GB', 'SSD 1 TB', 'HDD 1 TB'].map(s => (
-                      <button
-                        key={s}
-                        type="button"
-                        onClick={() => setHddSsd(s)}
-                        className="text-[9px] bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-600 rounded px-2 py-0.5 font-semibold transition-all"
-                      >
-                        {s}
-                      </button>
-                    ))}
+                  <div className="flex flex-wrap gap-2">
+                    {['SSD 256 GB', 'SSD 512 GB', 'SSD 1 TB', 'HDD 1 TB'].map(s => {
+                      const isSelected = hddSsd === s;
+                      return (
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() => setHddSsd(s)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                            isSelected
+                              ? 'bg-indigo-50 border-indigo-300 text-indigo-750 text-indigo-700 font-semibold shadow-sm'
+                              : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-900 shadow-sm'
+                          }`}
+                        >
+                          {s}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -811,13 +833,13 @@ const PublicDeviceForm: React.FC = () => {
 
           {/* CARD 4: Mac Address (WIFI / LAN) */}
           {['Laptop', 'PC', 'Printer', 'Scanner'].includes(namaPerangkat) && (
-            <div className="bg-white border border-slate-200 p-6 rounded-2xl space-y-4 shadow-sm animate-fade-in">
-              <h3 className="text-sm font-bold text-indigo-600 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <div className="bg-white border border-slate-200/80 p-8 sm:p-10 rounded-3xl space-y-6 shadow-sm animate-fade-in">
+              <h3 className="text-sm font-semibold text-indigo-600 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                 <span>{['Laptop', 'PC'].includes(namaPerangkat) ? '4.' : '3.'}</span> Mac Address
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
                     Mac Address (WIFI)
                   </label>
                   <input
@@ -829,7 +851,7 @@ const PublicDeviceForm: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
                     Mac Address (LAN Cable)
                   </label>
                   <input
@@ -846,16 +868,16 @@ const PublicDeviceForm: React.FC = () => {
 
           {/* CARD 5: Apps & Licenses (Laptop/PC only) */}
           {['Laptop', 'PC'].includes(namaPerangkat) && (
-            <div className="bg-white border border-slate-200 p-6 rounded-2xl space-y-5 shadow-sm animate-fade-in">
-              <h3 className="text-sm font-bold text-indigo-600 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <div className="bg-white border border-slate-200/80 p-8 sm:p-10 rounded-3xl space-y-8 shadow-sm animate-fade-in">
+              <h3 className="text-sm font-semibold text-indigo-600 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                 <span>5.</span> Aplikasi & Lisensi
               </h3>
 
               {/* OS */}
-              <div className="border-b border-slate-100 pb-4 space-y-3">
+              <div className="border-b border-slate-100 pb-5 space-y-3.5">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
                       Operating System (OS)
                     </label>
                     <input
@@ -863,23 +885,30 @@ const PublicDeviceForm: React.FC = () => {
                       value={os}
                       onChange={(e) => setOs(e.target.value)}
                       placeholder="Contoh: Windows 11 Pro"
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white text-sm font-medium"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white text-sm font-medium mb-2.5"
                     />
-                    <div className="flex gap-1.5 mt-2">
-                      {['Windows 11', 'Windows 10', 'macOS'].map(item => (
-                        <button
-                          key={item}
-                          type="button"
-                          onClick={() => setOs(item)}
-                          className="text-[9px] bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-600 rounded px-2 py-0.5 font-semibold transition-all"
-                        >
-                          {item}
-                        </button>
-                      ))}
+                    <div className="flex gap-2">
+                      {['Windows 11', 'Windows 10', 'macOS'].map(item => {
+                        const isSelected = os === item;
+                        return (
+                          <button
+                            key={item}
+                            type="button"
+                            onClick={() => setOs(item)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                              isSelected
+                                ? 'bg-indigo-50 border-indigo-300 text-indigo-700 font-semibold shadow-sm'
+                                : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-650 hover:text-slate-900 shadow-sm'
+                            }`}
+                          >
+                            {item}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                   <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
                       Status Lisensi OS
                     </label>
                     <div className="flex flex-wrap bg-slate-100 border border-slate-200/55 rounded-xl p-1">
@@ -888,11 +917,11 @@ const PublicDeviceForm: React.FC = () => {
                           key={opt}
                           type="button"
                           onClick={() => setOsLicenseStatus(opt)}
-                          className={`flex-1 min-w-[65px] py-1.5 rounded-lg text-[10px] font-semibold transition-all ${
+                          className={`flex-1 min-w-[65px] py-2 rounded-lg text-[10px] font-semibold transition-all ${
                             osLicenseStatus === opt
                               ? opt === 'Bajakan'
-                                ? 'bg-red-600 text-white shadow-sm font-bold'
-                                : 'bg-white text-indigo-700 shadow-sm border border-slate-200/50'
+                                ? 'bg-red-600 text-white shadow-sm font-semibold'
+                                : 'bg-white text-indigo-700 shadow-sm border border-slate-200/50 font-semibold'
                               : 'text-slate-600 hover:text-slate-900'
                           }`}
                         >
@@ -905,10 +934,10 @@ const PublicDeviceForm: React.FC = () => {
               </div>
 
               {/* Office */}
-              <div className="border-b border-slate-100 pb-4 space-y-3">
+              <div className="border-b border-slate-100 pb-5 space-y-3.5">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-550 mb-1.5">
                       Microsoft Office Version
                     </label>
                     <input
@@ -916,23 +945,30 @@ const PublicDeviceForm: React.FC = () => {
                       value={msOffice}
                       onChange={(e) => setMsOffice(e.target.value)}
                       placeholder="Contoh: Office Home & Business 2021"
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white text-sm font-medium"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white text-sm font-medium mb-2.5"
                     />
-                    <div className="flex gap-1.5 mt-2">
-                      {['Office 365', 'Office 2021', 'Office 2019'].map(item => (
-                        <button
-                          key={item}
-                          type="button"
-                          onClick={() => setMsOffice(item)}
-                          className="text-[9px] bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-600 rounded px-2 py-0.5 font-semibold transition-all"
-                        >
-                          {item}
-                        </button>
-                      ))}
+                    <div className="flex gap-2">
+                      {['Office 365', 'Office 2021', 'Office 2019'].map(item => {
+                        const isSelected = msOffice === item;
+                        return (
+                          <button
+                            key={item}
+                            type="button"
+                            onClick={() => setMsOffice(item)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                              isSelected
+                                ? 'bg-indigo-50 border-indigo-300 text-indigo-700 font-semibold shadow-sm'
+                                : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-655 hover:text-slate-900 shadow-sm'
+                            }`}
+                          >
+                            {item}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                   <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
                       Status Lisensi Office
                     </label>
                     <div className="flex flex-wrap bg-slate-100 border border-slate-200/55 rounded-xl p-1">
@@ -941,11 +977,11 @@ const PublicDeviceForm: React.FC = () => {
                           key={opt}
                           type="button"
                           onClick={() => setMsOfficeLicenseStatus(opt)}
-                          className={`flex-1 min-w-[65px] py-1.5 rounded-lg text-[10px] font-semibold transition-all ${
+                          className={`flex-1 min-w-[65px] py-2 rounded-lg text-[10px] font-semibold transition-all ${
                             msOfficeLicenseStatus === opt
                               ? opt === 'Bajakan'
-                                ? 'bg-red-600 text-white shadow-sm font-bold'
-                                : 'bg-white text-indigo-700 shadow-sm border border-slate-200/50'
+                                ? 'bg-red-600 text-white shadow-sm font-semibold'
+                                : 'bg-white text-indigo-700 shadow-sm border border-slate-200/50 font-semibold'
                               : 'text-slate-600 hover:text-slate-900'
                           }`}
                         >
@@ -958,10 +994,10 @@ const PublicDeviceForm: React.FC = () => {
               </div>
 
               {/* PDF Reader */}
-              <div className="space-y-3">
+              <div className="space-y-3.5">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
                       PDF Reader
                     </label>
                     <input
@@ -969,23 +1005,30 @@ const PublicDeviceForm: React.FC = () => {
                       value={pdfReader}
                       onChange={(e) => setPdfReader(e.target.value)}
                       placeholder="Contoh: Adobe Acrobat Reader"
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white text-sm font-medium"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white text-sm font-medium mb-2.5"
                     />
-                    <div className="flex gap-1.5 mt-2">
-                      {['Acrobat Reader', 'Foxit Reader', 'Nitro PDF'].map(item => (
-                        <button
-                          key={item}
-                          type="button"
-                          onClick={() => setPdfReader(item)}
-                          className="text-[9px] bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-600 rounded px-2 py-0.5 font-semibold transition-all"
-                        >
-                          {item}
-                        </button>
-                      ))}
+                    <div className="flex gap-2">
+                      {['Acrobat Reader', 'Foxit Reader', 'Nitro PDF'].map(item => {
+                        const isSelected = pdfReader === item;
+                        return (
+                          <button
+                            key={item}
+                            type="button"
+                            onClick={() => setPdfReader(item)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                              isSelected
+                                ? 'bg-indigo-50 border-indigo-300 text-indigo-700 font-semibold shadow-sm'
+                                : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-900 shadow-sm'
+                            }`}
+                          >
+                            {item}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                   <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
                       Status Lisensi PDF
                     </label>
                     <div className="flex flex-wrap bg-slate-100 border border-slate-200/55 rounded-xl p-1">
@@ -994,11 +1037,11 @@ const PublicDeviceForm: React.FC = () => {
                           key={opt}
                           type="button"
                           onClick={() => setPdfReaderLicenseStatus(opt)}
-                          className={`flex-1 min-w-[65px] py-1.5 rounded-lg text-[10px] font-semibold transition-all ${
+                          className={`flex-1 min-w-[65px] py-2 rounded-lg text-[10px] font-semibold transition-all ${
                             pdfReaderLicenseStatus === opt
                               ? opt === 'Bajakan'
-                                ? 'bg-red-650 text-white shadow-sm font-bold bg-red-650 bg-red-600'
-                                : 'bg-white text-indigo-700 shadow-sm border border-slate-200/50'
+                                ? 'bg-red-600 text-white shadow-sm font-semibold'
+                                : 'bg-white text-indigo-700 shadow-sm border border-slate-200/50 font-semibold'
                               : 'text-slate-600 hover:text-slate-900'
                           }`}
                         >
@@ -1013,7 +1056,7 @@ const PublicDeviceForm: React.FC = () => {
               {/* Extra specs */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
                 <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-505 mb-1.5">
                     Antivirus yang Digunakan
                   </label>
                   <input
@@ -1021,7 +1064,7 @@ const PublicDeviceForm: React.FC = () => {
                     value={antivirusSebelumnya}
                     onChange={(e) => setAntivirusSebelumnya(e.target.value)}
                     placeholder="Contoh: Kaspersky / Avast / Windows Defender"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white text-sm font-medium"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white text-sm font-medium"
                   />
                 </div>
               </div>
@@ -1029,14 +1072,14 @@ const PublicDeviceForm: React.FC = () => {
           )}
 
           {/* CARD 6: Performance */}
-          <div className="bg-white border border-slate-200 p-6 rounded-2xl space-y-4 shadow-sm">
-            <h3 className="text-sm font-bold text-indigo-600 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+          <div className="bg-white border border-slate-200/80 p-8 sm:p-10 rounded-3xl space-y-6 shadow-sm">
+            <h3 className="text-sm font-semibold text-indigo-600 uppercase tracking-wider mb-2 flex items-center gap-1.5">
               <span>{['Laptop', 'PC'].includes(namaPerangkat) ? '6.' : '4.'}</span> Performa & Keterangan
             </h3>
 
             {/* Segmented control for Performa */}
             <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
                 Kondisi / Performa Perangkat
               </label>
               <div className="flex bg-slate-100 border border-slate-250/50 rounded-xl p-1">
@@ -1045,10 +1088,10 @@ const PublicDeviceForm: React.FC = () => {
                     key={opt}
                     type="button"
                     onClick={() => setPerformaPerangkat(opt)}
-                    className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${
                       performaPerangkat === opt
-                        ? opt === 'Baik' ? 'bg-green-600 text-white shadow-sm' : 
-                          opt === 'Cukup' ? 'bg-yellow-500 text-slate-900 shadow-sm border border-slate-300/40' : 'bg-red-600 text-white shadow-sm'
+                        ? opt === 'Baik' ? 'bg-green-600 text-white shadow-sm font-semibold' : 
+                          opt === 'Cukup' ? 'bg-yellow-500 text-slate-900 shadow-sm border border-slate-300/40 font-semibold' : 'bg-red-650 text-white shadow-sm font-semibold bg-red-600'
                         : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
@@ -1059,7 +1102,7 @@ const PublicDeviceForm: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
                 Keterangan Tambahan
               </label>
               <textarea
@@ -1074,19 +1117,19 @@ const PublicDeviceForm: React.FC = () => {
 
           {/* Sticky compilation panel for Laptops/PC */}
           {['Laptop', 'PC'].includes(namaPerangkat) && compiledLaptopName && (
-            <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 shadow-md sticky bottom-4 z-30 text-indigo-900 animate-slide-up flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-6 shadow-md sticky bottom-6 z-30 text-indigo-900 animate-slide-up flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-500 block mb-0.5">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-indigo-500 block mb-0.5">
                   Kode Penyeragaman Nama Laptop:
                 </span>
-                <span className="font-mono text-base font-extrabold text-indigo-850 tracking-wide break-all">
+                <span className="font-mono text-base font-semibold text-indigo-850 tracking-wide break-all">
                   {compiledLaptopName}
                 </span>
               </div>
               <button
                 type="button"
                 onClick={handleCopyCompiledName}
-                className="bg-white hover:bg-slate-50 border border-indigo-200 text-indigo-700 text-xs px-4.5 py-2.5 rounded-xl font-bold transition-all shadow-sm flex items-center justify-center gap-1.5 shrink-0"
+                className="bg-white hover:bg-slate-50 border border-indigo-200 text-indigo-700 text-xs px-4.5 py-2.5 rounded-xl font-semibold transition-all shadow-sm flex items-center justify-center gap-1.5 shrink-0"
               >
                 <Copy size={13} />
                 <span>{copiedName ? 'Tersalin' : 'Salin Kode'}</span>
@@ -1098,17 +1141,17 @@ const PublicDeviceForm: React.FC = () => {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-base font-semibold transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSubmitting ? (
               <>
-                <RefreshCw className="animate-spin" size={16} />
+                <RefreshCw className="animate-spin" size={18} />
                 <span>Mengirim...</span>
               </>
             ) : (
               <>
                 <span>Kirim Pendataan Perangkat</span>
-                <ChevronRight size={16} />
+                <ChevronRight size={18} />
               </>
             )}
           </button>
