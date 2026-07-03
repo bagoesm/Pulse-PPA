@@ -1078,14 +1078,14 @@ const BMNDevicesFormModal: React.FC<BMNDevicesFormModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="px-4.5 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-100 transition-colors font-semibold text-xs"
+            className="px-5 py-2.5 border border-slate-300 text-slate-700 rounded-xl hover:bg-slate-100 transition-all font-semibold text-xs"
           >
             Batal
           </button>
           <button
             onClick={handleSubmit}
             disabled={isSaving}
-            className="px-4.5 py-2 bg-gov-600 text-white rounded-lg hover:bg-gov-700 transition-colors font-semibold text-xs flex items-center gap-1.5"
+            className="px-5 py-2.5 bg-gov-600 text-white rounded-xl hover:bg-gov-700 transition-all font-semibold text-xs flex items-center gap-1.5"
           >
             <Save size={14} />
             <span>{isSaving ? 'Menyimpan...' : 'Simpan Perangkat'}</span>

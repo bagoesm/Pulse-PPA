@@ -1129,7 +1129,7 @@ const PublicDeviceForm: React.FC = () => {
               <button
                 type="button"
                 onClick={handleCopyCompiledName}
-                className="bg-white hover:bg-slate-50 border border-indigo-200 text-indigo-700 text-xs px-4.5 py-2.5 rounded-xl font-semibold transition-all shadow-sm flex items-center justify-center gap-1.5 shrink-0"
+                className="bg-white hover:bg-slate-50 border border-indigo-200 text-indigo-700 text-xs px-5 py-2.5 rounded-xl font-semibold transition-all shadow-sm flex items-center justify-center gap-1.5 shrink-0"
               >
                 <Copy size={13} />
                 <span>{copiedName ? 'Tersalin' : 'Salin Kode'}</span>

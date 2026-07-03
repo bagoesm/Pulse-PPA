@@ -157,10 +157,24 @@ const BMNDevicesList: React.FC<BMNDevicesListProps> = ({
   }, [devices]);
 
   // Handle Save Device
-  const handleSaveDevice = async () => {
-    setIsFormOpen(false);
-    setEditingDevice(null);
-    await fetchData();
+  const handleSaveDevice = async (deviceData: Omit<BMNDevice, 'id' | 'createdAt' | 'updatedAt'>) => {
+    try {
+      if (editingDevice) {
+        // Edit mode
+        await BMNDevicesService.updateDevice(editingDevice.id, deviceData);
+        showNotification('Berhasil', 'Data perangkat berhasil diperbarui.', 'success');
+      } else {
+        // Add mode
+        await BMNDevicesService.createDevice(deviceData);
+        showNotification('Berhasil', 'Data perangkat baru berhasil ditambahkan.', 'success');
+      }
+      setIsFormOpen(false);
+      setEditingDevice(null);
+      await fetchData();
+    } catch (err: any) {
+      console.error(err);
+      showNotification('Gagal Menyimpan', err.message || 'Terjadi kesalahan saat menyimpan data.', 'error');
+    }
   };
 
   // Handle Delete Device
