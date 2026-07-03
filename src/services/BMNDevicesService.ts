@@ -93,6 +93,36 @@ const mapRowToSatker = (row: any): Satker => ({
 export const BMNDevicesService = {
   // === DEVICE MANAGEMENT ===
 
+  async resolveUniqueLaptopName(baseName: string, excludeId?: string): Promise<string> {
+    if (!baseName) return '';
+    
+    let query = supabase
+      .from('bmn_devices')
+      .select('id, penyeragaman_nama_laptop')
+      .or(`penyeragaman_nama_laptop.eq.${baseName},penyeragaman_nama_laptop.ilike.${baseName}-%`);
+      
+    if (excludeId) {
+      query = query.neq('id', excludeId);
+    }
+    
+    const { data, error } = await query;
+    if (error || !data || data.length === 0) {
+      return baseName;
+    }
+    
+    const existingNames = new Set(data.map(d => d.penyeragaman_nama_laptop));
+    if (!existingNames.has(baseName)) {
+      return baseName;
+    }
+    
+    let suffix = 2;
+    while (existingNames.has(`${baseName}-${suffix}`)) {
+      suffix++;
+    }
+    
+    return `${baseName}-${suffix}`;
+  },
+
   async getAllDevices(): Promise<BMNDevice[]> {
     const { data, error } = await supabase
       .from('bmn_devices')
@@ -108,6 +138,11 @@ export const BMNDevicesService = {
   },
 
   async createDevice(device: Omit<BMNDevice, 'id' | 'createdAt' | 'updatedAt'>): Promise<BMNDevice> {
+    // Resolve unique laptop name
+    if (device.penyeragamanNamaLaptop) {
+      device.penyeragamanNamaLaptop = await this.resolveUniqueLaptopName(device.penyeragamanNamaLaptop);
+    }
+
     const dbRow = mapDeviceToRow(device);
     const { data, error } = await supabase
       .from('bmn_devices')
@@ -124,6 +159,11 @@ export const BMNDevicesService = {
   },
 
   async updateDevice(id: string, updates: Partial<BMNDevice>): Promise<BMNDevice> {
+    // Resolve unique laptop name on update
+    if (updates.penyeragamanNamaLaptop) {
+      updates.penyeragamanNamaLaptop = await this.resolveUniqueLaptopName(updates.penyeragamanNamaLaptop, id);
+    }
+
     const dbRow = mapDeviceToRow(updates);
     dbRow.updated_at = new Date().toISOString();
     
