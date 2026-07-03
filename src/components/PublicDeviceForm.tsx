@@ -205,8 +205,8 @@ const PublicDeviceForm: React.FC = () => {
       const newDevice: Omit<BMNDevice, 'id' | 'createdAt' | 'updatedAt'> = {
         namaPegawai: namaPegawai.trim(),
         nomorTelepon: nomorTelepon.trim(),
-        unitKerja: unitKerja.trim() || (selectedChildSatker ? selectedChildSatker.name : ''),
-        satkerId: satkerId,
+        unitKerja: childSearch.trim() || (selectedChildSatker ? selectedChildSatker.name : ''),
+        satkerId: parentSatkerId,
         namaPerangkat,
         jenisKepemilikan,
         kodeBMN: jenisKepemilikan === 'Kantor' ? kodeBMN.trim() : '',

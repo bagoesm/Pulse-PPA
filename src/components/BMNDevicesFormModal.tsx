@@ -117,18 +117,24 @@ const BMNDevicesFormModal: React.FC<BMNDevicesFormModalProps> = ({
       setPdfReaderLicenseStatus(item.pdfReaderLicenseStatus || 'Original');
 
       // Populate parent-child cascading Satkers
-      const activeSatker = satkers.find(s => s.id === item.satkerId);
-      if (activeSatker) {
-        if (activeSatker.parentId) {
-          setParentSatkerId(activeSatker.parentId);
-          const parent = satkers.find(s => s.id === activeSatker.parentId);
-          setParentSearch(parent ? parent.name : '');
-          setChildSearch(activeSatker.name);
+      const parentSatker = satkers.find(s => s.id === item.satkerId);
+      if (parentSatker) {
+        setParentSatkerId(parentSatker.id);
+        setParentSearch(parentSatker.name);
+        
+        const childSatker = satkers.find(s => s.parentId === parentSatker.id && s.name === item.unitKerja);
+        if (childSatker) {
+          setSatkerId(childSatker.id);
+          setChildSearch(childSatker.name);
         } else {
-          setParentSatkerId(activeSatker.id);
-          setParentSearch(activeSatker.name);
-          setChildSearch(activeSatker.name);
+          setSatkerId('');
+          setChildSearch(item.unitKerja || '');
         }
+      } else {
+        setParentSatkerId('');
+        setParentSearch('');
+        setSatkerId('');
+        setChildSearch(item.unitKerja || '');
       }
     } else if (!item) {
       // Clear form for Add mode
@@ -283,8 +289,8 @@ const BMNDevicesFormModal: React.FC<BMNDevicesFormModalProps> = ({
       const payload: Omit<BMNDevice, 'id' | 'createdAt' | 'updatedAt'> = {
         namaPegawai: namaPegawai.trim(),
         nomorTelepon: nomorTelepon.trim(),
-        unitKerja: unitKerja.trim() || (selectedChildSatker ? selectedChildSatker.name : ''),
-        satkerId,
+        unitKerja: childSearch.trim() || (selectedChildSatker ? selectedChildSatker.name : ''),
+        satkerId: parentSatkerId,
         namaPerangkat,
         jenisKepemilikan,
         kodeBMN: jenisKepemilikan === 'Kantor' ? kodeBMN.trim() : '',

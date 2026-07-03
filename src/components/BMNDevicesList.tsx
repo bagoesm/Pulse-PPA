@@ -38,6 +38,7 @@ const BMNDevicesList: React.FC<BMNDevicesListProps> = ({
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingDevice, setEditingDevice] = useState<BMNDevice | null>(null);
   const [selectedDeviceDetails, setSelectedDeviceDetails] = useState<BMNDevice | null>(null);
+  const [deletingDevice, setDeletingDevice] = useState<BMNDevice | null>(null);
 
   // Share link state
   const [copiedLink, setCopiedLink] = useState(false);
@@ -177,15 +178,18 @@ const BMNDevicesList: React.FC<BMNDevicesListProps> = ({
     }
   };
 
-  // Handle Delete Device
-  const handleDeleteDevice = async (device: BMNDevice) => {
-    if (!window.confirm(`Apakah Anda yakin ingin menghapus data perangkat milik "${device.namaPegawai}"?`)) {
-      return;
-    }
+  // Handle Delete Device (Opens custom confirmation modal)
+  const handleDeleteDevice = (device: BMNDevice) => {
+    setDeletingDevice(device);
+  };
 
+  // Perform actual device deletion on custom confirmation
+  const confirmDeleteDevice = async () => {
+    if (!deletingDevice) return;
     try {
-      await BMNDevicesService.deleteDevice(device.id);
+      await BMNDevicesService.deleteDevice(deletingDevice.id);
       showNotification('Berhasil', 'Data perangkat berhasil dihapus.', 'success');
+      setDeletingDevice(null);
       await fetchData();
     } catch (err: any) {
       console.error(err);
@@ -492,6 +496,7 @@ const BMNDevicesList: React.FC<BMNDevicesListProps> = ({
                   <th className="px-4 py-3 w-12 text-center">No</th>
                   <th className="px-4 py-3">Nama Pegawai</th>
                   <th className="px-4 py-3">Satuan Kerja (Satker)</th>
+                  <th className="px-4 py-3">Unit Kerja</th>
                   <th className="px-4 py-3">Jenis Perangkat</th>
                   <th className="px-4 py-3">Merk / Type</th>
                   <th className="px-4 py-3">Kode Naming Laptop</th>
@@ -517,8 +522,11 @@ const BMNDevicesList: React.FC<BMNDevicesListProps> = ({
                       <td className="px-4 py-3 font-semibold text-slate-800">
                         {device.namaPegawai}
                       </td>
-                      <td className="px-4 py-3 text-slate-500">
-                        {device.satker?.name || device.unitKerja || '-'}
+                      <td className="px-4 py-3 text-slate-500 font-medium">
+                        {device.satker?.name || '-'}
+                      </td>
+                      <td className="px-4 py-3 text-slate-500 font-medium">
+                        {device.unitKerja || '-'}
                       </td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
@@ -654,22 +662,22 @@ const BMNDevicesList: React.FC<BMNDevicesListProps> = ({
                 {/* Card 1: Identitas & Lokasi */}
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
                   <h4 className="font-semibold text-xs uppercase tracking-wider text-indigo-600">1. Identitas & Lokasi</h4>
-                  <div className="space-y-2 text-xs">
-                    <div className="flex justify-between border-b border-slate-200/60 pb-1">
-                      <span className="text-slate-500">Nama Pegawai</span>
-                      <span className="font-semibold text-slate-800">{selectedDeviceDetails.namaPegawai}</span>
+                  <div className="space-y-2.5 text-xs">
+                    <div className="flex flex-col sm:flex-row sm:justify-between border-b border-slate-200/60 pb-1.5 gap-1 sm:gap-4 items-start">
+                      <span className="text-slate-500 shrink-0">Nama Pegawai</span>
+                      <span className="font-semibold text-slate-800 sm:text-right break-words max-w-full sm:max-w-[70%] leading-normal">{selectedDeviceDetails.namaPegawai}</span>
                     </div>
-                    <div className="flex justify-between border-b border-slate-200/60 pb-1">
-                      <span className="text-slate-500">No. Telepon</span>
-                      <span className="font-semibold text-slate-800">{selectedDeviceDetails.nomorTelepon || '-'}</span>
+                    <div className="flex flex-col sm:flex-row sm:justify-between border-b border-slate-200/60 pb-1.5 gap-1 sm:gap-4 items-start">
+                      <span className="text-slate-500 shrink-0">No. Telepon</span>
+                      <span className="font-semibold text-slate-800 sm:text-right break-words max-w-full sm:max-w-[70%] leading-normal">{selectedDeviceDetails.nomorTelepon || '-'}</span>
                     </div>
-                    <div className="flex justify-between border-b border-slate-200/60 pb-1">
-                      <span className="text-slate-500">Unit Kerja</span>
-                      <span className="font-semibold text-slate-800">{selectedDeviceDetails.unitKerja || '-'}</span>
+                    <div className="flex flex-col sm:flex-row sm:justify-between border-b border-slate-200/60 pb-1.5 gap-1 sm:gap-4 items-start">
+                      <span className="text-slate-500 shrink-0">Unit Kerja</span>
+                      <span className="font-semibold text-slate-800 sm:text-right break-words max-w-full sm:max-w-[70%] leading-normal">{selectedDeviceDetails.unitKerja || '-'}</span>
                     </div>
-                    <div className="flex justify-between pb-1">
-                      <span className="text-slate-550 text-slate-500">Satker (Induk/Anak)</span>
-                      <span className="font-semibold text-slate-800 text-right">{selectedDeviceDetails.satker?.name || '-'}</span>
+                    <div className="flex flex-col sm:flex-row sm:justify-between pb-1.5 gap-1 sm:gap-4 items-start">
+                      <span className="text-slate-500 shrink-0">Satuan Kerja (Satker)</span>
+                      <span className="font-semibold text-slate-800 sm:text-right break-words max-w-full sm:max-w-[70%] leading-normal">{selectedDeviceDetails.satker?.name || '-'}</span>
                     </div>
                   </div>
                 </div>
@@ -677,28 +685,28 @@ const BMNDevicesList: React.FC<BMNDevicesListProps> = ({
                 {/* Card 2: Informasi Perangkat */}
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
                   <h4 className="font-semibold text-xs uppercase tracking-wider text-indigo-600">2. Info Perangkat</h4>
-                  <div className="space-y-2 text-xs">
-                    <div className="flex justify-between border-b border-slate-200/60 pb-1">
-                      <span className="text-slate-500">Jenis Perangkat</span>
-                      <span className="font-semibold text-slate-800">{selectedDeviceDetails.namaPerangkat}</span>
+                  <div className="space-y-2.5 text-xs">
+                    <div className="flex flex-col sm:flex-row sm:justify-between border-b border-slate-200/60 pb-1.5 gap-1 sm:gap-4 items-start">
+                      <span className="text-slate-500 shrink-0">Jenis Perangkat</span>
+                      <span className="font-semibold text-slate-800 sm:text-right break-words max-w-full sm:max-w-[70%] leading-normal">{selectedDeviceDetails.namaPerangkat}</span>
                     </div>
-                    <div className="flex justify-between border-b border-slate-200/60 pb-1">
-                      <span className="text-slate-500">Merk / Type</span>
-                      <span className="font-semibold text-slate-800">{selectedDeviceDetails.merkType || '-'}</span>
+                    <div className="flex flex-col sm:flex-row sm:justify-between border-b border-slate-200/60 pb-1.5 gap-1 sm:gap-4 items-start">
+                      <span className="text-slate-500 shrink-0">Merk / Type</span>
+                      <span className="font-semibold text-slate-800 sm:text-right break-words max-w-full sm:max-w-[70%] leading-normal">{selectedDeviceDetails.merkType || '-'}</span>
                     </div>
-                    <div className="flex justify-between border-b border-slate-200/60 pb-1">
-                      <span className="text-slate-500">Kepemilikan</span>
-                      <span className="font-semibold text-slate-800">{selectedDeviceDetails.jenisKepemilikan}</span>
+                    <div className="flex flex-col sm:flex-row sm:justify-between border-b border-slate-200/60 pb-1.5 gap-1 sm:gap-4 items-start">
+                      <span className="text-slate-500 shrink-0">Kepemilikan</span>
+                      <span className="font-semibold text-slate-800 sm:text-right break-words max-w-full sm:max-w-[70%] leading-normal">{selectedDeviceDetails.jenisKepemilikan}</span>
                     </div>
                     {selectedDeviceDetails.jenisKepemilikan === 'Kantor' && (
-                      <div className="flex justify-between border-b border-slate-200/60 pb-1">
-                        <span className="text-slate-500">Kode BMN</span>
-                        <span className="font-mono font-semibold text-slate-800">{selectedDeviceDetails.kodeBMN || '-'}</span>
+                      <div className="flex flex-col sm:flex-row sm:justify-between border-b border-slate-200/60 pb-1.5 gap-1 sm:gap-4 items-start">
+                        <span className="text-slate-500 shrink-0">Kode BMN</span>
+                        <span className="font-mono font-semibold text-slate-800 sm:text-right break-all max-w-full sm:max-w-[70%] leading-normal">{selectedDeviceDetails.kodeBMN || '-'}</span>
                       </div>
                     )}
-                    <div className="flex justify-between pb-1">
-                      <span className="text-slate-500">Tahun Perolehan</span>
-                      <span className="font-semibold text-slate-800">{selectedDeviceDetails.tahunPerolehan || '-'}</span>
+                    <div className="flex flex-col sm:flex-row sm:justify-between pb-1.5 gap-1 sm:gap-4 items-start">
+                      <span className="text-slate-500 shrink-0">Tahun Perolehan</span>
+                      <span className="font-semibold text-slate-800 sm:text-right break-words max-w-full sm:max-w-[70%] leading-normal">{selectedDeviceDetails.tahunPerolehan || '-'}</span>
                     </div>
                   </div>
                 </div>
@@ -866,6 +874,49 @@ const BMNDevicesList: React.FC<BMNDevicesListProps> = ({
           onSave={handleSaveDevice}
           item={editingDevice}
         />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deletingDevice && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col animate-scale-up border border-slate-100">
+            {/* Header */}
+            <div className="bg-red-50 text-red-700 px-6 py-4 flex items-center gap-3 border-b border-red-100 shrink-0">
+              <div className="bg-red-100 p-2 rounded-xl text-red-600">
+                <Trash2 size={20} />
+              </div>
+              <div>
+                <h3 className="font-semibold text-base">Konfirmasi Hapus</h3>
+                <p className="text-[10px] text-red-500">Tindakan ini tidak dapat dibatalkan</p>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 text-sm text-slate-655 text-slate-600 leading-relaxed">
+              Apakah Anda yakin ingin menghapus data perangkat milik <strong className="text-slate-900 font-semibold">{deletingDevice.namaPegawai}</strong>? 
+              Data spesifikasi hardware, software, dan kode penyeragaman nama laptop untuk perangkat ini akan dihapus secara permanen dari sistem.
+            </div>
+
+            {/* Footer */}
+            <div className="bg-slate-50 px-6 py-4 flex gap-3 justify-end border-t border-slate-200 shrink-0">
+              <button
+                type="button"
+                onClick={() => setDeletingDevice(null)}
+                className="px-5 py-2.5 border border-slate-300 text-slate-700 rounded-xl hover:bg-slate-100 transition-all font-semibold text-xs"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteDevice}
+                className="px-5 py-2.5 bg-red-655 bg-red-600 hover:bg-red-700 text-white rounded-xl transition-all font-semibold text-xs flex items-center gap-1.5 shadow-sm shadow-red-100"
+              >
+                <Trash2 size={14} />
+                <span>Hapus Data</span>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
