@@ -68,6 +68,7 @@ const AnalitikPage = lazy(() => import('./components/AnalitikPage'));
 const InventoriBMNPage = lazy(() => import('./components/InventoriBMNPage'));
 const BudgetRealizationPage = lazy(() => import('./components/BudgetRealization/BudgetRealizationPage'));
 const PenilaianArsipPage = lazy(() => import('./components/PenilaianArsipPage'));
+const PublicDeviceForm = lazy(() => import('./components/PublicDeviceForm'));
 
 // Loading fallback
 const PageLoader: React.FC = () => (
@@ -762,6 +763,24 @@ const AppContent: React.FC = () => {
   // Render Public Project View if share token is present in URL
   if (shareToken) {
     return <PublicProjectView shareToken={shareToken} />;
+  }
+
+  // Render Public Device Entry Form if query param is present
+  const params = new URLSearchParams(window.location.search);
+  const isPublicDeviceForm = params.get('form') === 'device' || params.get('device-input') === 'true';
+  if (isPublicDeviceForm) {
+    return (
+      <Suspense fallback={
+        <div className="h-screen w-screen flex items-center justify-center bg-slate-900 text-white">
+          <div className="flex flex-col items-center gap-3">
+            <Loader2 className="animate-spin text-indigo-500" size={40} />
+            <span className="text-sm text-indigo-300">Memuat formulir...</span>
+          </div>
+        </div>
+      }>
+        <PublicDeviceForm />
+      </Suspense>
+    );
   }
 
   // --- Loading UI & Login rendering ---

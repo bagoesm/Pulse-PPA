@@ -513,6 +513,58 @@ export interface Satker {
   lockedBy: string | null;     // User ID of admin who locked the divisi
   createdAt: Date;
   updatedAt: Date;
+  parentId?: string | null;
+  code?: string | null;
+  floor?: string | null;
+}
+
+export interface BMNDevice {
+  id: string;
+  namaPegawai: string;
+  nomorTelepon?: string;
+  unitKerja?: string;
+  satkerId?: string | null;
+  namaPerangkat: string; // Laptop, PC, Printer, Scanner, Lainnya
+  penyeragamanNamaLaptop?: string;
+  dataTambahanAdmin?: string;
+  jenisKepemilikan: 'Kantor' | 'Pribadi';
+  kodeBMN?: string;
+  tahunPerolehan?: number;
+  
+  // Specifications
+  merkType?: string;
+  processor?: string;
+  ram?: string;
+  vga?: string;
+  hddSsd?: string;
+  macWifi?: string;
+  macLan?: string;
+  antivirusSebelumnya?: string;
+  
+  // Apps & License
+  os?: string;
+  osLicenseStatus?: string;
+  msOffice?: string;
+  msOfficeLicenseStatus?: string;
+  pdfReader?: string;
+  pdfReaderLicenseStatus?: string;
+  
+  // Performance
+  performaPerangkat?: 'Baik' | 'Cukup' | 'Kurang';
+  keterangan?: string;
+  
+  createdBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  
+  // Relation
+  satker?: {
+    id: string;
+    name: string;
+    code?: string | null;
+    floor?: string | null;
+    parentId?: string | null;
+  } | null;
 }
 
 /**

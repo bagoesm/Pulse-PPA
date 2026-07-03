@@ -6,6 +6,7 @@ import { useNotificationModal, useConfirmModal } from '../hooks/useModal';
 import NotificationModal from './NotificationModal';
 import ConfirmModal from './ConfirmModal';
 import { useDivision } from '../contexts/DivisionContext';
+import BMNSatkerConfig from './BMNSatkerConfig';
 
 // Master Category Management Component
 interface MasterCategoryManagementProps {
@@ -727,9 +728,12 @@ const UserManagement: React.FC<UserManagementProps> = ({
 
         {/* Content Area */}
         <div className="space-y-4 sm:space-y-6">
-            
-            {/* Action Bar */}
-            <div className="flex flex-col gap-3 sm:gap-4">
+            {activeTab === 'Satuan Kerja' ? (
+                <BMNSatkerConfig showNotification={showNotification} />
+            ) : (
+                <>
+                    {/* Action Bar */}
+                    <div className="flex flex-col gap-3 sm:gap-4">
                 <div className="relative w-full">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                     <input 
@@ -947,7 +951,9 @@ const UserManagement: React.FC<UserManagementProps> = ({
                         </tbody>
                     </table>
                 )}
-            </div>
+                    </div>
+                </>
+            )}
         </div>
 
         {/* User Modal */}

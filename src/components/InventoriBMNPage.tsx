@@ -3,7 +3,7 @@
 // Validates: Requirements 1.2, 2.1, 6.1, 15.7
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { LayoutDashboard, List, AlertCircle, Plus, Users, Filter, ChevronDown, ChevronUp } from 'lucide-react';
+import { LayoutDashboard, List, AlertCircle, Plus, Users, Filter, ChevronDown, ChevronUp, Laptop, Settings } from 'lucide-react';
 import { BMNProvider, useBMN } from '../contexts/BMNContext';
 import { useAuth } from '../contexts/AuthContext';
 import BMNDashboard from './BMNDashboard';
@@ -13,6 +13,7 @@ import BMNUploadModal from './BMNUploadModal';
 import BMNHistoryModal from './BMNHistoryModal';
 import BMNFormModal from './BMNFormModal';
 import BMNEditorManager from './BMNEditorManager';
+import BMNDevicesList from './BMNDevicesList';
 import ErrorBoundary from './ErrorBoundary';
 import { useBMNFilters } from '../hooks/useBMNFilters';
 import { useBMNSearch } from '../hooks/useBMNSearch';
@@ -20,7 +21,7 @@ import { useBMNHandlers } from '../hooks/useBMNHandlers';
 import { supabase } from '../lib/supabaseClient';
 import { BMNItem } from '../../types';
 
-type TabView = 'Dashboard' | 'List' | 'Editors';
+type TabView = 'Dashboard' | 'List' | 'Devices' | 'Editors';
 
 /**
  * BMN Detail Modal - Shows complete information for a single BMN item
@@ -646,6 +647,18 @@ const InventoriBMNPageContent: React.FC = () => {
             <List size={18} />
             Daftar BMN
           </button>
+          <button
+            onClick={() => setActiveTab('Devices')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all ${
+              activeTab === 'Devices'
+                ? 'bg-gov-600 text-white shadow-sm'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            <Laptop size={18} />
+            Daftar Perangkat
+          </button>
+
           {currentUser?.role === 'Super Admin' && (
             <button
               onClick={() => setActiveTab('Editors')}
@@ -698,6 +711,8 @@ const InventoriBMNPageContent: React.FC = () => {
               <BMNDashboard onOpenUploadModal={() => setShowUploadModal(true)} />
             ) : activeTab === 'List' ? (
               <BMNListView onItemClick={handleItemClick} />
+            ) : activeTab === 'Devices' ? (
+              <BMNDevicesList currentUser={currentUser} showNotification={showNotification} />
             ) : (
               <BMNEditorManager showNotification={showNotification} />
             )}
