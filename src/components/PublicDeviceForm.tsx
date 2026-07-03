@@ -216,13 +216,13 @@ const PublicDeviceForm: React.FC = () => {
   // Debounced search when owner name is entered
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
-      if (namaPegawai.trim() && !isEmployeeDropdownOpen) {
+      if (namaPegawai.trim()) {
         lookupBmnByOwner(namaPegawai);
       }
     }, 600);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [namaPegawai, isEmployeeDropdownOpen]);
+  }, [namaPegawai]);
 
   // Filter Parent Satkers (parentId is null or empty)
   const parentSatkers = useMemo(() => {

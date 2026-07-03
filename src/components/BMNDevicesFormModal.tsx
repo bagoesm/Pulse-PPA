@@ -222,13 +222,13 @@ const BMNDevicesFormModal: React.FC<BMNDevicesFormModalProps> = ({
   // Debounced search when owner name is entered
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
-      if (namaPegawai.trim() && !isEmployeeDropdownOpen) {
+      if (namaPegawai.trim()) {
         lookupBmnByOwner(namaPegawai);
       }
     }, 600);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [namaPegawai, isEmployeeDropdownOpen]);
+  }, [namaPegawai]);
 
   // Load editing item details & auto-populate cascading selectors
   useEffect(() => {
