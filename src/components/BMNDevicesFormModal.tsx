@@ -32,7 +32,16 @@ const BMNDevicesFormModal: React.FC<BMNDevicesFormModalProps> = ({
   const [satkerId, setSatkerId] = useState('');
   const [namaPerangkat, setNamaPerangkat] = useState('Laptop');
   const [jenisKepemilikan, setJenisKepemilikan] = useState<'Kantor' | 'Pribadi'>('Kantor');
-  const [kodeBMN, setKodeBMN] = useState('');
+  // Nomor Barang and NUP instead of Kode BMN
+  const [nomorBarang, setNomorBarang] = useState('');
+  const [nomorNup, setNomorNup] = useState('');
+  const [selectedBmnItem, setSelectedBmnItem] = useState<any | null>(null);
+  const [mismatchWarning, setMismatchWarning] = useState<{
+    registeredName: string;
+    registeredProfileId: string | null;
+    itemId: string;
+  } | null>(null);
+  const [syncNameToBmn, setSyncNameToBmn] = useState(false);
   const [tahunPerolehan, setTahunPerolehan] = useState<string>(new Date().getFullYear().toString());
   const [performaPerangkat, setPerformaPerangkat] = useState<'Baik' | 'Cukup' | 'Kurang'>('Baik');
   const [keterangan, setKeterangan] = useState('');
@@ -88,6 +97,129 @@ const BMNDevicesFormModal: React.FC<BMNDevicesFormModalProps> = ({
     }
   }, [isOpen]);
 
+  // Look up BMN item by owner name
+  const lookupBmnByOwner = async (ownerName: string) => {
+    if (!ownerName.trim()) return;
+    try {
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('name', ownerName.trim())
+        .limit(1);
+
+      const profileId = profileData?.[0]?.id;
+      if (!profileId) return;
+
+      const { data: items } = await supabase
+        .from('bmn_items')
+        .select('id, kode_barang, nup, merk, tipe')
+        .eq('held_by', profileId)
+        .limit(1);
+
+      if (items && items.length > 0) {
+        setNomorBarang(items[0].kode_barang || '');
+        setNomorNup(items[0].nup || '');
+        setSelectedBmnItem(items[0]);
+        setMismatchWarning(null);
+
+        // Auto-fill Brand/Type
+        const brandType = [items[0].merk, items[0].tipe].filter(Boolean).join(' ');
+        if (brandType) {
+          setMerkType(brandType);
+        }
+      }
+    } catch (err) {
+      console.error('Error looking up BMN by owner:', err);
+    }
+  };
+
+  // Look up BMN item by asset code and NUP
+  const lookupBmnByAsset = async (barangCode: string, nupCode: string) => {
+    if (!barangCode.trim() || !nupCode.trim()) return;
+    try {
+      const { data: items } = await supabase
+        .from('bmn_items')
+        .select('*, profiles:held_by(id, name)')
+        .eq('kode_barang', barangCode.trim())
+        .eq('nup', nupCode.trim())
+        .limit(1);
+
+      if (items && items.length > 0) {
+        const item = items[0];
+        setSelectedBmnItem(item);
+        
+        // Auto-fill Brand/Type
+        const brandType = [item.merk, item.tipe].filter(Boolean).join(' ');
+        if (brandType) {
+          setMerkType(brandType);
+        }
+
+        const registeredName = item.profiles?.name || '';
+        
+        if (registeredName && registeredName.toLowerCase() !== namaPegawai.trim().toLowerCase()) {
+          setMismatchWarning({
+            registeredName,
+            registeredProfileId: item.profiles?.id || null,
+            itemId: item.id
+          });
+        } else {
+          setMismatchWarning(null);
+        }
+      } else {
+        setSelectedBmnItem(null);
+        setMismatchWarning(null);
+      }
+    } catch (err) {
+      console.error('Error looking up BMN by asset:', err);
+    }
+  };
+
+  // Sync BMN registry owner name
+  const syncBmnRegistryName = async (profileId: string | null, ownerName: string, bmnItemId: string) => {
+    try {
+      let targetProfileId = profileId;
+      if (!targetProfileId) {
+        const { data: profs } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('name', ownerName.trim())
+          .limit(1);
+        if (profs && profs.length > 0) {
+          targetProfileId = profs[0].id;
+        }
+      }
+      
+      if (targetProfileId) {
+        await supabase
+          .from('bmn_items')
+          .update({ held_by: targetProfileId })
+          .eq('id', bmnItemId);
+      }
+    } catch (err) {
+      console.error('Error updating BMN registry owner:', err);
+    }
+  };
+
+  // Auto check mismatch when assets are typed
+  useEffect(() => {
+    if (nomorBarang.trim() && nomorNup.trim()) {
+      lookupBmnByAsset(nomorBarang, nomorNup);
+    } else {
+      setMismatchWarning(null);
+    }
+  }, [nomorBarang, nomorNup, namaPegawai]);
+
+  // Debounced search when owner name is entered
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      if (namaPegawai.trim() && !isEmployeeDropdownOpen) {
+        lookupBmnByOwner(namaPegawai);
+      }
+    }, 600);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [namaPegawai, isEmployeeDropdownOpen]);
+
   // Load editing item details & auto-populate cascading selectors
   useEffect(() => {
     if (item && satkers.length > 0) {
@@ -97,7 +229,12 @@ const BMNDevicesFormModal: React.FC<BMNDevicesFormModalProps> = ({
       setSatkerId(item.satkerId || '');
       setNamaPerangkat(item.namaPerangkat || 'Laptop');
       setJenisKepemilikan(item.jenisKepemilikan || 'Kantor');
-      setKodeBMN(item.kodeBMN || '');
+      const codeParts = (item.kodeBMN || '').split(' - ');
+      setNomorBarang(codeParts[0] || '');
+      setNomorNup(codeParts[1] || '');
+      setSelectedBmnItem(null);
+      setMismatchWarning(null);
+      setSyncNameToBmn(false);
       setTahunPerolehan(item.tahunPerolehan ? item.tahunPerolehan.toString() : '');
       setPerformaPerangkat(item.performaPerangkat || 'Baik');
       setKeterangan(item.keterangan || '');
@@ -147,7 +284,11 @@ const BMNDevicesFormModal: React.FC<BMNDevicesFormModalProps> = ({
       setChildSearch('');
       setNamaPerangkat('Laptop');
       setJenisKepemilikan('Kantor');
-      setKodeBMN('');
+      setNomorBarang('');
+      setNomorNup('');
+      setSelectedBmnItem(null);
+      setMismatchWarning(null);
+      setSyncNameToBmn(false);
       setTahunPerolehan(new Date().getFullYear().toString());
       setPerformaPerangkat('Baik');
       setKeterangan('');
@@ -293,7 +434,7 @@ const BMNDevicesFormModal: React.FC<BMNDevicesFormModalProps> = ({
         satkerId: parentSatkerId,
         namaPerangkat,
         jenisKepemilikan,
-        kodeBMN: jenisKepemilikan === 'Kantor' ? kodeBMN.trim() : '',
+        kodeBMN: jenisKepemilikan === 'Kantor' ? `${nomorBarang.trim()} - ${nomorNup.trim()}` : '',
         tahunPerolehan: tahunPerolehan ? parseInt(tahunPerolehan) : undefined,
         merkType: merkType.trim(),
         
@@ -320,6 +461,13 @@ const BMNDevicesFormModal: React.FC<BMNDevicesFormModalProps> = ({
       };
 
       await onSave(payload);
+
+      // Sync name back to master BMN registry if approved by user
+      if (syncNameToBmn && mismatchWarning && mismatchWarning.itemId) {
+        const matchedEmp = employees.find(emp => emp.name === namaPegawai.trim());
+        await syncBmnRegistryName(matchedEmp?.id || null, namaPegawai, mismatchWarning.itemId);
+      }
+
       onClose();
     } catch (err) {
       console.error(err);
@@ -612,19 +760,94 @@ const BMNDevicesFormModal: React.FC<BMNDevicesFormModalProps> = ({
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
-                  Kode BMN
-                </label>
-                <input
-                  type="text"
-                  disabled={jenisKepemilikan === 'Pribadi'}
-                  value={kodeBMN}
-                  onChange={(e) => setKodeBMN(e.target.value)}
-                  placeholder={jenisKepemilikan === 'Pribadi' ? 'Akses Terkunci (Pribadi)' : '3.05.02.01...'}
-                  className="w-full bg-white disabled:bg-slate-100 border border-slate-355 border-slate-300 rounded-xl px-4 py-2 text-slate-800 focus:outline-none focus:border-indigo-500 text-xs font-mono font-medium disabled:cursor-not-allowed"
-                />
-              </div>
+              {jenisKepemilikan === 'Kantor' ? (
+                <>
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
+                      Nomor Barang <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={nomorBarang}
+                      onChange={(e) => setNomorBarang(e.target.value)}
+                      placeholder="Contoh: 3.05.02.01.003"
+                      className="w-full bg-white border border-slate-350 rounded-xl px-4 py-2 text-slate-800 focus:outline-none focus:border-indigo-500 text-xs font-mono font-medium"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
+                      Nomor NUP <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={nomorNup}
+                      onChange={(e) => setNomorNup(e.target.value)}
+                      placeholder="Contoh: 0023"
+                      className="w-full bg-white border border-slate-350 rounded-xl px-4 py-2 text-slate-800 focus:outline-none focus:border-indigo-500 text-xs font-mono font-medium"
+                    />
+                  </div>
+                </>
+              ) : (
+                <div className="sm:col-span-2" />
+              )}
+
+              {/* Warning Nama Pemilik vs BMN */}
+              {jenisKepemilikan === 'Kantor' && mismatchWarning && (
+                <div className="sm:col-span-4 bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-3 animate-fade-in text-xs">
+                  <div className="flex gap-2.5 items-start text-amber-800">
+                    <AlertCircle className="shrink-0 text-amber-600 mt-0.5" size={16} />
+                    <div>
+                      <h5 className="font-semibold text-sm">Perbedaan Nama Pemilik dengan Daftar BMN</h5>
+                      <p className="mt-1 leading-normal text-amber-700 text-[11px]">
+                        Aset ini terdaftar di master BMN atas nama: 
+                        <strong className="block text-amber-900 mt-0.5 text-xs">{mismatchWarning.registeredName}</strong>
+                      </p>
+                      <p className="mt-1.5 leading-normal text-amber-700 text-[11px]">
+                        Sedangkan nama pengguna di form ini adalah:
+                        <strong className="block text-slate-900 mt-0.5 text-xs">{namaPegawai}</strong>
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNamaPegawai(mismatchWarning.registeredName);
+                        setMismatchWarning(null);
+                        setSyncNameToBmn(false);
+                      }}
+                      className="bg-white hover:bg-slate-50 border border-amber-300 text-amber-700 px-3 py-1.5 rounded-xl font-semibold transition-all text-[10px] shadow-sm"
+                    >
+                      Gunakan Nama Daftar BMN di Form
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSyncNameToBmn(true);
+                      }}
+                      className={`border px-3 py-1.5 rounded-xl font-semibold transition-all text-[10px] shadow-sm ${
+                        syncNameToBmn
+                          ? 'bg-amber-600 border-amber-600 text-white font-semibold'
+                          : 'bg-white hover:bg-slate-50 border-amber-300 text-amber-700'
+                      }`}
+                    >
+                      {syncNameToBmn ? '✓ Nama di BMN Akan Diupdate' : 'Ubah Nama di Daftar BMN'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMismatchWarning(null);
+                        setSyncNameToBmn(false);
+                      }}
+                      className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-500 px-3 py-1.5 rounded-xl font-medium transition-all text-[10px] shadow-sm"
+                    >
+                      Biarkan Berbeda
+                    </button>
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">

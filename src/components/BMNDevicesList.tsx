@@ -210,7 +210,7 @@ const BMNDevicesList: React.FC<BMNDevicesListProps> = ({
   const handleExportExcel = () => {
     const headers = [
       'No', 'Nama Pegawai', 'Nomor Telepon', 'Unit Kerja', 'Satuan Kerja (Satker)', 
-      'Nama Perangkat', 'Penyeragaman Nama Laptop', 'Jenis Kepemilikan', 'Kode BMN', 
+      'Nama Perangkat', 'Penyeragaman Nama Laptop', 'Jenis Kepemilikan', 'Nomor Barang', 'Nomor NUP', 
       'Tahun Perolehan', 'Merk/Type', 'Processor', 'RAM', 'VGA', 'HDD/SSD', 
       'MAC Address (WIFI)', 'MAC Address (LAN)', 'Antivirus Sebelumnya', 'OS', 'Lisensi OS', 
       'Ms. Office', 'Lisensi Office', 'PDF Reader', 'Lisensi PDF', 'Performa', 'Keterangan'
@@ -225,7 +225,8 @@ const BMNDevicesList: React.FC<BMNDevicesListProps> = ({
       d.namaPerangkat,
       d.penyeragamanNamaLaptop || '',
       d.jenisKepemilikan,
-      d.kodeBMN || '',
+      (d.kodeBMN || '').split(' - ')[0] || '',
+      (d.kodeBMN || '').split(' - ')[1] || '',
       d.tahunPerolehan || '',
       d.merkType || '',
       d.processor || '',
@@ -699,10 +700,20 @@ const BMNDevicesList: React.FC<BMNDevicesListProps> = ({
                       <span className="font-semibold text-slate-800 sm:text-right break-words max-w-full sm:max-w-[70%] leading-normal">{selectedDeviceDetails.jenisKepemilikan}</span>
                     </div>
                     {selectedDeviceDetails.jenisKepemilikan === 'Kantor' && (
-                      <div className="flex flex-col sm:flex-row sm:justify-between border-b border-slate-200/60 pb-1.5 gap-1 sm:gap-4 items-start">
-                        <span className="text-slate-500 shrink-0">Kode BMN</span>
-                        <span className="font-mono font-semibold text-slate-800 sm:text-right break-all max-w-full sm:max-w-[70%] leading-normal">{selectedDeviceDetails.kodeBMN || '-'}</span>
-                      </div>
+                      <>
+                        <div className="flex flex-col sm:flex-row sm:justify-between border-b border-slate-200/60 pb-1.5 gap-1 sm:gap-4 items-start">
+                          <span className="text-slate-500 shrink-0">Nomor Barang</span>
+                          <span className="font-mono font-semibold text-slate-800 sm:text-right break-all max-w-full sm:max-w-[70%] leading-normal">
+                            {(selectedDeviceDetails.kodeBMN || '').split(' - ')[0] || '-'}
+                          </span>
+                        </div>
+                        <div className="flex flex-col sm:flex-row sm:justify-between border-b border-slate-200/60 pb-1.5 gap-1 sm:gap-4 items-start">
+                          <span className="text-slate-500 shrink-0">Nomor NUP</span>
+                          <span className="font-mono font-semibold text-slate-800 sm:text-right break-all max-w-full sm:max-w-[70%] leading-normal">
+                            {(selectedDeviceDetails.kodeBMN || '').split(' - ')[1] || '-'}
+                          </span>
+                        </div>
+                      </>
                     )}
                     <div className="flex flex-col sm:flex-row sm:justify-between pb-1.5 gap-1 sm:gap-4 items-start">
                       <span className="text-slate-500 shrink-0">Tahun Perolehan</span>

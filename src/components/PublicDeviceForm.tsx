@@ -23,7 +23,18 @@ const PublicDeviceForm: React.FC = () => {
   const [satkerId, setSatkerId] = useState(''); // Stores the child satker ID
   const [namaPerangkat, setNamaPerangkat] = useState('Laptop'); // Laptop, PC, Printer, Scanner, Lainnya
   const [jenisKepemilikan, setJenisKepemilikan] = useState<'Kantor' | 'Pribadi'>('Kantor');
-  const [kodeBMN, setKodeBMN] = useState('');
+  
+  // Nomor Barang and NUP instead of Kode BMN
+  const [nomorBarang, setNomorBarang] = useState('');
+  const [nomorNup, setNomorNup] = useState('');
+  const [selectedBmnItem, setSelectedBmnItem] = useState<any | null>(null);
+  const [mismatchWarning, setMismatchWarning] = useState<{
+    registeredName: string;
+    registeredProfileId: string | null;
+    itemId: string;
+  } | null>(null);
+  const [syncNameToBmn, setSyncNameToBmn] = useState(false);
+
   const [tahunPerolehan, setTahunPerolehan] = useState<string>(new Date().getFullYear().toString());
   const [performaPerangkat, setPerformaPerangkat] = useState<'Baik' | 'Cukup' | 'Kurang'>('Baik');
   const [keterangan, setKeterangan] = useState('');
@@ -79,6 +90,129 @@ const PublicDeviceForm: React.FC = () => {
     };
     loadSatkers();
   }, []);
+
+  // Look up BMN item by owner name
+  const lookupBmnByOwner = async (ownerName: string) => {
+    if (!ownerName.trim()) return;
+    try {
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('name', ownerName.trim())
+        .limit(1);
+
+      const profileId = profileData?.[0]?.id;
+      if (!profileId) return;
+
+      const { data: items } = await supabase
+        .from('bmn_items')
+        .select('id, kode_barang, nup, merk, tipe')
+        .eq('held_by', profileId)
+        .limit(1);
+
+      if (items && items.length > 0) {
+        setNomorBarang(items[0].kode_barang || '');
+        setNomorNup(items[0].nup || '');
+        setSelectedBmnItem(items[0]);
+        setMismatchWarning(null);
+
+        // Auto-fill Brand/Type
+        const brandType = [items[0].merk, items[0].tipe].filter(Boolean).join(' ');
+        if (brandType) {
+          setMerkType(brandType);
+        }
+      }
+    } catch (err) {
+      console.error('Error looking up BMN by owner:', err);
+    }
+  };
+
+  // Look up BMN item by asset code and NUP
+  const lookupBmnByAsset = async (barangCode: string, nupCode: string) => {
+    if (!barangCode.trim() || !nupCode.trim()) return;
+    try {
+      const { data: items } = await supabase
+        .from('bmn_items')
+        .select('*, profiles:held_by(id, name)')
+        .eq('kode_barang', barangCode.trim())
+        .eq('nup', nupCode.trim())
+        .limit(1);
+
+      if (items && items.length > 0) {
+        const item = items[0];
+        setSelectedBmnItem(item);
+        
+        // Auto-fill Brand/Type
+        const brandType = [item.merk, item.tipe].filter(Boolean).join(' ');
+        if (brandType) {
+          setMerkType(brandType);
+        }
+        
+        const registeredName = item.profiles?.name || '';
+        
+        if (registeredName && registeredName.toLowerCase() !== namaPegawai.trim().toLowerCase()) {
+          setMismatchWarning({
+            registeredName,
+            registeredProfileId: item.profiles?.id || null,
+            itemId: item.id
+          });
+        } else {
+          setMismatchWarning(null);
+        }
+      } else {
+        setSelectedBmnItem(null);
+        setMismatchWarning(null);
+      }
+    } catch (err) {
+      console.error('Error looking up BMN by asset:', err);
+    }
+  };
+
+  // Sync BMN registry owner name
+  const syncBmnRegistryName = async (profileId: string | null, ownerName: string, bmnItemId: string) => {
+    try {
+      let targetProfileId = profileId;
+      if (!targetProfileId) {
+        const { data: profs } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('name', ownerName.trim())
+          .limit(1);
+        if (profs && profs.length > 0) {
+          targetProfileId = profs[0].id;
+        }
+      }
+      
+      if (targetProfileId) {
+        await supabase
+          .from('bmn_items')
+          .update({ held_by: targetProfileId })
+          .eq('id', bmnItemId);
+      }
+    } catch (err) {
+      console.error('Error updating BMN registry owner:', err);
+    }
+  };
+
+  // Auto check mismatch when assets are typed
+  useEffect(() => {
+    if (nomorBarang.trim() && nomorNup.trim()) {
+      lookupBmnByAsset(nomorBarang, nomorNup);
+    } else {
+      setMismatchWarning(null);
+    }
+  }, [nomorBarang, nomorNup, namaPegawai]);
+
+  // Debounced search when owner name is entered
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      if (namaPegawai.trim() && !isEmployeeDropdownOpen) {
+        lookupBmnByOwner(namaPegawai);
+      }
+    }, 600);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [namaPegawai, isEmployeeDropdownOpen]);
 
   // Filter Parent Satkers (parentId is null or empty)
   const parentSatkers = useMemo(() => {
@@ -209,7 +343,7 @@ const PublicDeviceForm: React.FC = () => {
         satkerId: parentSatkerId,
         namaPerangkat,
         jenisKepemilikan,
-        kodeBMN: jenisKepemilikan === 'Kantor' ? kodeBMN.trim() : '',
+        kodeBMN: jenisKepemilikan === 'Kantor' ? `${nomorBarang.trim()} - ${nomorNup.trim()}` : '',
         tahunPerolehan: tahunPerolehan ? parseInt(tahunPerolehan) : undefined,
         
         // Specs
@@ -238,6 +372,12 @@ const PublicDeviceForm: React.FC = () => {
       };
 
       await BMNDevicesService.createDevice(newDevice);
+
+      // Sync name back to master BMN registry if approved by user
+      if (syncNameToBmn && mismatchWarning && mismatchWarning.itemId) {
+        const matchedEmp = employees.find(emp => emp.name === namaPegawai.trim());
+        await syncBmnRegistryName(matchedEmp?.id || null, namaPegawai, mismatchWarning.itemId);
+      }
       
       setSubmittedName(compiledLaptopName);
       setIsSubmitted(true);
@@ -263,7 +403,11 @@ const PublicDeviceForm: React.FC = () => {
     setEmployees([]);
     setNamaPerangkat('Laptop');
     setJenisKepemilikan('Kantor');
-    setKodeBMN('');
+    setNomorBarang('');
+    setNomorNup('');
+    setSelectedBmnItem(null);
+    setMismatchWarning(null);
+    setSyncNameToBmn(false);
     setTahunPerolehan(new Date().getFullYear().toString());
     setPerformaPerangkat('Baik');
     setKeterangan('');
@@ -679,19 +823,93 @@ const PublicDeviceForm: React.FC = () => {
               </div>
             </div>
 
-            {/* BMN Code */}
+            {/* Nomor Barang & Nomor NUP (Kantor Only) */}
             {jenisKepemilikan === 'Kantor' && (
-              <div className="animate-slide-down">
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
-                  Kode BMN
-                </label>
-                <input
-                  type="text"
-                  value={kodeBMN}
-                  onChange={(e) => setKodeBMN(e.target.value)}
-                  placeholder="3.05.02.01.003..."
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-800 placeholder-slate-450 focus:outline-none focus:border-indigo-500 focus:bg-white text-sm font-mono font-medium"
-                />
+              <div className="space-y-4 animate-slide-down">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
+                      Nomor Barang <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={nomorBarang}
+                      onChange={(e) => setNomorBarang(e.target.value)}
+                      placeholder="Contoh: 3.05.02.01.003"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white text-sm font-mono font-medium"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
+                      Nomor NUP <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={nomorNup}
+                      onChange={(e) => setNomorNup(e.target.value)}
+                      placeholder="Contoh: 0023"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white text-sm font-mono font-medium"
+                    />
+                  </div>
+                </div>
+
+                {/* Warning Nama Pemilik vs BMN */}
+                {mismatchWarning && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-3 animate-fade-in text-xs">
+                    <div className="flex gap-2.5 items-start text-amber-800">
+                      <AlertCircle className="shrink-0 text-amber-600 mt-0.5" size={16} />
+                      <div>
+                        <h5 className="font-semibold text-sm">Perbedaan Nama Pemilik dengan Daftar BMN</h5>
+                        <p className="mt-1 leading-normal text-amber-700 text-[11px]">
+                          Aset ini terdaftar di master BMN atas nama: 
+                          <strong className="block text-amber-900 mt-0.5 text-xs">{mismatchWarning.registeredName}</strong>
+                        </p>
+                        <p className="mt-1.5 leading-normal text-amber-700 text-[11px]">
+                          Sedangkan nama pengguna di form ini adalah:
+                          <strong className="block text-slate-900 mt-0.5 text-xs">{namaPegawai}</strong>
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setNamaPegawai(mismatchWarning.registeredName);
+                          setMismatchWarning(null);
+                          setSyncNameToBmn(false);
+                        }}
+                        className="bg-white hover:bg-slate-50 border border-amber-300 text-amber-700 px-3 py-1.5 rounded-xl font-semibold transition-all text-[10px] shadow-sm"
+                      >
+                        Gunakan Nama Daftar BMN di Form
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSyncNameToBmn(true);
+                        }}
+                        className={`border px-3 py-1.5 rounded-xl font-semibold transition-all text-[10px] shadow-sm ${
+                          syncNameToBmn
+                            ? 'bg-amber-600 border-amber-600 text-white font-semibold'
+                            : 'bg-white hover:bg-slate-50 border-amber-300 text-amber-700'
+                        }`}
+                      >
+                        {syncNameToBmn ? '✓ Nama di BMN Akan Diupdate' : 'Ubah Nama di Daftar BMN'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMismatchWarning(null);
+                          setSyncNameToBmn(false);
+                        }}
+                        className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-500 px-3 py-1.5 rounded-xl font-medium transition-all text-[10px] shadow-sm"
+                      >
+                        Biarkan Berbeda
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
