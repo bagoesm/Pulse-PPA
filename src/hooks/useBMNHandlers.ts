@@ -95,7 +95,11 @@ export const useBMNHandlers = ({
      * @param file - File to upload
      * @param targetSatker - Satker whose data will be replaced
      */
-    const handleUploadFile = useCallback(async (file: File, targetSatker: string): Promise<void> => {
+    const handleUploadFile = useCallback(async (
+        file: File, 
+        targetSatker: string, 
+        uploadMode: 'replace' | 'upsert' = 'replace'
+    ): Promise<void> => {
         // Check permission
         const hasPermission = await canUploadBMN(targetSatker);
         if (!hasPermission) {
@@ -192,10 +196,9 @@ export const useBMNHandlers = ({
                 return;
             }
 
-            // Save to database
-            showNotification('Menyimpan Data', 'Sedang menghapus data lama dan menyimpan data baru...', 'info');
+            showNotification('Menyimpan Data', uploadMode === 'upsert' ? 'Sedang memproses dan memperbarui data...' : 'Sedang menghapus data lama dan menyimpan data baru...', 'info');
 
-            // Step 1: Delete existing data for the target satker
+            // Step 1: Handle Deletion or Fetching Existing Items
             // Normalize satker name for comparison (remove quotes, trim, lowercase)
             const normalizeSatkerName = (name: string): string => {
                 return name.replace(/^["']|["']$/g, '').trim().toLowerCase();
@@ -203,7 +206,7 @@ export const useBMNHandlers = ({
             
             const normalizedTargetSatker = normalizeSatkerName(targetSatker);
             
-            // Get all items for this satker (case-insensitive match)
+            // Get all items in database to resolve matches and assignments
             const { data: existingItems, error: fetchError } = await supabase
                 .from('bmn_items')
                 .select('id, nama_satker, kode_barang, nomor_register, nup, held_by');
@@ -217,45 +220,71 @@ export const useBMNHandlers = ({
                 );
                 return;
             }
-            
-            // Filter items that match the target satker (case-insensitive)
-            const itemsToDelete = existingItems?.filter(item => 
-                normalizeSatkerName(item.nama_satker || '') === normalizedTargetSatker
-            ) || [];
-            
-            // Save current assignments for restoration
-            const savedAssignments = itemsToDelete
-                .filter(item => item.held_by !== null && item.held_by !== undefined)
-                .map(item => ({
-                    kodeBarang: item.kode_barang,
-                    nomorRegister: item.nomor_register,
-                    nup: item.nup,
-                    heldBy: item.held_by
-                }));
-            
-            if (itemsToDelete.length > 0) {
-                const idsToDelete = itemsToDelete.map(item => item.id);
-                
-                console.log(`Deleting ${idsToDelete.length} existing items for satker: ${targetSatker}`);
-                
-                const { error: deleteError } = await supabase
-                    .from('bmn_items')
-                    .delete()
-                    .in('id', idsToDelete);
 
-                if (deleteError) {
-                    console.error('Delete error:', deleteError);
-                    showNotification(
-                        'Gagal Menghapus Data Lama',
-                        `Gagal menghapus data lama untuk satker ${targetSatker}: ${deleteError.message}`,
-                        'error'
-                    );
-                    return;
+            let itemsToDelete: any[] = [];
+            let savedAssignments: any[] = [];
+
+            if (uploadMode === 'replace') {
+                if (normalizedTargetSatker === 'semua satuan kerja') {
+                    // Extract unique satkers from the Excel data
+                    const excelSatkers = Array.from(new Set(
+                        parseResult.data
+                            .map(item => normalizeSatkerName(item.namaSatker || ''))
+                            .filter(Boolean)
+                    ));
+                    
+                    itemsToDelete = existingItems?.filter(item => 
+                        excelSatkers.includes(normalizeSatkerName(item.nama_satker || ''))
+                    ) || [];
+                } else {
+                    // Filter items that match the target satker (case-insensitive)
+                    itemsToDelete = existingItems?.filter(item => 
+                        normalizeSatkerName(item.nama_satker || '') === normalizedTargetSatker
+                    ) || [];
                 }
                 
-                console.log(`Successfully deleted ${idsToDelete.length} items`);
+                // Save current assignments for restoration
+                savedAssignments = itemsToDelete
+                    .filter(item => item.held_by !== null && item.held_by !== undefined)
+                    .map(item => ({
+                        kodeBarang: item.kode_barang,
+                        nomorRegister: item.nomor_register,
+                        nup: item.nup,
+                        heldBy: item.held_by
+                    }));
+                
+                if (itemsToDelete.length > 0) {
+                    const idsToDelete = itemsToDelete.map(item => item.id);
+                    
+                    console.log(`Deleting ${idsToDelete.length} existing items for target satkers`);
+                    
+                    const { error: deleteError } = await supabase
+                        .from('bmn_items')
+                        .delete()
+                        .in('id', idsToDelete);
+
+                    if (deleteError) {
+                        console.error('Delete error:', deleteError);
+                        showNotification(
+                            'Gagal Menghapus Data Lama',
+                            `Gagal menghapus data lama: ${deleteError.message}`,
+                            'error'
+                        );
+                        return;
+                    }
+                    
+                    console.log(`Successfully deleted ${idsToDelete.length} items`);
+                }
             } else {
-                console.log(`No existing items found for satker: ${targetSatker}`);
+                // Upsert Mode: Keep existing assignments from all matched items in database
+                savedAssignments = existingItems
+                    ?.filter(item => item.held_by !== null && item.held_by !== undefined)
+                    .map(item => ({
+                        kodeBarang: item.kode_barang,
+                        nomorRegister: item.nomor_register,
+                        nup: item.nup,
+                        heldBy: item.held_by
+                    })) || [];
             }
 
             // Step 2: Create upload history record to get UUID
@@ -314,7 +343,24 @@ export const useBMNHandlers = ({
                         (!saved.nup && !item.nup && !saved.nomorRegister && !item.nomorRegister)
                     )
                 );
+
+                // If upsert, find matching item ID to edit
+                let existingId: string | undefined = undefined;
+                if (uploadMode === 'upsert') {
+                    const matchedExisting = existingItems?.find(existing => 
+                        existing.kode_barang === item.kodeBarang && (
+                            (existing.nup && item.nup && existing.nup === item.nup) ||
+                            (existing.nomor_register && item.nomorRegister && existing.nomor_register === item.nomorRegister) ||
+                            (!existing.nup && !item.nup && !existing.nomor_register && !item.nomorRegister)
+                        )
+                    );
+                    if (matchedExisting) {
+                        existingId = matchedExisting.id;
+                    }
+                }
+
                 return {
+                    ...(existingId ? { id: existingId } : {}),
                     kode_barang: item.kodeBarang,
                     nama_barang: item.namaBarang,
                     jenis_bmn: item.jenisBMN,
@@ -329,7 +375,7 @@ export const useBMNHandlers = ({
                     jumlah: item.jumlah,
                     satuan: item.satuan,
                     luas: item.luas,
-                    nama_satker: normalizeSatkerForStorage(item.namaSatker), // Normalize before saving
+                    nama_satker: normalizeSatkerForStorage(item.namaSatker),
                     alamat: item.alamat,
                     kota: item.kota,
                     provinsi: item.provinsi,
@@ -340,20 +386,20 @@ export const useBMNHandlers = ({
                     tanggal_pengapusan: item.tanggalPengapusan,
                     alasan_pengapusan: item.alasanPengapusan,
                     keterangan: item.keterangan,
-                    raw_data: item.rawData, // Store complete Excel data as JSON
+                    raw_data: item.rawData,
                     created_by: item.createdBy,
-                    upload_batch_id: uploadBatchId, // Use UUID from history record
+                    upload_batch_id: uploadBatchId,
                     held_by: matchingAssignment ? matchingAssignment.heldBy : null
                 };
             });
 
-            const { data: insertedData, error: insertError } = await supabase
-                .from('bmn_items')
-                .insert(dbItems)
-                .select();
+            // Perform bulk insert or upsert
+            const { error: insertError } = uploadMode === 'upsert'
+                ? await supabase.from('bmn_items').upsert(dbItems)
+                : await supabase.from('bmn_items').insert(dbItems);
 
             if (insertError) {
-                console.error('Insert error:', insertError);
+                console.error('Save error:', insertError);
                 
                 // Update history status to Failed
                 await supabase
@@ -363,7 +409,7 @@ export const useBMNHandlers = ({
                 
                 showNotification(
                     'Gagal Menyimpan',
-                    `Gagal menyimpan data: ${insertError.message}`,
+                    `Gagal menyimpan data BMN: ${insertError.message}`,
                     'error'
                 );
                 return;
@@ -377,7 +423,6 @@ export const useBMNHandlers = ({
 
             if (updateHistoryError) {
                 console.error('Failed to update history status:', updateHistoryError);
-                // Don't fail the whole operation, just log the error
             }
 
             // Refresh data
@@ -386,7 +431,11 @@ export const useBMNHandlers = ({
 
             showNotification(
                 'Upload Berhasil',
-                `Berhasil mengganti data untuk satker ${targetSatker}. ${parseResult.validRows} dari ${parseResult.totalRows} baris data berhasil diimport.`,
+                uploadMode === 'upsert'
+                    ? `Berhasil memperbarui/menambah data BMN. ${parseResult.validRows} dari ${parseResult.totalRows} baris data berhasil diproses.`
+                    : targetSatker === 'Semua Satuan Kerja'
+                        ? `Berhasil mengganti data BMN untuk seluruh Satker yang terdaftar di file Excel. ${parseResult.validRows} dari ${parseResult.totalRows} baris data berhasil diimport.`
+                        : `Berhasil mengganti data untuk satker ${targetSatker}. ${parseResult.validRows} dari ${parseResult.totalRows} baris data berhasil diimport.`,
                 'success'
             );
 

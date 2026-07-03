@@ -2,12 +2,13 @@
 // Modal for uploading BMN data files (Excel/CSV)
 // Validates: Requirements 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9, 3.10, 3.11, 3.12, 3.13, 3.14, 3.15, 12.2
 
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { X, Upload, FileText, AlertCircle, CheckCircle, Loader2, File } from 'lucide-react';
 import { User, BMNParseResult } from '../../types';
 import { parseExcelFile, parseCSVFile } from '../utils/bmnParser';
 import { useBMNHandlers } from '../hooks/useBMNHandlers';
 import { supabase } from '../lib/supabaseClient';
+import { BMNDevicesService } from '../services/BMNDevicesService';
 
 interface BMNUploadModalProps {
   isOpen: boolean;
@@ -30,9 +31,34 @@ const BMNUploadModal: React.FC<BMNUploadModalProps> = ({
   const [isParsing, setIsParsing] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [uploadMode, setUploadMode] = useState<'replace' | 'upsert'>('replace');
   
   // User can only upload for their own satker
-  const userSatker = currentUser?.divisi || '';
+  const [selectedTargetSatker, setSelectedTargetSatker] = useState<string>('');
+  const [satkers, setSatkers] = useState<any[]>([]);
+
+  // Set initial target satker and fetch satkers if admin
+  useEffect(() => {
+    if (currentUser) {
+      if (currentUser.role === 'Super Admin') {
+        setSelectedTargetSatker('Semua Satuan Kerja');
+        const fetchSatkers = async () => {
+          try {
+            const list = await BMNDevicesService.getAllSatkers();
+            const parentList = list.filter(s => !s.parentId);
+            setSatkers(parentList);
+          } catch (err) {
+            console.error(err);
+          }
+        };
+        fetchSatkers();
+      } else {
+        setSelectedTargetSatker(currentUser.divisi || '');
+      }
+    }
+  }, [currentUser]);
+
+  const userSatker = selectedTargetSatker;
 
   // Get upload handler from hook
   const { handleUploadFile, canUploadBMN } = useBMNHandlers({
@@ -170,7 +196,7 @@ const BMNUploadModal: React.FC<BMNUploadModalProps> = ({
     setIsUploading(true);
 
     try {
-      await handleUploadFile(selectedFile, userSatker);
+      await handleUploadFile(selectedFile, userSatker, uploadMode);
       
       // Success - close modal and refresh
       onUploadSuccess();
@@ -262,17 +288,83 @@ const BMNUploadModal: React.FC<BMNUploadModalProps> = ({
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* Satker Info (Read-only) */}
+          {/* Satker Info / Selector */}
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-2">
-              Satker Anda
+              Satker Target
             </label>
-            <div className="w-full px-4 py-2.5 border border-slate-300 rounded-lg bg-slate-50 text-slate-700 font-medium">
-              {userSatker || 'Satker tidak ditemukan'}
-            </div>
+            {currentUser?.role === 'Super Admin' ? (
+              <select
+                value={selectedTargetSatker}
+                onChange={(e) => setSelectedTargetSatker(e.target.value)}
+                className="w-full px-4 py-2.5 border border-slate-300 rounded-xl bg-white text-slate-800 focus:outline-none focus:border-indigo-500 text-sm font-medium"
+              >
+                <option value="Semua Satuan Kerja">Semua Satuan Kerja (Multi-Satker)</option>
+                {satkers.map(s => (
+                  <option key={s.id} value={s.name}>{s.name}</option>
+                ))}
+              </select>
+            ) : (
+              <div className="w-full px-4 py-2.5 border border-slate-300 rounded-lg bg-slate-50 text-slate-700 font-medium">
+                {selectedTargetSatker || 'Satker tidak ditemukan'}
+              </div>
+            )}
             <p className="text-xs text-slate-500 mt-1">
-              Anda hanya dapat mengupload data untuk satker Anda sendiri
+              {currentUser?.role === 'Super Admin' 
+                ? 'Sebagai Super Admin, Anda dapat mengupload data BMN untuk seluruh Satker sekaligus atau spesifik per Satker.'
+                : 'Anda hanya dapat mengupload data untuk satker Anda sendiri'
+              }
             </p>
+          </div>
+
+          {/* Upload Method Option */}
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-2">
+              Metode Upload
+            </label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <label className={`border rounded-xl p-4 flex items-start gap-3 cursor-pointer transition-all ${
+                uploadMode === 'replace' 
+                  ? 'border-indigo-500 bg-indigo-50/30 shadow-sm' 
+                  : 'border-slate-200 hover:bg-slate-50/50'
+              }`}>
+                <input
+                  type="radio"
+                  name="uploadMode"
+                  value="replace"
+                  checked={uploadMode === 'replace'}
+                  onChange={() => setUploadMode('replace')}
+                  className="mt-1 text-indigo-650 focus:ring-indigo-500"
+                />
+                <div>
+                  <span className="block text-sm font-semibold text-slate-800">Ganti Semua Data (Replace)</span>
+                  <span className="block text-[11px] text-slate-500 mt-0.5 leading-normal">
+                    Menghapus seluruh data BMN lama di Satker ini dan menulis ulang dengan data baru dari Excel.
+                  </span>
+                </div>
+              </label>
+
+              <label className={`border rounded-xl p-4 flex items-start gap-3 cursor-pointer transition-all ${
+                uploadMode === 'upsert' 
+                  ? 'border-indigo-500 bg-indigo-50/30 shadow-sm' 
+                  : 'border-slate-200 hover:bg-slate-50/50'
+              }`}>
+                <input
+                  type="radio"
+                  name="uploadMode"
+                  value="upsert"
+                  checked={uploadMode === 'upsert'}
+                  onChange={() => setUploadMode('upsert')}
+                  className="mt-1 text-indigo-650 focus:ring-indigo-500"
+                />
+                <div>
+                  <span className="block text-sm font-semibold text-slate-800">Update / Tambah (Upsert)</span>
+                  <span className="block text-[11px] text-slate-500 mt-0.5 leading-normal">
+                    Hanya memperbarui data yang cocok (berdasarkan Nomor Barang & NUP) dan menambahkan data baru jika belum terdaftar.
+                  </span>
+                </div>
+              </label>
+            </div>
           </div>
 
           {/* File Upload Area */}
@@ -506,9 +598,11 @@ const BMNUploadModal: React.FC<BMNUploadModalProps> = ({
         {/* Footer */}
         <div className="sticky bottom-0 bg-slate-50 border-t border-slate-200 px-6 py-4">
           <div className="flex items-center justify-between gap-4">
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-500 font-medium">
               {parseResult && parseResult.success && userSatker
-                ? `Data akan mengganti data BMN untuk satker: ${userSatker}`
+                ? uploadMode === 'replace'
+                  ? `Data akan mengganti seluruh data BMN untuk satker: ${userSatker}`
+                  : `Data akan di-update / ditambahkan ke daftar BMN.`
                 : 'Pilih file untuk memulai'
               }
             </p>
