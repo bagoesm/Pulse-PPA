@@ -494,6 +494,77 @@ Kembalikan HANYA dalam format JSON berikut (tanpa markdown, tanpa penjelasan):
       console.error('Gemini Archive Evaluation Extraction failed:', geminiError);
       throw new Error('Gagal menganalisis teks dengan AI: ' + geminiError.message);
     }
+  },
+
+  async extractBudgetTransaction(
+    inputText: string,
+    masters?: any[]
+  ): Promise<any> {
+    const todayStr = new Date().toISOString().split('T')[0];
+    
+    let mastersContext = "";
+    if (masters && masters.length > 0) {
+      mastersContext = `
+Gunakan daftar Master Anggaran berikut untuk memilih "masterId" yang paling cocok berdasarkan detail, kro, ro, atau akun:
+${JSON.stringify(masters.map(m => ({ id: m.id, kro: m.kro, ro: m.ro, akun: m.akun, detail: m.detail })), null, 2)}
+`;
+    }
+
+    const prompt = `
+Anda adalah asisten keuangan cerdas. Tugas Anda adalah menganalisis teks berikut dan mengekstrak data transaksi realisasi anggaran.
+
+Teks input:
+"""
+${inputText}
+"""
+
+${mastersContext}
+Tanggal hari ini: ${todayStr}
+
+Ekstrak informasi transaksi berikut dan kembalikan HANYA dalam format JSON (tanpa markdown atau teks awalan/akhiran):
+{
+  "tanggal": "YYYY-MM-DD" (tanggal transaksi, default hari ini jika tidak ada info spesifik),
+  "status": "Realisasi" atau "Outstanding" (default "Realisasi". Jika teks menyebutkan "belum dibayar", "outstanding", "utang", "rencana", "piutang", "komitmen", pilih "Outstanding"),
+  "nominal": number (nominal transaksi dalam rupiah, ekstrak angka saja. Konversi kata seperti "300rb" menjadi 300000, "1 juta" menjadi 1000000),
+  "uraian": "Uraian penggunaan/belanja singkat dan jelas dalam Bahasa Indonesia",
+  "bukti": "URL link bukti dukung (jika ada seperti drive.google.com, jika tidak ada kosongkan atau null)",
+  "keterangan": "Keterangan tambahan jika ada",
+  "masterId": "ID master yang paling cocok dari daftar Master Anggaran di atas (pilih string ID persis). Jika tidak ada master yang cocok atau daftar kosong, isi null."
+}
+
+PENTING: Kembalikan HANYA JSON objek tersebut. JANGAN sertakan markdown block seperti \`\`\`json, JANGAN berikan teks pengantar, penjelas, atau penutup.
+`;
+
+    try {
+      if (genAI) {
+        const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-lite-preview' });
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        return cleanAndParseJson(response.text());
+      } else if (openAiApiKey) {
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${openAiApiKey}`
+          },
+          body: JSON.stringify({
+            model: 'gpt-4o-mini',
+            response_format: { type: 'json_object' },
+            messages: [{ role: "user", content: prompt }]
+          })
+        });
+        if (!response.ok) throw new Error('OpenAI Error');
+        const data = await response.json();
+        const resText = data.choices[0].message.content;
+        return cleanAndParseJson(resText);
+      } else {
+        throw new Error('Tidak ada API Key yang dikonfigurasi (Gemini atau OpenAI)');
+      }
+    } catch (e: any) {
+      console.error('Failed to extract budget transaction:', e);
+      throw new Error('Gagal mengekstrak transaksi dengan AI: ' + e.message);
+    }
   }
 };
 

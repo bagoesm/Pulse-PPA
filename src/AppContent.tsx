@@ -1236,7 +1236,7 @@ const AppContent: React.FC = () => {
           </Suspense>
         ) : activeTab === 'Pelayanan Zoom' ? (
           <Suspense fallback={<PageLoader />}>
-            <PelayananZoomPage />
+            <PelayananZoomPage showNotification={showNotification} />
           </Suspense>
         ) : activeTab === 'Penilaian Arsip' ? (
           <Suspense fallback={<PageLoader />}>

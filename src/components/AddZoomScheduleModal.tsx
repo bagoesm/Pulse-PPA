@@ -33,7 +33,7 @@ const AddZoomScheduleModal: React.FC<AddZoomScheduleModalProps> = ({
   const [operatorIds, setOperatorIds] = useState<string[]>([]);
   const [lokasi, setLokasi] = useState('Full Online');
   const [unitKerja, setUnitKerja] = useState('');
-  const [jenisRapat, setJenisRapat] = useState('');
+  const [jenisRapat, setJenisRapat] = useState('Pendampingan Zoom');
   const [zoomLink, setZoomLink] = useState('');
   const [meetingId, setMeetingId] = useState('');
   const [passcode, setPasscode] = useState('');
@@ -59,8 +59,6 @@ const AddZoomScheduleModal: React.FC<AddZoomScheduleModalProps> = ({
   const [newRoomName, setNewRoomName] = useState('');
   const [showAddDivisi, setShowAddDivisi] = useState(false);
   const [newDivisiName, setNewDivisiName] = useState('');
-  const [showAddType, setShowAddType] = useState(false);
-  const [newTypeName, setNewTypeName] = useState('');
 
   useEffect(() => {
     if (isOpen) {
@@ -104,7 +102,7 @@ const AddZoomScheduleModal: React.FC<AddZoomScheduleModalProps> = ({
     setLokasi('Full Online');
     setUnitKerja(currentUser?.divisi || '');
     setUnitKerjaType('Internal');
-    setJenisRapat('Koordinasi');
+    setJenisRapat('Pendampingan Zoom');
     setZoomLink('');
     setMeetingId('');
     setPasscode('');
@@ -219,18 +217,50 @@ const AddZoomScheduleModal: React.FC<AddZoomScheduleModalProps> = ({
     }
   };
 
-  // Add Meeting Type Inline
-  const handleAddMeetingType = async () => {
-    if (!newTypeName.trim()) return;
+  // Delete Room Inline
+  const handleDeleteRoom = async (roomName: string) => {
+    if (roomName === 'Full Online') return;
+    if (!window.confirm(`Apakah Anda yakin ingin menghapus ruangan "${roomName}"?`)) return;
+
     try {
-      const newType = await zoomService.createMeetingType(newTypeName.trim());
-      setMeetingTypes(prev => [...prev, newType].sort((a, b) => a.name.localeCompare(b.name)));
-      setJenisRapat(newType.name);
-      setNewTypeName('');
-      setShowAddType(false);
+      const matchedRoom = rooms.find(r => r.name === roomName);
+      if (!matchedRoom) return;
+
+      await zoomService.deleteRoom(matchedRoom.id);
+      setRooms(prev => prev.filter(r => r.id !== matchedRoom.id));
+      if (lokasi === roomName) {
+        setLokasi('Full Online');
+      }
     } catch (err) {
-      console.error('Gagal menambahkan jenis rapat:', err);
-      setError('Jenis rapat sudah ada atau terjadi kesalahan.');
+      console.error('Gagal menghapus ruangan:', err);
+      setError('Gagal menghapus ruangan.');
+    }
+  };
+
+  // Delete Unit Kerja Inline
+  const handleDeleteUnitKerja = async (unitName: string) => {
+    if (!window.confirm(`Apakah Anda yakin ingin menghapus unit kerja "${unitName}"?`)) return;
+
+    const targetTable = unitKerjaType === 'Internal' ? 'master_unit_internal' : 'master_unit_eksternal';
+    try {
+      const { error: deleteErr } = await supabase
+        .from(targetTable)
+        .delete()
+        .eq('name', unitName);
+
+      if (deleteErr) throw deleteErr;
+
+      if (unitKerjaType === 'Internal') {
+        setUnitInternalList(prev => prev.filter(u => u !== unitName));
+      } else {
+        setUnitEksternalList(prev => prev.filter(u => u !== unitName));
+      }
+      if (unitKerja === unitName) {
+        setUnitKerja('');
+      }
+    } catch (err) {
+      console.error('Gagal menghapus unit kerja:', err);
+      setError('Gagal menghapus unit kerja.');
     }
   };
 
@@ -282,7 +312,7 @@ const AddZoomScheduleModal: React.FC<AddZoomScheduleModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl w-full max-w-5xl shadow-2xl flex flex-col max-h-[90vh] border border-slate-100 animate-fadeIn">
         
         {/* Header */}
@@ -442,7 +472,7 @@ const AddZoomScheduleModal: React.FC<AddZoomScheduleModalProps> = ({
                     <button
                       type="button"
                       onClick={handleAddUnitKerja}
-                      className="p-1.5 bg-green-550 text-white rounded-lg hover:bg-green-600 flex-shrink-0"
+                      className="p-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex-shrink-0 transition-colors"
                     >
                       <Check size={14} />
                     </button>
@@ -486,13 +516,14 @@ const AddZoomScheduleModal: React.FC<AddZoomScheduleModalProps> = ({
                         Eksternal
                       </button>
                     </div>
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                       <SearchableSelect
                         options={(unitKerjaType === 'Internal' ? unitInternalList : unitEksternalList).map(unit => ({ value: unit, label: unit }))}
                         value={unitKerja}
                         onChange={setUnitKerja}
                         placeholder={unitKerjaType === 'Internal' ? "Cari unit internal..." : "Cari unit eksternal..."}
                         emptyOption={unitKerjaType === 'Internal' ? "-- Pilih Unit Internal --" : "-- Pilih Unit Eksternal --"}
+                        onDeleteOption={handleDeleteUnitKerja}
                       />
                     </div>
                   </div>
@@ -501,55 +532,18 @@ const AddZoomScheduleModal: React.FC<AddZoomScheduleModalProps> = ({
 
               {/* Jenis Rapat */}
               <div className="space-y-1.5">
-                <label className="block text-base font-semibold text-slate-700 flex items-center justify-between">
-                  <span className="flex items-center gap-1.5">
-                    <FileText size={16} className="text-slate-400" />
-                    Jenis Rapat <span className="text-red-500">*</span>
-                  </span>
-                  {!showAddType && (
-                    <button
-                      type="button"
-                      onClick={() => setShowAddType(true)}
-                      className="text-xs text-gov-600 hover:text-gov-800 font-semibold flex items-center gap-0.5"
-                    >
-                      <Plus size={12} /> Tambah
-                    </button>
-                  )}
+                <label className="block text-base font-semibold text-slate-700 flex items-center gap-1.5">
+                  <FileText size={16} className="text-slate-400" />
+                  Jenis Rapat <span className="text-red-500">*</span>
                 </label>
-                
-                {showAddType ? (
-                  <div className="flex gap-1">
-                    <input
-                      type="text"
-                      value={newTypeName}
-                      onChange={(e) => setNewTypeName(e.target.value)}
-                      placeholder="Nama jenis..."
-                      className="w-full text-sm bg-white text-slate-800 px-2.5 py-1.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-gov-500"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleAddMeetingType}
-                      className="p-1.5 bg-green-550 text-white rounded-lg hover:bg-green-600 flex-shrink-0"
-                    >
-                      <Check size={14} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowAddType(false)}
-                      className="p-1.5 bg-slate-100 text-slate-500 rounded-lg hover:bg-slate-200 flex-shrink-0"
-                    >
-                      <X size={14} />
-                    </button>
-                  </div>
-                ) : (
-                  <SearchableSelect
-                    options={meetingTypes.map(t => ({ value: t.name, label: t.name }))}
-                    value={jenisRapat}
-                    onChange={setJenisRapat}
-                    placeholder="Cari jenis rapat..."
-                    emptyOption="-- Pilih Jenis Rapat --"
-                  />
-                )}
+                <select
+                  value={jenisRapat}
+                  onChange={(e) => setJenisRapat(e.target.value)}
+                  className="w-full text-sm bg-white text-slate-800 px-3 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-gov-400 focus:border-gov-400 cursor-pointer font-medium"
+                >
+                  <option value="Pendampingan Zoom">Pendampingan Zoom</option>
+                  <option value="Peminjaman Zoom">Peminjaman Zoom</option>
+                </select>
               </div>
             </div>
 
@@ -603,7 +597,7 @@ const AddZoomScheduleModal: React.FC<AddZoomScheduleModalProps> = ({
                     <button
                       type="button"
                       onClick={handleAddRoom}
-                      className="p-1.5 bg-green-550 text-white rounded-lg hover:bg-green-600 flex-shrink-0"
+                      className="p-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex-shrink-0 transition-colors"
                     >
                       <Check size={14} />
                     </button>
@@ -628,6 +622,7 @@ const AddZoomScheduleModal: React.FC<AddZoomScheduleModalProps> = ({
                     onChange={setLokasi}
                     placeholder="Cari lokasi/ruangan..."
                     emptyOption="-- Pilih Lokasi --"
+                    onDeleteOption={handleDeleteRoom}
                   />
                 )}
               </div>
