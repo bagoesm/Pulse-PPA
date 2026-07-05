@@ -389,15 +389,21 @@ export class SuratOtomatisService {
         throw new Error(`Error rendering document: ${error.message}`);
       }
 
-      // Generate output
+      // Generate output as uint8array (most reliable across browsers and bundlers)
+      // and use DEFLATE compression to ensure a valid compressed ZIP/DOCX structure
       const output = doc.getZip().generate({
-        type: 'blob',
-        mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        type: 'uint8array',
+        compression: 'DEFLATE',
+      });
+
+      // Wrap in a native Blob with the correct MIME type
+      const blob = new Blob([output], {
+        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       });
 
       // Download file
       const fileName = outputFileName || this.generateFileName(templateType, formData);
-      saveAs(output, fileName);
+      saveAs(blob, fileName);
 
     } catch (error: any) {
       console.error('Error generating surat:', error);
