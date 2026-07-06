@@ -12,6 +12,8 @@ import { zoomService } from '../services/ZoomService';
 import AddZoomScheduleModal from './AddZoomScheduleModal';
 import ZoomAccountManager from './ZoomAccountManager';
 import SearchableSelect from './SearchableSelect';
+import ZoomPendampinganCalendar from './ZoomPendampinganCalendar';
+import UserAvatar from './UserAvatar';
 import { exportZoomMeetingsToExcel, exportZoomDashboardToExcel } from '../utils/exportZoomExcel';
 import { 
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, 
@@ -66,7 +68,7 @@ const PelayananZoomPage: React.FC<PelayananZoomPageProps> = ({ showNotification 
   const { currentUser } = useAuth();
 
   // Navigation state
-  const [activeSubTab, setActiveSubTab] = useState<'dashboard' | 'schedules' | 'accounts'>('dashboard');
+  const [activeSubTab, setActiveSubTab] = useState<'dashboard' | 'schedules' | 'calendar' | 'accounts'>('dashboard');
 
   // Data states
   const [meetings, setMeetings] = useState<ZoomMeeting[]>([]);
@@ -130,6 +132,7 @@ const PelayananZoomPage: React.FC<PelayananZoomPageProps> = ({ showNotification 
   }, [displayMonths]);
 
   const [usersMap, setUsersMap] = useState<Record<string, string>>({});
+  const [usersPhotoMap, setUsersPhotoMap] = useState<Record<string, string>>({});
   const [zoomEditors, setZoomEditors] = useState<ZoomEditor[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -322,13 +325,18 @@ const PelayananZoomPage: React.FC<PelayananZoomPageProps> = ({ showNotification 
 
   const fetchUsers = async () => {
     try {
-      const { data } = await supabase.from('profiles').select('id, name');
+      const { data } = await supabase.from('profiles').select('id, name, profile_photo');
       if (data) {
         const uMap: Record<string, string> = {};
+        const photoMap: Record<string, string> = {};
         data.forEach((u) => {
           uMap[u.id] = u.name;
+          if (u.profile_photo) {
+            photoMap[u.id] = u.profile_photo;
+          }
         });
         setUsersMap(uMap);
+        setUsersPhotoMap(photoMap);
       }
     } catch (err) {
       console.error('Error loading users map:', err);
@@ -1016,6 +1024,17 @@ const PelayananZoomPage: React.FC<PelayananZoomPageProps> = ({ showNotification 
         >
           Jadwal Rapat
           {activeSubTab === 'schedules' && (
+            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gov-600 rounded-full" />
+          )}
+        </button>
+        <button
+          onClick={() => setActiveSubTab('calendar')}
+          className={`pb-3 font-bold text-base transition-colors relative ${
+            activeSubTab === 'calendar' ? 'text-gov-600' : 'text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          Kalender Pendampingan
+          {activeSubTab === 'calendar' && (
             <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gov-600 rounded-full" />
           )}
         </button>
@@ -1805,6 +1824,20 @@ const PelayananZoomPage: React.FC<PelayananZoomPageProps> = ({ showNotification 
           </div>
 
         </div>
+      ) : activeSubTab === 'calendar' ? (
+        <ZoomPendampinganCalendar
+          meetings={meetings}
+          usersMap={usersMap}
+          usersPhotoMap={usersPhotoMap}
+          accounts={accounts}
+          isDatinOrAdmin={isDatinOrAdmin}
+          onViewMeeting={(meeting) => setSelectedMeetingDetail(meeting)}
+          onEditMeeting={(meeting) => {
+            setEditingMeeting(meeting);
+            setIsAddModalOpen(true);
+          }}
+          onDeleteMeeting={handleDeleteMeeting}
+        />
       ) : (
         /* Zoom Account Manager Tab */
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
@@ -1880,14 +1913,35 @@ const PelayananZoomPage: React.FC<PelayananZoomPageProps> = ({ showNotification 
                     </span>
                   </p>
                 </div>
-                <div className="col-span-2 space-y-1 border-t border-slate-150 pt-2.5">
+                <div className="col-span-2 space-y-1.5 border-t border-slate-150 pt-2.5">
                   <span className="text-slate-400 font-bold text-xs">OPERATOR / PENANGGUNG JAWAB</span>
-                  <p className="font-bold text-slate-700 flex items-center gap-1.5">
-                    <UserIcon size={14} className="text-slate-400" />
-                    {selectedMeetingDetail.operatorIds && selectedMeetingDetail.operatorIds.length > 0
-                      ? selectedMeetingDetail.operatorIds.map(id => usersMap[id] || 'Memuat...').join(', ')
-                      : (selectedMeetingDetail.operatorId ? (usersMap[selectedMeetingDetail.operatorId] || 'Memuat...') : 'Belum Ditugaskan')}
-                  </p>
+                  <div className="flex flex-wrap gap-2.5">
+                    {selectedMeetingDetail.operatorIds && selectedMeetingDetail.operatorIds.length > 0 ? (
+                      selectedMeetingDetail.operatorIds.map(id => {
+                        const name = usersMap[id] || 'Memuat...';
+                        const photo = usersPhotoMap[id];
+                        return (
+                          <div key={id} className="flex items-center gap-2 bg-white border border-slate-200 pr-3 pl-1.5 py-1 rounded-full text-xs font-bold text-slate-700 shadow-3xs">
+                            <UserAvatar name={name} profilePhoto={photo} size="xs" />
+                            <span>{name}</span>
+                          </div>
+                        );
+                      })
+                    ) : selectedMeetingDetail.operatorId ? (
+                      (() => {
+                        const name = usersMap[selectedMeetingDetail.operatorId] || 'Memuat...';
+                        const photo = usersPhotoMap[selectedMeetingDetail.operatorId];
+                        return (
+                          <div className="flex items-center gap-2 bg-white border border-slate-200 pr-3 pl-1.5 py-1 rounded-full text-xs font-bold text-slate-700 shadow-3xs">
+                            <UserAvatar name={name} profilePhoto={photo} size="xs" />
+                            <span>{name}</span>
+                          </div>
+                        );
+                      })()
+                    ) : (
+                      <span className="text-xs font-semibold text-slate-400 italic">Belum Ditugaskan</span>
+                    )}
+                  </div>
                 </div>
               </div>
 
