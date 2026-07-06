@@ -397,7 +397,7 @@ export class SuratOtomatisService {
       });
 
       // Wrap in a native Blob with the correct MIME type
-      const blob = new Blob([output], {
+      const blob = new Blob([output as any], {
         type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       });
 
