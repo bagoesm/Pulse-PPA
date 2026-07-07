@@ -78,7 +78,7 @@ export const PublicProjectView: React.FC<PublicProjectViewProps> = ({ shareToken
         // Fetch user profiles for avatars
         const { data: profilesData } = await supabase
           .from('profiles')
-          .select('name, profile_photo');
+          .select('id, name, profile_photo');
         
         if (profilesData) {
           const profileMap: Record<string, { name: string; profilePhoto?: string }> = {};
@@ -101,20 +101,38 @@ export const PublicProjectView: React.FC<PublicProjectViewProps> = ({ shareToken
         const fetchedEpics = (epicsRes.data || []) as any[];
 
         // Map database tasks (snake_case) to frontend Task type (camelCase)
-        const mappedTasks = fetchedTasks.map((t: any) => ({
-          ...t,
-          category: t.master_categories?.name || t.category || '',
-          subCategory: t.master_sub_categories?.name || t.sub_category || t.subCategory || '',
-          startDate: t.start_date || t.startDate || new Date().toISOString().split('T')[0],
-          projectId: t.project_id || t.projectId || null,
-          epicId: t.epic_id || t.epicId || null,
-          pic: Array.isArray(t.pic) ? t.pic : t.pic ? [t.pic] : [],
-          deadline: t.deadline || null,
-          attachments: Array.isArray(t.attachments) ? t.attachments : [],
-          links: Array.isArray(t.links) ? t.links : [],
-          blockedBy: Array.isArray(t.blocked_by) ? t.blocked_by : [],
-          checklists: Array.isArray(t.checklists) ? t.checklists : []
-        })) as Task[];
+        const mappedTasks = fetchedTasks.map((t: any) => {
+          let picNames: string[] = [];
+          const rawPic = Array.isArray(t.pic) ? t.pic : t.pic ? [t.pic] : [];
+          
+          picNames = rawPic.map((picItem: any) => {
+            // If picItem is already a name (string without UUID format), use it
+            if (typeof picItem === 'string' && !picItem.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+              return picItem;
+            }
+            // If picItem is a UUID, map it to name
+            if (profilesData) {
+              const user = profilesData.find((u: any) => u.id === picItem);
+              if (user) return user.name;
+            }
+            return picItem; // Fallback to original value
+          });
+
+          return {
+            ...t,
+            category: t.master_categories?.name || t.category || '',
+            subCategory: t.master_sub_categories?.name || t.sub_category || t.subCategory || '',
+            startDate: t.start_date || t.startDate || new Date().toISOString().split('T')[0],
+            projectId: t.project_id || t.projectId || null,
+            epicId: t.epic_id || t.epicId || null,
+            pic: picNames,
+            deadline: t.deadline || null,
+            attachments: Array.isArray(t.attachments) ? t.attachments : [],
+            links: Array.isArray(t.links) ? t.links : [],
+            blockedBy: Array.isArray(t.blocked_by) ? t.blocked_by : [],
+            checklists: Array.isArray(t.checklists) ? t.checklists : []
+          };
+        }) as Task[];
 
         // Map database epics (snake_case) to Epic type
         const mappedEpics = fetchedEpics.map((e: any) => ({
@@ -213,6 +231,7 @@ export const PublicProjectView: React.FC<PublicProjectViewProps> = ({ shareToken
     [Status.ToDo]: tasks.filter(t => t.status === Status.ToDo),
     [Status.InProgress]: tasks.filter(t => t.status === Status.InProgress),
     [Status.Pending]: tasks.filter(t => t.status === Status.Pending),
+    [Status.Review]: tasks.filter(t => t.status === Status.Review),
     [Status.Done]: tasks.filter(t => t.status === Status.Done),
   };
 
@@ -363,6 +382,7 @@ export const PublicProjectView: React.FC<PublicProjectViewProps> = ({ shareToken
                   case Status.Done: return 'bg-green-500';
                   case Status.ToDo: return 'bg-slate-400';
                   case Status.InProgress: return 'bg-gov-500';
+                  case Status.Review: return 'bg-purple-500';
                   default: return 'bg-orange-400';
                 }
               };
