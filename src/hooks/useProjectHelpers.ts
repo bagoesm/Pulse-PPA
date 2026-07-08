@@ -87,7 +87,8 @@ export const useProjectHelpers = () => {
                 color: p.color,
                 targetLiveDate: p.target_live_date,
                 status: p.status,
-                pinnedLinks: p.pinned_links
+                pinnedLinks: p.pinned_links,
+                share_token: p.share_token
             }));
 
             // Note: Do NOT update global projects state here - that's handled by ProjectsContext.

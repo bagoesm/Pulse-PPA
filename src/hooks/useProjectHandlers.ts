@@ -100,7 +100,9 @@ export const useProjectHandlers = ({
                         icon: data.icon,
                         color: data.color,
                         targetLiveDate: data.target_live_date,
-                        status: data.status
+                        status: data.status,
+                        pinnedLinks: data.pinned_links,
+                        share_token: data.share_token
                     };
                     setProjects(prev => prev.map(p => p.id === editingProject.id ? mappedProject : p));
                     showNotification('Project Diupdate!', `Project "${projectData.name}" berhasil diperbarui.`, 'success');
@@ -135,7 +137,9 @@ export const useProjectHandlers = ({
                         icon: data.icon,
                         color: data.color,
                         targetLiveDate: data.target_live_date,
-                        status: data.status
+                        status: data.status,
+                        pinnedLinks: data.pinned_links,
+                        share_token: data.share_token
                     };
                     setProjects(prev => [...prev, mappedProject]);
                     showNotification('Project Dibuat!', `Project "${projectData.name}" berhasil ditambahkan.`, 'success');

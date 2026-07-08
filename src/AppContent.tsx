@@ -90,6 +90,14 @@ const AppContent: React.FC = () => {
     const token = params.get('share');
     if (token) {
       setShareToken(token);
+    } else {
+      // Check if pathname contains a share token slug (e.g. /lpkra)
+      const path = window.location.pathname.substring(1);
+      // List of reserved paths that should not be interpreted as share token
+      const reservedPaths = ['login', 'dashboard', 'settings', 'tasks', 'admin', 'surat', 'bmn', 'zoom', 'meeting', 'calendar', 'epic', 'feedback', 'document', 'auth', 'callback', 'reset-password'];
+      if (path && !path.includes('/') && !reservedPaths.includes(path.toLowerCase()) && !path.includes('.')) {
+        setShareToken(path);
+      }
     }
   }, []);
 
