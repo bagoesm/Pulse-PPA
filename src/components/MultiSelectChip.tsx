@@ -159,99 +159,101 @@ const MultiSelectChip: React.FC<MultiSelectChipProps> = ({
 
       {/* Dropdown */}
       {open && (
-        <div className={`absolute z-50 mt-2 w-full rounded-lg shadow-lg bg-white border border-slate-200 ${dropdownClassName}`} role="listbox">
-          {/* Search Input */}
-          {searchable && (
-            <div className="p-2 border-b border-slate-100">
-              <div className="relative">
-                <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  ref={searchInputRef}
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder={searchPlaceholder}
-                  className="w-full pl-8 pr-8 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gov-300 focus:border-gov-400"
-                />
-                {searchQuery && (
-                  <button
-                    type="button"
-                    onClick={() => setSearchQuery('')}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                  >
-                    <X size={14} />
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Options List */}
-          <div className="max-h-48 overflow-y-auto p-2">
-            {filteredOptions.map(opt => (
-              <div
-                key={opt.value}
-                className="flex items-center gap-2 px-2 py-2 rounded hover:bg-slate-50 group"
-              >
-                <label className="flex items-center gap-2 flex-1 cursor-pointer">
+        <>
+          <div className={`absolute z-50 mt-2 w-full rounded-lg shadow-lg bg-white border border-slate-200 ${dropdownClassName}`} role="listbox">
+            {/* Search Input */}
+            {searchable && (
+              <div className="p-2 border-b border-slate-100">
+                <div className="relative">
+                  <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input
-                    type="checkbox"
-                    checked={isSelected(opt.value)}
-                    onChange={() => toggle(opt.value)}
-                    className="w-4 h-4 text-gov-600 rounded focus:ring-gov-500"
+                    ref={searchInputRef}
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder={searchPlaceholder}
+                    className="w-full pl-8 pr-8 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gov-300 focus:border-gov-400"
                   />
-                  <span className="text-sm text-slate-700">{opt.label}</span>
-                </label>
-                {onEdit && canEdit && canEdit(opt.value) && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onEdit(opt.value, opt.label);
-                    }}
-                    className="opacity-0 group-hover:opacity-100 p-1 hover:bg-slate-200 rounded transition-opacity"
-                    title="Edit"
-                  >
-                    <Edit2 size={12} className="text-slate-600" />
-                  </button>
-                )}
-              </div>
-            ))}
-
-            {filteredOptions.length === 0 && searchQuery && (
-              <div className="text-xs text-slate-400 p-2 text-center">
-                Tidak ditemukan "{searchQuery}"
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
               </div>
             )}
 
-            {options.length === 0 && (
-              <div className="text-xs text-slate-400 p-2">Tidak ada opsi</div>
-            )}
-          </div>
+            {/* Options List */}
+            <div className="max-h-48 overflow-y-auto p-2">
+              {filteredOptions.map(opt => (
+                <div
+                  key={opt.value}
+                  className="flex items-center gap-2 px-2 py-2 rounded hover:bg-slate-50 group"
+                >
+                  <label className="flex items-center gap-2 flex-1 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isSelected(opt.value)}
+                      onChange={() => toggle(opt.value)}
+                      className="w-4 h-4 text-gov-600 rounded focus:ring-gov-500"
+                    />
+                    <span className="text-sm text-slate-700">{opt.label}</span>
+                  </label>
+                  {onEdit && canEdit && canEdit(opt.value) && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEdit(opt.value, opt.label);
+                      }}
+                      className="opacity-0 group-hover:opacity-100 p-1 hover:bg-slate-200 rounded transition-opacity"
+                      title="Edit"
+                    >
+                      <Edit2 size={12} className="text-slate-600" />
+                    </button>
+                  )}
+                </div>
+              ))}
 
-          {/* Footer Actions */}
-          <div className="border-t border-slate-100 p-2 flex items-center justify-between">
-            <button
-              type="button"
-              onClick={() => { onChange([]); handleClose(); }}
-              className="text-xs text-slate-500 hover:text-gov-600"
-            >
-              Clear
-            </button>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-400">
-                {value.length} dipilih
-              </span>
+              {filteredOptions.length === 0 && searchQuery && (
+                <div className="text-xs text-slate-400 p-2 text-center">
+                  Tidak ditemukan "{searchQuery}"
+                </div>
+              )}
+
+              {options.length === 0 && (
+                <div className="text-xs text-slate-400 p-2">Tidak ada opsi</div>
+              )}
+            </div>
+
+            {/* Footer Actions */}
+            <div className="border-t border-slate-100 p-2 flex items-center justify-between">
               <button
                 type="button"
-                onClick={handleClose}
-                className="px-3 py-1.5 bg-gov-600 text-white text-xs rounded hover:bg-gov-700"
+                onClick={() => { onChange([]); handleClose(); }}
+                className="text-xs text-slate-500 hover:text-gov-600"
               >
-                Done
+                Clear
               </button>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-400">
+                  {value.length} dipilih
+                </span>
+                <button
+                  type="button"
+                  onClick={handleClose}
+                  className="px-3 py-1.5 bg-gov-600 text-white text-xs rounded hover:bg-gov-700"
+                >
+                  Done
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );

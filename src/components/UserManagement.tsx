@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { User, Role } from '../../types';
-import { Plus, Search, Edit2, Trash2, Shield, User as UserIcon, X, Save, Key, Briefcase, Tag, Database, Folder } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Shield, User as UserIcon, X, Save, Key, Briefcase, Tag, Database, Folder, Copy, Check, Calendar, AlertCircle, Loader2 } from 'lucide-react';
 import MultiSelectChip from './MultiSelectChip';
 import { useNotificationModal, useConfirmModal } from '../hooks/useModal';
-import NotificationModal from './NotificationModal';
 import ConfirmModal from './ConfirmModal';
+import NotificationModal from './NotificationModal';
 import { useDivision } from '../contexts/DivisionContext';
 import BMNSatkerConfig from './BMNSatkerConfig';
+import { supabase } from '../lib/supabaseClient';
 
 // Master Category Management Component
 interface MasterCategoryManagementProps {
@@ -515,7 +516,7 @@ interface UserManagementProps {
   onDeleteMasterSubCategory: (id: string) => void;
 }
 
-type Tab = 'Users' | 'Jabatan' | 'Kategori' | 'Satuan Kerja';
+type Tab = 'Users' | 'Jabatan' | 'Kategori' | 'Satuan Kerja' | 'API Integrasi';
 
 const headerColorPresets = {
   default: { bg: 'bg-gray-50', border: 'border-gray-200', text: 'text-gray-600', label: 'Default' },
@@ -552,6 +553,148 @@ const UserManagement: React.FC<UserManagementProps> = ({
 
   // Simple Input State for Jabatan/Kategori
   const [newItemInput, setNewItemInput] = useState('');
+
+  // API Key Management State
+  const [apiKeys, setApiKeys] = useState<any[]>([]);
+  const [isLoadingApiKeys, setIsLoadingApiKeys] = useState(false);
+  const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
+  const [newApiKeyName, setNewApiKeyName] = useState('');
+  const [newApiKeyUserIds, setNewApiKeyUserIds] = useState<string[]>([]);
+  const [newApiKeyExpiresAt, setNewApiKeyExpiresAt] = useState('');
+  const [generatedPlainKey, setGeneratedPlainKey] = useState<string | null>(null);
+  const [isCopying, setIsCopying] = useState(false);
+  const [isGeneratingKey, setIsGeneratingKey] = useState(false);
+
+  const fetchApiKeys = async () => {
+    setIsLoadingApiKeys(true);
+    try {
+      const { data, error } = await supabase
+        .from('api_keys')
+        .select(`
+          id,
+          name,
+          created_at,
+          expires_at,
+          is_active,
+          api_key_users(
+            user_id,
+            profiles:user_id(
+              id,
+              name,
+              jabatan,
+              divisi
+            )
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching api keys:', error);
+        showNotification('Gagal Memuat API Key', error.message, 'error');
+      } else {
+        setApiKeys(data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching api keys:', err);
+    } finally {
+      setIsLoadingApiKeys(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'API Integrasi') {
+      fetchApiKeys();
+    }
+  }, [activeTab]);
+
+  const handleGenerateApiKey = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newApiKeyName.trim()) {
+      showNotification('Input Tidak Lengkap', 'Nama integrasi wajib diisi.', 'warning');
+      return;
+    }
+    if (newApiKeyUserIds.length === 0) {
+      showNotification('Input Tidak Lengkap', 'Pilih minimal satu target pengguna.', 'warning');
+      return;
+    }
+
+    setIsGeneratingKey(true);
+    try {
+      // 1. Generate random key
+      const rawKey = 'pulse_ppa_live_' + Array.from(crypto.getRandomValues(new Uint8Array(24))).map(b => b.toString(16).padStart(2, '0')).join('');
+      
+      // 2. Hash key using SHA-256
+      const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(rawKey));
+      const keyHash = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+
+      // 3. Save to database
+      const { data: apiKeyRecord, error: insertError } = await supabase
+        .from('api_keys')
+        .insert({
+          name: newApiKeyName.trim(),
+          key_hash: keyHash,
+          expires_at: newApiKeyExpiresAt ? new Date(newApiKeyExpiresAt).toISOString() : null
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        throw insertError;
+      }
+
+      // 4. Save junction rows
+      const relationPayload = newApiKeyUserIds.map(userId => ({
+        api_key_id: apiKeyRecord.id,
+        user_id: userId
+      }));
+
+      const { error: relError } = await supabase
+        .from('api_key_users')
+        .insert(relationPayload);
+
+      if (relError) {
+        throw relError;
+      }
+
+      // 5. Success
+      setGeneratedPlainKey(rawKey);
+      setNewApiKeyName('');
+      setNewApiKeyUserIds([]);
+      setNewApiKeyExpiresAt('');
+      setIsApiKeyModalOpen(false);
+      fetchApiKeys();
+      showNotification('Berhasil', 'API Key baru berhasil dibuat.', 'success');
+    } catch (err: any) {
+      console.error('Error generating api key:', err);
+      showNotification('Gagal Membuat API Key', err.message || 'Terjadi kesalahan sistem.', 'error');
+    } finally {
+      setIsGeneratingKey(false);
+    }
+  };
+
+  const handleRevokeApiKey = async (id: string, name: string) => {
+    showConfirm(
+      'Revoke API Key',
+      `Apakah Anda yakin ingin menonaktifkan/menghapus API Key untuk "${name}"? Sistem eksternal yang menggunakan key ini tidak akan bisa mengakses API lagi.`,
+      async () => {
+        const { error } = await supabase
+          .from('api_keys')
+          .delete()
+          .eq('id', id);
+
+        if (error) {
+          console.error('Error deleting api key:', error);
+          showNotification('Gagal Revoke API Key', error.message, 'error');
+        } else {
+          showNotification('Berhasil', 'API Key berhasil dicabut.', 'success');
+          fetchApiKeys();
+        }
+      },
+      'error',
+      'Revoke',
+      'Batal'
+    );
+  };
 
   // --- User Logic ---
 
@@ -723,6 +866,12 @@ const UserManagement: React.FC<UserManagementProps> = ({
                 >
                     <Briefcase size={14} className="sm:w-4 sm:h-4" /> Satuan Kerja
                 </button>
+                <button 
+                    onClick={() => { setActiveTab('API Integrasi'); setSearchTerm(''); }}
+                    className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium flex items-center justify-center gap-1.5 sm:gap-2 transition-all whitespace-nowrap ${activeTab === 'API Integrasi' ? 'bg-gov-50 text-gov-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                    <Key size={14} className="sm:w-4 sm:h-4" /> Integrasi API
+                </button>
             </div>
         </div>
 
@@ -752,9 +901,21 @@ const UserManagement: React.FC<UserManagementProps> = ({
                     >
                         <Plus size={18} /> Tambah User
                     </button>
+                ) : activeTab === 'API Integrasi' ? (
+                     <button 
+                        onClick={() => {
+                            setNewApiKeyName('');
+                            setNewApiKeyUserIds([]);
+                            setNewApiKeyExpiresAt('');
+                            setIsApiKeyModalOpen(true);
+                        }}
+                        className="w-full sm:w-auto bg-gov-600 text-white px-4 py-2.5 rounded-lg font-semibold hover:bg-gov-700 flex items-center justify-center gap-2 shadow-sm transition-all text-sm"
+                    >
+                        <Plus size={18} /> Generate API Key
+                    </button>
                 ) : (
                     <div className="flex gap-2">
-                        <input 
+                         <input 
                             type="text"
                             value={newItemInput}
                             onChange={(e) => setNewItemInput(e.target.value)}
@@ -886,6 +1047,157 @@ const UserManagement: React.FC<UserManagementProps> = ({
                             )}
                         </div>
                     </>
+                ) : activeTab === 'API Integrasi' ? (
+                    isLoadingApiKeys ? (
+                        <div className="flex items-center justify-center p-12">
+                            <Loader2 className="w-8 h-8 text-gov-600 animate-spin mr-2" />
+                            <span className="text-slate-500 font-medium">Memuat data API Key...</span>
+                        </div>
+                    ) : apiKeys.length === 0 ? (
+                        <div className="p-12 text-center text-slate-400">
+                            <Key size={48} className="mx-auto mb-3 text-slate-300" />
+                            <p className="text-sm font-semibold text-slate-600">Belum ada API Key</p>
+                            <p className="text-xs text-slate-400 mt-1">Buat API Key baru untuk memberikan akses jadwal kegiatan kepada sistem lain.</p>
+                            <button
+                                onClick={() => {
+                                    setNewApiKeyName('');
+                                    setNewApiKeyUserIds([]);
+                                    setNewApiKeyExpiresAt('');
+                                    setIsApiKeyModalOpen(true);
+                                }}
+                                className="mt-4 inline-flex items-center gap-2 bg-gov-600 hover:bg-gov-700 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow-sm transition-colors"
+                            >
+                                <Plus size={14} /> Generate API Key Pertama
+                            </button>
+                        </div>
+                    ) : (
+                        <>
+                            {/* Desktop View */}
+                            <table className="hidden md:table w-full text-left border-collapse">
+                                <thead className="bg-slate-50 border-b border-slate-200">
+                                    <tr>
+                                        <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Nama Integrasi / Sistem</th>
+                                        <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Target Pengguna</th>
+                                        <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Dibuat Pada</th>
+                                        <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Masa Berlaku</th>
+                                        <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
+                                        <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {apiKeys
+                                        .filter(k => k.name.toLowerCase().includes(searchTerm.toLowerCase()))
+                                        .map(key => {
+                                            const isExpired = key.expires_at && new Date(key.expires_at) < new Date();
+                                            const isActive = key.is_active && !isExpired;
+                                            return (
+                                                <tr key={key.id} className="hover:bg-slate-50/50 transition-colors">
+                                                    <td className="px-6 py-4">
+                                                        <div className="font-semibold text-slate-800 text-sm">{key.name}</div>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <div className="flex flex-wrap gap-1 max-w-xs">
+                                                            {key.api_key_users && key.api_key_users.length > 0 ? (
+                                                                key.api_key_users.map((ku: any) => ku.profiles ? (
+                                                                    <span key={ku.user_id} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-100" title={`${ku.profiles.jabatan || ''} - ${ku.profiles.divisi || ''}`}>
+                                                                        {ku.profiles.name}
+                                                                    </span>
+                                                                ) : null)
+                                                            ) : (
+                                                                <span className="text-slate-400 text-xs">-</span>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-sm text-slate-500">
+                                                        {new Date(key.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                    </td>
+                                                    <td className="px-6 py-4 text-sm text-slate-500">
+                                                        {key.expires_at ? (
+                                                            <span className="flex items-center gap-1">
+                                                                <Calendar size={14} className="text-slate-400" />
+                                                                {new Date(key.expires_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-slate-400 italic">Selamanya</span>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                                            isActive ? 'bg-green-100 text-green-800' : 'bg-rose-100 text-rose-800'
+                                                        }`}>
+                                                            {isActive ? 'Aktif' : isExpired ? 'Expired' : 'Nonaktif'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-right">
+                                                        <button 
+                                                            onClick={() => handleRevokeApiKey(key.id, key.name)} 
+                                                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                            title="Revoke / Cabut Kunci"
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                </tbody>
+                            </table>
+
+                            {/* Mobile View */}
+                            <div className="md:hidden divide-y divide-slate-100">
+                                {apiKeys
+                                    .filter(k => k.name.toLowerCase().includes(searchTerm.toLowerCase()))
+                                    .map(key => {
+                                        const isExpired = key.expires_at && new Date(key.expires_at) < new Date();
+                                        const isActive = key.is_active && !isExpired;
+                                        return (
+                                            <div key={key.id} className="p-4 space-y-3">
+                                                <div className="flex justify-between items-start">
+                                                    <div>
+                                                        <div className="font-bold text-slate-800 text-sm">{key.name}</div>
+                                                        <div className="text-[10px] text-slate-400 mt-0.5">
+                                                            Dibuat: {new Date(key.created_at).toLocaleDateString('id-ID')}
+                                                        </div>
+                                                    </div>
+                                                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                                                        isActive ? 'bg-green-100 text-green-800' : 'bg-rose-100 text-rose-800'
+                                                    }`}>
+                                                        {isActive ? 'Aktif' : isExpired ? 'Expired' : 'Nonaktif'}
+                                                    </span>
+                                                </div>
+
+                                                <div className="space-y-1">
+                                                    <div className="text-xs font-semibold text-slate-500">Target Pengguna:</div>
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {key.api_key_users && key.api_key_users.length > 0 ? (
+                                                            key.api_key_users.map((ku: any) => ku.profiles ? (
+                                                                <span key={ku.user_id} className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-indigo-50 text-indigo-700 border border-indigo-100">
+                                                                    {ku.profiles.name}
+                                                                </span>
+                                                            ) : null)
+                                                        ) : (
+                                                            <span className="text-slate-400 text-xs">-</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex justify-between items-center pt-2 border-t border-slate-50 text-xs text-slate-500">
+                                                    <div>
+                                                        Masa Berlaku: {key.expires_at ? new Date(key.expires_at).toLocaleDateString('id-ID') : 'Selamanya'}
+                                                    </div>
+                                                    <button 
+                                                        onClick={() => handleRevokeApiKey(key.id, key.name)} 
+                                                        className="flex items-center gap-1 text-red-600 hover:bg-red-50 px-2 py-1 rounded transition-colors font-medium text-xs"
+                                                    >
+                                                        <Trash2 size={14} /> Revoke
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                            </div>
+                        </>
+                    )
                 ) : activeTab === 'Kategori' ? (
                     <div className="space-y-8">
                         <MasterCategoryManagement 
@@ -1197,6 +1509,146 @@ const UserManagement: React.FC<UserManagementProps> = ({
             confirmText={confirmModal.confirmText}
             cancelText={confirmModal.cancelText}
         />
+
+        {/* API Key Modal Form */}
+        {isApiKeyModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+                <div className="bg-white w-full rounded-2xl shadow-xl sm:max-w-lg overflow-visible">
+                    <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-2xl">
+                        <h3 className="font-bold text-slate-800 text-sm sm:text-base flex items-center gap-2">
+                            <Key size={18} className="text-gov-600" />
+                            Generate API Key Baru
+                        </h3>
+                        <button onClick={() => setIsApiKeyModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-1">
+                            <X size={20} />
+                        </button>
+                    </div>
+                    <form onSubmit={handleGenerateApiKey} className="p-4 sm:p-6 space-y-4 overflow-visible">
+                        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 mb-2 space-y-1">
+                            <h4 className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                                <AlertCircle size={14} className="text-gov-600" /> Keamanan API
+                            </h4>
+                            <p className="text-[10px] text-slate-500 leading-relaxed">
+                                Kunci API ini memberikan akses penuh untuk membaca jadwal kegiatan pengguna yang Anda pilih. Harap gunakan hanya untuk sistem internal resmi.
+                            </p>
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Nama Integrasi / Nama Sistem <span className="text-red-500">*</span></label>
+                            <input 
+                                type="text"
+                                required 
+                                placeholder="Contoh: Sistem Display TV Ruang Menteri"
+                                value={newApiKeyName}
+                                onChange={e => setNewApiKeyName(e.target.value)}
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Target Pengguna (Bisa Pilih Banyak) <span className="text-red-500">*</span></label>
+                            <MultiSelectChip
+                                options={users.map(user => ({
+                                    value: user.id,
+                                    label: `${user.name} (${user.jabatan || user.role})`
+                                }))}
+                                value={newApiKeyUserIds}
+                                onChange={(selectedIds) => setNewApiKeyUserIds(selectedIds)}
+                                placeholder="Pilih pegawai..."
+                                className="w-full"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Masa Berlaku (Kosongkan jika selamanya)</label>
+                            <div className="relative">
+                                <input 
+                                    type="date"
+                                    value={newApiKeyExpiresAt}
+                                    min={new Date().toISOString().split('T')[0]}
+                                    onChange={e => setNewApiKeyExpiresAt(e.target.value)}
+                                    className="w-full pl-8 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm bg-white"
+                                />
+                                <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                            </div>
+                        </div>
+
+                        <div className="pt-4 flex gap-3">
+                             <button type="button" onClick={() => setIsApiKeyModalOpen(false)} className="flex-1 px-4 py-2.5 text-slate-600 font-medium text-sm hover:bg-slate-100 rounded-lg border border-slate-200">Batal</button>
+                             <button 
+                                type="submit" 
+                                disabled={isGeneratingKey}
+                                className="flex-1 px-4 py-2.5 bg-gov-600 text-white font-bold text-sm rounded-lg hover:bg-gov-700 disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                             >
+                                {isGeneratingKey ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                        <span>Membuat...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Save size={16} />
+                                        <span>Generate Key</span>
+                                    </>
+                                )}
+                             </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        )}
+
+        {/* Success Modal - Display generated key */}
+        {generatedPlainKey && (
+            <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+                <div className="bg-white w-full rounded-2xl shadow-2xl sm:max-w-md overflow-hidden transform transition-all scale-100">
+                    <div className="p-6 text-center space-y-4">
+                        <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto text-green-600">
+                            <Check size={24} />
+                        </div>
+                        
+                        <div className="space-y-1">
+                            <h3 className="text-lg font-bold text-slate-800">API Key Berhasil Dibuat!</h3>
+                            <p className="text-xs text-slate-500">Kunci ini telah di-hash dengan aman di database.</p>
+                        </div>
+
+                        <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 text-left flex gap-2">
+                            <AlertCircle className="text-rose-600 flex-shrink-0 mt-0.5" size={16} />
+                            <div>
+                                <p className="text-xs font-bold text-rose-800">PERINGATAN PENTING</p>
+                                <p className="text-[10px] text-rose-600 mt-1 leading-relaxed">
+                                    Salin kunci di bawah ini sekarang. Demi keamanan, Anda tidak akan pernah bisa melihat kunci ini lagi setelah menutup jendela ini.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="relative bg-slate-50 border border-slate-200 rounded-xl p-3 font-mono text-xs break-all pr-12 text-slate-700 select-all leading-normal flex items-center justify-between text-left">
+                            <span className="w-full block pr-4">{generatedPlainKey}</span>
+                            <button
+                                onClick={() => {
+                                    navigator.clipboard.writeText(generatedPlainKey);
+                                    setIsCopying(true);
+                                    setTimeout(() => setIsCopying(false), 2000);
+                                }}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 hover:bg-slate-200 rounded-lg text-slate-500 hover:text-slate-800 transition-colors"
+                                title="Salin ke Clipboard"
+                            >
+                                {isCopying ? <Check size={14} className="text-green-600 animate-pulse" /> : <Copy size={14} />}
+                            </button>
+                        </div>
+
+                        <div className="pt-2">
+                            <button
+                                onClick={() => setGeneratedPlainKey(null)}
+                                className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm py-2.5 rounded-lg shadow transition-colors"
+                            >
+                                Selesai
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )}
     </div>
   );
 };
