@@ -65,3 +65,5 @@ MANUAL_*.md
 
 # Dynamic build version file
 public/version.json
+.vercel
+.env*.local
