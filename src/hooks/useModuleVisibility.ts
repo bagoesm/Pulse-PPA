@@ -62,6 +62,7 @@ export function useModuleVisibility(currentUser: User | null) {
 
   const isModuleVisible = useCallback(
     (moduleName: string): boolean => {
+      if (moduleName === 'Diskusi & Chat') return true;
       if (loading) {
         // During loading, show standard items to prevent flashing, but hide restricted ones
         if (moduleName === 'Pelayanan Zoom' || moduleName === 'Manajemen Modul') {

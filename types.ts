@@ -380,6 +380,7 @@ export const SIDEBAR_ITEMS = [
   { name: 'Dashboard', icon: 'LayoutDashboard' },
   { name: 'Semua Task', icon: 'ListTodo' },
   { name: 'Project', icon: 'Briefcase' },
+  { name: 'Diskusi & Chat', icon: 'MessageSquarePlus' },
   {
     name: 'Surat & Kegiatan',
     icon: 'FolderOpen',
@@ -1022,6 +1023,49 @@ export interface PenilaianArsip {
   createdAt?: string;
   updatedAt?: string;
 }
+
+export interface ChatRoom {
+  id: string;
+  name: string | null;
+  isGroup: boolean;
+  projectId: string | null;
+  createdBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+  projectName?: string; // Populated project name
+  otherUserId?: string; // ID of the other user in 1-on-1 chat
+  lastMessage?: string | null;
+  lastMessageTime?: string | null;
+  lastMessageSenderId?: string | null;
+  lastMessageIsRead?: boolean;
+  unreadCount?: number;
+}
+
+export interface ChatRoomMember {
+  id: string;
+  roomId: string;
+  userId: string;
+  joinedAt: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  roomId: string;
+  senderId: string;
+  message: string | null;
+  type: 'text' | 'task' | 'meeting' | 'file' | 'project';
+  linkedTaskId: string | null;
+  linkedMeetingId: string | null;
+  linkedProjectId?: string | null;
+  attachmentPath: string | null;
+  attachmentName: string | null;
+  attachmentType: string | null;
+  isRead: boolean;
+  createdAt: string;
+  senderName?: string;
+  senderAvatar?: string;
+}
+
 
 
 

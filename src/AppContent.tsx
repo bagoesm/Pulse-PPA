@@ -69,6 +69,8 @@ const InventoriBMNPage = lazy(() => import('./components/InventoriBMNPage'));
 const BudgetRealizationPage = lazy(() => import('./components/BudgetRealization/BudgetRealizationPage'));
 const PenilaianArsipPage = lazy(() => import('./components/PenilaianArsipPage'));
 const PublicDeviceForm = lazy(() => import('./components/PublicDeviceForm'));
+const ChatPage = lazy(() => import('./components/ChatPage'));
+
 
 // Loading fallback
 const PageLoader: React.FC = () => (
@@ -373,6 +375,20 @@ const AppContent: React.FC = () => {
                 fetchComments(),
                 fetchTaskActivities()
               ]);
+            }
+            break;
+
+          case 'Diskusi & Chat':
+            // Chat needs tasks, comments and meetings to be shared
+            if (!isTasksFetched) {
+              await Promise.all([
+                fetchTasks(),
+                fetchComments(),
+                fetchTaskActivities()
+              ]);
+            }
+            if (!meetings.length) {
+              await fetchMeetings();
             }
             break;
 
@@ -849,7 +865,7 @@ const AppContent: React.FC = () => {
         )}
 
         {/* Top Header / Filter Bar - HIDDEN for special pages */}
-        {activeTab !== 'Dashboard' && activeTab !== 'Analitik' && activeTab !== 'Project' && activeTab !== 'Master Data' && activeTab !== 'Saran Masukan' && activeTab !== 'Pengumuman' && activeTab !== 'Inventori Data' && activeTab !== 'Inventori BMN' && activeTab !== 'Jadwal Kegiatan' && activeTab !== 'Daftar Surat' && activeTab !== 'Activity Log' && activeTab !== 'Daftar Disposisi' && activeTab !== 'Manajemen Visibility' && activeTab !== 'Riwayat Perubahan' && activeTab !== 'Pelayanan Zoom' && activeTab !== 'Manajemen Modul' && activeTab !== 'Penilaian Arsip' && !['Dashboard Realisasi', 'Monitoring Anggaran', 'Daftar Transaksi', 'Laporan Anggaran', 'Master Anggaran'].includes(activeTab) && (
+        {activeTab !== 'Dashboard' && activeTab !== 'Analitik' && activeTab !== 'Project' && activeTab !== 'Master Data' && activeTab !== 'Saran Masukan' && activeTab !== 'Pengumuman' && activeTab !== 'Inventori Data' && activeTab !== 'Inventori BMN' && activeTab !== 'Jadwal Kegiatan' && activeTab !== 'Daftar Surat' && activeTab !== 'Activity Log' && activeTab !== 'Daftar Disposisi' && activeTab !== 'Manajemen Visibility' && activeTab !== 'Riwayat Perubahan' && activeTab !== 'Pelayanan Zoom' && activeTab !== 'Manajemen Modul' && activeTab !== 'Penilaian Arsip' && activeTab !== 'Diskusi & Chat' && !['Dashboard Realisasi', 'Monitoring Anggaran', 'Daftar Transaksi', 'Laporan Anggaran', 'Master Anggaran'].includes(activeTab) && (
           <header className="bg-white border-b border-slate-200 px-3 sm:px-6 py-3 sm:py-4 z-20 relative">
             <div className="flex flex-col gap-3 sm:gap-4 mb-3 sm:mb-4">
               {/* Title Section */}
@@ -1289,6 +1305,19 @@ const AppContent: React.FC = () => {
             onDownloadTemplate={handleDownloadTemplate}
             onFixLegacyTemplates={fixLegacyTemplates}
           />
+          </Suspense>
+        ) : activeTab === 'Diskusi & Chat' ? (
+          <Suspense fallback={<PageLoader />}>
+            <ChatPage
+              currentUser={currentUser}
+              allUsers={allUsers}
+              projects={projects}
+              tasks={tasks}
+              meetings={meetings}
+              onTaskClick={handleTaskClick}
+              onViewMeeting={handleViewMeeting}
+              showNotification={showNotification}
+            />
           </Suspense>
         ) : (
           <div className="flex-1 overflow-x-auto overflow-y-hidden bg-slate-50 p-3 sm:p-6">
