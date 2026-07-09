@@ -196,6 +196,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({
   const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
   const [isPersonalChatModalOpen, setIsPersonalChatModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isGroupSettingsOpen, setIsGroupSettingsOpen] = useState(false);
   const [shareType, setShareType] = useState<'task' | 'meeting' | 'project'>('task');
   const [shareSearch, setShareSearch] = useState('');
   const [shareProjectFilter, setShareProjectFilter] = useState('All');
@@ -224,6 +225,12 @@ export const ChatPage: React.FC<ChatPageProps> = ({
   const [onlineUsers, setOnlineUsers] = useState<string[]>([]); // User IDs online
   // Per-room message cache to show instantly on revisit
   const messagesCacheRef = useRef<Record<string, ChatMessage[]>>({});
+  // Group settings
+  const [groupMembers, setGroupMembers] = useState<User[]>([]);
+  const [editGroupName, setEditGroupName] = useState('');
+  const [isUploadingGroupPhoto, setIsUploadingGroupPhoto] = useState(false);
+  const [addMemberSearch, setAddMemberSearch] = useState('');
+  const groupPhotoInputRef = useRef<HTMLInputElement>(null);
   // Local state for aesthetic toasts
   const [toasts, setToasts] = useState<{ id: string; message: string; type: 'success' | 'error' | 'info' }[]>([]);
 
@@ -457,6 +464,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({
             updatedAt: room.updated_at,
             projectName,
             otherUserId,
+            groupPhoto: room.group_photo_path ? supabase.storage.from('attachment').getPublicUrl(room.group_photo_path).data.publicUrl : null,
             lastMessage,
             lastMessageTime,
             lastMessageSenderId,
@@ -1028,6 +1036,117 @@ export const ChatPage: React.FC<ChatPageProps> = ({
     });
   };
 
+  // === GROUP SETTINGS HANDLERS ===
+
+  // Fetch group members for the active room
+  const fetchGroupMembers = async (roomId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('chat_room_members')
+        .select('user_id')
+        .eq('room_id', roomId);
+      if (error) throw error;
+      const memberIds = (data || []).map((d: any) => d.user_id);
+      const members = memberIds.map((id: string) => systemUsers.find(u => u.id === id)).filter(Boolean) as User[];
+      setGroupMembers(members);
+    } catch (err: any) {
+      console.error('Error fetching group members:', err);
+    }
+  };
+
+  // Open group settings panel
+  const openGroupSettings = () => {
+    if (!activeRoom?.isGroup) return;
+    setEditGroupName(activeRoom.name || '');
+    fetchGroupMembers(activeRoom.id);
+    setIsGroupSettingsOpen(true);
+  };
+
+  // Update group name
+  const handleUpdateGroupName = async () => {
+    if (!activeRoomId || !editGroupName.trim()) return;
+    try {
+      const { error } = await supabase
+        .from('chat_rooms')
+        .update({ name: editGroupName.trim(), updated_at: new Date().toISOString() })
+        .eq('id', activeRoomId);
+      if (error) throw error;
+      setRooms(prev => prev.map(r => r.id === activeRoomId ? { ...r, name: editGroupName.trim() } : r));
+      addToast('Nama grup berhasil diubah', 'success');
+    } catch (err: any) {
+      addToast('Gagal mengubah nama grup: ' + err.message, 'error');
+    }
+  };
+
+  // Upload group photo
+  const handleUploadGroupPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!activeRoomId || !e.target.files?.[0]) return;
+    const file = e.target.files[0];
+    if (!file.type.startsWith('image/')) { addToast('Hanya file gambar yang diizinkan', 'error'); return; }
+    setIsUploadingGroupPhoto(true);
+    try {
+      const ext = file.name.split('.').pop();
+      const path = `group_photos/${activeRoomId}.${ext}`;
+      const { error: uploadErr } = await supabase.storage.from('attachment').upload(path, file, { upsert: true });
+      if (uploadErr) throw uploadErr;
+      const { error: updateErr } = await supabase
+        .from('chat_rooms')
+        .update({ group_photo_path: path, updated_at: new Date().toISOString() })
+        .eq('id', activeRoomId);
+      if (updateErr) throw updateErr;
+      const { data: { publicUrl } } = supabase.storage.from('attachment').getPublicUrl(path);
+      setRooms(prev => prev.map(r => r.id === activeRoomId ? { ...r, groupPhoto: publicUrl + '?t=' + Date.now() } : r));
+      addToast('Foto grup berhasil diubah', 'success');
+    } catch (err: any) {
+      addToast('Gagal upload foto grup: ' + err.message, 'error');
+    } finally {
+      setIsUploadingGroupPhoto(false);
+      if (e.target) e.target.value = '';
+    }
+  };
+
+  // Remove a member from group (admin only)
+  const handleRemoveMember = (userId: string, userName: string) => {
+    if (!activeRoomId) return;
+    setConfirmConfig({
+      isOpen: true,
+      title: 'Hapus Anggota',
+      message: `Hapus ${userName} dari grup ini?`,
+      confirmText: 'Hapus',
+      onConfirm: async () => {
+        setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+        try {
+          const { error } = await supabase
+            .from('chat_room_members')
+            .delete()
+            .eq('room_id', activeRoomId)
+            .eq('user_id', userId);
+          if (error) throw error;
+          setGroupMembers(prev => prev.filter(m => m.id !== userId));
+          addToast(`${userName} berhasil dihapus dari grup`, 'success');
+        } catch (err: any) {
+          addToast('Gagal menghapus anggota: ' + err.message, 'error');
+        }
+      }
+    });
+  };
+
+  // Add a member to group (admin only)
+  const handleAddMember = async (user: User) => {
+    if (!activeRoomId) return;
+    try {
+      const { error } = await supabase
+        .from('chat_room_members')
+        .insert({ room_id: activeRoomId, user_id: user.id });
+      if (error) throw error;
+      setGroupMembers(prev => [...prev, user]);
+      setAddMemberSearch('');
+      addToast(`${user.name} berhasil ditambahkan ke grup`, 'success');
+    } catch (err: any) {
+      addToast('Gagal menambahkan anggota: ' + err.message, 'error');
+    }
+  };
+
   // Start 1-on-1 Personal Chat
   const handleStartPersonalChat = async (otherUserId: string) => {
     setIsPersonalChatModalOpen(false);
@@ -1359,9 +1478,13 @@ export const ChatPage: React.FC<ChatPageProps> = ({
               <div className="flex items-center gap-3 min-w-0">
                 <div className="shrink-0">
                   {activeRoom.isGroup ? (
-                    <div className="w-9 h-9 rounded-full bg-gov-50 text-gov-700 flex items-center justify-center font-bold text-xs border border-gov-100">
-                      <Users size={16} className="text-gov-600" />
-                    </div>
+                    activeRoom.groupPhoto ? (
+                      <img src={activeRoom.groupPhoto} alt={activeRoom.name || 'Grup'} className="w-9 h-9 rounded-full object-cover border border-gov-100" />
+                    ) : (
+                      <div className="w-9 h-9 rounded-full bg-gov-50 text-gov-700 flex items-center justify-center font-bold text-xs border border-gov-100">
+                        <Users size={16} className="text-gov-600" />
+                      </div>
+                    )
                   ) : (
                     <UserAvatar
                       name={activeRoom.name || 'P'}
@@ -1396,6 +1519,17 @@ export const ChatPage: React.FC<ChatPageProps> = ({
                     <Briefcase size={14} className="text-slate-500" />
                     <span className="truncate">{activeRoom.projectName}</span>
                   </div>
+                )}
+
+                {/* Group Settings Button - only for groups */}
+                {activeRoom.isGroup && (
+                  <button
+                    onClick={openGroupSettings}
+                    title="Pengaturan Grup"
+                    className="p-2 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-all"
+                  >
+                    <Info size={18} />
+                  </button>
                 )}
                 
                 <button
@@ -2122,7 +2256,213 @@ export const ChatPage: React.FC<ChatPageProps> = ({
             </div>
           );
         })}
+      {/* Toast notifications area */}
       </div>
+
+      {/* GROUP SETTINGS PANEL */}
+      {isGroupSettingsOpen && activeRoom?.isGroup && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-slate-900/30 backdrop-blur-sm"
+            onClick={() => setIsGroupSettingsOpen(false)}
+          />
+          {/* Panel */}
+          <div className="relative w-full max-w-sm bg-white h-full shadow-2xl flex flex-col animate-slideIn overflow-hidden">
+            {/* Panel Header */}
+            <div className="h-14 border-b border-slate-100 flex items-center justify-between px-5 shrink-0">
+              <h2 className="font-bold text-slate-800 text-sm">Info Grup</h2>
+              <button
+                onClick={() => setIsGroupSettingsOpen(false)}
+                className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto">
+              {/* Group Photo & Name */}
+              <div className="p-5 flex flex-col items-center gap-3 border-b border-slate-100">
+                {/* Group Photo */}
+                <div className="relative group">
+                  {activeRoom.groupPhoto ? (
+                    <img
+                      src={activeRoom.groupPhoto}
+                      alt={activeRoom.name || 'Grup'}
+                      className="w-20 h-20 rounded-full object-cover border-2 border-gov-100 shadow"
+                    />
+                  ) : (
+                    <div className="w-20 h-20 rounded-full bg-gov-50 flex items-center justify-center border-2 border-gov-100 shadow">
+                      <Users size={28} className="text-gov-400" />
+                    </div>
+                  )}
+                  {/* Upload overlay */}
+                  {activeRoom.createdBy === currentUser.id && (
+                    <button
+                      onClick={() => groupPhotoInputRef.current?.click()}
+                      disabled={isUploadingGroupPhoto}
+                      className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer"
+                    >
+                      {isUploadingGroupPhoto
+                        ? <Loader2 size={20} className="text-white animate-spin" />
+                        : <ImageIcon size={20} className="text-white" />
+                      }
+                    </button>
+                  )}
+                  <input
+                    ref={groupPhotoInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleUploadGroupPhoto}
+                  />
+                </div>
+
+                {/* Edit Group Name */}
+                {activeRoom.createdBy === currentUser.id ? (
+                  <div className="w-full flex gap-2">
+                    <input
+                      value={editGroupName}
+                      onChange={e => setEditGroupName(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && handleUpdateGroupName()}
+                      className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-gov-500/20 focus:border-gov-400 text-center"
+                      placeholder="Nama grup..."
+                    />
+                    <button
+                      onClick={handleUpdateGroupName}
+                      disabled={!editGroupName.trim() || editGroupName.trim() === activeRoom.name}
+                      className="px-3 py-2 bg-gov-600 text-white rounded-lg text-xs font-semibold disabled:opacity-40 hover:bg-gov-700 transition-colors"
+                    >
+                      Simpan
+                    </button>
+                  </div>
+                ) : (
+                  <p className="font-bold text-slate-800 text-base text-center">{activeRoom.name}</p>
+                )}
+
+                {activeRoom.projectName && (
+                  <div className="flex items-center gap-1.5 text-xs text-sky-700 bg-sky-50 px-2.5 py-1 rounded-full border border-sky-100">
+                    <Briefcase size={12} />
+                    <span>{activeRoom.projectName}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Members List */}
+              <div className="p-5">
+                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
+                  Anggota ({groupMembers.length})
+                </h3>
+                <div className="space-y-2">
+                  {groupMembers.map(member => {
+                    const isAdmin = member.id === activeRoom.createdBy;
+                    const isCurrentUser = member.id === currentUser.id;
+                    const canRemove = activeRoom.createdBy === currentUser.id && !isCurrentUser;
+                    return (
+                      <div key={member.id} className="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 transition-colors">
+                        <UserAvatar
+                          name={member.name || 'U'}
+                          profilePhoto={member.profilePhoto}
+                          size="sm"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-sm font-semibold text-slate-800 truncate">
+                              {member.name || 'Unknown'}
+                              {isCurrentUser && <span className="text-slate-400 font-normal"> (Anda)</span>}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            {isAdmin && (
+                              <span className="text-[10px] bg-gov-50 text-gov-700 border border-gov-100 px-1.5 py-0.5 rounded font-semibold">Admin</span>
+                            )}
+                            {member.divisi && (
+                              <span className="text-[10px] text-slate-400 truncate">{member.divisi}</span>
+                            )}
+                          </div>
+                        </div>
+                        {canRemove && (
+                          <button
+                            onClick={() => handleRemoveMember(member.id, member.name || 'Anggota')}
+                            title="Hapus dari grup"
+                            className="p-1.5 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500 transition-colors shrink-0"
+                          >
+                            <X size={15} />
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Add Member Section - admin only */}
+              {activeRoom.createdBy === currentUser.id && (() => {
+                const memberIds = new Set(groupMembers.map(m => m.id));
+                const candidates = systemUsers.filter(u =>
+                  !memberIds.has(u.id) &&
+                  u.id !== currentUser.id &&
+                  (addMemberSearch === '' ||
+                    (u.name || '').toLowerCase().includes(addMemberSearch.toLowerCase()) ||
+                    (u.divisi || '').toLowerCase().includes(addMemberSearch.toLowerCase()) ||
+                    (u.nip || '').includes(addMemberSearch)
+                  )
+                );
+                return (
+                  <div className="px-5 pb-4 border-t border-slate-100 pt-4">
+                    <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Tambah Anggota</h3>
+                    <div className="relative mb-3">
+                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        value={addMemberSearch}
+                        onChange={e => setAddMemberSearch(e.target.value)}
+                        placeholder="Cari nama atau satker..."
+                        className="w-full pl-8 pr-3 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-gov-500/20 focus:border-gov-400"
+                      />
+                    </div>
+                    {addMemberSearch !== '' && (
+                      <div className="space-y-1 max-h-48 overflow-y-auto">
+                        {candidates.length === 0 ? (
+                          <p className="text-xs text-slate-400 text-center py-3">Tidak ada pengguna yang ditemukan</p>
+                        ) : (
+                          candidates.slice(0, 8).map(user => (
+                            <div key={user.id} className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-slate-50 transition-colors">
+                              <UserAvatar name={user.name || 'U'} profilePhoto={user.profilePhoto} size="sm" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-semibold text-slate-800 truncate">{user.name}</p>
+                                {user.divisi && <p className="text-[10px] text-slate-400 truncate">{user.divisi}</p>}
+                              </div>
+                              <button
+                                onClick={() => handleAddMember(user)}
+                                className="shrink-0 px-2.5 py-1 bg-gov-600 text-white rounded-lg text-[10px] font-semibold hover:bg-gov-700 transition-colors"
+                              >
+                                + Tambah
+                              </button>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+            </div>
+
+            {/* Panel Footer - Leave Group */}
+            <div className="p-4 border-t border-slate-100 shrink-0">
+              <button
+                onClick={() => { setIsGroupSettingsOpen(false); handleDeleteRoom(); }}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-red-500 hover:bg-red-50 border border-red-100 transition-colors"
+              >
+                <LogOut size={16} />
+                Keluar dari Grup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

@@ -1034,6 +1034,7 @@ export interface ChatRoom {
   updatedAt: string;
   projectName?: string; // Populated project name
   otherUserId?: string; // ID of the other user in 1-on-1 chat
+  groupPhoto?: string | null; // URL foto grup
   lastMessage?: string | null;
   lastMessageTime?: string | null;
   lastMessageSenderId?: string | null;
