@@ -1,6 +1,6 @@
-// src/contexts/MeetingsContext.tsx
-// Domain context for Meetings and Meeting Inviters
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { queryClient } from '../lib/queryClient';
 import { supabase } from '../lib/supabaseClient';
 import { Meeting, MeetingInviter } from '../../types';
 import { linkingService } from '../services/LinkingService';
@@ -43,13 +43,10 @@ interface MeetingsProviderProps {
 }
 
 export const MeetingsProvider: React.FC<MeetingsProviderProps> = ({ children, session }) => {
-    const [isMeetingsLoading, setIsMeetingsLoading] = useState(false);
-    const [meetings, setMeetings] = useState<Meeting[]>([]);
-    const [meetingInviters, setMeetingInviters] = useState<MeetingInviter[]>([]);
-
-    const fetchMeetings = useCallback(async () => {
-        setIsMeetingsLoading(true);
-        try {
+    // Fetch meetings via React Query
+    const { data: queryMeetingsData, isLoading: isMeetingsQueryLoading, refetch: refetchMeetings } = useQuery({
+        queryKey: ['meetings'],
+        queryFn: async () => {
             // Fetch from the view that includes disposisi information
             const { data: meetingsData, error: meetingsError } = await supabase
                 .from('meetings_with_disposisi')
@@ -95,8 +92,6 @@ export const MeetingsProvider: React.FC<MeetingsProviderProps> = ({ children, se
                     return meeting;
                 });
 
-                setMeetings(mappedMeetings);
-
                 // Extract unique inviters
                 const invitersMap = new Map<string, MeetingInviter>();
                 mappedMeetings.forEach((m: Meeting) => {
@@ -104,16 +99,37 @@ export const MeetingsProvider: React.FC<MeetingsProviderProps> = ({ children, se
                         invitersMap.set(m.inviter.id, m.inviter);
                     }
                 });
-                setMeetingInviters(Array.from(invitersMap.values()));
+
+                return {
+                    meetings: mappedMeetings,
+                    meetingInviters: Array.from(invitersMap.values())
+                };
             }
-        } finally {
-            setIsMeetingsLoading(false);
+            return { meetings: [], meetingInviters: [] };
+        },
+        enabled: !!session,
+    });
+
+    const [meetings, setMeetings] = useState<Meeting[]>([]);
+    const [meetingInviters, setMeetingInviters] = useState<MeetingInviter[]>([]);
+
+    useEffect(() => {
+        if (queryMeetingsData) {
+            setMeetings(queryMeetingsData.meetings);
+            setMeetingInviters(queryMeetingsData.meetingInviters);
         }
-    }, []);
+    }, [queryMeetingsData]);
+
+    const isMeetingsLoading = isMeetingsQueryLoading;
+
+    const fetchMeetings = useCallback(async () => {
+        await refetchMeetings();
+    }, [refetchMeetings]);
 
     const clearMeetings = useCallback(() => {
         setMeetings([]);
         setMeetingInviters([]);
+        queryClient.invalidateQueries({ queryKey: ['meetings'] });
     }, []);
 
     /**
@@ -158,13 +174,12 @@ export const MeetingsProvider: React.FC<MeetingsProviderProps> = ({ children, se
         }
     }, [fetchMeetings]);
 
+    // Auto-fetch/clear based on session
     useEffect(() => {
-        if (session) {
-            fetchMeetings();
-        } else {
+        if (!session) {
             clearMeetings();
         }
-    }, [session, fetchMeetings, clearMeetings]);
+    }, [session, clearMeetings]);
 
     const value: MeetingsContextType = {
         meetings,

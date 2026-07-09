@@ -23,7 +23,6 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabaseClient';
 import ImportZoomScheduleModal from './ImportZoomScheduleModal';
-import html2canvas from 'html2canvas';
 
 interface PelayananZoomPageProps {
   showNotification?: (title: string, message: string, type?: 'success' | 'error' | 'warning' | 'info') => void;
@@ -809,7 +808,8 @@ const PelayananZoomPage: React.FC<PelayananZoomPageProps> = ({ showNotification 
     });
   }, [clickedMonthMeetings, modalDynamicFilter, clickedChartType, usersMap]);
 
-  const exportChartToPng = useCallback((containerId: string, filename: string) => {
+  const exportChartToPng = useCallback(async (containerId: string, filename: string) => {
+    const html2canvas = (await import('html2canvas')).default;
     const container = document.getElementById(containerId);
     if (!container) return;
 

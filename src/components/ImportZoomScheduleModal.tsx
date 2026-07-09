@@ -1,7 +1,6 @@
 // src/components/ImportZoomScheduleModal.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Upload, Check, AlertCircle, FileSpreadsheet, Loader2, Download } from 'lucide-react';
-import * as XLSX from 'xlsx';
 import { supabase } from '../lib/supabaseClient';
 import { ZoomMeeting, User } from '../../types';
 
@@ -132,6 +131,7 @@ const ImportZoomScheduleModal: React.FC<ImportZoomScheduleModalProps> = ({
         const reader = new FileReader();
 
         reader.onload = async (e) => {
+            const XLSX = await import('xlsx');
             try {
                 const data = new Uint8Array(e.target?.result as ArrayBuffer);
                 const workbook = XLSX.read(data, { type: 'array' });
@@ -341,7 +341,8 @@ const ImportZoomScheduleModal: React.FC<ImportZoomScheduleModalProps> = ({
         }
     };
 
-    const downloadTemplate = () => {
+    const downloadTemplate = async () => {
+        const XLSX = await import('xlsx');
         // EXACT match with the exported Excel headers from exportZoomExcel.ts
         const templateData = [
             {

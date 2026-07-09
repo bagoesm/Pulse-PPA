@@ -1,16 +1,17 @@
-import * as XLSX from 'xlsx';
+import type { WorkSheet } from 'xlsx';
 import { ZoomMeeting } from '../../types';
 
 /**
  * Generates and downloads an Excel workbook containing detailed Zoom meetings data
  * and a Formulated Statistics Dashboard sheet with cell-based bar charts.
  */
-export const exportZoomMeetingsToExcel = (
+export const exportZoomMeetingsToExcel = async (
   meetings: ZoomMeeting[],
   usersMap: Record<string, string>,
   startDate: string,
   endDate: string
 ) => {
+  const XLSX = await import('xlsx');
   // 1. Filter and sort meetings by date range
   const filtered = meetings.filter(m => {
     if (!m.tanggal) return false;
@@ -24,7 +25,7 @@ export const exportZoomMeetingsToExcel = (
   const wb = XLSX.utils.book_new();
 
   // --- SHEET 1: RINGKASAN & STATISTIK ---
-  const wsStats: XLSX.WorkSheet = {};
+  const wsStats: WorkSheet = {};
   let rowIdx = 1;
 
   const writeCell = (col: string, row: number, val: any, isFormula = false) => {
@@ -205,7 +206,7 @@ export const exportZoomMeetingsToExcel = (
  * Generates and downloads an Excel workbook containing accumulated statistics
  * and monthly comparison (trend) statistics for Zoom service dashboard.
  */
-export const exportZoomDashboardToExcel = (
+export const exportZoomDashboardToExcel = async (
   accumulationData: {
     unit: { name: string; value: number }[];
     operator: { name: string; value: number }[];
@@ -223,10 +224,11 @@ export const exportZoomDashboardToExcel = (
   yearFilter: string,
   periodStr: string
 ) => {
+  const XLSX = await import('xlsx');
   const wb = XLSX.utils.book_new();
 
   // --- SHEET 1: AKUMULASI STATISTIK ---
-  const wsAccum: XLSX.WorkSheet = {};
+  const wsAccum: WorkSheet = {};
   let accumRowIdx = 1;
 
   const writeCellAccum = (col: string, row: number, val: any, isFormula = false) => {
@@ -295,7 +297,7 @@ export const exportZoomDashboardToExcel = (
 
 
   // --- SHEET 2: BANDING BULANAN (TREN) ---
-  const wsMonthly: XLSX.WorkSheet = {};
+  const wsMonthly: WorkSheet = {};
   let monthlyRowIdx = 1;
 
   const writeCellMonthly = (col: string, row: number, val: any, isFormula = false) => {

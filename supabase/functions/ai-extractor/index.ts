@@ -25,15 +25,16 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
     
-    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: {
-        headers: { Authorization: authHeader }
-      }
-    })
+    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey)
 
-    // Get user to verify active session
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
+    // Extract the raw JWT token from Bearer header
+    const token = authHeader.replace(/^Bearer\s+/i, '')
+    
+    // Validate JWT token directly with Supabase Auth
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token)
+    
     if (authError || !user) {
+      console.error('Authentication check failed:', authError)
       return new Response(
         JSON.stringify({ error: 'Unauthorized: Invalid token. Silakan login kembali.' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -108,8 +109,8 @@ serve(async (req) => {
 // --- REST Client for Gemini API ---
 
 async function callGeminiRest(prompt: string, inlineParts: any[], apiKey: string): Promise<string> {
-  // Use gemini-1.5-flash which is extremely stable and fast
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+  // Use gemini-3.1-flash-lite-preview as originally configured
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key=${apiKey}`;
   
   const contents = {
     contents: [
@@ -498,7 +499,7 @@ ${text}
 ### PANDUAN REKONSTRUKSI TEKS RUSAK / VERTIKAL:
 1. **Gabungkan Angka yang Terpotong**:
    - Jika ada angka terpisah seperti "3" di satu baris dan "00" di baris berikutnya, gabungkan menjadi "300".
-   - Jika ada desimal yang terpisah seperti "1000" and ".00", gabungkan menjadi "1000.00".
+   - Jika ada desimal yang terpisah seperti "1000" dan ".00", gabungkan menjadi "1000.00".
    - Jika ada "70" dan "0.00", periksa konteksnya: jika subaspek tersebut memiliki standar default 700, maka gabungkan menjadi "700.00".
 2. **Urutan Kolom Subaspek**:
    Dalam satu subaspek, angka yang muncul biasanya berurutan sebagai:

@@ -1,8 +1,3 @@
-// src/utils/taskExportPDF.ts
-// Utility untuk export tasks ke PDF dengan format yang rapi
-
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { Task, ProjectDefinition, Epic, User } from '../../types';
 import { formatDate } from './formatters';
 
@@ -26,6 +21,8 @@ interface ExportOptions {
 }
 
 export const exportTasksToPDF = async (tasks: Task[], options: ExportOptions) => {
+  const { default: jsPDF } = await import('jspdf');
+  const { default: autoTable } = await import('jspdf-autotable');
   const { projects, epics, filters, version = 'detailed' } = options;
   
   // Create new PDF document

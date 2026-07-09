@@ -1,4 +1,3 @@
-import * as XLSX from 'xlsx';
 import { Meeting, User } from '../../types';
 
 interface ExportOptions {
@@ -70,7 +69,8 @@ export const prepareMeetingDataForExcel = (meetings: Meeting[], users: User[]) =
 /**
  * Generates and downloads an Excel file containing the meetings data.
  */
-export const exportMeetingsToExcel = (meetings: Meeting[], users: User[], options: ExportOptions = {}) => {
+export const exportMeetingsToExcel = async (meetings: Meeting[], users: User[], options: ExportOptions = {}) => {
+  const XLSX = await import('xlsx');
   const {
     filename = `Jadwal_Kegiatan_${new Date().toISOString().split('T')[0]}.xlsx`,
     sheetName = 'Jadwal Kegiatan'

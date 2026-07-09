@@ -1,6 +1,6 @@
-// src/contexts/TasksContext.tsx
-// Domain context for Tasks, Comments, and Task Activities
 import React, { createContext, useContext, useState, useMemo, useCallback, useEffect, ReactNode } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { queryClient } from '../lib/queryClient';
 import { supabase } from '../lib/supabaseClient';
 import { Task, Comment, TaskActivity, Attachment, Status, Category, Priority, Meeting } from '../../types';
 
@@ -54,11 +54,168 @@ interface TasksProviderProps {
 }
 
 export const TasksProvider: React.FC<TasksProviderProps> = ({ children, session }) => {
-    const [isTasksLoading, setIsTasksLoading] = useState(false);
-    const [isTasksFetched, setIsTasksFetched] = useState(false); // NEW: Track fetch status
+    // Fetch all tasks via React Query
+    const { data: queryTasks, isLoading: isTasksQueryLoading, refetch: refetchTasks } = useQuery({
+        queryKey: ['tasks'],
+        queryFn: async (): Promise<Task[]> => {
+            const { data: tasksData, error: tasksErr } = await supabase
+                .from('tasks')
+                .select('*, master_categories:category_id(name), master_sub_categories:sub_category_id(name)');
+            if (tasksErr) {
+                console.error('Error fetch tasks:', tasksErr);
+                return [];
+            }
+
+            if (!tasksData) return [];
+
+            // Fetch profiles to map createdBy names
+            const { data: profiles } = await supabase.from('profiles').select('id, name');
+
+            return tasksData.map((t: any) => {
+                const rawAttachments = Array.isArray(t.attachments) ? t.attachments : [];
+
+                const attachments = rawAttachments.map((file: any) => {
+                    const path = file?.path ?? file?.storage_path ?? null;
+                    return {
+                        id: file?.id ?? `tmp_${Math.random().toString(36).slice(2, 8)}`,
+                        name: file?.name ?? file?.filename ?? 'unknown',
+                        size: typeof file?.size === 'number' ? file.size : Number(file?.file_size) || 0,
+                        type: file?.type ?? file?.mime ?? '',
+                        path: path,
+                        url: null
+                    } as Attachment;
+                });
+
+                const safe = (val: any) => (typeof val === 'string' ? val : val ?? '');
+                const createdByUserId = t.created_by_id || t.created_by || t.createdBy;
+                let createdByName = 'Unknown';
+
+                if (createdByUserId && profiles) {
+                    const creator = profiles.find((u: any) => u.id === createdByUserId);
+                    if (creator) createdByName = creator.name;
+                }
+
+                // Map PIC from UUID to names
+                let picNames: string[] = [];
+                if (Array.isArray(t.pic)) {
+                    picNames = t.pic.map((picItem: any) => {
+                        if (typeof picItem === 'string' && !picItem.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+                            return picItem;
+                        }
+                        if (profiles) {
+                            const user = profiles.find((u: any) => u.id === picItem);
+                            if (user) return user.name;
+                        }
+                        return picItem;
+                    });
+                } else if (typeof t.pic === 'string') {
+                    if (t.pic.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+                        if (profiles) {
+                            const user = profiles.find((u: any) => u.id === t.pic);
+                            picNames = user ? [user.name] : [t.pic];
+                        } else {
+                            picNames = [t.pic];
+                        }
+                    } else {
+                        picNames = [t.pic];
+                    }
+                }
+
+                const links = Array.isArray(t.links) ? t.links : [];
+
+                return {
+                    ...t,
+                    category: t.master_categories?.name || t.category || '',
+                    categoryId: t.category_id || null,
+                    subCategory: t.master_sub_categories?.name || safe(t.sub_category) || safe(t.subCategory) || '',
+                    subCategoryId: t.sub_category_id || null,
+                    startDate: t.start_date || t.startDate || new Date().toISOString().split('T')[0],
+                    projectId: t.project_id || t.projectId || null,
+                    epicId: t.epic_id || t.epicId || null,
+                    createdBy: createdByName,
+                    pic: picNames,
+                    deadline: t.deadline || (t.deadline_at || null),
+                    attachments,
+                    links,
+                    blockedBy: Array.isArray(t.blocked_by) ? t.blocked_by : [],
+                    checklists: Array.isArray(t.checklists) ? t.checklists : []
+                } as Task;
+            });
+        },
+        enabled: !!session,
+    });
+
+    // Fetch all comments via React Query
+    const { data: queryComments, refetch: refetchComments } = useQuery({
+        queryKey: ['comments'],
+        queryFn: async (): Promise<Comment[]> => {
+            const { data: commentsData } = await supabase.from('task_comments').select('*');
+            if (commentsData) {
+                return commentsData.map((c: any) => ({
+                    id: c.id,
+                    taskId: c.task_id,
+                    userId: c.user_id,
+                    userName: c.user_name,
+                    content: c.content,
+                    createdAt: c.created_at,
+                    updatedAt: c.updated_at
+                }));
+            }
+            return [];
+        },
+        enabled: !!session,
+    });
+
+    // Fetch task activities via React Query
+    const { data: queryTaskActivities, refetch: refetchTaskActivities } = useQuery({
+        queryKey: ['taskActivities'],
+        queryFn: async (): Promise<TaskActivity[]> => {
+            const { data: activitiesData } = await supabase
+                .from('task_activities')
+                .select('*')
+                .order('created_at', { ascending: false });
+            if (activitiesData) {
+                return activitiesData.map((a: any) => ({
+                    id: a.id,
+                    taskId: a.task_id,
+                    userId: a.user_id,
+                    userName: a.user_name,
+                    actionType: a.action_type,
+                    oldValue: a.old_value,
+                    newValue: a.new_value,
+                    createdAt: a.created_at
+                }));
+            }
+            return [];
+        },
+        enabled: !!session,
+    });
+
     const [tasks, setTasks] = useState<Task[]>([]);
     const [comments, setComments] = useState<Comment[]>([]);
     const [taskActivities, setTaskActivities] = useState<TaskActivity[]>([]);
+    const [isTasksFetched, setIsTasksFetched] = useState(false);
+
+    useEffect(() => {
+        if (queryTasks) {
+            setTasks(queryTasks);
+            setIsTasksFetched(true);
+        }
+    }, [queryTasks]);
+
+    useEffect(() => {
+        if (queryComments) {
+            setComments(queryComments);
+        }
+    }, [queryComments]);
+
+    useEffect(() => {
+        if (queryTaskActivities) {
+            setTaskActivities(queryTaskActivities);
+        }
+    }, [queryTaskActivities]);
+
+    const isTasksLoading = isTasksQueryLoading;
 
     // Computed: All unique PICs from tasks
     const allUniquePics = useMemo(() => {
@@ -114,7 +271,7 @@ export const TasksProvider: React.FC<TasksProviderProps> = ({ children, session 
                 updated_at: meeting.updatedAt || meeting.createdAt,
                 createdAt: meeting.createdAt,
                 updatedAt: meeting.updatedAt || meeting.createdAt
-            };
+            } as Task;
         });
     }, []);
 
@@ -144,175 +301,34 @@ export const TasksProvider: React.FC<TasksProviderProps> = ({ children, session 
         });
     }, []);
 
-    const fetchTasks = useCallback(async (usersData?: any[]) => {
-        setIsTasksLoading(true);
-        try {
-            const { data: tasksData, error: tasksErr } = await supabase
-                .from('tasks')
-                .select('*, master_categories:category_id(name), master_sub_categories:sub_category_id(name)');
-            if (tasksErr) console.error('Error fetch tasks:', tasksErr);
-
-            // If usersData is not provided, fetch profiles to map createdBy names
-            let profiles = usersData;
-            if (!profiles && tasksData && tasksData.length > 0) {
-                const { data: profilesData } = await supabase.from('profiles').select('id, name');
-                if (profilesData) {
-                    profiles = profilesData;
-                }
-            }
-
-            if (tasksData) {
-                const tasksWithFiles = await Promise.all(
-                    tasksData.map(async (t: any) => {
-                        const rawAttachments = Array.isArray(t.attachments) ? t.attachments : [];
-
-                        const attachments = await Promise.all(rawAttachments.map(async (file: any) => {
-                            const path = file?.path ?? file?.storage_path ?? null;
-                            let url: string | null = null;
-
-                            if (path && typeof path === 'string' && path.length > 0) {
-                                try {
-                                    const { data: signedData, error: signedErr } = await supabase
-                                        .storage
-                                        .from('attachment')
-                                        .createSignedUrl(path, 60 * 60);
-                                    if (!signedErr) url = signedData?.signedUrl ?? null;
-                                } catch (e) {
-                                    console.warn('Signed URL exception for', path, e);
-                                }
-                            }
-
-                            return {
-                                id: file?.id ?? `tmp_${Math.random().toString(36).slice(2, 8)}`,
-                                name: file?.name ?? file?.filename ?? 'unknown',
-                                size: typeof file?.size === 'number' ? file.size : Number(file?.file_size) || 0,
-                                type: file?.type ?? file?.mime ?? '',
-                                path: path,
-                                url
-                            } as Attachment;
-                        }));
-
-                        const safe = (val: any) => (typeof val === 'string' ? val : val ?? '');
-                        const createdByUserId = t.created_by_id || t.created_by || t.createdBy;
-                        let createdByName = 'Unknown';
-
-                        if (createdByUserId && profiles) {
-                            const creator = profiles.find((u: any) => u.id === createdByUserId);
-                            if (creator) createdByName = creator.name;
-                        }
-
-                        // Map PIC from UUID to names
-                        let picNames: string[] = [];
-                        if (Array.isArray(t.pic)) {
-                            picNames = t.pic.map((picItem: any) => {
-                                // If picItem is already a name (string without UUID format), use it
-                                if (typeof picItem === 'string' && !picItem.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
-                                    return picItem;
-                                }
-                                // If picItem is a UUID, map it to name
-                                if (profiles) {
-                                    const user = profiles.find((u: any) => u.id === picItem);
-                                    if (user) return user.name;
-                                }
-                                return picItem; // Fallback to original value
-                            });
-                        } else if (typeof t.pic === 'string') {
-                            // Handle legacy single PIC
-                            if (t.pic.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
-                                // It's a UUID, map to name
-                                if (profiles) {
-                                    const user = profiles.find((u: any) => u.id === t.pic);
-                                    picNames = user ? [user.name] : [t.pic];
-                                } else {
-                                    picNames = [t.pic];
-                                }
-                            } else {
-                                // It's already a name
-                                picNames = [t.pic];
-                            }
-                        }
-
-                        const links = Array.isArray(t.links) ? t.links : [];
-
-                        return {
-                            ...t,
-                            category: t.master_categories?.name || t.category || '',
-                            categoryId: t.category_id || null,
-                            subCategory: t.master_sub_categories?.name || safe(t.sub_category) || safe(t.subCategory) || '',
-                            subCategoryId: t.sub_category_id || null,
-                            startDate: t.start_date || t.startDate || new Date().toISOString().split('T')[0],
-                            projectId: t.project_id || t.projectId || null,
-                            epicId: t.epic_id || t.epicId || null,
-                            createdBy: createdByName,
-                            pic: picNames, // Use mapped names
-                            deadline: t.deadline || (t.deadline_at || null),
-                            attachments,
-                            links,
-                            blockedBy: Array.isArray(t.blocked_by) ? t.blocked_by : [],
-                            checklists: Array.isArray(t.checklists) ? t.checklists : []
-                        } as Task;
-                    })
-                );
-                setTasks(tasksWithFiles);
-                setIsTasksFetched(true); // NEW: Mark as fetched
-            }
-        } finally {
-            setIsTasksLoading(false);
-        }
-    }, []);
+    const fetchTasks = useCallback(async () => {
+        await refetchTasks();
+    }, [refetchTasks]);
 
     const fetchComments = useCallback(async () => {
-        const { data: commentsData } = await supabase.from('task_comments').select('*');
-        if (commentsData) {
-            const mappedComments = commentsData.map((c: any) => ({
-                id: c.id,
-                taskId: c.task_id,
-                userId: c.user_id,
-                userName: c.user_name,
-                content: c.content,
-                createdAt: c.created_at,
-                updatedAt: c.updated_at
-            }));
-            setComments(mappedComments);
-        }
-    }, []);
+        await refetchComments();
+    }, [refetchComments]);
 
     const fetchTaskActivities = useCallback(async () => {
-        const { data: activitiesData } = await supabase
-            .from('task_activities')
-            .select('*')
-            .order('created_at', { ascending: false });
-        if (activitiesData) {
-            const mappedActivities = activitiesData.map((a: any) => ({
-                id: a.id,
-                taskId: a.task_id,
-                userId: a.user_id,
-                userName: a.user_name,
-                actionType: a.action_type,
-                oldValue: a.old_value,
-                newValue: a.new_value,
-                createdAt: a.created_at
-            }));
-            setTaskActivities(mappedActivities);
-        }
-    }, []);
+        await refetchTaskActivities();
+    }, [refetchTaskActivities]);
 
     const clearTasks = useCallback(() => {
         setTasks([]);
         setComments([]);
         setTaskActivities([]);
+        setIsTasksFetched(false);
+        queryClient.invalidateQueries({ queryKey: ['tasks'] });
+        queryClient.invalidateQueries({ queryKey: ['comments'] });
+        queryClient.invalidateQueries({ queryKey: ['taskActivities'] });
     }, []);
 
-    // REMOVED: Auto-fetch on session change - now using lazy loading
-    // useEffect(() => {
-    //     if (session) {
-    //         fetchTasks();
-    //         fetchComments();
-    //         fetchTaskActivities();
-    //     } else {
-    //         clearTasks();
-    //     }
-    // }, [session, fetchTasks, fetchComments, fetchTaskActivities, clearTasks]);
+    // Auto-fetch/clear based on session
+    useEffect(() => {
+        if (!session) {
+            clearTasks();
+        }
+    }, [session, clearTasks]);
 
     const value: TasksContextType = {
         tasks,

@@ -1,6 +1,8 @@
 // src/contexts/ProjectsContext.tsx
 // Domain context for Projects
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { queryClient } from '../lib/queryClient';
 import { supabase } from '../lib/supabaseClient';
 import { ProjectDefinition } from '../../types';
 
@@ -28,31 +30,45 @@ interface ProjectsProviderProps {
 }
 
 export const ProjectsProvider: React.FC<ProjectsProviderProps> = ({ children, session }) => {
-    const [isProjectsLoading, setIsProjectsLoading] = useState(false);
+    // Fetch projects via React Query
+    const { data: queryProjects, isLoading: isProjectsQueryLoading, refetch: refetchProjects } = useQuery({
+        queryKey: ['projects'],
+        queryFn: async (): Promise<ProjectDefinition[]> => {
+            const { data: projectsData, error: projectsErr } = await supabase.from('projects').select('*');
+            if (projectsErr) {
+                console.error('Error fetch projects:', projectsErr);
+                return [];
+            }
+            return (projectsData as ProjectDefinition[]) || [];
+        },
+        enabled: !!session,
+    });
+
     const [projects, setProjects] = useState<ProjectDefinition[]>([]);
 
-    const fetchProjects = useCallback(async () => {
-        setIsProjectsLoading(true);
-        try {
-            const { data: projectsData, error: projectsErr } = await supabase.from('projects').select('*');
-            if (projectsErr) console.error('Error fetch projects:', projectsErr);
-            if (projectsData) setProjects(projectsData as ProjectDefinition[]);
-        } finally {
-            setIsProjectsLoading(false);
+    useEffect(() => {
+        if (queryProjects) {
+            setProjects(queryProjects);
         }
-    }, []);
+    }, [queryProjects]);
+
+    const isProjectsLoading = isProjectsQueryLoading;
+
+    const fetchProjects = useCallback(async () => {
+        await refetchProjects();
+    }, [refetchProjects]);
 
     const clearProjects = useCallback(() => {
         setProjects([]);
+        queryClient.invalidateQueries({ queryKey: ['projects'] });
     }, []);
 
+    // Auto-fetch/clear based on session
     useEffect(() => {
-        if (session) {
-            fetchProjects();
-        } else {
+        if (!session) {
             clearProjects();
         }
-    }, [session, fetchProjects, clearProjects]);
+    }, [session, clearProjects]);
 
     const value: ProjectsContextType = {
         projects,

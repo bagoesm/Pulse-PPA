@@ -12,8 +12,6 @@ import {
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import SearchableSelect from '../SearchableSelect';
 
 interface BudgetMonitoringProps {
@@ -169,7 +167,9 @@ const BudgetMonitoring: React.FC<BudgetMonitoringProps> = ({
   }, [filteredData]);
 
   // Client-side PDF Exporter
-  const exportToPDF = () => {
+  const exportToPDF = async () => {
+    const { jsPDF } = await import('jspdf');
+    const { default: autoTable } = await import('jspdf-autotable');
     try {
       const doc = new jsPDF({
         orientation: 'landscape',

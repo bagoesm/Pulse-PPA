@@ -110,6 +110,13 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
   const [activeTab, setActiveTab] = useState<'comments' | 'activity'>('comments');
   const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
   const statusDropdownRef = useRef<HTMLDivElement>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
+      onClose();
+    }
+  };
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -269,7 +276,7 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
   const activeColorPreset = (firstPicUser && firstPicUser.header_color && headerColorPresets[firstPicUser.header_color as keyof typeof headerColorPresets]) || headerColorPresets.default;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm" onClick={handleBackdropClick}>
       <div className="relative w-full sm:max-w-3xl flex items-center justify-center">
         {/* Butterfly Wings & Magical Sparkles (Behind the Modal) */}
         {showFlower && (
@@ -310,13 +317,13 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
 
             {/* Left Wing */}
             <img 
-              src="/angle-wing-side.svg" 
+              src="/angle-wing-side.webp" 
               alt="" 
               className="absolute right-[85%] top-1/2 w-[50%] sm:w-[60%] h-auto max-w-none opacity-95 pointer-events-none select-none -z-10 hidden sm:block animate-flap-left"
             />
             {/* Right Wing */}
             <img 
-              src="/angle-wing-side.svg" 
+              src="/angle-wing-side.webp" 
               alt="" 
               className="absolute right-[15%] top-1/2 w-[50%] sm:w-[60%] h-auto max-w-none opacity-95 pointer-events-none select-none -z-10 hidden sm:block animate-flap-right"
             />
@@ -370,22 +377,22 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
           </>
         )}
 
-        <div className="relative bg-white rounded-2xl shadow-2xl w-full overflow-hidden flex flex-col max-h-[90vh]">
+        <div ref={modalRef} className="relative bg-white rounded-2xl shadow-2xl w-full overflow-hidden flex flex-col max-h-[90vh]">
           {/* Decorative Flower - Top Right */}
           {showFlower && (
             <img 
-              src="/flower.svg" 
+              src="/flower.webp" 
               alt="" 
-              className="absolute -top-12 -right-6 w-72 h-72 opacity-35 pointer-events-none select-none z-10"
+              className="absolute -top-12 -right-6 w-72 h-72 opacity-35 pointer-events-none select-none z-10 rotate-180"
             />
           )}
 
           {/* Decorative Flower - Bottom Left */}
           {showFlower && (
             <img 
-              src="/flower.svg" 
+              src="/flower.webp" 
               alt="" 
-              className="absolute -bottom-12 -left-6 w-72 h-72 opacity-35 pointer-events-none select-none z-10 rotate-180"
+              className="absolute -bottom-12 -left-6 w-72 h-72 opacity-35 pointer-events-none select-none z-10"
             />
           )}
 

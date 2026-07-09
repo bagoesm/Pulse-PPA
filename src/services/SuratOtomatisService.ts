@@ -2,8 +2,6 @@ import Docxtemplater from 'docxtemplater';
 import PizZip from 'pizzip';
 import { saveAs } from 'file-saver';
 import { SuratFormData, SuratTemplateType } from '../types/suratOtomatis';
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
 
 /**
  * Service untuk generate surat otomatis dari template DOCX dan PDF
@@ -47,6 +45,8 @@ export class SuratOtomatisService {
     formData: Record<string, string | number>,
     partnerLogos: { base64: string; aspect: number; format: string }[]
   ): Promise<void> {
+    const { jsPDF } = await import('jspdf');
+    const { default: autoTable } = await import('jspdf-autotable');
     try {
       const tipeDaftarHadir = String(formData.tipe_daftar_hadir || 'PESERTA').trim().toUpperCase();
       const namaKegiatan = String(formData.nama_kegiatan || '').toUpperCase();

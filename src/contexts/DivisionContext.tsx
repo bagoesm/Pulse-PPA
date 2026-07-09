@@ -3,6 +3,8 @@
 // Integrates VisibilityMiddleware for satker visibility filtering
 // Validates: Requirements 4.1, 4.3
 import React, { createContext, useContext, useState, useCallback, useEffect, useMemo, ReactNode } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { queryClient } from '../lib/queryClient';
 import { supabase } from '../lib/supabaseClient';
 import { User } from '../../types';
 import { useAuth } from './AuthContext';
@@ -69,7 +71,6 @@ export const DivisionProvider: React.FC<DivisionProviderProps> = ({ children, se
     // Validates: Requirements 4.1, 4.3
     const { accessibleSatkerIds, loading: visibilityLoading } = useVisibilityFilter(currentUser?.id);
     
-    const [divisiList, setDivisiList] = useState<string[]>([]);
     const [selectedDivisi, setSelectedDivisiState] = useState<string>('');
 
     // Current user's divisi
@@ -89,69 +90,59 @@ export const DivisionProvider: React.FC<DivisionProviderProps> = ({ children, se
         }
     }, [currentUser?.id, currentUser?.divisi]);
 
-    // Fetch divisi list from master_divisi table with visibility filtering
+    // Fetch divisi list from master_divisi table with visibility filtering using React Query
     // Validates: Requirements 4.1, 4.3
-    const fetchDivisiList = useCallback(async () => {
-        try {
-            // First, get all active divisi from master_divisi
+    const { data: queryDivisiList, refetch: refetchDivisiList } = useQuery({
+        queryKey: ['divisiList', currentUser?.id, currentUser?.role, accessibleSatkerIds],
+        queryFn: async () => {
             const { data, error } = await supabase
                 .from('master_divisi')
                 .select('name')
                 .eq('is_active', true)
                 .order('display_order');
 
-            if (error) {
-                console.error('Error fetching divisi list:', error);
-                return;
-            }
-
-            if (!data) {
-                setDivisiList([]);
-                return;
+            if (error || !data) {
+                return [];
             }
 
             // Super Admin sees all divisi
             if (currentUser?.role === 'Super Admin') {
-                setDivisiList(data.map((d: any) => d.name));
-                return;
+                return data.map((d: any) => d.name);
             }
 
             // For non-admin users, filter divisi based on accessible satkers
-            // Get divisi data to map names to IDs
             const { data: satkersData } = await supabase
                 .from('master_divisi')
                 .select('id, name');
 
             if (satkersData && accessibleSatkerIds.length > 0) {
-                // Filter divisi that the user can access
                 const accessibleSatkerNames = satkersData
                     .filter((s: any) => accessibleSatkerIds.includes(s.id))
                     .map((s: any) => s.name);
                 
-                // Filter divisi list to only show accessible divisi
-                const filteredDivisi = data
+                return data
                     .map((d: any) => d.name)
                     .filter((name: string) => accessibleSatkerNames.includes(name));
-                
-                setDivisiList(filteredDivisi);
             } else if (accessibleSatkerIds.length === 0 && (currentUser?.role === 'Atasan' || currentUser?.role === 'Staff')) {
-                // User has no accessible divisi - show empty list
-                setDivisiList([]);
+                return [];
             } else {
-                // Fallback: show all (shouldn't happen normally)
-                setDivisiList(data.map((d: any) => d.name));
+                return data.map((d: any) => d.name);
             }
-        } catch (err) {
-            console.error('Error fetching divisi list:', err);
-        }
-    }, [currentUser?.role, accessibleSatkerIds]);
+        },
+        enabled: !!session && !!currentUser,
+    });
 
-    // Fetch on mount when session exists
+    const [divisiList, setDivisiList] = useState<string[]>([]);
+
     useEffect(() => {
-        if (session) {
-            fetchDivisiList();
+        if (queryDivisiList) {
+            setDivisiList(queryDivisiList);
         }
-    }, [session, fetchDivisiList]);
+    }, [queryDivisiList]);
+
+    const fetchDivisiList = useCallback(async () => {
+        await refetchDivisiList();
+    }, [refetchDivisiList]);
 
     // Manage divisi list
     const addDivisi = useCallback(async (name: string) => {
@@ -171,16 +162,15 @@ export const DivisionProvider: React.FC<DivisionProviderProps> = ({ children, se
 
             if (error) return { success: false, error: error.message };
             
-            await fetchDivisiList();
+            await queryClient.invalidateQueries({ queryKey: ['divisiList'] });
             return { success: true };
         } catch (err: any) {
             return { success: false, error: err.message };
         }
-    }, [fetchDivisiList]);
+    }, []);
 
     const removeDivisi = useCallback(async (name: string) => {
         try {
-            // Soft delete or hard delete? Let's hard delete for simplicity unless there are errors
             const { error } = await supabase
                 .from('master_divisi')
                 .delete()
@@ -188,12 +178,12 @@ export const DivisionProvider: React.FC<DivisionProviderProps> = ({ children, se
 
             if (error) return { success: false, error: error.message };
             
-            await fetchDivisiList();
+            await queryClient.invalidateQueries({ queryKey: ['divisiList'] });
             return { success: true };
         } catch (err: any) {
             return { success: false, error: err.message };
         }
-    }, [fetchDivisiList]);
+    }, []);
 
     // Compute user names in selected divisi
     const divisiUserNames = useMemo(() => {

@@ -1,7 +1,6 @@
 // src/utils/bmnParser.ts
 // Parser utility functions for BMN Excel/CSV file import
 
-import * as XLSX from 'xlsx';
 import { BMNItem, BMNParseResult, BMNValidationError, BMNStatus, BMNKondisi } from '../../types';
 
 /**
@@ -141,7 +140,7 @@ function mapColumnToField(columnName: string): keyof BMNItem | null {
 /**
  * Parse date value from various formats
  */
-function parseDate(value: any): string | null {
+function parseDate(value: any, XLSX: any): string | null {
   if (!value) return null;
   
   try {
@@ -425,6 +424,7 @@ export async function parseExcelFile(
   file: File,
   userId: string
 ): Promise<BMNParseResult> {
+  const XLSX = await import('xlsx');
   try {
     // Read file as array buffer
     const arrayBuffer = await file.arrayBuffer();
@@ -497,7 +497,7 @@ export async function parseExcelFile(
     }
     
     // Parse rows
-    return parseRows(rawData, userId);
+    return parseRows(rawData, userId, XLSX);
   } catch (error) {
     console.error('Excel parsing error:', error);
     return {
@@ -523,6 +523,7 @@ export async function parseCSVFile(
   file: File,
   userId: string
 ): Promise<BMNParseResult> {
+  const XLSX = await import('xlsx');
   try {
     // Read file as text with UTF-8 encoding
     const text = await file.text();
@@ -594,7 +595,7 @@ export async function parseCSVFile(
     }
     
     // Parse rows
-    return parseRows(rawData, userId);
+    return parseRows(rawData, userId, XLSX);
   } catch (error) {
     console.error('CSV parsing error:', error);
     return {
@@ -616,7 +617,7 @@ export async function parseCSVFile(
 /**
  * Parse rows of data into BMN items
  */
-function parseRows(rawData: any[], userId: string): BMNParseResult {
+function parseRows(rawData: any[], userId: string, XLSX: any): BMNParseResult {
   const items: BMNItem[] = [];
   const allErrors: BMNValidationError[] = [];
   const allWarnings: BMNValidationError[] = [];
@@ -779,7 +780,7 @@ function parseRows(rawData: any[], userId: string): BMNParseResult {
         case 'tanggalPerolehan':
         case 'tanggalSertifikat':
         case 'tanggalPengapusan':
-          const parsedDate = parseDate(value);
+          const parsedDate = parseDate(value, XLSX);
           // For tanggalPerolehan, prioritize "Tanggal Buku Pertama" over "Tanggal Perolehan"
           if (parsedDate && !item[field]) {
             item[field] = parsedDate;

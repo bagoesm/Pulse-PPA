@@ -6,7 +6,6 @@ import { useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { User, BMNItem, BMNParseResult, BMNExportOptions } from '../../types';
 import { parseExcelFile, parseCSVFile } from '../utils/bmnParser';
-import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 
 interface UseBMNHandlersProps {
@@ -742,6 +741,8 @@ export const useBMNHandlers = ({
             }
 
             showNotification('Memproses Export', 'Sedang menyiapkan file...', 'info');
+
+            const XLSX = await import('xlsx');
 
             // Prepare data for export
             const exportData = bmnItems.map(item => ({

@@ -2,7 +2,8 @@
 // Custom hook for filtering data based on satker visibility rules
 // Validates: Requirements 4.1, 4.3, 4.4
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { visibilityMiddleware } from '../services/VisibilityMiddleware';
 
 interface UseVisibilityFilterResult {
@@ -19,7 +20,7 @@ interface UseVisibilityFilterResult {
   /** Error message if fetch failed */
   error: string | null;
   /** Refetch accessible satkers */
-  refetch: () => Promise<void>;
+  refetch: () => Promise<any>;
 }
 
 /**
@@ -32,27 +33,14 @@ interface UseVisibilityFilterResult {
  * @returns Object with filterData, isAccessible, loading, error, and refetch
  */
 export function useVisibilityFilter(userId: string | null | undefined): UseVisibilityFilterResult {
-  const [accessibleSatkerIds, setAccessibleSatkerIds] = useState<string[]>([]);
-  const [satkerIdToNameMap, setSatkerIdToNameMap] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { data, isLoading, error: queryError, refetch } = useQuery({
+    queryKey: ['visibilityFilter', userId],
+    queryFn: async () => {
+      if (!userId) {
+        return { accessibleSatkerIds: [], satkerIdToNameMap: {} };
+      }
 
-  // Fetch accessible satker IDs on mount or when userId changes
-  const fetchAccessibleSatkers = useCallback(async () => {
-    if (!userId) {
-      setAccessibleSatkerIds([]);
-      setSatkerIdToNameMap({});
-      setLoading(false);
-      setError(null);
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-
-    try {
       const ids = await visibilityMiddleware.getAccessibleSatkerIds(userId);
-      setAccessibleSatkerIds(ids);
       
       // Also fetch the satker names for mapping
       const { supabase } = await import('../lib/supabaseClient');
@@ -61,30 +49,27 @@ export function useVisibilityFilter(userId: string | null | undefined): UseVisib
         .select('id, name')
         .in('id', ids);
       
+      const map: Record<string, string> = {};
       if (satkerError) {
-        console.error('Error fetching satker names:', satkerError);
+        console.error('Error fetching satker names in hook:', satkerError);
       } else if (satkers) {
-        const map: Record<string, string> = {};
         satkers.forEach((satker: any) => {
           map[satker.id] = satker.name;
         });
-        setSatkerIdToNameMap(map);
       }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch accessible satkers';
-      setError(errorMessage);
-      // Default to empty array on error for security
-      setAccessibleSatkerIds([]);
-      setSatkerIdToNameMap({});
-    } finally {
-      setLoading(false);
-    }
-  }, [userId]);
 
-  // Fetch on mount and when userId changes
-  useEffect(() => {
-    fetchAccessibleSatkers();
-  }, [fetchAccessibleSatkers]);
+      return {
+        accessibleSatkerIds: ids,
+        satkerIdToNameMap: map
+      };
+    },
+    enabled: !!userId,
+  });
+
+  const accessibleSatkerIds = data?.accessibleSatkerIds || [];
+  const satkerIdToNameMap = data?.satkerIdToNameMap || {};
+  const loading = isLoading;
+  const error = queryError ? (queryError instanceof Error ? queryError.message : 'Failed to fetch') : null;
 
   // Memoized Set for O(1) lookup
   const accessibleSet = useMemo(() => new Set(accessibleSatkerIds), [accessibleSatkerIds]);
@@ -144,7 +129,7 @@ export function useVisibilityFilter(userId: string | null | undefined): UseVisib
     satkerIdToNameMap,
     loading,
     error,
-    refetch: fetchAccessibleSatkers,
+    refetch,
   };
 }
 

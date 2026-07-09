@@ -1,8 +1,6 @@
-// src/contexts/UsersContext.tsx
-// Domain context for Users and UserStatuses
-// Integrates VisibilityMiddleware for satker-based data filtering
-// Validates: Requirements 4.1, 4.2, 4.3
 import React, { createContext, useContext, useState, useMemo, useCallback, useEffect, ReactNode } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { queryClient } from '../lib/queryClient';
 import { supabase } from '../lib/supabaseClient';
 import { User, UserStatus } from '../../types';
 import { useAuth } from './AuthContext';
@@ -42,48 +40,28 @@ interface UsersProviderProps {
 
 export const UsersProvider: React.FC<UsersProviderProps> = ({ children, session }) => {
     const { currentUser } = useAuth();
-    const [isUsersLoading, setIsUsersLoading] = useState(false);
-    const [allUsers, setAllUsers] = useState<User[]>([]);
-    const [userStatuses, setUserStatuses] = useState<UserStatus[]>([]);
 
-    // Computed: Task assignable users (exclude Super Admin)
-    const taskAssignableUsers = useMemo(() =>
-        allUsers.filter(user => user.role !== 'Super Admin'),
-        [allUsers]
-    );
+    // Fetch all users via React Query
+    const { data: queryAllUsers, isLoading: isUsersQueryLoading, refetch: refetchUsers } = useQuery({
+        queryKey: ['users', currentUser?.id, currentUser?.role],
+        queryFn: async (): Promise<User[]> => {
+            if (!currentUser) return [];
 
-    const fetchUsers = useCallback(async (): Promise<User[]> => {
-        setIsUsersLoading(true);
-        try {
-            // Build base query
             let query = supabase.from('profiles').select('*');
             
-            // Apply visibility filter based on satker access
-            // Property 6: Data Filter Excludes Unauthorized Satkers
-            // Validates: Requirements 4.1, 4.2
-            if (currentUser?.id) {
-                // Get accessible satker IDs for the current user
+            if (currentUser.id) {
                 const accessibleSatkerIds = await visibilityMiddleware.getAccessibleSatkerIds(currentUser.id);
-                
-                // Get all divisi to map names to IDs
                 const { data: satkersData } = await supabase.from('master_divisi').select('id, name');
                 
                 if (satkersData && accessibleSatkerIds.length > 0) {
-                    // Filter satker names that the user can access
                     const accessibleSatkerNames = satkersData
                         .filter((s: any) => accessibleSatkerIds.includes(s.id))
                         .map((s: any) => s.name);
                     
-                    // Apply filter: show users from accessible satkers or users without divisi
-                    // Admins see all users (handled by VisibilityMiddleware returning empty filter)
                     if (accessibleSatkerNames.length > 0 && currentUser.role !== 'Super Admin') {
-                        // For non-admins: filter by accessible satker names
-                        // Users without divisi (null/empty) are always visible
                         query = query.or(`divisi.is.null,divisi.eq.,divisi.in.(${accessibleSatkerNames.map((n: string) => `"${n}"`).join(',')})`);
                     }
                 } else if (currentUser.role !== 'Super Admin') {
-                    // User has no accessible satkers and is not admin
-                    // Show only users without divisi
                     query = query.or('divisi.is.null,divisi.eq.');
                 }
             }
@@ -94,7 +72,7 @@ export const UsersProvider: React.FC<UsersProviderProps> = ({ children, session 
                 return [];
             }
             if (usersData) {
-                const mappedUsers = usersData.map((user: any) => ({
+                return usersData.map((user: any) => ({
                     ...user,
                     sakuraAnimationEnabled: user.sakura_animation_enabled || false,
                     snowAnimationEnabled: user.snow_animation_enabled || false,
@@ -106,44 +84,77 @@ export const UsersProvider: React.FC<UsersProviderProps> = ({ children, session 
                     divisi: user.divisi || undefined,
                     nip: user.nip || undefined
                 })) as User[];
-                setAllUsers(mappedUsers);
-                return mappedUsers;
             }
             return [];
-        } finally {
-            setIsUsersLoading(false);
+        },
+        enabled: !!session && !!currentUser,
+    });
+
+    // Fetch user statuses via React Query
+    const { data: queryUserStatuses, refetch: refetchUserStatuses } = useQuery({
+        queryKey: ['userStatuses'],
+        queryFn: async (): Promise<UserStatus[]> => {
+            const { data: statusesData } = await supabase.from('user_statuses').select('*');
+            if (statusesData) {
+                const now = new Date();
+                const validStatuses = statusesData.filter((s: any) => new Date(s.expires_at) > now);
+                return validStatuses.map((s: any) => ({
+                    ...s,
+                    userId: s.user_id,
+                    createdAt: s.created_at,
+                    expiresAt: s.expires_at
+                }));
+            }
+            return [];
+        },
+        enabled: !!session,
+    });
+
+    const [allUsers, setAllUsers] = useState<User[]>([]);
+    const [userStatuses, setUserStatuses] = useState<UserStatus[]>([]);
+
+    useEffect(() => {
+        if (queryAllUsers) {
+            setAllUsers(queryAllUsers);
         }
-    }, [currentUser]);
+    }, [queryAllUsers]);
+
+    useEffect(() => {
+        if (queryUserStatuses) {
+            setUserStatuses(queryUserStatuses);
+        }
+    }, [queryUserStatuses]);
+
+    const isUsersLoading = isUsersQueryLoading;
+
+    // Computed: Task assignable users (exclude Super Admin)
+    const taskAssignableUsers = useMemo(() =>
+        allUsers.filter(user => user.role !== 'Super Admin'),
+        [allUsers]
+    );
+
+    const fetchUsers = useCallback(async (): Promise<User[]> => {
+        const { data } = await refetchUsers();
+        return data || [];
+    }, [refetchUsers]);
 
     const fetchUserStatuses = useCallback(async () => {
-        const { data: statusesData } = await supabase.from('user_statuses').select('*');
-        if (statusesData) {
-            const now = new Date();
-            const validStatuses = statusesData.filter((s: any) => new Date(s.expires_at) > now);
-            const mappedStatuses = validStatuses.map((s: any) => ({
-                ...s,
-                userId: s.user_id,
-                createdAt: s.created_at,
-                expiresAt: s.expires_at
-            }));
-            setUserStatuses(mappedStatuses);
-        }
-    }, []);
+        await refetchUserStatuses();
+    }, [refetchUserStatuses]);
 
     const clearUsers = useCallback(() => {
         setAllUsers([]);
         setUserStatuses([]);
+        queryClient.invalidateQueries({ queryKey: ['users'] });
+        queryClient.invalidateQueries({ queryKey: ['userStatuses'] });
     }, []);
 
-    // Auto-fetch when session changes
+    // Auto-fetch/clear based on session
     useEffect(() => {
-        if (session) {
-            fetchUsers();
-            fetchUserStatuses();
-        } else {
+        if (!session) {
             clearUsers();
         }
-    }, [session, fetchUsers, fetchUserStatuses, clearUsers]);
+    }, [session, clearUsers]);
 
     const value: UsersContextType = {
         allUsers,

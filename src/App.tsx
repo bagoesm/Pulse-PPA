@@ -1,6 +1,7 @@
-// src/App.tsx - Entry point with proper provider hierarchy
 import React, { useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from './lib/queryClient';
 import ErrorBoundary from './components/ErrorBoundary';
 import { UIProvider } from './contexts/UIContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -50,16 +51,18 @@ const App: React.FC = () => {
   }, []);
 
   return (
-    <ErrorBoundary>
-      <UIProvider>
-        <SidebarProvider>
-          <AuthProvider>
-            <AppWithData />
-            <UpdateNotification />
-          </AuthProvider>
-        </SidebarProvider>
-      </UIProvider>
-    </ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <ErrorBoundary>
+        <UIProvider>
+          <SidebarProvider>
+            <AuthProvider>
+              <AppWithData />
+              <UpdateNotification />
+            </AuthProvider>
+          </SidebarProvider>
+        </UIProvider>
+      </ErrorBoundary>
+    </QueryClientProvider>
   );
 };
 

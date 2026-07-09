@@ -23,9 +23,6 @@ import { useDivision } from '../contexts/DivisionContext';
 import DivisionFilter from './DivisionFilter';
 import { useVisibilityFilter } from '../hooks/useVisibilityFilter';
 import { supabase } from '../lib/supabaseClient';
-import * as XLSX from 'xlsx';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 
 interface SuratListViewProps {
   currentUser: User | null;
@@ -429,7 +426,8 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
     });
   };
 
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
+    const XLSX = await import('xlsx');
     const dataToExport = getFilteredExportData();
     const data = prepareExportData(dataToExport);
     const exportTitle = getExportTitle();
@@ -477,7 +475,9 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
     showNotification('Export Berhasil', `${data.length} surat berhasil di-export ke Excel`, 'success');
   };
 
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
+    const { default: jsPDF } = await import('jspdf');
+    const { default: autoTable } = await import('jspdf-autotable');
     // Use helper function to get filtered data
     const dataToExport = getFilteredExportData();
     const exportTitle = getExportTitle();

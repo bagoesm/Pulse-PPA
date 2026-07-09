@@ -74,11 +74,11 @@ const BMNDevicesList: React.FC<BMNDevicesListProps> = ({
       try {
         const { data, error } = await supabase
           .from('bmn_editors')
-          .select('satker_id')
+          .select('nama_satker')
           .eq('user_id', currentUser.id);
 
         if (!error && data) {
-          setUserEditableSatkers(data.map(item => item.satker_id));
+          setUserEditableSatkers(data.map(item => item.nama_satker));
         }
       } catch (err) {
         console.error('Failed to load user permissions:', err);
@@ -91,7 +91,7 @@ const BMNDevicesList: React.FC<BMNDevicesListProps> = ({
   const hasEditPermission = (device: BMNDevice) => {
     if (!currentUser) return false;
     if (currentUser.role === 'Super Admin') return true;
-    return userEditableSatkers.includes(device.satkerId);
+    return userEditableSatkers.includes(device.satker?.name || '');
   };
 
   // Filter devices based on search and filters
