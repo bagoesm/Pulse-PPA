@@ -67,8 +67,8 @@ const KanbanColumn: React.FC<KanbanColumnProps> = React.memo(({
       }
 
       // Default: 'updated' (Terbaru)
-      const aTime = new Date(a.updated_at || a.updatedAt || a.created_at || a.createdAt || a.startDate || 0).getTime();
-      const bTime = new Date(b.updated_at || b.updatedAt || b.created_at || b.createdAt || b.startDate || 0).getTime();
+      const aTime = new Date((a as any).updated_status_at || a.updated_at || a.updatedAt || a.created_at || a.createdAt || a.startDate || 0).getTime();
+      const bTime = new Date((b as any).updated_status_at || b.updated_at || b.updatedAt || b.created_at || b.createdAt || b.startDate || 0).getTime();
       return bTime - aTime; // Newest first
     });
   }, [tasks, sortBy]);

@@ -287,7 +287,7 @@ export const useTaskHandlers = ({
                 }
             }
 
-            setTasks(prev => prev.map(t => t.id === draggedTaskId ? { ...t, status } : t));
+            setTasks(prev => prev.map(t => t.id === draggedTaskId ? { ...t, status, updated_status_at: new Date().toISOString() } : t));
 
             const { data: updatedData, error } = await supabase
                 .from('tasks')
@@ -702,10 +702,10 @@ export const useTaskHandlers = ({
         }
 
         const oldStatus = task.status;
-        setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
+        setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus, updated_status_at: new Date().toISOString() } : t));
 
         if (viewingTask && viewingTask.id === taskId) {
-            setViewingTask({ ...viewingTask, status: newStatus });
+            setViewingTask({ ...viewingTask, status: newStatus, updated_status_at: new Date().toISOString() });
         }
 
         const { data: updatedData, error } = await supabase

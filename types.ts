@@ -202,6 +202,7 @@ export interface Task {
   updated_at?: string;
   createdAt?: string;
   updatedAt?: string;
+  updated_status_at?: string;
 }
 
 // Subtask - Mini-task di bawah Task (1 level saja, tidak bisa nested)

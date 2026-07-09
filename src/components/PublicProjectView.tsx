@@ -431,8 +431,8 @@ export const PublicProjectView: React.FC<PublicProjectViewProps> = ({ shareToken
             {Object.values(Status).map((status) => {
               const statusTasks = tasksByStatus[status] || [];
               const sortedTasks = [...statusTasks].sort((a, b) => {
-                const aTime = new Date(a.updated_at || a.updatedAt || a.created_at || a.createdAt || 0).getTime();
-                const bTime = new Date(b.updated_at || b.updatedAt || b.created_at || b.createdAt || 0).getTime();
+                const aTime = new Date((a as any).updated_status_at || a.updated_at || a.updatedAt || a.created_at || a.createdAt || 0).getTime();
+                const bTime = new Date((b as any).updated_status_at || b.updated_at || b.updatedAt || b.created_at || b.createdAt || 0).getTime();
                 return bTime - aTime;
               });
               
