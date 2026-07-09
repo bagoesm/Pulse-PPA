@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0"
-import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.24.1"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -36,7 +35,7 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
     if (authError || !user) {
       return new Response(
-        JSON.stringify({ error: 'Unauthorized: Invalid token' }),
+        JSON.stringify({ error: 'Unauthorized: Invalid token. Silakan login kembali.' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
@@ -106,7 +105,45 @@ serve(async (req) => {
   }
 })
 
-// --- Helper Functions ---
+// --- REST Client for Gemini API ---
+
+async function callGeminiRest(prompt: string, inlineParts: any[], apiKey: string): Promise<string> {
+  // Use gemini-1.5-flash which is extremely stable and fast
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+  
+  const contents = {
+    contents: [
+      {
+        parts: [
+          { text: prompt },
+          ...inlineParts
+        ]
+      }
+    ]
+  };
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(contents)
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Gemini API Error: ${errorText}`);
+  }
+
+  const result = await response.json();
+  const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) {
+    throw new Error('Gemini API returned an empty response');
+  }
+  return text;
+}
+
+// --- Handlers ---
 
 async function handleExtractSuratData(fileBase64: string, fileType: string, masterData: any, geminiApiKey?: string, openAiApiKey?: string) {
   let masterDataContext = "";
@@ -154,8 +191,6 @@ Peraturan:
   try {
     if (!geminiApiKey) throw new Error('API Key Google tidak ditemukan');
     
-    const genAI = new GoogleGenerativeAI(geminiApiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-lite-preview' });
     const documentParts = [
       {
         inlineData: {
@@ -165,10 +200,7 @@ Peraturan:
       },
     ];
 
-    const result = await model.generateContent([prompt, ...documentParts]);
-    const response = await result.response;
-    const text = response.text();
-    
+    const text = await callGeminiRest(prompt, documentParts, geminiApiKey);
     return cleanAndParseJson(text);
   } catch (geminiError: any) {
     console.warn('Gemini Extraction failed, attempting OpenAI Fallback...', geminiError);
@@ -262,11 +294,7 @@ PENTING: LANGSUNG JAWAB DENGAN PARAGRAF NARASINYA SAJA. JANGAN tuliskan pemikira
 
   try {
     if (geminiApiKey) {
-      const genAI = new GoogleGenerativeAI(geminiApiKey);
-      const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-lite-preview' });
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      return response.text().trim();
+      return await callGeminiRest(prompt, [], geminiApiKey);
     } else if (openAiApiKey) {
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -310,11 +338,7 @@ PENTING: LANGSUNG OUTPUT HASIL ANALISIS. DILARANG KERAS menuliskan "Role:", "Inp
 
   try {
     if (geminiApiKey) {
-      const genAI = new GoogleGenerativeAI(geminiApiKey);
-      const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-lite-preview' });
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      return response.text().trim();
+      return await callGeminiRest(prompt, [], geminiApiKey);
     } else if (openAiApiKey) {
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -364,12 +388,7 @@ Peraturan:
   try {
     if (!geminiApiKey) throw new Error('API Key Google tidak ditemukan');
     
-    const genAI = new GoogleGenerativeAI(geminiApiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-lite-preview' });
-    const result = await model.generateContent([prompt, invitationText]);
-    const response = await result.response;
-    const text = response.text();
-    
+    const text = await callGeminiRest(prompt, [ { text: invitationText } ], geminiApiKey);
     return cleanAndParseJson(text);
   } catch (geminiError: any) {
     console.warn('Gemini Zoom Extraction failed, attempting regex-based fallback...', geminiError);
@@ -435,11 +454,8 @@ PENTING: Kembalikan HANYA JSON. JANGAN sertakan markdown block seperti \`\`\`jso
 
   try {
     if (geminiApiKey) {
-      const genAI = new GoogleGenerativeAI(geminiApiKey);
-      const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-lite-preview' });
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      return cleanAndParseJson(response.text());
+      const text = await callGeminiRest(prompt, [], geminiApiKey);
+      return cleanAndParseJson(text);
     } else if (openAiApiKey) {
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -482,7 +498,7 @@ ${text}
 ### PANDUAN REKONSTRUKSI TEKS RUSAK / VERTIKAL:
 1. **Gabungkan Angka yang Terpotong**:
    - Jika ada angka terpisah seperti "3" di satu baris dan "00" di baris berikutnya, gabungkan menjadi "300".
-   - Jika ada desimal yang terpisah seperti "1000" dan ".00", gabungkan menjadi "1000.00".
+   - Jika ada desimal yang terpisah seperti "1000" and ".00", gabungkan menjadi "1000.00".
    - Jika ada "70" dan "0.00", periksa konteksnya: jika subaspek tersebut memiliki standar default 700, maka gabungkan menjadi "700.00".
 2. **Urutan Kolom Subaspek**:
    Dalam satu subaspek, angka yang muncul biasanya berurutan sebagai:
@@ -633,11 +649,8 @@ Kembalikan HANYA dalam format JSON berikut (tanpa markdown, tanpa penjelasan):
   try {
     if (!geminiApiKey) throw new Error('API Key Google tidak ditemukan');
     
-    const genAI = new GoogleGenerativeAI(geminiApiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-lite-preview' });
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    return cleanAndParseJson(response.text());
+    const text = await callGeminiRest(prompt, [], geminiApiKey);
+    return cleanAndParseJson(text);
   } catch (geminiError: any) {
     console.error('Gemini Archive Evaluation Extraction failed:', geminiError);
     throw new Error('Gagal menganalisis teks dengan AI: ' + geminiError.message);
@@ -682,11 +695,8 @@ PENTING: Kembalikan HANYA JSON objek tersebut. JANGAN sertakan markdown block se
 
   try {
     if (geminiApiKey) {
-      const genAI = new GoogleGenerativeAI(geminiApiKey);
-      const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-lite-preview' });
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      return cleanAndParseJson(response.text());
+      const text = await callGeminiRest(prompt, [], geminiApiKey);
+      return cleanAndParseJson(text);
     } else if (openAiApiKey) {
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',

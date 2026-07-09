@@ -1,21 +1,52 @@
 import { supabase } from '../lib/supabaseClient';
 
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+
+async function callAiEdgeFunction(action: string, payload: any): Promise<any> {
+  const session = (await supabase.auth.getSession()).data.session;
+  const token = session?.access_token || supabaseAnonKey; // Fallback to anon key if no session
+
+  const url = `${supabaseUrl}/functions/v1/ai-extractor`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+      'apikey': supabaseAnonKey
+    },
+    body: JSON.stringify({ action, payload })
+  });
+
+  if (!response.ok) {
+    let errorMsg = `HTTP Error ${response.status}`;
+    try {
+      const errJson = await response.json();
+      if (errJson && errJson.error) {
+        errorMsg = errJson.error;
+      }
+    } catch {
+      try {
+        const errText = await response.text();
+        if (errText) errorMsg = errText;
+      } catch {}
+    }
+    throw new Error(errorMsg);
+  }
+
+  const resJson = await response.json();
+  return resJson.data;
+}
+
 export const aiExtractorService = {
   async extractSuratData(file: File, masterData?: any): Promise<any> {
     const base64Data = await fileToBase64(file);
     try {
-      const { data, error } = await supabase.functions.invoke('ai-extractor', {
-        body: {
-          action: 'extractSuratData',
-          payload: {
-            fileBase64: base64Data,
-            fileType: file.type,
-            masterData
-          }
-        }
+      return await callAiEdgeFunction('extractSuratData', {
+        fileBase64: base64Data,
+        fileType: file.type,
+        masterData
       });
-      if (error) throw error;
-      return data.data;
     } catch (e: any) {
       console.error('Failed to extract surat data via Edge Function:', e);
       throw new Error(formatError(e));
@@ -24,14 +55,7 @@ export const aiExtractorService = {
 
   async generateTaskSummary(tasks: any[], filters?: any): Promise<string> {
     try {
-      const { data, error } = await supabase.functions.invoke('ai-extractor', {
-        body: {
-          action: 'generateTaskSummary',
-          payload: { tasks, filters }
-        }
-      });
-      if (error) throw error;
-      return data.data;
+      return await callAiEdgeFunction('generateTaskSummary', { tasks, filters });
     } catch (e: any) {
       console.error('Failed to generate task summary via Edge Function:', e);
       return "Sistem AI gagal mengenerate summary: " + formatError(e);
@@ -40,14 +64,7 @@ export const aiExtractorService = {
 
   async generateAnalyticsInsight(analyticsData: any): Promise<string> {
     try {
-      const { data, error } = await supabase.functions.invoke('ai-extractor', {
-        body: {
-          action: 'generateAnalyticsInsight',
-          payload: { analyticsData }
-        }
-      });
-      if (error) throw error;
-      return data.data;
+      return await callAiEdgeFunction('generateAnalyticsInsight', { analyticsData });
     } catch (e: any) {
       console.error('Failed to generate analytics insight via Edge Function:', e);
       return "Sistem AI gagal mengenerate insight: " + formatError(e);
@@ -56,14 +73,7 @@ export const aiExtractorService = {
 
   async extractZoomMeeting(invitationText: string): Promise<any> {
     try {
-      const { data, error } = await supabase.functions.invoke('ai-extractor', {
-        body: {
-          action: 'extractZoomMeeting',
-          payload: { invitationText }
-        }
-      });
-      if (error) throw error;
-      return data.data;
+      return await callAiEdgeFunction('extractZoomMeeting', { invitationText });
     } catch (e: any) {
       console.warn('Failed to extract Zoom meeting via Edge Function, running local fallback...', e);
       return parseZoomInvitationRegex(invitationText);
@@ -80,14 +90,7 @@ export const aiExtractorService = {
     }
   ): Promise<any[]> {
     try {
-      const { data, error } = await supabase.functions.invoke('ai-extractor', {
-        body: {
-          action: 'extractTasksFromText',
-          payload: { inputText, contextData }
-        }
-      });
-      if (error) throw error;
-      return data.data;
+      return await callAiEdgeFunction('extractTasksFromText', { inputText, contextData });
     } catch (e: any) {
       console.error('Failed to extract tasks via Edge Function:', e);
       throw new Error('Gagal mengekstrak task dengan AI: ' + formatError(e));
@@ -96,14 +99,7 @@ export const aiExtractorService = {
 
   async extractArchiveEvaluation(text: string): Promise<any> {
     try {
-      const { data, error } = await supabase.functions.invoke('ai-extractor', {
-        body: {
-          action: 'extractArchiveEvaluation',
-          payload: { text }
-        }
-      });
-      if (error) throw error;
-      return data.data;
+      return await callAiEdgeFunction('extractArchiveEvaluation', { text });
     } catch (e: any) {
       console.error('Failed to extract archive evaluation via Edge Function:', e);
       throw new Error('Gagal menganalisis teks dengan AI: ' + formatError(e));
@@ -115,14 +111,7 @@ export const aiExtractorService = {
     masters?: any[]
   ): Promise<any> {
     try {
-      const { data, error } = await supabase.functions.invoke('ai-extractor', {
-        body: {
-          action: 'extractBudgetTransaction',
-          payload: { inputText, masters }
-        }
-      });
-      if (error) throw error;
-      return data.data;
+      return await callAiEdgeFunction('extractBudgetTransaction', { inputText, masters });
     } catch (e: any) {
       console.error('Failed to extract budget transaction via Edge Function:', e);
       throw new Error('Gagal mengekstrak transaksi dengan AI: ' + formatError(e));
