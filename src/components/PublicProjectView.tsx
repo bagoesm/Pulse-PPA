@@ -35,6 +35,21 @@ const getColorClasses = (color: string = 'blue') => {
   return colorMap[color] || colorMap.blue;
 };
 
+const formatDateWithTime = (dateStr?: string) => {
+  if (!dateStr) return '-';
+  try {
+    return new Date(dateStr).toLocaleString('id-ID', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  } catch (e) {
+    return dateStr;
+  }
+};
+
 interface PublicProjectViewProps {
   shareToken: string;
 }
@@ -55,6 +70,42 @@ export const PublicProjectView: React.FC<PublicProjectViewProps> = ({ shareToken
   
   // Selected task for read-only modal
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [lastStatusChange, setLastStatusChange] = useState<{ date: string; user: string } | null>(null);
+
+  useEffect(() => {
+    const fetchLastStatusChange = async () => {
+      if (!selectedTask) {
+        setLastStatusChange(null);
+        return;
+      }
+      try {
+        const { data, error } = await supabase
+          .from('task_activities')
+          .select('created_at, user_name')
+          .eq('task_id', selectedTask.id)
+          .eq('action_type', 'status_change')
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (error) {
+          console.error('Error fetching last status change:', error);
+          setLastStatusChange(null);
+        } else if (data && data.length > 0) {
+          setLastStatusChange({
+            date: data[0].created_at,
+            user: data[0].user_name || 'Sistem'
+          });
+        } else {
+          setLastStatusChange(null);
+        }
+      } catch (err) {
+        console.error('Unexpected error fetching last status change:', err);
+        setLastStatusChange(null);
+      }
+    };
+
+    fetchLastStatusChange();
+  }, [selectedTask]);
 
   useEffect(() => {
     const fetchPublicData = async () => {
@@ -118,6 +169,13 @@ export const PublicProjectView: React.FC<PublicProjectViewProps> = ({ shareToken
             return picItem; // Fallback to original value
           });
 
+          const createdByUserId = t.created_by_id || t.created_by || t.createdBy;
+          let createdByName = 'Unknown';
+          if (createdByUserId && profilesData) {
+            const creator = profilesData.find((u: any) => u.id === createdByUserId);
+            if (creator) createdByName = creator.name;
+          }
+
           return {
             ...t,
             category: t.master_categories?.name || t.category || '',
@@ -126,6 +184,7 @@ export const PublicProjectView: React.FC<PublicProjectViewProps> = ({ shareToken
             projectId: t.project_id || t.projectId || null,
             epicId: t.epic_id || t.epicId || null,
             pic: picNames,
+            createdBy: createdByName,
             deadline: t.deadline || null,
             attachments: Array.isArray(t.attachments) ? t.attachments : [],
             links: Array.isArray(t.links) ? t.links : [],
@@ -520,6 +579,28 @@ export const PublicProjectView: React.FC<PublicProjectViewProps> = ({ shareToken
                   <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Prioritas</span>
                   <span className="font-bold text-slate-700">{selectedTask.priority}</span>
                 </div>
+                <div>
+                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Tanggal Mulai</span>
+                  <span className="font-bold text-slate-700">
+                    {selectedTask.startDate ? new Date(selectedTask.startDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Tenggat Waktu (Deadline)</span>
+                  <span className={`font-bold ${
+                    selectedTask.status !== Status.Done && selectedTask.deadline && new Date(selectedTask.deadline) < new Date() 
+                      ? 'text-red-600' 
+                      : 'text-slate-700'
+                  }`}>
+                    {selectedTask.deadline ? new Date(selectedTask.deadline).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
+                  </span>
+                </div>
+                {selectedTask.subCategory && (
+                  <div className="col-span-2 border-t border-slate-200/60 pt-2">
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Sub-Kategori</span>
+                    <span className="font-bold text-slate-700">{selectedTask.subCategory}</span>
+                  </div>
+                )}
                 <div className="col-span-2 border-t border-slate-200/60 pt-2 mt-1">
                   <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">PIC (Penanggung Jawab)</span>
                   <div className="flex flex-wrap gap-2 mt-1.5">
@@ -541,6 +622,29 @@ export const PublicProjectView: React.FC<PublicProjectViewProps> = ({ shareToken
                       <span className="text-xs text-slate-500 italic">Belum diisi</span>
                     )}
                   </div>
+                </div>
+              </div>
+
+              {/* Info Tambahan & Audit */}
+              <div className="grid grid-cols-2 gap-4 bg-slate-50/50 p-4 rounded-xl border border-slate-100/80 text-xs">
+                <div>
+                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Dibuat Oleh</span>
+                  <span className="font-semibold text-slate-600">{selectedTask.createdBy || 'Sistem'}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Tanggal Dibuat</span>
+                  <span className="font-semibold text-slate-600">
+                    {formatDateWithTime(selectedTask.created_at || (selectedTask as any).createdAt)}
+                  </span>
+                </div>
+                <div className="col-span-2 border-t border-slate-200/40 pt-2">
+                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Terakhir Diperbarui (Perubahan Status)</span>
+                  <span className="font-semibold text-slate-600">
+                    {lastStatusChange 
+                      ? `${formatDateWithTime(lastStatusChange.date)} oleh ${lastStatusChange.user}`
+                      : `${formatDateWithTime(selectedTask.created_at || (selectedTask as any).createdAt)} (Belum ada perubahan)`
+                    }
+                  </span>
                 </div>
               </div>
 
