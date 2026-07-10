@@ -40,6 +40,7 @@ import { useTemplateHandlers } from './hooks/useTemplateHandlers';
 import { useFeedbackHandlers } from './hooks/useFeedbackHandlers';
 import { useMiscHandlers } from './hooks/useMiscHandlers';
 import { useProjectHelpers } from './hooks/useProjectHelpers';
+import { useUserActivity } from './hooks/useUserActivity';
 import KanbanColumn from './components/KanbanColumn';
 import PublicProjectView from './components/PublicProjectView';
 
@@ -116,6 +117,9 @@ const AppContent: React.FC = () => {
     handleLogin,
     handleLogout
   } = useAuth();
+
+  // Track active status activity of current user
+  useUserActivity(currentUser);
 
   // ===== DATA HOOKS (Migrated from useData) =====
   const tasksContext = useTasks();

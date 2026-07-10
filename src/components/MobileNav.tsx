@@ -19,6 +19,7 @@ import {
 import { User } from '../../types';
 import UserAvatar from './UserAvatar';
 import { useModuleVisibility } from '../hooks/useModuleVisibility';
+import { useUnreadChatCount } from '../hooks/useUnreadChatCount';
 
 interface MobileNavProps {
   activeTab: string;
@@ -37,6 +38,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
 }) => {
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const { isModuleVisible } = useModuleVisibility(currentUser);
+  const unreadChatCount = useUnreadChatCount(currentUser);
 
   // Main tabs for bottom nav
   const bottomTabs = [
@@ -56,6 +58,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
     { name: 'Jadwal Kegiatan', icon: CalendarDays, color: 'text-indigo-600', bg: 'bg-indigo-50' },
     { name: 'Daftar Surat', icon: FileSpreadsheet, color: 'text-teal-600', bg: 'bg-teal-50' },
     { name: 'Dashboard Realisasi', icon: FileSpreadsheet, color: 'text-rose-600', bg: 'bg-rose-50' },
+    { name: 'Diskusi & Chat', icon: MessageSquarePlus, color: 'text-gov-600', bg: 'bg-gov-50' },
     { name: 'Saran Masukan', icon: MessageSquarePlus, color: 'text-emerald-600', bg: 'bg-emerald-50' },
     { name: 'Pengumuman', icon: Megaphone, color: 'text-blue-600', bg: 'bg-blue-50' },
     { name: 'Inventori Data', icon: Database, color: 'text-purple-600', bg: 'bg-purple-50' },
@@ -162,6 +165,11 @@ const MobileNav: React.FC<MobileNavProps> = ({
                       <Icon size={20} className={item.color} />
                     </div>
                     <span className="font-medium">{item.name}</span>
+                    {item.name === 'Diskusi & Chat' && unreadChatCount > 0 && (
+                      <span className="ml-auto shrink-0 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-pulse">
+                        {unreadChatCount}
+                      </span>
+                    )}
                   </button>
                 );
               })}
@@ -205,7 +213,12 @@ const MobileNav: React.FC<MobileNavProps> = ({
                     className="w-6 h-6"
                   />
                 ) : (
-                  <Icon size={20} />
+                  <div className="relative">
+                    <Icon size={20} />
+                    {item.isMore && unreadChatCount > 0 && (
+                      <span className="absolute -top-1.5 -right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border border-white" />
+                    )}
+                  </div>
                 )}
                 <span className="text-[9px] font-medium">{item.name}</span>
               </button>

@@ -74,6 +74,7 @@ export interface User {
   header_color?: string; // Warna header modal task detail untuk user ini
   profilePhoto?: string; // URL foto profil dari Supabase Storage
   profilePhotoPath?: string; // Path file di bucket
+  last_seen?: string; // ISO Date string for user's last seen time
 }
 
 // Christmas Decoration Settings

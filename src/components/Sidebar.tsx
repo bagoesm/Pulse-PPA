@@ -36,6 +36,7 @@ import {
 import { SIDEBAR_ITEMS, User } from '../../types';
 import { useSidebar } from '../contexts/SidebarContext';
 import { useModuleVisibility } from '../hooks/useModuleVisibility';
+import { useUnreadChatCount } from '../hooks/useUnreadChatCount';
 
 interface SidebarProps {
   activeTab: string;
@@ -82,6 +83,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser,
   const { isCollapsed, toggleCollapse } = useSidebar();
   const [tooltipPosition, setTooltipPosition] = useState<{ top: number } | null>(null);
   const { isModuleVisible } = useModuleVisibility(currentUser);
+  const unreadChatCount = useUnreadChatCount(currentUser);
   
   // Auto-expand submenus based on activeTab
   React.useEffect(() => {
@@ -346,7 +348,16 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser,
                   }`}
                 />
                 {!isCollapsed && <span className="truncate">{item.name}</span>}
+                {!isCollapsed && item.name === 'Diskusi & Chat' && unreadChatCount > 0 && (
+                  <span className="ml-auto shrink-0 bg-red-500 text-white text-[10px] font-bold h-5 min-w-[20px] px-1.5 rounded-full flex items-center justify-center animate-pulse">
+                    {unreadChatCount}
+                  </span>
+                )}
               </button>
+
+              {isCollapsed && item.name === 'Diskusi & Chat' && unreadChatCount > 0 && (
+                <span className="absolute top-2.5 right-5 w-2.5 h-2.5 bg-red-500 rounded-full ring-2 ring-white z-10 pointer-events-none" />
+              )}
 
               {/* Tooltip for collapsed state */}
               {isCollapsed && tooltipPosition && (

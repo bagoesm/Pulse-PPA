@@ -175,6 +175,44 @@ interface TypingState {
   };
 }
 
+const getLastSeenText = (user: User | null | undefined): string => {
+  if (!user) return 'Offline';
+  if (!user.last_seen) return 'Offline';
+
+  try {
+    const date = new Date(user.last_seen);
+    const now = new Date();
+    
+    // Format hours and minutes
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    const timeStr = `${hours}:${minutes}`;
+
+    // Check if today
+    const isToday = date.toDateString() === now.toDateString();
+    
+    // Check if yesterday
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    const isYesterday = date.toDateString() === yesterday.toDateString();
+
+    if (isToday) {
+      return `Terakhir dilihat ${timeStr}`;
+    } else if (isYesterday) {
+      return `Terakhir dilihat Kemarin ${timeStr}`;
+    } else {
+      // Format as dd/mm/yyyy
+      const day = date.getDate().toString().padStart(2, '0');
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const year = date.getFullYear();
+      return `Terakhir dilihat ${day}/${month}/${year} ${timeStr}`;
+    }
+  } catch (e) {
+    console.error('Error formatting last_seen time:', e);
+    return 'Offline';
+  }
+};
+
 export const ChatPage: React.FC<ChatPageProps> = ({
   currentUser,
   allUsers,
@@ -1498,16 +1536,22 @@ export const ChatPage: React.FC<ChatPageProps> = ({
                   <div className="flex items-center gap-1.5">
                     {activeRoom.isGroup ? (
                       <span className="text-[10px] text-slate-500 font-medium">Group Chat</span>
-                    ) : (
-                      <div className="flex items-center gap-1">
-                        <span className={`w-1.5 h-1.5 rounded-full ${
-                          onlineUsers.includes(activeRoomId) ? 'bg-emerald-500' : 'bg-slate-300'
-                        }`} />
-                        <span className="text-[10px] text-slate-400">
-                          {onlineUsers.includes(activeRoomId) ? 'Online' : 'Offline'}
-                        </span>
-                      </div>
-                    )}
+                    ) : (() => {
+                      const otherUser = activeRoom.otherUserId ? userMap[activeRoom.otherUserId] : null;
+                      const isOnline = otherUser 
+                        ? (onlineUsers.includes(otherUser.id) || (otherUser.last_seen && (Date.now() - new Date(otherUser.last_seen).getTime() < 120000)))
+                        : false;
+                      return (
+                        <div className="flex items-center gap-1">
+                          <span className={`w-1.5 h-1.5 rounded-full ${
+                            isOnline ? 'bg-emerald-500' : 'bg-slate-300'
+                          }`} />
+                          <span className="text-[10px] text-slate-400">
+                            {isOnline ? 'Online' : getLastSeenText(otherUser)}
+                          </span>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>
