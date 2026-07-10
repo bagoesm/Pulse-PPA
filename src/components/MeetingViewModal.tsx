@@ -755,7 +755,7 @@ const MeetingViewModal: React.FC<MeetingViewModalProps> = ({
                         <div className="flex justify-end mt-1">
                           <button
                             onClick={() => onDeleteComment(comment.id)}
-                            className="text-xs text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1"
+                            className="text-xs text-red-400 hover:text-red-600 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex items-center gap-1"
                           >
                             <Trash2 size={10} /> Hapus
                           </button>

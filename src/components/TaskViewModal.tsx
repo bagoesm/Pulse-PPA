@@ -966,7 +966,7 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                                         {canDeleteComment && onDeleteComment && (
                                           <button
                                             onClick={() => onDeleteComment(comment.id)}
-                                            className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-all"
+                                            className="opacity-100 md:opacity-0 md:group-hover:opacity-100 p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-all"
                                             title="Hapus komentar"
                                           >
                                             <Trash2 size={12} />

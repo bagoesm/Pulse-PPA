@@ -20,7 +20,8 @@ import {
   Trash2,
   LogOut,
   AlertCircle,
-  Info
+  Info,
+  ArrowLeft
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { User, ProjectDefinition, Task, Meeting, ChatRoom, ChatMessage } from '../../types';
@@ -210,6 +211,72 @@ const getLastSeenText = (user: User | null | undefined): string => {
   } catch (e) {
     console.error('Error formatting last_seen time:', e);
     return 'Offline';
+  }
+};
+
+// Web Audio API Synthesizer for premium UI sounds
+const playSound = (type: 'send' | 'receive') => {
+  try {
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return;
+    const ctx = new AudioContextClass();
+    
+    if (ctx.state === 'suspended') {
+      // AudioContext starts suspended in some browsers due to autoplay restrictions.
+      // Resume it if it is suspended.
+      ctx.resume();
+    }
+
+    if (type === 'send') {
+      // Ascending short clean blip
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(600, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(900, ctx.currentTime + 0.1);
+      
+      gain.gain.setValueAtTime(0.08, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+      
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      
+      osc.start();
+      osc.stop(ctx.currentTime + 0.1);
+    } else {
+      // Warm double-tone ding (C5 and then E5)
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const gain1 = ctx.createGain();
+      const gain2 = ctx.createGain();
+      
+      osc1.type = 'sine';
+      osc2.type = 'sine';
+      
+      osc1.frequency.setValueAtTime(523.25, ctx.currentTime);
+      gain1.gain.setValueAtTime(0.06, ctx.currentTime);
+      gain1.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.08);
+      
+      osc1.connect(gain1);
+      gain1.connect(ctx.destination);
+      
+      osc2.frequency.setValueAtTime(659.25, ctx.currentTime + 0.06);
+      gain2.gain.setValueAtTime(0.01, ctx.currentTime);
+      gain2.gain.setValueAtTime(0.06, ctx.currentTime + 0.06);
+      gain2.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+      
+      osc2.connect(gain2);
+      gain2.connect(ctx.destination);
+      
+      osc1.start();
+      osc1.stop(ctx.currentTime + 0.08);
+      
+      osc2.start(ctx.currentTime + 0.06);
+      osc2.stop(ctx.currentTime + 0.2);
+    }
+  } catch (e) {
+    console.warn('Audio play blocked or unsupported:', e);
   }
 };
 
@@ -663,6 +730,14 @@ export const ChatPage: React.FC<ChatPageProps> = ({
       async (payload) => {
         if (payload.eventType === 'INSERT') {
           const newMsg = payload.new;
+          
+          // Play notification sounds
+          if (newMsg.sender_id === currentUser.id) {
+            playSound('send');
+          } else {
+            playSound('receive');
+          }
+
           const sender = userMap[newMsg.sender_id];
           const mappedMsg: ChatMessage = {
             id: newMsg.id,
@@ -1368,10 +1443,10 @@ export const ChatPage: React.FC<ChatPageProps> = ({
   }, [messages]);
 
   return (
-    <div className="flex-1 flex bg-slate-50 h-[calc(100vh-64px)] overflow-hidden" style={{ minHeight: '500px' }}>
+    <div className="flex-1 flex bg-slate-50 h-full overflow-hidden" style={{ minHeight: '500px' }}>
       
       {/* LEFT COLUMN: Sidebar Chat */}
-      <div className="w-80 border-r border-slate-200 bg-white flex flex-col h-full select-none shrink-0">
+      <div className={`w-full md:w-80 border-r border-slate-200 bg-white flex flex-col h-full select-none shrink-0 ${activeRoomId ? 'hidden md:flex' : 'flex'}`}>
         
         {/* Search & Actions Header */}
         <div className="p-4 border-b border-slate-100 space-y-3">
@@ -1384,14 +1459,14 @@ export const ChatPage: React.FC<ChatPageProps> = ({
               <button 
                 onClick={() => setIsPersonalChatModalOpen(true)}
                 title="Mulai Chat Baru"
-                className="p-1.5 hover:bg-slate-100 rounded-full text-slate-600 transition-colors"
+                className="p-1.5 hover:bg-slate-100 rounded-full text-slate-600 transition-colors min-h-0"
               >
                 <Plus size={18} />
               </button>
               <button 
                 onClick={() => setIsGroupModalOpen(true)}
                 title="Buat Group Chat"
-                className="p-1.5 hover:bg-slate-100 rounded-full text-slate-600 transition-colors"
+                className="p-1.5 hover:bg-slate-100 rounded-full text-slate-600 transition-colors min-h-0"
               >
                 <Users size={18} />
               </button>
@@ -1508,12 +1583,21 @@ export const ChatPage: React.FC<ChatPageProps> = ({
       </div>
 
       {/* RIGHT COLUMN: Active Chat Panel */}
-      <div className="flex-1 flex flex-col h-full bg-slate-50">
+      <div className={`flex-1 flex flex-col h-full bg-slate-50 ${activeRoomId ? 'flex' : 'hidden md:flex'}`}>
         {activeRoomId && activeRoom ? (
           <>
             {/* Active Room Header */}
-            <div className="h-16 border-b border-slate-200 bg-white px-6 flex items-center justify-between select-none">
-              <div className="flex items-center gap-3 min-w-0">
+            <div className="h-16 border-b border-slate-200 bg-white px-3 sm:px-6 flex items-center justify-between select-none shrink-0 pt-3 md:pt-0">
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                {/* Back Button for mobile */}
+                <button
+                  type="button"
+                  onClick={() => setActiveRoomId(null)}
+                  className="md:hidden w-9 h-9 flex items-center justify-center min-h-0 hover:bg-slate-100 rounded-full text-slate-600 transition-colors shrink-0"
+                  title="Kembali ke Daftar Obrolan"
+                >
+                  <ArrowLeft size={20} />
+                </button>
                 <div className="shrink-0">
                   {activeRoom.isGroup ? (
                     activeRoom.groupPhoto ? (
@@ -1531,9 +1615,9 @@ export const ChatPage: React.FC<ChatPageProps> = ({
                     />
                   )}
                 </div>
-                <div className="min-w-0">
-                  <h3 className="font-bold text-slate-800 text-sm truncate">{activeRoom.name}</h3>
-                  <div className="flex items-center gap-1.5">
+                <div className="min-w-0 flex flex-col justify-center">
+                  <h3 className="font-bold text-slate-800 text-sm truncate leading-tight">{activeRoom.name}</h3>
+                  <div className="flex items-center gap-1.5 leading-none mt-0.5">
                     {activeRoom.isGroup ? (
                       <span className="text-[10px] text-slate-500 font-medium">Group Chat</span>
                     ) : (() => {
@@ -1542,14 +1626,14 @@ export const ChatPage: React.FC<ChatPageProps> = ({
                         ? (onlineUsers.includes(otherUser.id) || (otherUser.last_seen && (Date.now() - new Date(otherUser.last_seen).getTime() < 120000)))
                         : false;
                       return (
-                        <div className="flex items-center gap-1">
-                          <span className={`w-1.5 h-1.5 rounded-full ${
+                        <>
+                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
                             isOnline ? 'bg-emerald-500' : 'bg-slate-300'
                           }`} />
-                          <span className="text-[10px] text-slate-400">
+                          <span className="text-[10px] text-slate-400 truncate">
                             {isOnline ? 'Online' : getLastSeenText(otherUser)}
                           </span>
-                        </div>
+                        </>
                       );
                     })()}
                   </div>
@@ -1557,7 +1641,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({
               </div>
 
               {/* Header Actions (Badges + Delete Obrolan) */}
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1 sm:gap-3">
                 {activeRoom.projectName && (
                   <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors border border-slate-200 rounded-full text-xs font-semibold max-w-[200px] truncate">
                     <Briefcase size={14} className="text-slate-500" />
@@ -1570,7 +1654,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({
                   <button
                     onClick={openGroupSettings}
                     title="Pengaturan Grup"
-                    className="p-2 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-all"
+                    className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-all min-h-0"
                   >
                     <Info size={18} />
                   </button>
@@ -1579,7 +1663,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({
                 <button
                   onClick={handleDeleteRoom}
                   title={activeRoom.isGroup ? "Keluar Grup" : "Hapus Obrolan"}
-                  className="p-2 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-lg transition-all"
+                  className="p-1.5 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-lg transition-all min-h-0"
                 >
                   {activeRoom.isGroup ? <LogOut size={18} /> : <Trash2 size={18} />}
                 </button>
@@ -1793,7 +1877,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({
                                 </span>
                                 {isMe && (
                                   <span className={`text-[10px] font-bold leading-none ${
-                                    msg.isRead ? 'text-sky-300' : 'text-white/60'
+                                    msg.isRead ? 'text-white' : 'text-slate-300'
                                   }`} title={msg.isRead ? 'Dibaca' : 'Terkirim'}>
                                     ✓
                                   </span>
@@ -1833,9 +1917,9 @@ export const ChatPage: React.FC<ChatPageProps> = ({
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Input Bar Panel */}
-            <div className="p-4 border-t border-slate-200 bg-white select-none">
-              <form onSubmit={handleSendMessage} className="flex items-center gap-3">
+            {/* Message Input Bar */}
+            <div className="p-3 sm:p-4 bg-white border-t border-slate-200 shrink-0">
+              <form onSubmit={handleSendMessage} className="flex items-center gap-2 sm:gap-3">
                 <input
                   type="file"
                   ref={fileInputRef}
@@ -1849,7 +1933,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({
                   disabled={isUploading}
                   onClick={() => fileInputRef.current?.click()}
                   title="Lampirkan File"
-                  className="p-2.5 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-500 transition-colors shrink-0 disabled:opacity-50"
+                  className="w-10 h-10 flex items-center justify-center bg-slate-100 hover:bg-slate-200 rounded-full text-slate-500 transition-colors shrink-0 disabled:opacity-50 min-h-0"
                 >
                   {isUploading ? (
                     <Loader2 className="animate-spin" size={18} />
@@ -1866,7 +1950,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({
                     setIsShareModalOpen(true);
                   }}
                   title="Bagi Penugasan / Kegiatan"
-                  className="p-2.5 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-500 transition-colors shrink-0"
+                  className="w-10 h-10 flex items-center justify-center bg-slate-100 hover:bg-slate-200 rounded-full text-slate-500 transition-colors shrink-0 min-h-0"
                 >
                   <Plus size={18} />
                 </button>
@@ -1882,7 +1966,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({
                 <button
                   type="submit"
                   disabled={!messageInput.trim() || isSending}
-                  className="p-2.5 bg-gov-600 hover:bg-gov-700 rounded-full text-white transition-colors shrink-0 disabled:opacity-50 disabled:hover:bg-gov-600"
+                  className="w-10 h-10 flex items-center justify-center bg-gov-600 hover:bg-gov-700 rounded-full text-white transition-colors shrink-0 disabled:opacity-50 disabled:hover:bg-gov-600 min-h-0"
                 >
                   <Send size={18} />
                 </button>
@@ -2122,13 +2206,13 @@ export const ChatPage: React.FC<ChatPageProps> = ({
                     setShareSearch('');
                     setShareProjectFilter('All');
                   }}
-                  className={`flex-1 py-2 text-center text-sm font-semibold border-b-2 transition-colors ${
+                  className={`flex-1 py-2 text-center text-xs sm:text-sm font-semibold border-b-2 transition-colors ${
                     shareType === 'task' 
                       ? 'border-gov-600 text-gov-600' 
                       : 'border-transparent text-slate-500 hover:text-slate-700'
                   }`}
                 >
-                  Penugasan (Task)
+                  Tugas
                 </button>
                 <button
                   type="button"
@@ -2136,13 +2220,13 @@ export const ChatPage: React.FC<ChatPageProps> = ({
                     setShareType('meeting');
                     setShareSearch('');
                   }}
-                  className={`flex-1 py-2 text-center text-sm font-semibold border-b-2 transition-colors ${
+                  className={`flex-1 py-2 text-center text-xs sm:text-sm font-semibold border-b-2 transition-colors ${
                     shareType === 'meeting' 
                       ? 'border-gov-600 text-gov-600' 
                       : 'border-transparent text-slate-500 hover:text-slate-700'
                   }`}
                 >
-                  Kegiatan / Jadwal
+                  Kegiatan
                 </button>
                 <button
                   type="button"
@@ -2150,13 +2234,13 @@ export const ChatPage: React.FC<ChatPageProps> = ({
                     setShareType('project');
                     setShareSearch('');
                   }}
-                  className={`flex-1 py-2 text-center text-sm font-semibold border-b-2 transition-colors ${
+                  className={`flex-1 py-2 text-center text-xs sm:text-sm font-semibold border-b-2 transition-colors ${
                     shareType === 'project' 
                       ? 'border-gov-600 text-gov-600' 
                       : 'border-transparent text-slate-500 hover:text-slate-700'
                   }`}
                 >
-                  Proyek (Project)
+                  Proyek
                 </button>
               </div>
 

@@ -476,10 +476,16 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
 
           // Create Disposisi via service (ensures validation, audit trail, and notifications) ONLY if provided
           if (selectedAssignees.length > 0 && disposisiText.trim() !== '') {
+            // Map assignee names to their user IDs (UUIDs)
+            const assigneeIds = selectedAssignees.map(name => {
+              const matchedUser = allUsers.find(u => u.name === name);
+              return matchedUser ? matchedUser.id : name;
+            });
+
             await disposisiService.createMultiUserDisposisi(
               suratData.id,
               selectedKegiatan.id,
-              selectedAssignees,
+              assigneeIds,
               disposisiText,
               currentUser?.id || currentUserName,
               currentUser,
@@ -562,10 +568,16 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
 
           // Create Disposisi via service (ensures validation, audit trail, and notifications) ONLY if provided
           if (selectedAssignees.length > 0 && disposisiText.trim() !== '') {
+            // Map assignee names to their user IDs (UUIDs)
+            const assigneeIds = selectedAssignees.map(name => {
+              const matchedUser = allUsers.find(u => u.name === name);
+              return matchedUser ? matchedUser.id : name;
+            });
+
             await disposisiService.createMultiUserDisposisi(
               suratData.id,
               meetingData.id,
-              selectedAssignees,
+              assigneeIds,
               disposisiText,
               currentUser?.id || currentUserName,
               currentUser,

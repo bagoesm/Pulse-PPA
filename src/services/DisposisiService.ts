@@ -681,13 +681,16 @@ export class DisposisiService {
     performedBy: string
   ): Promise<void> {
     try {
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const isUuid = uuidRegex.test(performedBy);
+
       const historyData = {
         disposisi_id: disposisiId,
         action: action,
         old_value: oldValue,
         new_value: newValue,
         performed_by: performedBy,
-        performed_by_id: performedBy,
+        performed_by_id: isUuid ? performedBy : null,
         performed_at: new Date().toISOString(),
       };
 
