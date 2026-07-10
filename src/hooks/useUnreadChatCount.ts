@@ -57,8 +57,25 @@ export const useUnreadChatCount = (currentUser: User | null) => {
       )
       .subscribe();
 
+    // Listen to local optimistic read events
+    const handleChatsRead = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const countToDecrement = customEvent.detail?.count || 0;
+      setUnreadCount(prev => Math.max(0, prev - countToDecrement));
+    };
+
+    // Listen to local sync events
+    const handleLocalUpdate = () => {
+      fetchUnreadCount();
+    };
+
+    window.addEventListener('unread-chats-read', handleChatsRead);
+    window.addEventListener('unread-chats-updated', handleLocalUpdate);
+
     return () => {
       supabase.removeChannel(channel);
+      window.removeEventListener('unread-chats-read', handleChatsRead);
+      window.removeEventListener('unread-chats-updated', handleLocalUpdate);
     };
   }, [currentUser?.id, fetchUnreadCount]);
 

@@ -619,10 +619,19 @@ export const ChatPage: React.FC<ChatPageProps> = ({
       .then(() => {
         // Update local rooms unread count after DB confirms
         setRooms(prev => prev.map(r => r.id === roomId ? { ...r, unreadCount: 0 } as any : r));
+        // Sync global unread count
+        window.dispatchEvent(new Event('unread-chats-updated'));
       });
 
     // 3. Reset unread count locally immediately (optimistic)
-    setRooms(prev => prev.map(r => r.id === roomId ? { ...r, unreadCount: 0 } as any : r));
+    setRooms(prev => {
+      const activeRoom = prev.find(r => r.id === roomId);
+      const unreadInRoom = activeRoom?.unreadCount || 0;
+      if (unreadInRoom > 0) {
+        window.dispatchEvent(new CustomEvent('unread-chats-read', { detail: { count: unreadInRoom } }));
+      }
+      return prev.map(r => r.id === roomId ? { ...r, unreadCount: 0 } as any : r);
+    });
 
     try {
       // 4. Fetch messages from DB
@@ -783,6 +792,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({
               .update({ is_read: true })
               .eq('id', newMsg.id);
             mappedMsg.isRead = true;
+            window.dispatchEvent(new Event('unread-chats-updated'));
           }
 
           setMessages(prev => {
