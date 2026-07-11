@@ -21,7 +21,10 @@ import {
   LogOut,
   AlertCircle,
   Info,
-  ArrowLeft
+  ArrowLeft,
+  Eye,
+  CornerUpLeft,
+  CheckSquare
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { User, ProjectDefinition, Task, Meeting, ChatRoom, ChatMessage } from '../../types';
@@ -166,6 +169,7 @@ interface ChatPageProps {
   meetings: Meeting[];
   onTaskClick: (task: Task) => void;
   onViewMeeting: (meeting: Meeting) => void;
+  onViewProject?: (project: ProjectDefinition) => void;
   showNotification: (title: string, message: string, type: 'success' | 'error' | 'info') => void;
 }
 
@@ -280,6 +284,23 @@ const playSound = (type: 'send' | 'receive') => {
   }
 };
 
+export const parseRoomName = (room: ChatRoom | null | undefined) => {
+  if (!room) return { name: '', admins: [] };
+  let displayName = room.name || '';
+  let admins: string[] = room.createdBy ? [room.createdBy] : [];
+
+  if (room.name && room.name.startsWith('{"name":')) {
+    try {
+      const parsed = JSON.parse(room.name);
+      displayName = parsed.name || '';
+      if (Array.isArray(parsed.admins)) {
+        admins = parsed.admins;
+      }
+    } catch {}
+  }
+  return { name: displayName, admins };
+};
+
 export const ChatPage: React.FC<ChatPageProps> = ({
   currentUser,
   allUsers,
@@ -288,6 +309,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({
   meetings,
   onTaskClick,
   onViewMeeting,
+  onViewProject,
   showNotification
 }) => {
   // Navigation & UI States
@@ -324,6 +346,24 @@ export const ChatPage: React.FC<ChatPageProps> = ({
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
+  // Pending Files & Preview States
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [pendingFilePreview, setPendingFilePreview] = useState<string | null>(null);
+  const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
+  const [previewPdfName, setPreviewPdfName] = useState<string>('');
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+  const [previewImageName, setPreviewImageName] = useState<string>('');
+  const [pendingShareItem, setPendingShareItem] = useState<{ id: string; type: 'task' | 'meeting' | 'project'; title: string } | null>(null);
+
+  // Reply / Quote Message State
+  const [replyToMessage, setReplyToMessage] = useState<ChatMessage | null>(null);
+
+  // Mentions Suggestion States
+  const [showMentionSuggestions, setShowMentionSuggestions] = useState(false);
+  const [mentionSearchQuery, setMentionSearchQuery] = useState('');
+  const [mentionTriggerIndex, setMentionTriggerIndex] = useState(-1);
+  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(0);
+
   // Realtime Cache & References
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
   const [typingUsers, setTypingUsers] = useState<TypingState>({});
@@ -338,6 +378,38 @@ export const ChatPage: React.FC<ChatPageProps> = ({
   const groupPhotoInputRef = useRef<HTMLInputElement>(null);
   // Local state for aesthetic toasts
   const [toasts, setToasts] = useState<{ id: string; message: string; type: 'success' | 'error' | 'info' }[]>([]);
+
+  // States for deleting messages
+  const [deletedForMeIds, setDeletedForMeIds] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('chat_deleted_for_me') || '[]');
+    } catch {
+      return [];
+    }
+  });
+  const [deleteTargetMessage, setDeleteTargetMessage] = useState<ChatMessage | null>(null);
+  const [isDeleteOptionsOpen, setIsDeleteOptionsOpen] = useState(false);
+
+  // States for active room message searching
+  const [isSearchPanelOpen, setIsSearchPanelOpen] = useState(false);
+  const [messageSearchQuery, setMessageSearchQuery] = useState('');
+
+  // States for group read receipts detail modal
+  const [groupReadReceipts, setGroupReadReceipts] = useState<{
+    isOpen: boolean;
+    readUsers: User[];
+    deliveredUsers: User[];
+    messageText: string;
+  }>({
+    isOpen: false,
+    readUsers: [],
+    deliveredUsers: [],
+    messageText: ''
+  });
+
+  // States for sidebar Info panel tabs & media gallery
+  const [settingsTab, setSettingsTab] = useState<'info' | 'media'>('info');
+  const [mediaSubTab, setMediaSubTab] = useState<'media' | 'files' | 'links'>('media');
 
   const addToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'success') => {
     const id = Math.random().toString(36).substring(7);
@@ -360,6 +432,96 @@ export const ChatPage: React.FC<ChatPageProps> = ({
     message: '',
     onConfirm: () => {}
   });
+
+  // Autocomplete suggestion users
+  const suggestedUsers = useMemo(() => {
+    if (!showMentionSuggestions) return [];
+    return groupMembers.filter(m => 
+      m.name.toLowerCase().includes(mentionSearchQuery.toLowerCase())
+    ).slice(0, 5);
+  }, [groupMembers, showMentionSuggestions, mentionSearchQuery]);
+
+  // Helper to clear pending file
+  const handleClearPendingFile = useCallback(() => {
+    setPendingFilePreview(prev => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+    setPendingFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  }, []);
+
+  // Helper to select file for preview
+  const handleSelectFileForPreview = useCallback((file: File) => {
+    if (file.size > 10 * 1024 * 1024) {
+      addToast('Maksimal ukuran file adalah 10MB', 'error');
+      return;
+    }
+    
+    // Clear pending share item to avoid conflicts
+    setPendingShareItem(null);
+
+    setPendingFilePreview(prev => {
+      if (prev) URL.revokeObjectURL(prev);
+      if (file.type.startsWith('image/')) {
+        return URL.createObjectURL(file);
+      }
+      return null;
+    });
+    setPendingFile(file);
+  }, [addToast]);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    handleSelectFileForPreview(files[0]);
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const files = e.clipboardData.files;
+    if (files && files.length > 0) {
+      e.preventDefault();
+      handleSelectFileForPreview(files[0]);
+    }
+  };
+
+  const handleSelectMention = (user: User) => {
+    if (mentionTriggerIndex === -1) return;
+    
+    const beforeMention = messageInput.slice(0, mentionTriggerIndex);
+    const afterCursor = messageInput.slice(mentionTriggerIndex + mentionSearchQuery.length + 1);
+    const newValue = `${beforeMention}@${user.name} ${afterCursor}`;
+    
+    setMessageInput(newValue);
+    setShowMentionSuggestions(false);
+    setMentionTriggerIndex(-1);
+    setMentionSearchQuery('');
+
+    // Focus back to chat input field
+    setTimeout(() => {
+      chatInputRef.current?.focus();
+    }, 0);
+  };
+
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (showMentionSuggestions && suggestedUsers.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setActiveSuggestionIndex(prev => (prev + 1) % suggestedUsers.length);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setActiveSuggestionIndex(prev => (prev - 1 + suggestedUsers.length) % suggestedUsers.length);
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        handleSelectMention(suggestedUsers[activeSuggestionIndex]);
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        setShowMentionSuggestions(false);
+      }
+    }
+  };
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -367,11 +529,18 @@ export const ChatPage: React.FC<ChatPageProps> = ({
   const lastTypingTimeRef = useRef<number>(0);
   // Ref to always have latest activeRoomId inside async callbacks
   const activeRoomIdRef = useRef<string | null>(null);
+  const chatInputRef = useRef<HTMLInputElement>(null);
   // Keep ref in sync so async callbacks can see the latest value
   useEffect(() => { activeRoomIdRef.current = activeRoomId; }, [activeRoomId]);
 
   // Local state for all system users (unfiltered to allow cross-division chats)
   const [systemUsers, setSystemUsers] = useState<User[]>([]);
+
+  // Refs for stable dependencies in hooks
+  const systemUsersRef = useRef<User[]>([]);
+  useEffect(() => {
+    systemUsersRef.current = systemUsers;
+  }, [systemUsers]);
 
   // Fetch all profiles on mount to allow cross-division chats
   useEffect(() => {
@@ -448,6 +617,11 @@ export const ChatPage: React.FC<ChatPageProps> = ({
       return acc;
     }, {} as Record<string, User>);
   }, [systemUsers]);
+
+  const userMapRef = useRef<Record<string, User>>({});
+  useEffect(() => {
+    userMapRef.current = userMap;
+  }, [userMap]);
 
   // Project map for fast lookups
   const projectMap = useMemo(() => {
@@ -537,27 +711,74 @@ export const ChatPage: React.FC<ChatPageProps> = ({
             lastMessageTime = m.created_at;
 
             if (m.type === 'text') {
-              lastMessage = m.message;
+              let msgText = m.message;
+              if (msgText && msgText.startsWith('{"isDeletedForEveryone":')) {
+                lastMessage = 'Pesan telah dihapus';
+              } else if (msgText && msgText.startsWith('{')) {
+                try {
+                  msgText = JSON.parse(msgText).text || msgText;
+                } catch {}
+                lastMessage = msgText;
+              } else {
+                lastMessage = msgText;
+              }
             } else if (m.type === 'file') {
-              lastMessage = `📁 File dilampirkan`;
+              let capText = '';
+              if (m.message && m.message.startsWith('{"text":')) {
+                try {
+                  capText = JSON.parse(m.message).text || '';
+                } catch {}
+              }
+              lastMessage = capText ? `📁 File: ${capText}` : `📁 File dilampirkan`;
             } else if (m.type === 'task') {
-              lastMessage = `📋 Penugasan dilampirkan`;
+              let capText = '';
+              try {
+                const parsed = JSON.parse(m.message || '{}');
+                capText = parsed.text || '';
+              } catch {}
+              lastMessage = capText ? `📋 Penugasan: ${capText}` : `📋 Penugasan dilampirkan`;
             } else if (m.type === 'meeting') {
-              lastMessage = `📅 Jadwal dilampirkan`;
+              let capText = '';
+              try {
+                const parsed = JSON.parse(m.message || '{}');
+                capText = parsed.text || '';
+              } catch {}
+              lastMessage = capText ? `📅 Jadwal: ${capText}` : `📅 Jadwal dilampirkan`;
             } else if (m.type === 'project') {
-              lastMessage = `💼 Proyek dilampirkan`;
+              let capText = '';
+              try {
+                const parsed = JSON.parse(m.message || '{}');
+                capText = parsed.text || '';
+              } catch {}
+              lastMessage = capText ? `💼 Proyek: ${capText}` : `💼 Proyek dilampirkan`;
             }
           }
 
-          // Fetch unread count for current user
-          const { count, error: countErr } = await supabase
+          // Fetch unread count and messages for current user
+          const { data: unreadMsgs, count, error: countErr } = await supabase
             .from('chat_messages')
-            .select('*', { count: 'exact', head: true })
+            .select('message, type', { count: 'exact' })
             .eq('room_id', room.id)
             .neq('sender_id', currentUser.id)
             .eq('is_read', false);
 
           const unreadCount = (!countErr && count) ? count : 0;
+          
+          let hasMention = false;
+          if (!countErr && unreadMsgs) {
+            hasMention = unreadMsgs.some(m => {
+              if (m.type === 'text' && m.message) {
+                let textToCheck = m.message;
+                if (m.message.startsWith('{"text":')) {
+                  try {
+                    textToCheck = JSON.parse(m.message).text;
+                  } catch {}
+                }
+                return textToCheck.includes(`@${currentUser.name}`);
+              }
+              return false;
+            });
+          }
 
           return {
             id: room.id,
@@ -569,12 +790,13 @@ export const ChatPage: React.FC<ChatPageProps> = ({
             updatedAt: room.updated_at,
             projectName,
             otherUserId,
-            groupPhoto: room.group_photo_path ? supabase.storage.from('attachment').getPublicUrl(room.group_photo_path).data.publicUrl : null,
+            groupPhoto: room.group_photo_path ? `${supabase.storage.from('attachment').getPublicUrl(room.group_photo_path).data.publicUrl}?t=${new Date(room.updated_at).getTime()}` : null,
             lastMessage,
             lastMessageTime,
             lastMessageSenderId,
             lastMessageIsRead,
-            unreadCount
+            unreadCount,
+            hasMention
           } as ChatRoom;
         })
       );
@@ -596,6 +818,72 @@ export const ChatPage: React.FC<ChatPageProps> = ({
   useEffect(() => {
     fetchRooms();
   }, [fetchRooms]);
+
+  // Helper to extract read and delivered users lists for read receipts details
+  const getReadAndDeliveredLists = useCallback((msg: ChatMessage) => {
+    let readByIds: string[] = [];
+    const raw = msg.message || '';
+    if (raw.startsWith('{')) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed.readBy)) {
+          readByIds = parsed.readBy;
+        }
+      } catch {}
+    }
+
+    const readUsers = readByIds
+      .map(id => systemUsersRef.current.find(u => u.id === id))
+      .filter(Boolean) as User[];
+
+    const deliveredUsers = groupMembers.filter(member => 
+      member.id !== currentUser.id && 
+      !readByIds.includes(member.id)
+    );
+
+    return { readUsers, deliveredUsers };
+  }, [groupMembers, currentUser.id]);
+
+  // Update read status payload for unread messages received from others
+  const markMessagesAsRead = useCallback(async (roomId: string, msgs: ChatMessage[]) => {
+    const unreadMsgs = msgs.filter(m => m.senderId !== currentUser.id);
+    if (unreadMsgs.length === 0) return;
+
+    for (const msg of unreadMsgs) {
+      let readBy: string[] = [];
+      let parsedPayload: any = {};
+      let textVal = msg.message || '';
+
+      if (textVal.startsWith('{')) {
+        try {
+          parsedPayload = JSON.parse(textVal);
+          if (Array.isArray(parsedPayload.readBy)) {
+            readBy = parsedPayload.readBy;
+          }
+        } catch {}
+      } else {
+        parsedPayload = { text: textVal };
+      }
+
+      if (!readBy.includes(currentUser.id)) {
+        readBy.push(currentUser.id);
+        parsedPayload.readBy = readBy;
+        const updatedMsgText = JSON.stringify(parsedPayload);
+
+        try {
+          await supabase
+            .from('chat_messages')
+            .update({ 
+              message: updatedMsgText,
+              is_read: true 
+            })
+            .eq('id', msg.id);
+        } catch (err) {
+          console.error('Error updating read receipt:', err);
+        }
+      }
+    }
+  }, [currentUser.id]);
 
   // Fetch Messages for active room
   const fetchMessages = useCallback(async (roomId: string) => {
@@ -644,7 +932,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({
       if (error) throw error;
 
       const mappedMessages: ChatMessage[] = (dbMessages || []).map((msg) => {
-        const sender = userMap[msg.sender_id];
+        const sender = userMapRef.current[msg.sender_id];
         return {
           id: msg.id,
           roomId: msg.room_id,
@@ -668,6 +956,9 @@ export const ChatPage: React.FC<ChatPageProps> = ({
       messagesCacheRef.current[roomId] = mappedMessages;
       setMessages(mappedMessages);
       setIsLoadingMessages(false);
+
+      // Mark unread messages as read in DB and log read status metadata
+      markMessagesAsRead(roomId, mappedMessages);
 
       // 5. Generate signed URLs in background (parallel, non-blocking)
       const fileMsgs = mappedMessages.filter(m => m.type === 'file' && m.attachmentPath);
@@ -703,12 +994,39 @@ export const ChatPage: React.FC<ChatPageProps> = ({
     } finally {
       setIsLoadingMessages(false);
     }
-  }, [userMap, addToast, scrollToBottom, currentUser.id]);
+  }, [addToast, scrollToBottom, currentUser.id]);
+
+  // Fetch group members for the active room
+  const fetchGroupMembers = useCallback(async (roomId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('chat_room_members')
+        .select('user_id')
+        .eq('room_id', roomId);
+      if (error) throw error;
+      const memberIds = (data || []).map((d: any) => d.user_id);
+      const members = memberIds.map((id: string) => systemUsersRef.current.find(u => u.id === id)).filter(Boolean) as User[];
+      setGroupMembers(members);
+    } catch (err: any) {
+      console.error('Error fetching group members:', err);
+    }
+  }, []);
 
   // Handle active room change & subscribe to Realtime
   useEffect(() => {
+    // Inline state updates to clear previews when switching rooms
+    setPendingFile(null);
+    setPendingFilePreview(prev => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+    setPendingShareItem(null);
+    setReplyToMessage(null);
+    setShowMentionSuggestions(false);
+
     if (!activeRoomId) {
       setMessages([]);
+      setGroupMembers([]);
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
@@ -717,6 +1035,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({
     }
 
     fetchMessages(activeRoomId);
+    fetchGroupMembers(activeRoomId);
 
     // Setup channel for active room
     const channel = supabase.channel(`room:${activeRoomId}`, {
@@ -747,7 +1066,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({
             playSound('receive');
           }
 
-          const sender = userMap[newMsg.sender_id];
+          const sender = userMapRef.current[newMsg.sender_id];
           const mappedMsg: ChatMessage = {
             id: newMsg.id,
             roomId: newMsg.room_id,
@@ -785,12 +1104,9 @@ export const ChatPage: React.FC<ChatPageProps> = ({
             }
           }
 
-          // If the message is from someone else and this room is active, mark it as read in the database
+          // If the message is from someone else and this room is active, mark it as read in the database and log read receipt metadata
           if (newMsg.sender_id !== currentUser.id) {
-            await supabase
-              .from('chat_messages')
-              .update({ is_read: true })
-              .eq('id', newMsg.id);
+            await markMessagesAsRead(activeRoomId, [mappedMsg]);
             mappedMsg.isRead = true;
             window.dispatchEvent(new Event('unread-chats-updated'));
           }
@@ -807,14 +1123,40 @@ export const ChatPage: React.FC<ChatPageProps> = ({
           let displayMsg = '';
           if (mappedMsg.type === 'text') {
             displayMsg = mappedMsg.message || '';
+            if (displayMsg.startsWith('{')) {
+              try {
+                displayMsg = JSON.parse(displayMsg).text || '';
+              } catch {}
+            }
           } else if (mappedMsg.type === 'file') {
-            displayMsg = `📁 File dilampirkan`;
+            let capText = '';
+            if (mappedMsg.message && mappedMsg.message.startsWith('{"text":')) {
+              try {
+                capText = JSON.parse(mappedMsg.message).text || '';
+              } catch {}
+            }
+            displayMsg = capText ? `📁 File: ${capText}` : `📁 File dilampirkan`;
           } else if (mappedMsg.type === 'task') {
-            displayMsg = `📋 Penugasan dilampirkan`;
+            let capText = '';
+            try {
+              const parsed = JSON.parse(mappedMsg.message || '{}');
+              capText = parsed.text || '';
+            } catch {}
+            displayMsg = capText ? `📋 Penugasan: ${capText}` : `📋 Penugasan dilampirkan`;
           } else if (mappedMsg.type === 'meeting') {
-            displayMsg = `📅 Jadwal dilampirkan`;
+            let capText = '';
+            try {
+              const parsed = JSON.parse(mappedMsg.message || '{}');
+              capText = parsed.text || '';
+            } catch {}
+            displayMsg = capText ? `📅 Jadwal: ${capText}` : `📅 Jadwal dilampirkan`;
           } else if (mappedMsg.type === 'project') {
-            displayMsg = `💼 Proyek dilampirkan`;
+            let capText = '';
+            try {
+              const parsed = JSON.parse(mappedMsg.message || '{}');
+              capText = parsed.text || '';
+            } catch {}
+            displayMsg = capText ? `💼 Proyek: ${capText}` : `💼 Proyek dilampirkan`;
           }
 
           setRooms(prevRooms => {
@@ -838,7 +1180,18 @@ export const ChatPage: React.FC<ChatPageProps> = ({
           setTimeout(() => scrollToBottom('smooth'), 100);
         } else if (payload.eventType === 'UPDATE') {
           const updatedMsg = payload.new;
-          setMessages(prev => prev.map(m => m.id === updatedMsg.id ? { ...m, isRead: updatedMsg.is_read } : m));
+          setMessages(prev => prev.map(m => m.id === updatedMsg.id ? {
+            ...m,
+            message: updatedMsg.message,
+            type: updatedMsg.type,
+            attachmentPath: updatedMsg.attachment_path,
+            attachmentName: updatedMsg.attachment_name,
+            attachmentType: updatedMsg.attachment_type,
+            linkedTaskId: updatedMsg.linked_task_id,
+            linkedMeetingId: updatedMsg.linked_meeting_id,
+            linkedProjectId: updatedMsg.linked_project_id,
+            isRead: updatedMsg.is_read
+          } : m));
           
           setRooms(prevRooms => {
             return prevRooms.map(r => {
@@ -909,7 +1262,32 @@ export const ChatPage: React.FC<ChatPageProps> = ({
         channelRef.current = null;
       }
     };
-  }, [activeRoomId, currentUser.id, currentUser.name, userMap, scrollToBottom, fetchMessages]);
+  }, [activeRoomId, currentUser.id, currentUser.name, scrollToBottom, fetchMessages, fetchGroupMembers]);
+
+  // Listen to global chat messages and room updates to refresh in realtime
+  useEffect(() => {
+    const channel = supabase
+      .channel('global-rooms-realtime-sync')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'chat_messages' },
+        () => {
+          fetchRooms();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'chat_rooms' },
+        () => {
+          fetchRooms();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchRooms]);
 
   // Clean up typing indicator timers
   useEffect(() => {
@@ -934,7 +1312,8 @@ export const ChatPage: React.FC<ChatPageProps> = ({
 
   // Handle typing event broadcast
   const handleMessageInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setMessageInput(e.target.value);
+    const val = e.target.value;
+    setMessageInput(val);
     
     if (!activeRoomId || !channelRef.current) return;
     
@@ -947,11 +1326,43 @@ export const ChatPage: React.FC<ChatPageProps> = ({
         payload: { userId: currentUser.id, userName: currentUser.name }
       });
     }
+
+    // Mention trigger checking
+    const selectionStart = e.target.selectionStart || 0;
+    const textBeforeCursor = val.slice(0, selectionStart);
+    const lastAtIndex = textBeforeCursor.lastIndexOf('@');
+    
+    if (lastAtIndex !== -1) {
+      const textAfterAt = textBeforeCursor.slice(lastAtIndex + 1);
+      const isStartOrSpace = lastAtIndex === 0 || /\s/.test(textBeforeCursor[lastAtIndex - 1]);
+      const hasSpacesAfterAt = textAfterAt.includes(' ');
+      
+      if (isStartOrSpace && !hasSpacesAfterAt) {
+        setShowMentionSuggestions(true);
+        setMentionSearchQuery(textAfterAt);
+        setMentionTriggerIndex(lastAtIndex);
+        setActiveSuggestionIndex(0);
+        return;
+      }
+    }
+    
+    setShowMentionSuggestions(false);
   };
 
   // Send Message (Text)
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+
+    if (pendingFile) {
+      await handleUploadPendingFile();
+      return;
+    }
+
+    if (pendingShareItem) {
+      await handleSharePendingItem();
+      return;
+    }
+
     if (!messageInput.trim() || !activeRoomId || isSending) return;
 
     setIsSending(true);
@@ -959,10 +1370,23 @@ export const ChatPage: React.FC<ChatPageProps> = ({
     setMessageInput('');
 
     try {
+      let finalMessage = content;
+      if (replyToMessage) {
+        finalMessage = JSON.stringify({
+          text: content,
+          replyTo: {
+            id: replyToMessage.id,
+            senderName: replyToMessage.senderName,
+            message: replyToMessage.type === 'file' ? `📁 ${replyToMessage.attachmentName}` : replyToMessage.message
+          }
+        });
+        setReplyToMessage(null); // Clear reply state
+      }
+
       const { error } = await supabase.from('chat_messages').insert({
         room_id: activeRoomId,
         sender_id: currentUser.id,
-        message: content,
+        message: finalMessage,
         type: 'text'
       });
 
@@ -980,19 +1404,13 @@ export const ChatPage: React.FC<ChatPageProps> = ({
     }
   };
 
-  // Handle File Upload
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0 || !activeRoomId || isUploading) return;
+  // Handle File Upload from Pending Preview
+  const handleUploadPendingFile = async () => {
+    if (!pendingFile || !activeRoomId || isUploading) return;
 
-    const file = files[0];
+    const file = pendingFile;
+    const caption = messageInput;
     
-    // Validate size (max 10MB)
-    if (file.size > 10 * 1024 * 1024) {
-      addToast('Maksimal ukuran file adalah 10MB', 'error');
-      return;
-    }
-
     setIsUploading(true);
     setUploadProgress(10); // Simulated start
 
@@ -1012,11 +1430,23 @@ export const ChatPage: React.FC<ChatPageProps> = ({
 
       setUploadProgress(80);
 
+      let finalMsg = file.name;
+      if (caption.trim() || replyToMessage) {
+        finalMsg = JSON.stringify({
+          text: caption.trim(),
+          replyTo: replyToMessage ? {
+            id: replyToMessage.id,
+            senderName: replyToMessage.senderName,
+            message: replyToMessage.type === 'file' ? `📁 ${replyToMessage.attachmentName}` : replyToMessage.message
+          } : null
+        });
+      }
+
       // Insert message reference
       const { error: msgError } = await supabase.from('chat_messages').insert({
         room_id: activeRoomId,
         sender_id: currentUser.id,
-        message: file.name,
+        message: finalMsg,
         type: 'file',
         attachment_path: filePath,
         attachment_name: file.name,
@@ -1030,52 +1460,88 @@ export const ChatPage: React.FC<ChatPageProps> = ({
 
       setUploadProgress(100);
       addToast('File berhasil diunggah', 'success');
+
+      // Clear pending file and input/reply states after successful upload
+      handleClearPendingFile();
+      setMessageInput('');
+      setReplyToMessage(null);
     } catch (error: any) {
       console.error('Error uploading file:', error);
       addToast('Gagal mengunggah berkas: ' + error.message, 'error');
     } finally {
       setIsUploading(false);
       setUploadProgress(null);
-      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
-  // Share Task or Meeting as message
-  const handleShareItem = async (itemId: string) => {
-    if (!activeRoomId) return;
+  // Share Task, Meeting or Project from pending state
+  const handleSharePendingItem = async () => {
+    if (!pendingShareItem || !activeRoomId) return;
 
-    setIsShareModalOpen(false);
-    
+    const itemId = pendingShareItem.id;
+    const type = pendingShareItem.type;
+    const caption = messageInput;
+    const reply = replyToMessage;
+
+    setIsSending(true);
+
     try {
       const payload: any = {
         room_id: activeRoomId,
         sender_id: currentUser.id,
-        type: shareType
+        type: type
       };
 
-      if (shareType === 'task') {
+      if (type === 'task') {
         const task = tasks.find(t => t.id === itemId);
-        payload.message = JSON.stringify({
+        const taskData: any = {
           title: task?.title || '',
           category: task?.category || '',
           priority: task?.priority || 'Medium',
-        });
+        };
+        if (caption.trim()) taskData.text = caption.trim();
+        if (reply) {
+          taskData.replyTo = {
+            id: reply.id,
+            senderName: reply.senderName,
+            message: reply.type === 'file' ? `📁 ${reply.attachmentName}` : reply.message
+          };
+        }
+        payload.message = JSON.stringify(taskData);
         payload.linked_task_id = itemId;
-      } else if (shareType === 'meeting') {
+      } else if (type === 'meeting') {
         const meeting = meetings.find(m => m.id === itemId);
-        payload.message = JSON.stringify({
+        const meetingData: any = {
           title: meeting?.title || '',
           date: meeting?.date || '',
           location: meeting?.location || '',
-        });
+        };
+        if (caption.trim()) meetingData.text = caption.trim();
+        if (reply) {
+          meetingData.replyTo = {
+            id: reply.id,
+            senderName: reply.senderName,
+            message: reply.type === 'file' ? `📁 ${reply.attachmentName}` : reply.message
+          };
+        }
+        payload.message = JSON.stringify(meetingData);
         payload.linked_meeting_id = itemId;
       } else {
-        // shareType === 'project'
+        // type === 'project'
         const project = projects.find(p => p.id === itemId);
-        payload.message = JSON.stringify({
+        const projectData: any = {
           name: project?.name || '',
           description: project?.description || '',
-        });
+        };
+        if (caption.trim()) projectData.text = caption.trim();
+        if (reply) {
+          projectData.replyTo = {
+            id: reply.id,
+            senderName: reply.senderName,
+            message: reply.type === 'file' ? `📁 ${reply.attachmentName}` : reply.message
+          };
+        }
+        payload.message = JSON.stringify(projectData);
         payload.linked_project_id = itemId;
       }
 
@@ -1083,35 +1549,118 @@ export const ChatPage: React.FC<ChatPageProps> = ({
       if (error) throw error;
 
       await supabase.from('chat_rooms').update({ updated_at: new Date().toISOString() }).eq('id', activeRoomId);
+
+      // Clear pending share item and input states
+      setPendingShareItem(null);
+      setMessageInput('');
+      setReplyToMessage(null);
     } catch (error: any) {
       console.error('Error sharing item:', error);
       addToast('Gagal membagikan: ' + error.message, 'error');
+    } finally {
+      setIsSending(false);
     }
   };
 
-  // Delete Individual Message
-  const handleDeleteMessage = (messageId: string) => {
-    setConfirmConfig({
-      isOpen: true,
-      title: 'Hapus Pesan',
-      message: 'Apakah Anda yakin ingin menghapus pesan ini? Tindakan ini tidak dapat dibatalkan.',
-      confirmText: 'Hapus',
-      onConfirm: async () => {
-        setConfirmConfig(prev => ({ ...prev, isOpen: false }));
-        try {
-          const { error } = await supabase
-            .from('chat_messages')
-            .delete()
-            .eq('id', messageId);
-          if (error) throw error;
-          setMessages(prev => prev.filter(m => m.id !== messageId));
-          addToast('Pesan berhasil dihapus', 'success');
-        } catch (error: any) {
-          console.error('Error deleting message:', error);
-          addToast('Gagal menghapus pesan: ' + error.message, 'error');
+  // Handle Selecting Task, Meeting, or Project to share
+  const handleSelectShareItem = (itemId: string) => {
+    setIsShareModalOpen(false);
+
+    // Clear pending file to avoid conflict
+    handleClearPendingFile();
+
+    if (shareType === 'task') {
+      const task = tasks.find(t => t.id === itemId);
+      setPendingShareItem({ id: itemId, type: 'task', title: task?.title || 'Penugasan' });
+    } else if (shareType === 'meeting') {
+      const meeting = meetings.find(m => m.id === itemId);
+      setPendingShareItem({ id: itemId, type: 'meeting', title: meeting?.title || 'Jadwal' });
+    } else {
+      const project = projects.find(p => p.id === itemId);
+      setPendingShareItem({ id: itemId, type: 'project', title: project?.name || 'Proyek' });
+    }
+
+    // Auto-focus on input field
+    setTimeout(() => {
+      chatInputRef.current?.focus();
+    }, 0);
+  };
+
+  // Helper to clear pending shared item preview
+  const handleClearPendingShareItem = useCallback(() => {
+    setPendingShareItem(null);
+  }, []);
+
+  // Helper to save "Delete for Me" locally
+  const handleDeleteForMe = (messageId: string) => {
+    setDeletedForMeIds(prev => {
+      const next = [...prev, messageId];
+      localStorage.setItem('chat_deleted_for_me', JSON.stringify(next));
+      return next;
+    });
+    addToast('Pesan dihapus untuk Anda', 'success');
+  };
+
+  // Delete message for everyone in database
+  const handleDeleteForEveryone = async (messageId: string) => {
+    try {
+      // Find the message from state
+      const msgToDelete = messages.find(m => m.id === messageId);
+      
+      // If it is a file message, delete the storage object
+      if (msgToDelete?.type === 'file' && msgToDelete.attachmentPath) {
+        const { error: storageError } = await supabase.storage
+          .from('attachment')
+          .remove([msgToDelete.attachmentPath]);
+        if (storageError) {
+          console.warn('Storage delete warning:', storageError);
         }
       }
-    });
+
+      // Instead of deleting the row, we update it to a deleted state
+      const { error } = await supabase
+        .from('chat_messages')
+        .update({
+          message: JSON.stringify({ isDeletedForEveryone: true }),
+          type: 'text',
+          attachment_path: null,
+          attachment_name: null,
+          attachment_type: null,
+          linked_task_id: null,
+          linked_meeting_id: null,
+          linked_project_id: null
+        })
+        .eq('id', messageId);
+
+      if (error) throw error;
+
+      // Update local message list state instantly
+      setMessages(prev => prev.map(m => m.id === messageId ? {
+        ...m,
+        message: JSON.stringify({ isDeletedForEveryone: true }),
+        type: 'text',
+        attachmentPath: null,
+        attachmentName: null,
+        attachmentType: null,
+        linkedTaskId: null,
+        linkedMeetingId: null,
+        linkedProjectId: null
+      } as ChatMessage : m));
+
+      addToast('Pesan telah dihapus untuk semua orang', 'success');
+    } catch (err: any) {
+      console.error('Error deleting message for everyone:', err);
+      addToast('Gagal menghapus pesan: ' + err.message, 'error');
+    }
+  };
+
+  // Delete Individual Message (Opens Options Modal)
+  const handleDeleteMessage = (messageId: string) => {
+    const msg = messages.find(m => m.id === messageId);
+    if (msg) {
+      setDeleteTargetMessage(msg);
+      setIsDeleteOptionsOpen(true);
+    }
   };
 
   // Delete Room / Leave Group
@@ -1161,43 +1710,78 @@ export const ChatPage: React.FC<ChatPageProps> = ({
 
   // === GROUP SETTINGS HANDLERS ===
 
-  // Fetch group members for the active room
-  const fetchGroupMembers = async (roomId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('chat_room_members')
-        .select('user_id')
-        .eq('room_id', roomId);
-      if (error) throw error;
-      const memberIds = (data || []).map((d: any) => d.user_id);
-      const members = memberIds.map((id: string) => systemUsers.find(u => u.id === id)).filter(Boolean) as User[];
-      setGroupMembers(members);
-    } catch (err: any) {
-      console.error('Error fetching group members:', err);
-    }
-  };
-
   // Open group settings panel
   const openGroupSettings = () => {
-    if (!activeRoom?.isGroup) return;
-    setEditGroupName(activeRoom.name || '');
-    fetchGroupMembers(activeRoom.id);
+    if (!activeRoom) return;
+    setSettingsTab('info');
+    setEditGroupName(groupDisplayName);
+    if (activeRoom.isGroup) {
+      fetchGroupMembers(activeRoom.id);
+    }
     setIsGroupSettingsOpen(true);
   };
 
   // Update group name
   const handleUpdateGroupName = async () => {
-    if (!activeRoomId || !editGroupName.trim()) return;
+    if (!activeRoomId || !activeRoom || !editGroupName.trim()) return;
+    const { admins: currentAdmins } = parseRoomName(activeRoom);
+    const payloadName = JSON.stringify({
+      name: editGroupName.trim(),
+      admins: currentAdmins
+    });
+
     try {
       const { error } = await supabase
         .from('chat_rooms')
-        .update({ name: editGroupName.trim(), updated_at: new Date().toISOString() })
+        .update({ name: payloadName, updated_at: new Date().toISOString() })
         .eq('id', activeRoomId);
       if (error) throw error;
-      setRooms(prev => prev.map(r => r.id === activeRoomId ? { ...r, name: editGroupName.trim() } : r));
+      setRooms(prev => prev.map(r => r.id === activeRoomId ? { ...r, name: payloadName } : r));
       addToast('Nama grup berhasil diubah', 'success');
     } catch (err: any) {
       addToast('Gagal mengubah nama grup: ' + err.message, 'error');
+    }
+  };
+
+  // Toggle admin status of a user
+  const handleToggleAdminStatus = async (userId: string, currentAdminStatus: boolean) => {
+    if (!activeRoom) return;
+
+    const { name: currentName, admins: currentAdmins } = parseRoomName(activeRoom);
+    let newAdmins = [...currentAdmins];
+
+    if (currentAdminStatus) {
+      // Remove admin status
+      newAdmins = newAdmins.filter(id => id !== userId);
+    } else {
+      // Add admin status
+      if (!newAdmins.includes(userId)) {
+        newAdmins.push(userId);
+      }
+    }
+
+    const payloadName = JSON.stringify({
+      name: currentName,
+      admins: newAdmins
+    });
+
+    try {
+      const { error } = await supabase
+        .from('chat_rooms')
+        .update({
+          name: payloadName,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', activeRoom.id);
+
+      if (error) throw error;
+
+      addToast(currentAdminStatus ? 'Admin berhasil dicabut' : 'Admin berhasil ditambahkan', 'success');
+      
+      setRooms(prev => prev.map(r => r.id === activeRoom.id ? { ...r, name: payloadName } : r));
+    } catch (err: any) {
+      console.error('Error toggling admin status:', err);
+      addToast('Gagal mengubah status admin: ' + err.message, 'error');
     }
   };
 
@@ -1336,6 +1920,76 @@ export const ChatPage: React.FC<ChatPageProps> = ({
     }
   };
 
+  // Render message text body, parsing and highlighting @mentions & search terms
+  const renderParsedMessageText = (text: string, isMeBubble: boolean) => {
+    if (!text) return null;
+
+    // Retrieve all system users sorted by name length descending
+    const sortedUsers = [...systemUsers].filter(u => u.name).sort((a, b) => b.name.length - a.name.length);
+
+    // Build regex to match mentions
+    const escapeRegExp = (string: string) => {
+      return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    };
+
+    const mentionPatterns = sortedUsers.map(u => `@${escapeRegExp(u.name)}`);
+    
+    // Combine patterns with capture parentheses
+    let combinedPatterns = [...mentionPatterns];
+    
+    // Add search highlight pattern if active
+    const cleanSearch = messageSearchQuery.trim();
+    if (cleanSearch) {
+      combinedPatterns.push(escapeRegExp(cleanSearch));
+    }
+
+    if (combinedPatterns.length === 0) {
+      return text;
+    }
+
+    const regex = new RegExp(`(${combinedPatterns.join('|')})`, 'gi'); // Case-insensitive matching
+
+    // Split text by regex
+    const parts = text.split(regex);
+
+    return parts.map((part, idx) => {
+      const lowerPart = part.toLowerCase();
+
+      // Check if it's a mention
+      if (part.startsWith('@')) {
+        const nameWithoutAt = part.substring(1);
+        const matchedUser = sortedUsers.find(u => u.name.toLowerCase() === nameWithoutAt.toLowerCase());
+        if (matchedUser) {
+          return (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => handleStartPersonalChat(matchedUser.id)}
+              className={`font-semibold transition-all hover:underline inline border-none bg-transparent p-0 m-0 cursor-pointer ${
+                isMeBubble 
+                  ? 'text-sky-200 hover:text-white' 
+                  : 'text-blue-600 hover:text-blue-800'
+              }`}
+            >
+              {part}
+            </button>
+          );
+        }
+      }
+
+      // Check if it matches search query
+      if (cleanSearch && lowerPart === cleanSearch.toLowerCase()) {
+        return (
+          <mark key={idx} className="bg-yellow-200 text-slate-800 rounded px-0.5 py-px select-none font-semibold shadow-sm">
+            {part}
+          </mark>
+        );
+      }
+
+      return part;
+    });
+  };
+
   // Create Group Chat
   const handleCreateGroupChat = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1347,11 +2001,16 @@ export const ChatPage: React.FC<ChatPageProps> = ({
     setIsGroupModalOpen(false);
 
     try {
+      const initialName = JSON.stringify({
+        name: groupName.trim(),
+        admins: [currentUser.id]
+      });
+
       // 1. Create group room
       const { data: newRoom, error: roomErr } = await supabase
         .from('chat_rooms')
         .insert({
-          name: groupName,
+          name: initialName,
           is_group: true,
           project_id: linkedProjectId ? linkedProjectId : null,
           created_by: currentUser.id
@@ -1403,10 +2062,18 @@ export const ChatPage: React.FC<ChatPageProps> = ({
     return rooms.find(r => r.id === activeRoomId) || null;
   }, [rooms, activeRoomId]);
 
+  const { name: groupDisplayName, admins: groupAdmins } = useMemo(() => {
+    return parseRoomName(activeRoom);
+  }, [activeRoom]);
+
+  const isCurrentUserAdmin = useMemo(() => {
+    return activeRoom ? groupAdmins.includes(currentUser.id) : false;
+  }, [activeRoom, groupAdmins, currentUser.id]);
+
   // Filtered Rooms list based on search query
   const filteredRooms = useMemo(() => {
     return rooms.filter(r => 
-      r.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      parseRoomName(r).name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       r.projectName?.toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [rooms, searchQuery]);
@@ -1434,10 +2101,29 @@ export const ChatPage: React.FC<ChatPageProps> = ({
     }
   }, [tasks, meetings, projects, shareType, shareSearch, shareProjectFilter]);
 
-  // Group messages by Date
+  // Group messages by Date & Search filter
   const groupedMessages = useMemo(() => {
     const groups: { [dateStr: string]: ChatMessage[] } = {};
-    messages.forEach((msg) => {
+    
+    const filtered = messages.filter(msg => {
+      if (!messageSearchQuery.trim()) return true;
+
+      // Extract text content of the message
+      let text = '';
+      if (msg.message) {
+        if (msg.message.startsWith('{')) {
+          try {
+            const parsed = JSON.parse(msg.message);
+            text = parsed.text || parsed.title || parsed.name || '';
+          } catch {}
+        } else {
+          text = msg.message;
+        }
+      }
+      return text.toLowerCase().includes(messageSearchQuery.toLowerCase());
+    });
+
+    filtered.forEach((msg) => {
       const dateStr = new Date(msg.createdAt).toLocaleDateString('id-ID', {
         weekday: 'long',
         year: 'numeric',
@@ -1450,6 +2136,49 @@ export const ChatPage: React.FC<ChatPageProps> = ({
       groups[dateStr].push(msg);
     });
     return groups;
+  }, [messages, messageSearchQuery]);
+
+  // Shared Media, Files, and Links selectors for Side Panel Gallery
+  const sharedMedia = useMemo(() => {
+    return messages.filter(m => m.type === 'file' && m.attachmentPath && m.attachmentType?.startsWith('image/'));
+  }, [messages]);
+
+  const sharedFiles = useMemo(() => {
+    return messages.filter(m => m.type === 'file' && m.attachmentPath && !m.attachmentType?.startsWith('image/'));
+  }, [messages]);
+
+  const sharedLinks = useMemo(() => {
+    const list: { id: string; url: string; title: string; senderName?: string }[] = [];
+    const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+)/g;
+
+    messages.forEach(m => {
+      let text = '';
+      if (m.type === 'text' && m.message) {
+        text = m.message;
+        if (m.message.startsWith('{"text":')) {
+          try { text = JSON.parse(m.message).text || ''; } catch {}
+        }
+      } else {
+        if (m.message && m.message.startsWith('{')) {
+          try { text = JSON.parse(m.message).text || ''; } catch {}
+        }
+      }
+
+      if (text) {
+        const matches = text.match(urlRegex);
+        if (matches) {
+          matches.forEach(url => {
+            list.push({
+              id: m.id + '-' + url,
+              url: url.startsWith('www.') ? `https://${url}` : url,
+              title: url,
+              senderName: m.senderName
+            });
+          });
+        }
+      }
+    });
+    return list;
   }, [messages]);
 
   return (
@@ -1519,7 +2248,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({
                   key={room.id}
                   onClick={() => {
                     // Immediately reset badge on click (before DB update completes)
-                    setRooms(prev => prev.map(r => r.id === room.id ? { ...r, unreadCount: 0 } as any : r));
+                    setRooms(prev => prev.map(r => r.id === room.id ? { ...r, unreadCount: 0, hasMention: false } as any : r));
                     setActiveRoomId(room.id);
                   }}
                   className={`p-3 flex items-center gap-3 cursor-pointer hover:bg-slate-50/80 transition-colors relative ${
@@ -1529,12 +2258,20 @@ export const ChatPage: React.FC<ChatPageProps> = ({
                   {/* Avatar / Icon */}
                   <div className="shrink-0">
                     {room.isGroup ? (
-                      <div className="w-10 h-10 rounded-full bg-gov-50 text-gov-700 flex items-center justify-center font-bold text-sm border border-gov-100">
-                        <Users size={18} className="text-gov-600" />
-                      </div>
+                      room.groupPhoto ? (
+                        <img 
+                          src={room.groupPhoto} 
+                          alt={parseRoomName(room).name || 'Grup'} 
+                          className="w-10 h-10 rounded-full object-cover border border-gov-100" 
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-gov-50 text-gov-700 flex items-center justify-center font-bold text-sm border border-gov-100">
+                          <Users size={18} className="text-gov-600" />
+                        </div>
+                      )
                     ) : (
                       <UserAvatar
-                        name={room.name || 'P'}
+                        name={parseRoomName(room).name || 'P'}
                         profilePhoto={room.otherUserId ? userMap[room.otherUserId]?.profilePhoto : undefined}
                         size="md"
                       />
@@ -1545,7 +2282,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
                       <span className="font-semibold text-sm text-slate-800 truncate block">
-                        {room.name}
+                        {parseRoomName(room).name}
                       </span>
                       <span className="text-[10px] text-slate-400 whitespace-nowrap">
                         {formattedTime}
@@ -1573,16 +2310,23 @@ export const ChatPage: React.FC<ChatPageProps> = ({
                       </div>
 
                       {/* Unread badge or Project tag */}
-                      {room.unreadCount && room.unreadCount > 0 ? (
-                        <span className="shrink-0 min-w-4 h-4 rounded-full bg-emerald-500 text-[9px] text-white flex items-center justify-center font-bold px-1 select-none leading-none">
-                          {room.unreadCount}
-                        </span>
-                      ) : room.projectName ? (
-                        <span className="text-[9px] bg-sky-50 text-sky-700 border border-sky-100 rounded px-1 flex items-center gap-0.5 max-w-[85px] truncate shrink-0 font-medium leading-none py-0.5">
-                          <Briefcase size={8} className="shrink-0" />
-                          {room.projectName}
-                        </span>
-                      ) : null}
+                      <div className="flex items-center gap-1.5 shrink-0 select-none">
+                        {room.hasMention && (
+                          <span className="w-4 h-4 rounded-full bg-rose-500 text-[9px] text-white flex items-center justify-center font-bold animate-pulse" title="Anda di-mention">
+                            @
+                          </span>
+                        )}
+                        {room.unreadCount && room.unreadCount > 0 ? (
+                          <span className="min-w-4 h-4 rounded-full bg-emerald-500 text-[9px] text-white flex items-center justify-center font-bold px-1 leading-none">
+                            {room.unreadCount}
+                          </span>
+                        ) : room.projectName ? (
+                          <span className="text-[9px] bg-sky-50 text-sky-700 border border-sky-100 rounded px-1 flex items-center gap-0.5 max-w-[85px] truncate font-medium leading-none py-0.5">
+                            <Briefcase size={8} className="shrink-0" />
+                            {room.projectName}
+                          </span>
+                        ) : null}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1611,7 +2355,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({
                 <div className="shrink-0">
                   {activeRoom.isGroup ? (
                     activeRoom.groupPhoto ? (
-                      <img src={activeRoom.groupPhoto} alt={activeRoom.name || 'Grup'} className="w-9 h-9 rounded-full object-cover border border-gov-100" />
+                      <img src={activeRoom.groupPhoto} alt={groupDisplayName || 'Grup'} className="w-9 h-9 rounded-full object-cover border border-gov-100" />
                     ) : (
                       <div className="w-9 h-9 rounded-full bg-gov-50 text-gov-700 flex items-center justify-center font-bold text-xs border border-gov-100">
                         <Users size={16} className="text-gov-600" />
@@ -1619,14 +2363,14 @@ export const ChatPage: React.FC<ChatPageProps> = ({
                     )
                   ) : (
                     <UserAvatar
-                      name={activeRoom.name || 'P'}
+                      name={groupDisplayName || 'P'}
                       profilePhoto={activeRoom.otherUserId ? userMap[activeRoom.otherUserId]?.profilePhoto : undefined}
                       size="sm"
                     />
                   )}
                 </div>
                 <div className="min-w-0 flex flex-col justify-center">
-                  <h3 className="font-bold text-slate-800 text-sm truncate leading-tight">{activeRoom.name}</h3>
+                  <h3 className="font-bold text-slate-800 text-sm truncate leading-tight">{groupDisplayName}</h3>
                   <div className="flex items-center gap-1.5 leading-none mt-0.5">
                     {activeRoom.isGroup ? (
                       <span className="text-[10px] text-slate-500 font-medium">Group Chat</span>
@@ -1659,16 +2403,28 @@ export const ChatPage: React.FC<ChatPageProps> = ({
                   </div>
                 )}
 
-                {/* Group Settings Button - only for groups */}
-                {activeRoom.isGroup && (
-                  <button
-                    onClick={openGroupSettings}
-                    title="Pengaturan Grup"
-                    className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-all min-h-0"
-                  >
-                    <Info size={18} />
-                  </button>
-                )}
+                {/* Message Search Button */}
+                <button
+                  onClick={() => {
+                    setIsSearchPanelOpen(prev => !prev);
+                    setMessageSearchQuery('');
+                  }}
+                  title="Cari Pesan"
+                  className={`p-1.5 rounded-lg transition-all min-h-0 ${
+                    isSearchPanelOpen ? 'bg-slate-100 text-gov-600' : 'hover:bg-slate-100 text-slate-400 hover:text-slate-600'
+                  }`}
+                >
+                  <Search size={18} />
+                </button>
+
+                {/* Info Detail Button - for both personal and group rooms */}
+                <button
+                  onClick={openGroupSettings}
+                  title={activeRoom.isGroup ? "Pengaturan Grup" : "Detail Obrolan"}
+                  className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-all min-h-0"
+                >
+                  <Info size={18} />
+                </button>
                 
                 <button
                   onClick={handleDeleteRoom}
@@ -1679,6 +2435,31 @@ export const ChatPage: React.FC<ChatPageProps> = ({
                 </button>
               </div>
             </div>
+
+            {/* Dropdown Message Search Input Area */}
+            {isSearchPanelOpen && (
+              <div className="bg-white border-b border-slate-200 px-6 py-2.5 flex items-center justify-between gap-3 animate-slideIn select-none shrink-0">
+                <div className="relative flex-1">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    value={messageSearchQuery}
+                    onChange={e => setMessageSearchQuery(e.target.value)}
+                    placeholder="Cari kata kunci dalam percakapan ini..."
+                    className="w-full pl-8 pr-3 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-gov-500/20 focus:border-gov-400"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSearchPanelOpen(false);
+                    setMessageSearchQuery('');
+                  }}
+                  className="p-1 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            )}
 
             {/* Messages Content Area */}
             <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-thin">
@@ -1702,16 +2483,26 @@ export const ChatPage: React.FC<ChatPageProps> = ({
                     </div>
 
                     {/* Messages in Date Group */}
-                    {groupedMessages[dateStr].map((msg) => {
-                      const isMe = msg.senderId === currentUser.id;
-                      const timeStr = new Date(msg.createdAt).toLocaleTimeString('id-ID', {
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      });
+                    {groupedMessages[dateStr]
+                      .filter(m => !deletedForMeIds.includes(m.id))
+                      .map((msg) => {
+                        const isMe = msg.senderId === currentUser.id;
+                        const timeStr = new Date(msg.createdAt).toLocaleTimeString('id-ID', {
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        });
 
-                      return (
+                        let isDeleted = false;
+                        if (msg.message && msg.message.startsWith('{"isDeletedForEveryone":')) {
+                          try {
+                            isDeleted = JSON.parse(msg.message).isDeletedForEveryone;
+                          } catch {}
+                        }
+
+                        return (
                         <div
                           key={msg.id}
+                          id={`msg-${msg.id}`}
                           className={`flex gap-3 max-w-[80%] ${isMe ? 'ml-auto flex-row-reverse' : ''}`}
                         >
                           {/* Sender Initials / Photo */}
@@ -1739,144 +2530,306 @@ export const ChatPage: React.FC<ChatPageProps> = ({
                                   ? 'bg-gov-600 text-white rounded-tr-none' 
                                   : 'bg-white text-slate-800 border border-slate-100 rounded-tl-none'
                               }`}>
-                              
-                              {/* RENDER MESSAGE CONTENT BASED ON TYPE */}
-                              {msg.type === 'text' && (
-                                <p className="leading-relaxed whitespace-pre-wrap">{msg.message}</p>
-                              )}
+                                {(() => {
+                                  if (isDeleted) {
+                                    return (
+                                      <p className="text-slate-400 italic flex items-center gap-1.5 select-none py-0.5">
+                                        <AlertCircle size={14} className="stroke-[1.5]" />
+                                        Pesan telah dihapus
+                                      </p>
+                                    );
+                                  }
 
-                              {msg.type === 'file' && msg.attachmentPath && (
-                                <div className="space-y-2">
-                                  {msg.attachmentType?.startsWith('image/') ? (
-                                    <div className="rounded-lg overflow-hidden border border-slate-100 max-w-sm max-h-60 bg-slate-50">
-                                      {signedUrls[msg.id] ? (
-                                        <a href={signedUrls[msg.id]} target="_blank" rel="noopener noreferrer">
-                                          <img 
-                                            src={signedUrls[msg.id]} 
-                                            alt={msg.attachmentName || 'Image'} 
-                                            className="w-full h-full object-contain hover:opacity-90 transition-opacity"
-                                          />
-                                        </a>
-                                      ) : (
-                                        <div className="p-8 flex justify-center">
-                                          <Loader2 className="animate-spin text-slate-400" />
+                                  const parsedMsg = (() => {
+                                    let text = '';
+                                    let isReply = false;
+                                    let replyQuote: any = null;
+                                    const rawMsg = msg.message || '';
+
+                                    if (msg.type === 'text') {
+                                      text = rawMsg;
+                                      if (rawMsg.startsWith('{')) {
+                                        try {
+                                          const parsed = JSON.parse(rawMsg);
+                                          text = parsed.text !== undefined ? parsed.text : rawMsg;
+                                          if (parsed.replyTo) {
+                                            isReply = true;
+                                            replyQuote = parsed.replyTo;
+                                          }
+                                        } catch {}
+                                      }
+                                    } else if (msg.type === 'file') {
+                                      if (rawMsg && rawMsg !== msg.attachmentName) {
+                                        if (rawMsg.startsWith('{')) {
+                                          try {
+                                            const parsed = JSON.parse(rawMsg);
+                                            text = parsed.text || '';
+                                            replyQuote = parsed.replyTo || null;
+                                            isReply = !!replyQuote;
+                                          } catch {
+                                            text = rawMsg;
+                                          }
+                                        } else {
+                                          text = rawMsg;
+                                        }
+                                      } else if (rawMsg && rawMsg.startsWith('{')) {
+                                        try {
+                                          const parsed = JSON.parse(rawMsg);
+                                          text = parsed.text || '';
+                                          replyQuote = parsed.replyTo || null;
+                                          isReply = !!replyQuote;
+                                        } catch {}
+                                      }
+                                    } else {
+                                      // task, meeting, project
+                                      try {
+                                        const parsed = JSON.parse(rawMsg);
+                                        text = parsed.text || '';
+                                        replyQuote = parsed.replyTo || null;
+                                        isReply = !!replyQuote;
+                                      } catch {}
+                                    }
+
+                                    return { text, isReply, replyQuote };
+                                  })();
+
+                                  return (
+                                    <>
+                                      {/* 1. Render Reply Quote if present */}
+                                      {parsedMsg.isReply && parsedMsg.replyQuote && (
+                                        <div 
+                                          className={`p-2 border-l-2 rounded text-xs select-none max-w-sm mb-2 cursor-pointer transition-colors ${
+                                            isMe 
+                                              ? 'bg-gov-700/60 border-gov-300 text-slate-100 hover:bg-gov-700' 
+                                              : 'bg-slate-50 border-slate-300 text-slate-500 hover:bg-slate-100'
+                                          }`}
+                                          onClick={() => {
+                                            const element = document.getElementById(`msg-${parsedMsg.replyQuote.id}`);
+                                            if (element) {
+                                              element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                              element.classList.add('bg-amber-100/50', 'rounded-xl', 'transition-all', 'duration-500');
+                                              setTimeout(() => {
+                                                element.classList.remove('bg-amber-100/50');
+                                              }, 1500);
+                                            }
+                                          }}
+                                        >
+                                          <p className="font-bold text-[9px] opacity-90">{parsedMsg.replyQuote.senderName}</p>
+                                          <p className="truncate opacity-80">{parsedMsg.replyQuote.message}</p>
                                         </div>
                                       )}
-                                    </div>
-                                  ) : (
-                                    <div className="flex items-center gap-3 p-2 bg-slate-100/10 border border-white/20 rounded-lg text-xs max-w-sm">
-                                      <FileText size={28} className={isMe ? 'text-white' : 'text-slate-500'} />
-                                      <div className="min-w-0 flex-1">
-                                        <p className="font-semibold truncate">{msg.attachmentName}</p>
-                                        <p className="text-[10px] opacity-75">Dokumen berkas</p>
-                                      </div>
-                                      {signedUrls[msg.id] && (
-                                        <a 
-                                          href={signedUrls[msg.id]} 
-                                          download={msg.attachmentName}
-                                          className={`p-1.5 rounded-full transition-colors ${
-                                            isMe ? 'hover:bg-white/20 text-white' : 'hover:bg-slate-200 text-slate-600'
-                                          }`}
-                                        >
-                                          <Download size={16} />
-                                        </a>
-                                      )}
-                                    </div>
-                                  )}
-                                </div>
-                              )}
 
-                              {msg.type === 'task' && msg.linkedTaskId && (() => {
-                                let parsed: any = {};
-                                try { parsed = JSON.parse(msg.message || '{}'); } catch {}
-                                const localTask = tasks.find(t => t.id === msg.linkedTaskId);
-                                const title = localTask?.title || parsed.title || 'Task tidak ditemukan / dihapus';
-                                const category = localTask?.category || parsed.category || '-';
-                                const priority = localTask?.priority || parsed.priority || 'Medium';
-                                return (
-                                  <div className={`p-3 rounded-xl border max-w-md ${
-                                    isMe ? 'bg-white text-slate-800 border-slate-200' : 'bg-slate-50 border-slate-200'
-                                  }`}>
-                                    <div className="flex items-start justify-between gap-3 mb-2">
-                                      <div className="flex items-center gap-1.5 text-xs text-gov-600 font-bold select-none">
-                                        <FileText size={14} />
-                                        Penugasan Shared
-                                      </div>
-                                      {localTask && (
-                                        <button 
-                                          onClick={() => onTaskClick(localTask)}
-                                          className="p-1 hover:bg-slate-200/50 rounded-lg text-slate-500 hover:text-gov-600 transition-colors"
-                                          title="Buka Task"
-                                        >
-                                          <ExternalLink size={14} />
-                                        </button>
+                                      {/* 2. Render Main Content based on msg.type */}
+                                      {msg.type === 'text' && (
+                                        <p className="leading-relaxed whitespace-pre-wrap">{renderParsedMessageText(parsedMsg.text, isMe)}</p>
                                       )}
-                                    </div>
-                                    <h4 className="font-bold text-sm line-clamp-2 leading-snug mb-1">{title}</h4>
-                                    <div className="flex flex-wrap gap-1.5 mt-2">
-                                      <span className="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-semibold uppercase">{category}</span>
-                                      <span className="text-[9px] bg-red-50 text-red-700 border border-red-100 px-1.5 py-0.5 rounded font-semibold">{priority}</span>
-                                    </div>
-                                  </div>
-                                );
-                              })()}
 
-                              {msg.type === 'meeting' && msg.linkedMeetingId && (() => {
-                                let parsed: any = {};
-                                try { parsed = JSON.parse(msg.message || '{}'); } catch {}
-                                const localMeeting = meetings.find(m => m.id === msg.linkedMeetingId);
-                                const title = localMeeting?.title || parsed.title || 'Jadwal tidak ditemukan / dihapus';
-                                const date = localMeeting?.date || parsed.date || '-';
-                                const location = localMeeting?.location || parsed.location || '-';
-                                return (
-                                  <div className={`p-3 rounded-xl border max-w-md ${
-                                    isMe ? 'bg-white text-slate-800 border-slate-200' : 'bg-slate-50 border-slate-200'
-                                  }`}>
-                                    <div className="flex items-start justify-between gap-3 mb-2">
-                                      <div className="flex items-center gap-1.5 text-xs text-sky-700 font-bold select-none">
-                                        <CalendarRange size={14} />
-                                        Jadwal Kegiatan Shared
-                                      </div>
-                                      {localMeeting && (
-                                        <button 
-                                          onClick={() => onViewMeeting(localMeeting)}
-                                          className="p-1 hover:bg-slate-200/50 rounded-lg text-slate-500 hover:text-sky-600 transition-colors"
-                                          title="Buka Jadwal"
-                                        >
-                                          <ExternalLink size={14} />
-                                        </button>
+                                      {msg.type === 'file' && msg.attachmentPath && (
+                                        <div className="space-y-2">
+                                          {msg.attachmentType?.startsWith('image/') ? (
+                                            <div className="rounded-lg overflow-hidden border border-slate-100 max-w-sm max-h-60 bg-slate-50">
+                                              {signedUrls[msg.id] ? (
+                                                <div 
+                                                  onClick={() => {
+                                                    setPreviewImageUrl(signedUrls[msg.id]);
+                                                    setPreviewImageName(msg.attachmentName || 'Pratinjau Gambar');
+                                                  }}
+                                                  className="cursor-zoom-in"
+                                                >
+                                                  <img 
+                                                    src={signedUrls[msg.id]} 
+                                                    alt={msg.attachmentName || 'Image'} 
+                                                    className="w-full h-full object-contain hover:opacity-90 transition-opacity"
+                                                  />
+                                                </div>
+                                              ) : (
+                                                <div className="p-8 flex justify-center">
+                                                  <Loader2 className="animate-spin text-slate-400" />
+                                                </div>
+                                              )}
+                                            </div>
+                                          ) : (() => {
+                                            const isPdf = msg.attachmentName?.toLowerCase().endsWith('.pdf') || msg.attachmentType === 'application/pdf';
+                                            return (
+                                              <div className="flex items-center gap-3 p-2 bg-slate-100/10 border border-white/20 rounded-lg text-xs max-w-sm">
+                                                <FileText size={28} className={isMe ? 'text-white' : 'text-slate-500'} />
+                                                <div className="min-w-0 flex-1">
+                                                  <p className="font-semibold truncate">{msg.attachmentName}</p>
+                                                  <p className="text-[10px] opacity-75">Dokumen berkas</p>
+                                                </div>
+                                                {signedUrls[msg.id] && (
+                                                  <div className="flex items-center gap-1 shrink-0">
+                                                    {isPdf && (
+                                                      <button 
+                                                        type="button"
+                                                        onClick={() => {
+                                                          setPreviewPdfUrl(signedUrls[msg.id]);
+                                                          setPreviewPdfName(msg.attachmentName || 'PDF Preview');
+                                                        }}
+                                                        className={`p-1.5 rounded-full transition-colors ${
+                                                          isMe ? 'hover:bg-white/20 text-white' : 'hover:bg-slate-200 text-slate-600'
+                                                        }`}
+                                                        title="Preview PDF"
+                                                      >
+                                                        <Eye size={16} />
+                                                      </button>
+                                                    )}
+                                                    <a 
+                                                      href={signedUrls[msg.id]} 
+                                                      download={msg.attachmentName}
+                                                      className={`p-1.5 rounded-full transition-colors ${
+                                                        isMe ? 'hover:bg-white/20 text-white' : 'hover:bg-slate-200 text-slate-600'
+                                                      }`}
+                                                    >
+                                                      <Download size={16} />
+                                                    </a>
+                                                  </div>
+                                                )}
+                                              </div>
+                                            );
+                                          })()}
+                                        </div>
                                       )}
-                                    </div>
-                                    <h4 className="font-bold text-sm line-clamp-2 leading-snug mb-1">{title}</h4>
-                                    <div className="text-[10px] text-slate-500 mt-1 space-y-0.5">
-                                      <p>📅 {date}</p>
-                                      <p>📍 {location}</p>
-                                    </div>
-                                  </div>
-                                );
-                              })()}
 
-                              {msg.type === 'project' && msg.linkedProjectId && (() => {
-                                let parsed: any = {};
-                                try { parsed = JSON.parse(msg.message || '{}'); } catch {}
-                                const localProject = projects.find(p => p.id === msg.linkedProjectId);
-                                const name = localProject?.name || parsed.name || 'Proyek tidak ditemukan / dihapus';
-                                const description = localProject?.description || parsed.description || 'Tidak ada deskripsi';
-                                return (
-                                  <div className={`p-3 rounded-xl border max-w-md ${
-                                    isMe ? 'bg-white text-slate-800 border-slate-200' : 'bg-slate-50 border-slate-200'
-                                  }`}>
-                                    <div className="flex items-start justify-between gap-3 mb-2">
-                                      <div className="flex items-center gap-1.5 text-xs text-emerald-700 font-bold select-none">
-                                        <Briefcase size={14} />
-                                        Proyek Shared
-                                      </div>
-                                    </div>
-                                    <h4 className="font-bold text-sm line-clamp-2 leading-snug mb-1">{name}</h4>
-                                    <p className="text-[10px] text-slate-500 line-clamp-2 leading-relaxed">{description}</p>
-                                  </div>
-                                );
-                              })()}
+                                      {msg.type === 'task' && msg.linkedTaskId && (() => {
+                                        let parsed: any = {};
+                                        try { parsed = JSON.parse(msg.message || '{}'); } catch {}
+                                        const localTask = tasks.find(t => t.id === msg.linkedTaskId);
+                                        const title = localTask?.title || parsed.title || 'Task tidak ditemukan / dihapus';
+                                        const category = localTask?.category || parsed.category || '-';
+                                        const priority = localTask?.priority || parsed.priority || 'Medium';
+                                        return (
+                                          <div className={`p-3 rounded-xl border max-w-md ${
+                                            isMe ? 'bg-white text-slate-800 border-slate-200' : 'bg-slate-50 border-slate-200'
+                                          }`}>
+                                            <div className="flex items-start justify-between gap-3 mb-2">
+                                              <div className="flex items-center gap-1.5 text-xs text-gov-700 font-bold select-none">
+                                                <FileText size={14} />
+                                                Penugasan Dibagikan
+                                              </div>
+                                              {msg.linkedTaskId && (
+                                                <button 
+                                                  onClick={() => {
+                                                    if (localTask) {
+                                                      onTaskClick(localTask);
+                                                    } else {
+                                                      showNotification(
+                                                        'Akses Ditolak / Tidak Ditemukan',
+                                                        'Penugasan ini tidak ditemukan di daftar Anda, atau Anda tidak memiliki akses untuk melihatnya.',
+                                                        'info'
+                                                      );
+                                                    }
+                                                  }}
+                                                  className="p-1 hover:bg-slate-200/50 rounded-lg text-slate-500 hover:text-gov-600 transition-colors"
+                                                  title="Buka Penugasan"
+                                                >
+                                                  <ExternalLink size={14} />
+                                                </button>
+                                              )}
+                                            </div>
+                                            <h4 className="font-bold text-sm line-clamp-2 leading-snug mb-1">{title}</h4>
+                                            <div className="flex flex-wrap gap-1.5 mt-2">
+                                              <span className="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-semibold uppercase">{category}</span>
+                                              <span className="text-[9px] bg-red-50 text-red-700 border border-red-100 px-1.5 py-0.5 rounded font-semibold">{priority}</span>
+                                            </div>
+                                          </div>
+                                        );
+                                      })()}
+
+                                      {msg.type === 'meeting' && msg.linkedMeetingId && (() => {
+                                        let parsed: any = {};
+                                        try { parsed = JSON.parse(msg.message || '{}'); } catch {}
+                                        const localMeeting = meetings.find(m => m.id === msg.linkedMeetingId);
+                                        const title = localMeeting?.title || parsed.title || 'Jadwal tidak ditemukan / dihapus';
+                                        const date = localMeeting?.date || parsed.date || '-';
+                                        const location = localMeeting?.location || parsed.location || '-';
+                                        return (
+                                          <div className={`p-3 rounded-xl border max-w-md ${
+                                            isMe ? 'bg-white text-slate-800 border-slate-200' : 'bg-slate-50 border-slate-200'
+                                          }`}>
+                                            <div className="flex items-start justify-between gap-3 mb-2">
+                                              <div className="flex items-center gap-1.5 text-xs text-sky-700 font-bold select-none">
+                                                <CalendarRange size={14} />
+                                                Jadwal Kegiatan Dibagikan
+                                              </div>
+                                              {msg.linkedMeetingId && (
+                                                <button 
+                                                  onClick={() => {
+                                                    if (localMeeting) {
+                                                      onViewMeeting(localMeeting);
+                                                    } else {
+                                                      showNotification(
+                                                        'Akses Ditolak / Tidak Ditemukan',
+                                                        'Jadwal kegiatan ini tidak ditemukan di daftar Anda, atau Anda tidak memiliki akses untuk melihatnya.',
+                                                        'info'
+                                                      );
+                                                    }
+                                                  }}
+                                                  className="p-1 hover:bg-slate-200/50 rounded-lg text-slate-500 hover:text-sky-600 transition-colors"
+                                                  title="Buka Jadwal"
+                                                >
+                                                  <ExternalLink size={14} />
+                                                </button>
+                                              )}
+                                            </div>
+                                            <h4 className="font-bold text-sm line-clamp-2 leading-snug mb-1">{title}</h4>
+                                            <div className="text-[10px] text-slate-500 mt-1 space-y-0.5">
+                                              <p>📅 {date}</p>
+                                              <p>📍 {location}</p>
+                                            </div>
+                                          </div>
+                                        );
+                                      })()}
+
+                                      {msg.type === 'project' && msg.linkedProjectId && (() => {
+                                        let parsed: any = {};
+                                        try { parsed = JSON.parse(msg.message || '{}'); } catch {}
+                                        const localProject = projects.find(p => p.id === msg.linkedProjectId);
+                                        const name = localProject?.name || parsed.name || 'Proyek tidak ditemukan / dihapus';
+                                        const description = localProject?.description || parsed.description || 'Tidak ada deskripsi';
+                                        return (
+                                          <div className={`p-3 rounded-xl border max-w-md ${
+                                            isMe ? 'bg-white text-slate-800 border-slate-200' : 'bg-slate-50 border-slate-200'
+                                          }`}>
+                                            <div className="flex items-start justify-between gap-3 mb-2">
+                                              <div className="flex items-center gap-1.5 text-xs text-emerald-700 font-bold select-none">
+                                                <Briefcase size={14} />
+                                                Proyek Dibagikan
+                                              </div>
+                                              {msg.linkedProjectId && (
+                                                <button 
+                                                  onClick={() => {
+                                                    if (localProject && onViewProject) {
+                                                      onViewProject(localProject);
+                                                    } else {
+                                                      showNotification(
+                                                        'Akses Ditolak / Tidak Ditemukan',
+                                                        'Proyek ini tidak ditemukan di daftar Anda, atau Anda tidak memiliki akses untuk melihatnya.',
+                                                        'info'
+                                                      );
+                                                    }
+                                                  }}
+                                                  className="p-1 hover:bg-slate-200/50 rounded-lg text-slate-500 hover:text-emerald-600 transition-colors"
+                                                  title="Buka Proyek"
+                                                >
+                                                  <ExternalLink size={14} />
+                                                </button>
+                                              )}
+                                            </div>
+                                            <h4 className="font-bold text-sm line-clamp-2 leading-snug mb-1">{name}</h4>
+                                            <p className="text-[10px] text-slate-500 line-clamp-2 leading-relaxed">{description}</p>
+                                          </div>
+                                        );
+                                      })()}
+
+                                      {/* 3. Render Caption Text if present (only for non-text messages) */}
+                                      {msg.type !== 'text' && parsedMsg.text && (
+                                        <p className="mt-2 leading-relaxed whitespace-pre-wrap">{renderParsedMessageText(parsedMsg.text, isMe)}</p>
+                                      )}
+                                    </>
+                                  );
+                                })()}
+                              </div>
 
                               {/* Timestamp & Read Status */}
                               <div className="flex items-center justify-end gap-1 mt-1 select-none">
@@ -1886,28 +2839,67 @@ export const ChatPage: React.FC<ChatPageProps> = ({
                                   {timeStr}
                                 </span>
                                 {isMe && (
-                                  <span className={`text-[10px] font-bold leading-none ${
-                                    msg.isRead ? 'text-white' : 'text-slate-300'
-                                  }`} title={msg.isRead ? 'Dibaca' : 'Terkirim'}>
-                                    ✓
+                                  <span 
+                                    className={`text-[10px] font-bold leading-none select-none ${
+                                      msg.isRead ? 'text-sky-200' : 'text-white/50'
+                                    }`}
+                                    title={msg.isRead ? 'Dibaca' : 'Terkirim'}
+                                  >
+                                    {msg.isRead ? '✓✓' : '✓'}
                                   </span>
+                                )}
+                                {isMe && activeRoom?.isGroup && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const { readUsers, deliveredUsers } = getReadAndDeliveredLists(msg);
+                                      let textVal = msg.message || '';
+                                      if (textVal.startsWith('{')) {
+                                        try {
+                                          const parsed = JSON.parse(textVal);
+                                          textVal = parsed.text || 'Pesan Lampiran';
+                                        } catch {}
+                                      }
+                                      setGroupReadReceipts({
+                                        isOpen: true,
+                                        readUsers,
+                                        deliveredUsers,
+                                        messageText: textVal
+                                      });
+                                    }}
+                                    className="p-0.5 hover:bg-white/20 rounded text-sky-200 hover:text-white transition-colors flex items-center justify-center shrink-0 min-h-0 cursor-pointer ml-0.5"
+                                    title="Detail Info Pembaca"
+                                  >
+                                    <Info size={10} className="stroke-[2.5]" />
+                                  </button>
                                 )}
                               </div>
                             </div>
                           </div>
 
-                          {/* Hover Delete Button for Sender */}
-                          {isMe && (
-                            <button
-                              onClick={() => handleDeleteMessage(msg.id)}
-                              title="Hapus pesan"
-                              className="opacity-0 group-hover/msg:opacity-100 p-1.5 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-full transition-all shrink-0 select-none self-end mb-4"
-                            >
-                              <Trash2 size={13} />
-                            </button>
+                          {/* Hover Action Buttons */}
+                          {!isDeleted && (
+                            <div className="opacity-40 group-hover/msg:opacity-100 flex items-center gap-0.5 shrink-0 select-none self-end mb-4 transition-opacity duration-200">
+                              <button
+                                type="button"
+                                onClick={() => setReplyToMessage(msg)}
+                                title="Balas pesan"
+                                className="p-1.5 hover:bg-slate-100 text-slate-500 hover:text-gov-600 rounded-full transition-all"
+                              >
+                                <CornerUpLeft size={13} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteMessage(msg.id)}
+                                title="Hapus pesan"
+                                className="p-1.5 hover:bg-red-50 text-slate-500 hover:text-red-500 rounded-full transition-all"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
                           )}
                         </div>
-                      </div>
                       );
                     })}
                   </div>
@@ -1928,12 +2920,104 @@ export const ChatPage: React.FC<ChatPageProps> = ({
             </div>
 
             {/* Message Input Bar */}
-            <div className="p-3 sm:p-4 bg-white border-t border-slate-200 shrink-0">
+            <div className="p-3 sm:p-4 bg-white border-t border-slate-200 shrink-0 relative">
+              {/* Mentions Autocomplete Suggestion */}
+              {showMentionSuggestions && suggestedUsers.length > 0 && (
+                <div className="absolute bottom-full left-4 bg-white border border-slate-200 rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto w-64 mb-2 p-1 divide-y divide-slate-50">
+                  {suggestedUsers.map((user, idx) => (
+                    <button
+                      key={user.id}
+                      type="button"
+                      onClick={() => handleSelectMention(user)}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 text-left rounded-lg text-xs transition-colors ${
+                        idx === activeSuggestionIndex ? 'bg-gov-50 text-gov-700 font-semibold' : 'text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      <UserAvatar name={user.name} profilePhoto={user.profilePhoto} size="xs" />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-slate-700">{user.name}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Reply Quote Preview */}
+              {replyToMessage && (
+                <div className="mb-3 p-3 bg-slate-50 border-l-4 border-gov-500 border-y border-r border-slate-200 rounded-xl flex items-center justify-between gap-3 animate-fadeIn">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] font-bold text-gov-600">Membalas {replyToMessage.senderName}</p>
+                    <p className="text-xs text-slate-500 truncate leading-relaxed">
+                      {replyToMessage.type === 'file' ? `📁 File: ${replyToMessage.attachmentName}` : replyToMessage.message}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setReplyToMessage(null)}
+                    className="p-1 hover:bg-slate-200 rounded-full text-slate-400 hover:text-slate-600 transition-colors shrink-0"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              )}
+
+              {/* Pending File Preview Drawer */}
+              {pendingFile && (
+                <div className="mb-3 p-3 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between gap-3 animate-fadeIn">
+                  <div className="flex items-center gap-3 min-w-0">
+                    {pendingFilePreview ? (
+                      <div className="relative w-12 h-12 rounded-lg overflow-hidden border border-slate-200 bg-white shrink-0">
+                        <img src={pendingFilePreview} alt="Preview" className="w-full h-full object-cover" />
+                      </div>
+                    ) : (
+                      <div className="w-12 h-12 rounded-lg bg-slate-200 flex items-center justify-center text-slate-500 border border-slate-300 shrink-0">
+                        <FileText size={24} />
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-slate-700 truncate">{pendingFile.name}</p>
+                      <p className="text-[10px] text-slate-400">{(pendingFile.size / 1024 / 1024).toFixed(2)} MB • Siap kirim</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleClearPendingFile}
+                    className="p-1.5 hover:bg-slate-200 rounded-full text-slate-400 hover:text-slate-600 transition-colors shrink-0"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              )}
+
+              {/* Pending Share Item Preview Drawer */}
+              {pendingShareItem && (
+                <div className="mb-3 p-3 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between gap-3 animate-fadeIn">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-12 h-12 rounded-lg bg-gov-50 flex items-center justify-center border border-gov-100 shrink-0">
+                      {pendingShareItem.type === 'task' ? <CheckSquare size={24} className="text-gov-500" /> :
+                       pendingShareItem.type === 'meeting' ? <CalendarRange size={24} className="text-sky-500" /> :
+                       <Briefcase size={24} className="text-emerald-500" />}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-slate-700 truncate">{pendingShareItem.title}</p>
+                      <p className="text-[10px] text-slate-400 capitalize">Shared {pendingShareItem.type} • Siap kirim</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleClearPendingShareItem}
+                    className="p-1.5 hover:bg-slate-200 rounded-full text-slate-400 hover:text-slate-600 transition-colors shrink-0"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              )}
+
               <form onSubmit={handleSendMessage} className="flex items-center gap-2 sm:gap-3">
                 <input
                   type="file"
                   ref={fileInputRef}
-                  onChange={handleFileUpload}
+                  onChange={handleFileSelect}
                   className="hidden"
                 />
 
@@ -1966,16 +3050,19 @@ export const ChatPage: React.FC<ChatPageProps> = ({
                 </button>
 
                 <input
+                  ref={chatInputRef}
                   type="text"
                   placeholder="Ketik pesan..."
                   value={messageInput}
                   onChange={handleMessageInputChange}
+                  onPaste={handlePaste}
+                  onKeyDown={handleInputKeyDown}
                   className="flex-1 bg-slate-50 border border-slate-200 rounded-full px-5 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-gov-500/20 focus:border-gov-500"
                 />
 
                 <button
                   type="submit"
-                  disabled={!messageInput.trim() || isSending}
+                  disabled={(!messageInput.trim() && !pendingFile && !pendingShareItem) || isSending || isUploading}
                   className="w-10 h-10 flex items-center justify-center bg-gov-600 hover:bg-gov-700 rounded-full text-white transition-colors shrink-0 disabled:opacity-50 disabled:hover:bg-gov-600 min-h-0"
                 >
                   <Send size={18} />
@@ -2322,7 +3409,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({
                     return (
                       <div 
                         key={item.id}
-                        onClick={() => handleShareItem(item.id)}
+                        onClick={() => handleSelectShareItem(item.id)}
                         className="flex items-center justify-between p-2.5 hover:bg-slate-50 rounded-lg cursor-pointer text-sm"
                       >
                         <div className="min-w-0 flex-1 pr-4">
@@ -2362,6 +3449,235 @@ export const ChatPage: React.FC<ChatPageProps> = ({
         onCancel={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))}
       />
 
+      {/* ========================================================
+          MODAL: Opsi Hapus Pesan (Delete Options)
+          ======================================================== */}
+      {isDeleteOptionsOpen && deleteTargetMessage && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 select-none">
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl overflow-hidden animate-scaleIn">
+            <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="font-bold text-slate-800 text-sm">Hapus Pesan?</h3>
+              <button 
+                onClick={() => {
+                  setIsDeleteOptionsOpen(false);
+                  setDeleteTargetMessage(null);
+                }}
+                className="p-1 hover:bg-slate-200 rounded-full text-slate-400"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-3">
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Pilih opsi penghapusan untuk pesan ini.
+              </p>
+
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={() => {
+                    handleDeleteForMe(deleteTargetMessage.id);
+                    setIsDeleteOptionsOpen(false);
+                    setDeleteTargetMessage(null);
+                  }}
+                  className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition-colors"
+                >
+                  Hapus untuk Saya
+                </button>
+                
+                {/* Only the sender of the message can delete for everyone */}
+                {deleteTargetMessage.senderId === currentUser.id && (
+                  <button
+                    onClick={async () => {
+                      await handleDeleteForEveryone(deleteTargetMessage.id);
+                      setIsDeleteOptionsOpen(false);
+                      setDeleteTargetMessage(null);
+                    }}
+                    className="w-full py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-semibold transition-colors"
+                  >
+                    Hapus untuk Semua Orang
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================
+          MODAL: Detail Dibaca Grup (Group Read Receipts)
+          ======================================================== */}
+      {groupReadReceipts.isOpen && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 select-none">
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl overflow-hidden flex flex-col max-h-[85vh] animate-scaleIn">
+            <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between shrink-0">
+              <h3 className="font-bold text-slate-800 text-sm">Info Pesan</h3>
+              <button 
+                onClick={() => setGroupReadReceipts(prev => ({ ...prev, isOpen: false }))}
+                className="p-1 hover:bg-slate-200 rounded-full text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4 overflow-y-auto scrollbar-thin">
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 max-h-20 overflow-hidden shrink-0">
+                <p className="text-xs text-slate-500 italic line-clamp-2 leading-relaxed">
+                  "{groupReadReceipts.messageText}"
+                </p>
+              </div>
+
+              <div className="space-y-4 pr-1">
+                {/* 1. Dibaca oleh */}
+                <div>
+                  <h4 className="text-xs font-bold text-emerald-600 flex items-center gap-1.5 mb-2 uppercase tracking-wider">
+                    <span>✓✓ Dibaca oleh ({groupReadReceipts.readUsers.length})</span>
+                  </h4>
+                  <div className="space-y-1.5 divide-y divide-slate-100/50 pl-1">
+                    {groupReadReceipts.readUsers.length === 0 ? (
+                      <p className="text-[11px] text-slate-400 py-1 italic">Belum ada yang membaca</p>
+                    ) : (
+                      groupReadReceipts.readUsers.map(user => (
+                        <div key={user.id} className="flex items-center gap-2.5 py-1.5">
+                          <UserAvatar
+                            name={user.name}
+                            profilePhoto={user.profilePhoto}
+                            size="xs"
+                          />
+                          <div>
+                            <p className="text-xs font-semibold text-slate-700">{user.name}</p>
+                            <p className="text-[9px] text-slate-400">{user.divisi || 'Anggota Tim'}</p>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* 2. Tersampaikan ke */}
+                <div className="border-t border-slate-100 pt-3">
+                  <h4 className="text-xs font-bold text-slate-500 flex items-center gap-1.5 mb-2 uppercase tracking-wider">
+                    <span>✓ Tersampaikan ke ({groupReadReceipts.deliveredUsers.length})</span>
+                  </h4>
+                  <div className="space-y-1.5 divide-y divide-slate-100/50 pl-1">
+                    {groupReadReceipts.deliveredUsers.length === 0 ? (
+                      <p className="text-[11px] text-slate-400 py-1 italic">Semua sudah membaca</p>
+                    ) : (
+                      groupReadReceipts.deliveredUsers.map(user => (
+                        <div key={user.id} className="flex items-center gap-2.5 py-1.5">
+                          <UserAvatar
+                            name={user.name}
+                            profilePhoto={user.profilePhoto}
+                            size="xs"
+                          />
+                          <div>
+                            <p className="text-xs font-semibold text-slate-700">{user.name}</p>
+                            <p className="text-[9px] text-slate-400">{user.divisi || 'Anggota Tim'}</p>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================
+          MODAL: Preview PDF
+          ======================================================== */}
+      {previewPdfUrl && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[120] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-4xl h-[85vh] shadow-xl overflow-hidden flex flex-col animate-scaleIn">
+            <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between shrink-0 select-none">
+              <div className="flex items-center gap-2">
+                <FileText className="text-gov-600" size={20} />
+                <h3 className="font-bold text-slate-800 text-sm truncate max-w-[200px] sm:max-w-[400px]" title={previewPdfName}>
+                  Preview: {previewPdfName}
+                </h3>
+              </div>
+              <div className="flex items-center gap-2">
+                <a 
+                  href={previewPdfUrl} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5"
+                >
+                  <ExternalLink size={14} />
+                  <span>Buka Tab Baru</span>
+                </a>
+                <button 
+                  onClick={() => {
+                    setPreviewPdfUrl(null);
+                    setPreviewPdfName('');
+                  }}
+                  className="p-1 hover:bg-slate-200 rounded-full text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 bg-slate-100 p-4 flex items-center justify-center overflow-hidden">
+              <iframe 
+                src={`${previewPdfUrl}#toolbar=0`} 
+                className="w-full h-full border-0 rounded-xl bg-white shadow-sm"
+                title={previewPdfName}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================
+          MODAL: Preview Gambar (Lightbox)
+          ======================================================== */}
+      {previewImageUrl && (
+        <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-sm z-[130] flex items-center justify-center p-4">
+          <div className="relative max-w-5xl max-h-[90vh] w-full flex flex-col items-center gap-4 animate-scaleIn">
+            {/* Header controls inside modal */}
+            <div className="absolute top-0 right-0 p-4 flex items-center gap-3 z-10 select-none">
+              <a 
+                href={previewImageUrl} 
+                download={previewImageName}
+                className="p-2 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors flex items-center justify-center"
+                title="Download Gambar"
+              >
+                <Download size={18} />
+              </a>
+              <button 
+                onClick={() => {
+                  setPreviewImageUrl(null);
+                  setPreviewImageName('');
+                }}
+                className="p-2 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors flex items-center justify-center"
+                title="Tutup"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Image display */}
+            <div className="w-full flex justify-center items-center overflow-hidden p-6 mt-10">
+              <img 
+                src={previewImageUrl} 
+                alt={previewImageName} 
+                className="max-w-full max-h-[75vh] object-contain rounded-xl shadow-2xl border border-white/5"
+              />
+            </div>
+            
+            {/* Caption or filename title at bottom */}
+            {previewImageName && (
+              <p className="text-white/80 text-xs text-center px-4 bg-slate-900/60 py-1.5 rounded-full select-none max-w-sm truncate">
+                {previewImageName}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Aesthetic Toast Notifications Container */}
       <div className="fixed bottom-6 right-6 z-[110] flex flex-col gap-2 pointer-events-none select-none max-w-sm w-full sm:w-auto">
         {toasts.map(toast => {
@@ -2398,7 +3714,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({
       </div>
 
       {/* GROUP SETTINGS PANEL */}
-      {isGroupSettingsOpen && activeRoom?.isGroup && (
+      {isGroupSettingsOpen && activeRoom && (
         <div className="fixed inset-0 z-50 flex justify-end">
           {/* Backdrop */}
           <div
@@ -2409,7 +3725,9 @@ export const ChatPage: React.FC<ChatPageProps> = ({
           <div className="relative w-full max-w-sm bg-white h-full shadow-2xl flex flex-col animate-slideIn overflow-hidden">
             {/* Panel Header */}
             <div className="h-14 border-b border-slate-100 flex items-center justify-between px-5 shrink-0">
-              <h2 className="font-bold text-slate-800 text-sm">Info Grup</h2>
+              <h2 className="font-bold text-slate-800 text-sm">
+                {activeRoom.isGroup ? 'Info Grup' : 'Info Obrolan'}
+              </h2>
               <button
                 onClick={() => setIsGroupSettingsOpen(false)}
                 className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
@@ -2418,185 +3736,400 @@ export const ChatPage: React.FC<ChatPageProps> = ({
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto">
-              {/* Group Photo & Name */}
-              <div className="p-5 flex flex-col items-center gap-3 border-b border-slate-100">
-                {/* Group Photo */}
-                <div className="relative group">
-                  {activeRoom.groupPhoto ? (
-                    <img
-                      src={activeRoom.groupPhoto}
-                      alt={activeRoom.name || 'Grup'}
-                      className="w-20 h-20 rounded-full object-cover border-2 border-gov-100 shadow"
-                    />
-                  ) : (
-                    <div className="w-20 h-20 rounded-full bg-gov-50 flex items-center justify-center border-2 border-gov-100 shadow">
-                      <Users size={28} className="text-gov-400" />
-                    </div>
-                  )}
-                  {/* Upload overlay */}
-                  {activeRoom.createdBy === currentUser.id && (
-                    <button
-                      onClick={() => groupPhotoInputRef.current?.click()}
-                      disabled={isUploadingGroupPhoto}
-                      className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer"
-                    >
-                      {isUploadingGroupPhoto
-                        ? <Loader2 size={20} className="text-white animate-spin" />
-                        : <ImageIcon size={20} className="text-white" />
-                      }
-                    </button>
-                  )}
-                  <input
-                    ref={groupPhotoInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleUploadGroupPhoto}
-                  />
-                </div>
-
-                {/* Edit Group Name */}
-                {activeRoom.createdBy === currentUser.id ? (
-                  <div className="w-full flex gap-2">
-                    <input
-                      value={editGroupName}
-                      onChange={e => setEditGroupName(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && handleUpdateGroupName()}
-                      className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-gov-500/20 focus:border-gov-400 text-center"
-                      placeholder="Nama grup..."
-                    />
-                    <button
-                      onClick={handleUpdateGroupName}
-                      disabled={!editGroupName.trim() || editGroupName.trim() === activeRoom.name}
-                      className="px-3 py-2 bg-gov-600 text-white rounded-lg text-xs font-semibold disabled:opacity-40 hover:bg-gov-700 transition-colors"
-                    >
-                      Simpan
-                    </button>
-                  </div>
-                ) : (
-                  <p className="font-bold text-slate-800 text-base text-center">{activeRoom.name}</p>
-                )}
-
-                {activeRoom.projectName && (
-                  <div className="flex items-center gap-1.5 text-xs text-sky-700 bg-sky-50 px-2.5 py-1 rounded-full border border-sky-100">
-                    <Briefcase size={12} />
-                    <span>{activeRoom.projectName}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Members List */}
-              <div className="p-5">
-                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
-                  Anggota ({groupMembers.length})
-                </h3>
-                <div className="space-y-2">
-                  {groupMembers.map(member => {
-                    const isAdmin = member.id === activeRoom.createdBy;
-                    const isCurrentUser = member.id === currentUser.id;
-                    const canRemove = activeRoom.createdBy === currentUser.id && !isCurrentUser;
-                    return (
-                      <div key={member.id} className="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 transition-colors">
-                        <UserAvatar
-                          name={member.name || 'U'}
-                          profilePhoto={member.profilePhoto}
-                          size="sm"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <p className="text-sm font-semibold text-slate-800 truncate">
-                              {member.name || 'Unknown'}
-                              {isCurrentUser && <span className="text-slate-400 font-normal"> (Anda)</span>}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-1.5">
-                            {isAdmin && (
-                              <span className="text-[10px] bg-gov-50 text-gov-700 border border-gov-100 px-1.5 py-0.5 rounded font-semibold">Admin</span>
-                            )}
-                            {member.divisi && (
-                              <span className="text-[10px] text-slate-400 truncate">{member.divisi}</span>
-                            )}
-                          </div>
-                        </div>
-                        {canRemove && (
-                          <button
-                            onClick={() => handleRemoveMember(member.id, member.name || 'Anggota')}
-                            title="Hapus dari grup"
-                            className="p-1.5 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500 transition-colors shrink-0"
-                          >
-                            <X size={15} />
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Add Member Section - admin only */}
-              {activeRoom.createdBy === currentUser.id && (() => {
-                const memberIds = new Set(groupMembers.map(m => m.id));
-                const candidates = systemUsers.filter(u =>
-                  !memberIds.has(u.id) &&
-                  u.id !== currentUser.id &&
-                  (addMemberSearch === '' ||
-                    (u.name || '').toLowerCase().includes(addMemberSearch.toLowerCase()) ||
-                    (u.divisi || '').toLowerCase().includes(addMemberSearch.toLowerCase()) ||
-                    (u.nip || '').includes(addMemberSearch)
-                  )
-                );
-                return (
-                  <div className="px-5 pb-4 border-t border-slate-100 pt-4">
-                    <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Tambah Anggota</h3>
-                    <div className="relative mb-3">
-                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                      <input
-                        value={addMemberSearch}
-                        onChange={e => setAddMemberSearch(e.target.value)}
-                        placeholder="Cari nama atau satker..."
-                        className="w-full pl-8 pr-3 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-gov-500/20 focus:border-gov-400"
-                      />
-                    </div>
-                    {addMemberSearch !== '' && (
-                      <div className="space-y-1 max-h-48 overflow-y-auto">
-                        {candidates.length === 0 ? (
-                          <p className="text-xs text-slate-400 text-center py-3">Tidak ada pengguna yang ditemukan</p>
-                        ) : (
-                          candidates.slice(0, 8).map(user => (
-                            <div key={user.id} className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-slate-50 transition-colors">
-                              <UserAvatar name={user.name || 'U'} profilePhoto={user.profilePhoto} size="sm" />
-                              <div className="flex-1 min-w-0">
-                                <p className="text-xs font-semibold text-slate-800 truncate">{user.name}</p>
-                                {user.divisi && <p className="text-[10px] text-slate-400 truncate">{user.divisi}</p>}
-                              </div>
-                              <button
-                                onClick={() => handleAddMember(user)}
-                                className="shrink-0 px-2.5 py-1 bg-gov-600 text-white rounded-lg text-[10px] font-semibold hover:bg-gov-700 transition-colors"
-                              >
-                                + Tambah
-                              </button>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
-
-            </div>
-
-            {/* Panel Footer - Leave Group */}
-            <div className="p-4 border-t border-slate-100 shrink-0">
+            {/* Tab bar switcher */}
+            <div className="flex border-b border-slate-100 select-none px-5 shrink-0">
               <button
-                onClick={() => { setIsGroupSettingsOpen(false); handleDeleteRoom(); }}
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-red-500 hover:bg-red-50 border border-red-100 transition-colors"
+                type="button"
+                onClick={() => setSettingsTab('info')}
+                className={`flex-1 py-2.5 text-center text-xs font-semibold border-b-2 transition-all ${
+                  settingsTab === 'info' 
+                    ? 'border-gov-600 text-gov-600' 
+                    : 'border-transparent text-slate-400 hover:text-slate-600'
+                }`}
               >
-                <LogOut size={16} />
-                Keluar dari Grup
+                {activeRoom.isGroup ? 'Anggota' : 'Profil'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setSettingsTab('media')}
+                className={`flex-1 py-2.5 text-center text-xs font-semibold border-b-2 transition-all ${
+                  settingsTab === 'media' 
+                    ? 'border-gov-600 text-gov-600' 
+                    : 'border-transparent text-slate-400 hover:text-slate-600'
+                }`}
+              >
+                Media & Berkas
               </button>
             </div>
+
+            <div className="flex-1 overflow-y-auto">
+              {settingsTab === 'info' ? (
+                activeRoom.isGroup ? (
+                  <>
+                    {/* Group Photo & Name */}
+                    <div className="p-5 flex flex-col items-center gap-3 border-b border-slate-100">
+                      {/* Group Photo */}
+                      <div className="relative group">
+                        {activeRoom.groupPhoto ? (
+                          <img
+                            src={activeRoom.groupPhoto}
+                            alt={activeRoom.name || 'Grup'}
+                            className="w-20 h-20 rounded-full object-cover border-2 border-gov-100 shadow"
+                          />
+                        ) : (
+                          <div className="w-20 h-20 rounded-full bg-gov-50 flex items-center justify-center border-2 border-gov-100 shadow">
+                            <Users size={28} className="text-gov-400" />
+                          </div>
+                        )}
+                        {/* Upload overlay */}
+                        {isCurrentUserAdmin && (
+                          <button
+                            onClick={() => groupPhotoInputRef.current?.click()}
+                            disabled={isUploadingGroupPhoto}
+                            className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer"
+                          >
+                            {isUploadingGroupPhoto
+                              ? <Loader2 size={20} className="text-white animate-spin" />
+                              : <ImageIcon size={20} className="text-white" />
+                            }
+                          </button>
+                        )}
+                        <input
+                          ref={groupPhotoInputRef}
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={handleUploadGroupPhoto}
+                        />
+                      </div>
+
+                      {/* Edit Group Name */}
+                      {isCurrentUserAdmin ? (
+                        <div className="w-full flex gap-2">
+                          <input
+                            value={editGroupName}
+                            onChange={e => setEditGroupName(e.target.value)}
+                            onKeyDown={e => e.key === 'Enter' && handleUpdateGroupName()}
+                            className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-gov-500/20 focus:border-gov-400 text-center"
+                            placeholder="Nama grup..."
+                          />
+                          <button
+                            onClick={handleUpdateGroupName}
+                            disabled={!editGroupName.trim() || editGroupName.trim() === groupDisplayName}
+                            className="px-3 py-2 bg-gov-600 text-white rounded-lg text-xs font-semibold disabled:opacity-40 hover:bg-gov-700 transition-colors"
+                          >
+                            Simpan
+                          </button>
+                        </div>
+                      ) : (
+                        <p className="font-bold text-slate-800 text-base text-center">{groupDisplayName}</p>
+                      )}
+
+                      {activeRoom.projectName && (
+                        <div className="flex items-center gap-1.5 text-xs text-sky-700 bg-sky-50 px-2.5 py-1 rounded-full border border-sky-100">
+                          <Briefcase size={12} />
+                          <span>{activeRoom.projectName}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Members List */}
+                    <div className="p-5">
+                      <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
+                        Anggota ({groupMembers.length})
+                      </h3>
+                      <div className="space-y-2">
+                        {groupMembers.map(member => {
+                          const isAdmin = groupAdmins.includes(member.id);
+                          const isCurrentUser = member.id === currentUser.id;
+                          const canRemove = isCurrentUserAdmin && !isCurrentUser && member.id !== activeRoom.createdBy;
+                          return (
+                            <div key={member.id} className="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 transition-colors">
+                              <UserAvatar
+                                name={member.name || 'U'}
+                                profilePhoto={member.profilePhoto}
+                                size="sm"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-1.5">
+                                  <p className="text-sm font-semibold text-slate-800 truncate">
+                                    {member.name || 'Unknown'}
+                                    {isCurrentUser && <span className="text-slate-400 font-normal"> (Anda)</span>}
+                                  </p>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  {isAdmin && (
+                                    <span className="text-[10px] bg-gov-50 text-gov-700 border border-gov-100 px-1.5 py-0.5 rounded font-semibold">Admin</span>
+                                  )}
+                                  {member.divisi && (
+                                    <span className="text-[10px] text-slate-400 truncate">{member.divisi}</span>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Toggle admin status button */}
+                              {isCurrentUserAdmin && !isCurrentUser && member.id !== activeRoom.createdBy && (
+                                <button
+                                  onClick={() => handleToggleAdminStatus(member.id, isAdmin)}
+                                  className={`px-2 py-1 rounded text-[10px] font-semibold transition-all shrink-0 ${
+                                    isAdmin 
+                                      ? 'bg-red-50 text-red-700 hover:bg-red-100' 
+                                      : 'bg-gov-50 text-gov-700 hover:bg-gov-100'
+                                  }`}
+                                >
+                                  {isAdmin ? 'Cabut Admin' : 'Jadikan Admin'}
+                                </button>
+                              )}
+
+                              {canRemove && (
+                                <button
+                                  onClick={() => handleRemoveMember(member.id, member.name || 'Anggota')}
+                                  title="Hapus dari grup"
+                                  className="p-1.5 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500 transition-colors shrink-0"
+                                >
+                                  <X size={15} />
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Add Member Section - admin only */}
+                    {isCurrentUserAdmin && (() => {
+                      const memberIds = new Set(groupMembers.map(m => m.id));
+                      const candidates = systemUsers.filter(u =>
+                        !memberIds.has(u.id) &&
+                        u.id !== currentUser.id &&
+                        (addMemberSearch === '' ||
+                          (u.name || '').toLowerCase().includes(addMemberSearch.toLowerCase()) ||
+                          (u.divisi || '').toLowerCase().includes(addMemberSearch.toLowerCase()) ||
+                          (u.nip || '').includes(addMemberSearch)
+                        )
+                      );
+                      return (
+                        <div className="px-5 pb-4 border-t border-slate-100 pt-4">
+                          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Tambah Anggota</h3>
+                          <div className="relative mb-3">
+                            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                            <input
+                              value={addMemberSearch}
+                              onChange={e => setAddMemberSearch(e.target.value)}
+                              placeholder="Cari nama atau satker..."
+                              className="w-full pl-8 pr-3 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-gov-500/20 focus:border-gov-400"
+                            />
+                          </div>
+                          {addMemberSearch !== '' && (
+                            <div className="space-y-1 max-h-48 overflow-y-auto">
+                              {candidates.length === 0 ? (
+                                <p className="text-xs text-slate-400 text-center py-3">Tidak ada pengguna yang ditemukan</p>
+                              ) : (
+                                candidates.slice(0, 8).map(user => (
+                                  <div key={user.id} className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-slate-50 transition-colors">
+                                    <UserAvatar name={user.name || 'U'} profilePhoto={user.profilePhoto} size="sm" />
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-xs font-semibold text-slate-800 truncate">{user.name}</p>
+                                      {user.divisi && <p className="text-[10px] text-slate-400 truncate">{user.divisi}</p>}
+                                    </div>
+                                    <button
+                                      onClick={() => handleAddMember(user)}
+                                      className="shrink-0 px-2.5 py-1 bg-gov-600 text-white rounded-lg text-[10px] font-semibold hover:bg-gov-700 transition-colors"
+                                    >
+                                      + Tambah
+                                    </button>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </>
+                ) : (() => {
+                  const otherUser = activeRoom.otherUserId ? userMap[activeRoom.otherUserId] : null;
+                  return otherUser ? (
+                    <div className="p-6 flex flex-col items-center gap-4 text-center">
+                      <UserAvatar
+                        name={otherUser.name || 'U'}
+                        profilePhoto={otherUser.profilePhoto}
+                        size="lg"
+                      />
+                      <div>
+                        <h3 className="font-bold text-slate-800 text-base">{otherUser.name}</h3>
+                        <p className="text-xs text-slate-400 mt-1">{otherUser.divisi || 'Satuan Kerja'}</p>
+                      </div>
+                      <div className="w-full border-t border-slate-100 pt-5 text-left space-y-4">
+                        <div>
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Email</span>
+                          <span className="text-xs text-slate-700 font-medium">{otherUser.email || '-'}</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">NIP</span>
+                          <span className="text-xs text-slate-700 font-medium">{otherUser.nip || '-'}</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Satuan Kerja / Divisi</span>
+                          <span className="text-xs text-slate-700 font-medium">{otherUser.divisi || '-'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-center text-slate-400 text-xs py-8">Profil tidak ditemukan</p>
+                  );
+                })()
+              ) : (
+                <div className="p-5 flex flex-col h-full overflow-hidden">
+                  {/* Sub-tab Switcher */}
+                  <div className="flex bg-slate-100 rounded-lg p-0.5 text-[10px] sm:text-xs select-none mb-4 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setMediaSubTab('media')}
+                      className={`flex-1 py-1.5 text-center font-medium rounded-md transition-all ${
+                        mediaSubTab === 'media' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      Gambar ({sharedMedia.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMediaSubTab('files')}
+                      className={`flex-1 py-1.5 text-center font-medium rounded-md transition-all ${
+                        mediaSubTab === 'files' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      Berkas ({sharedFiles.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMediaSubTab('links')}
+                      className={`flex-1 py-1.5 text-center font-medium rounded-md transition-all ${
+                        mediaSubTab === 'links' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      Tautan ({sharedLinks.length})
+                    </button>
+                  </div>
+
+                  {/* Content list (Scrollable) */}
+                  <div className="flex-1 overflow-y-auto divide-y divide-slate-100 pr-1 space-y-2 pb-8 scrollbar-thin max-h-[60vh]">
+                    {mediaSubTab === 'media' && (
+                      sharedMedia.length === 0 ? (
+                        <p className="text-center text-slate-400 text-xs py-8 select-none">Belum ada gambar dibagikan</p>
+                      ) : (
+                        <div className="grid grid-cols-3 gap-2">
+                          {sharedMedia.map(m => {
+                            const url = signedUrls[m.id];
+                            return (
+                              <div 
+                                key={m.id}
+                                onClick={() => url && setPreviewImageUrl(url)}
+                                className="aspect-square bg-slate-50 rounded-lg overflow-hidden border border-slate-200 cursor-zoom-in group relative"
+                              >
+                                {url ? (
+                                  <img src={url} alt="Shared" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center">
+                                    <Loader2 size={12} className="animate-spin text-slate-400" />
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )
+                    )}
+
+                    {mediaSubTab === 'files' && (
+                      sharedFiles.length === 0 ? (
+                        <p className="text-center text-slate-400 text-xs py-8 select-none">Belum ada berkas dibagikan</p>
+                      ) : (
+                        <div className="space-y-1 pt-1.5">
+                          {sharedFiles.map(m => {
+                            const isPdf = m.attachmentName?.toLowerCase().endsWith('.pdf') || m.attachmentType === 'application/pdf';
+                            const url = signedUrls[m.id];
+                            return (
+                              <div key={m.id} className="flex items-center justify-between p-2 hover:bg-slate-50 rounded-lg text-xs gap-3">
+                                <div className="flex items-center gap-2 min-w-0 flex-1">
+                                  <FileText size={18} className="text-slate-400 shrink-0" />
+                                  <div className="min-w-0">
+                                    <p className="font-semibold text-slate-700 truncate" title={m.attachmentName || ''}>
+                                      {m.attachmentName}
+                                    </p>
+                                    <p className="text-[9px] text-slate-400 capitalize">Terkirim oleh {m.senderName}</p>
+                                  </div>
+                                </div>
+                                {url && (
+                                  <div className="flex items-center gap-1 shrink-0">
+                                    {isPdf && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setPreviewPdfUrl(url);
+                                          setPreviewPdfName(m.attachmentName || 'PDF Preview');
+                                        }}
+                                        className="p-1 hover:bg-slate-200 rounded text-slate-500 hover:text-gov-600 transition-colors"
+                                        title="Preview"
+                                      >
+                                        <Eye size={14} />
+                                      </button>
+                                    )}
+                                    <a
+                                      href={url}
+                                      download={m.attachmentName}
+                                      className="p-1 hover:bg-slate-200 rounded text-slate-500 hover:text-gov-600 transition-colors"
+                                      title="Unduh"
+                                    >
+                                      <Download size={14} />
+                                    </a>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )
+                    )}
+
+                    {mediaSubTab === 'links' && (
+                      sharedLinks.length === 0 ? (
+                        <p className="text-center text-slate-400 text-xs py-8 select-none">Belum ada tautan dibagikan</p>
+                      ) : (
+                        <div className="space-y-2 pt-1.5">
+                          {sharedLinks.map((link, idx) => (
+                            <div key={link.id + idx} className="p-2 hover:bg-slate-50 rounded-lg text-xs space-y-1">
+                              <a
+                                href={link.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="font-semibold text-blue-600 hover:underline break-all block"
+                              >
+                                {link.title}
+                              </a>
+                              <p className="text-[9px] text-slate-400">Terkirim oleh {link.senderName}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Panel Footer - Leave Group (only for group chats) */}
+            {activeRoom.isGroup && (
+              <div className="p-4 border-t border-slate-100 shrink-0">
+                <button
+                  onClick={() => { setIsGroupSettingsOpen(false); handleDeleteRoom(); }}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-red-500 hover:bg-red-50 border border-red-100 transition-colors"
+                >
+                  <LogOut size={16} />
+                  Keluar dari Grup
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -1320,6 +1320,13 @@ const AppContent: React.FC = () => {
               meetings={meetings}
               onTaskClick={handleTaskClick}
               onViewMeeting={handleViewMeeting}
+              onViewProject={(project) => {
+                const params = new URLSearchParams(window.location.search);
+                params.set('projectId', project.id);
+                window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
+                window.dispatchEvent(new Event('project-navigated'));
+                startTransition(() => setActiveTab('Project'));
+              }}
               showNotification={showNotification}
             />
           </Suspense>

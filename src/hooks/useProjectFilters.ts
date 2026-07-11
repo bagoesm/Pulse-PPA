@@ -66,7 +66,29 @@ export function useProjectFilters(): UseProjectFiltersResult {
     const [linksPage, setLinksPage] = useState(1);
 
     // Selected project
-    const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+    const [selectedProjectId, setSelectedProjectId] = useState<string | null>(() => {
+        const params = new URLSearchParams(window.location.search);
+        return params.get('projectId');
+    });
+
+    useEffect(() => {
+        const checkParam = () => {
+            const params = new URLSearchParams(window.location.search);
+            const pId = params.get('projectId');
+            if (pId !== selectedProjectId) {
+                setSelectedProjectId(pId);
+            }
+        };
+        checkParam();
+        window.addEventListener('popstate', checkParam);
+        window.addEventListener('hashchange', checkParam);
+        window.addEventListener('project-navigated', checkParam);
+        return () => {
+            window.removeEventListener('popstate', checkParam);
+            window.removeEventListener('hashchange', checkParam);
+            window.removeEventListener('project-navigated', checkParam);
+        };
+    }, [selectedProjectId]);
 
     // Debounce project search
     useEffect(() => {

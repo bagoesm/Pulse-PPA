@@ -1041,6 +1041,7 @@ export interface ChatRoom {
   lastMessageSenderId?: string | null;
   lastMessageIsRead?: boolean;
   unreadCount?: number;
+  hasMention?: boolean;
 }
 
 export interface ChatRoomMember {
