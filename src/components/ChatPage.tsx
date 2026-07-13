@@ -411,6 +411,17 @@ export const ChatPage: React.FC<ChatPageProps> = ({
   const [settingsTab, setSettingsTab] = useState<'info' | 'media'>('info');
   const [mediaSubTab, setMediaSubTab] = useState<'media' | 'files' | 'links'>('media');
 
+  const getCleanMessageText = useCallback((rawMsg: string | undefined | null) => {
+    if (!rawMsg) return '';
+    if (rawMsg.startsWith('{')) {
+      try {
+        const parsed = JSON.parse(rawMsg);
+        return parsed.text !== undefined ? parsed.text : rawMsg;
+      } catch {}
+    }
+    return rawMsg;
+  }, []);
+
   const addToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'success') => {
     const id = Math.random().toString(36).substring(7);
     setToasts(prev => [...prev, { id, message, type }]);
@@ -1377,7 +1388,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({
           replyTo: {
             id: replyToMessage.id,
             senderName: replyToMessage.senderName,
-            message: replyToMessage.type === 'file' ? `📁 ${replyToMessage.attachmentName}` : replyToMessage.message
+            message: replyToMessage.type === 'file' ? `📁 ${replyToMessage.attachmentName}` : getCleanMessageText(replyToMessage.message)
           }
         });
         setReplyToMessage(null); // Clear reply state
@@ -1437,7 +1448,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({
           replyTo: replyToMessage ? {
             id: replyToMessage.id,
             senderName: replyToMessage.senderName,
-            message: replyToMessage.type === 'file' ? `📁 ${replyToMessage.attachmentName}` : replyToMessage.message
+            message: replyToMessage.type === 'file' ? `📁 ${replyToMessage.attachmentName}` : getCleanMessageText(replyToMessage.message)
           } : null
         });
       }
@@ -1504,7 +1515,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({
           taskData.replyTo = {
             id: reply.id,
             senderName: reply.senderName,
-            message: reply.type === 'file' ? `📁 ${reply.attachmentName}` : reply.message
+            message: reply.type === 'file' ? `📁 ${reply.attachmentName}` : getCleanMessageText(reply.message)
           };
         }
         payload.message = JSON.stringify(taskData);
@@ -1521,7 +1532,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({
           meetingData.replyTo = {
             id: reply.id,
             senderName: reply.senderName,
-            message: reply.type === 'file' ? `📁 ${reply.attachmentName}` : reply.message
+            message: reply.type === 'file' ? `📁 ${reply.attachmentName}` : getCleanMessageText(reply.message)
           };
         }
         payload.message = JSON.stringify(meetingData);
@@ -1538,7 +1549,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({
           projectData.replyTo = {
             id: reply.id,
             senderName: reply.senderName,
-            message: reply.type === 'file' ? `📁 ${reply.attachmentName}` : reply.message
+            message: reply.type === 'file' ? `📁 ${reply.attachmentName}` : getCleanMessageText(reply.message)
           };
         }
         payload.message = JSON.stringify(projectData);
@@ -2615,7 +2626,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({
                                           }}
                                         >
                                           <p className="font-bold text-[9px] opacity-90">{parsedMsg.replyQuote.senderName}</p>
-                                          <p className="truncate opacity-80">{parsedMsg.replyQuote.message}</p>
+                                          <p className="truncate opacity-80">{getCleanMessageText(parsedMsg.replyQuote.message)}</p>
                                         </div>
                                       )}
 
