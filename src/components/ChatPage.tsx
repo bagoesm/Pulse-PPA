@@ -2720,7 +2720,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({
                         <div
                           key={msg.id}
                           id={`msg-${msg.id}`}
-                          className={`flex gap-3 max-w-[80%] ${isMe ? 'ml-auto flex-row-reverse' : ''}`}
+                          className={`flex gap-3 max-w-[80%] min-w-0 ${isMe ? 'ml-auto flex-row-reverse' : ''}`}
                         >
                           {/* Sender Initials / Photo */}
                           {!isMe && (
@@ -2734,7 +2734,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({
                           )}
 
                           {/* Message Bubble wrapper */}
-                          <div className={`space-y-1 relative group/msg flex ${isMe ? 'flex-row-reverse' : 'flex-row'} items-center gap-2 max-w-[90%]`}>
+                          <div className={`space-y-1 relative group/msg flex ${isMe ? 'flex-row-reverse' : 'flex-row'} items-center gap-2 max-w-[90%] min-w-0`}>
                             <div className="flex-1 min-w-0">
                               {!isMe && (
                                 <span className="text-[10px] text-slate-500 font-semibold pl-1 select-none block mb-0.5">
@@ -2807,7 +2807,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({
                                       {msg.type === 'file' && msg.attachmentPath && (
                                         <div className="space-y-2">
                                           {msg.attachmentType?.startsWith('image/') ? (
-                                            <div className="rounded-lg overflow-hidden border border-slate-100 max-w-sm max-h-60 bg-slate-50">
+                                            <div className="rounded-lg overflow-hidden border border-slate-100 max-w-[240px] sm:max-w-sm max-h-60 bg-slate-50">
                                               {signedUrls[msg.id] ? (
                                                 <div 
                                                   onClick={() => {
@@ -2831,7 +2831,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({
                                           ) : (() => {
                                             const isPdf = msg.attachmentName?.toLowerCase().endsWith('.pdf') || msg.attachmentType === 'application/pdf';
                                             return (
-                                              <div className={`flex items-center gap-3 p-2 rounded-lg text-xs max-w-sm ${
+                                              <div className={`flex items-center gap-3 p-2 rounded-lg text-xs max-w-[240px] sm:max-w-sm ${
                                                 isMe 
                                                   ? 'bg-slate-100/10 border border-white/20 text-white' 
                                                   : 'bg-slate-100/80 border border-slate-200 text-slate-800'
@@ -2883,7 +2883,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({
                                         const category = localTask?.category || parsed.category || '-';
                                         const priority = localTask?.priority || parsed.priority || 'Medium';
                                         return (
-                                          <div className={`p-3 rounded-xl border max-w-md ${
+                                          <div className={`p-3 rounded-xl border max-w-[240px] sm:max-w-md ${
                                             isMe ? 'bg-white text-slate-800 border-slate-200' : 'bg-slate-50 border-slate-200'
                                           }`}>
                                             <div className="flex items-start justify-between gap-3 mb-2">
@@ -2928,7 +2928,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({
                                         const date = localMeeting?.date || parsed.date || '-';
                                         const location = localMeeting?.location || parsed.location || '-';
                                         return (
-                                          <div className={`p-3 rounded-xl border max-w-md ${
+                                          <div className={`p-3 rounded-xl border max-w-[240px] sm:max-w-md ${
                                             isMe ? 'bg-white text-slate-800 border-slate-200' : 'bg-slate-50 border-slate-200'
                                           }`}>
                                             <div className="flex items-start justify-between gap-3 mb-2">
@@ -2972,7 +2972,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({
                                         const name = localProject?.name || parsed.name || 'Proyek tidak ditemukan / dihapus';
                                         const description = localProject?.description || parsed.description || 'Tidak ada deskripsi';
                                         return (
-                                          <div className={`p-3 rounded-xl border max-w-md ${
+                                          <div className={`p-3 rounded-xl border max-w-[240px] sm:max-w-md ${
                                             isMe ? 'bg-white text-slate-800 border-slate-200' : 'bg-slate-50 border-slate-200'
                                           }`}>
                                             <div className="flex items-start justify-between gap-3 mb-2">

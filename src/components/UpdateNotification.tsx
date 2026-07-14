@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { RefreshCw, X } from 'lucide-react';
+import { RefreshCw, X, Loader2 } from 'lucide-react';
 import { startVersionCheck, forceReload, getCurrentVersion } from '../utils/versionCheck';
 
 export const UpdateNotification: React.FC = () => {
@@ -29,54 +29,63 @@ export const UpdateNotification: React.FC = () => {
   if (!showUpdate) return null;
 
   return (
-    <div className="fixed top-4 right-4 z-[9999] animate-slide-in-right">
-      <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg shadow-2xl p-4 max-w-md border border-blue-400">
-        <div className="flex items-start gap-3">
-          <div className="flex-shrink-0 mt-0.5">
-            <RefreshCw className="w-5 h-5" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-sm mb-1">
-              Pembaruan Tersedia
-            </h3>
-            <p className="text-xs text-blue-50 mb-3">
-              Versi baru aplikasi telah tersedia. Muat ulang halaman untuk mendapatkan fitur dan perbaikan terbaru.
-            </p>
-            <div className="flex gap-2">
-              <button
-                onClick={handleUpdate}
-                disabled={isReloading}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-white text-blue-600 rounded text-xs font-medium hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isReloading ? (
-                  <>
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                    Memuat ulang...
-                  </>
-                ) : (
-                  <>
-                    <RefreshCw className="w-3.5 h-3.5" />
-                    Muat Ulang Sekarang
-                  </>
-                )}
-              </button>
-              <button
-                onClick={handleDismiss}
-                className="px-3 py-1.5 text-xs text-blue-50 hover:text-white hover:bg-blue-500/50 rounded transition-colors"
-              >
-                Nanti
-              </button>
-            </div>
-            <p className="text-[10px] text-blue-100 mt-2">
-              Versi: {getCurrentVersion()}
-            </p>
-          </div>
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in select-none">
+      <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 max-w-sm w-full p-6 text-center animate-scale-up relative">
+        {/* Close Button */}
+        <button
+          onClick={handleDismiss}
+          className="absolute right-4 top-4 text-slate-400 hover:text-slate-600 transition-colors p-1 rounded-full hover:bg-slate-50 min-h-0"
+          title="Tutup"
+        >
+          <X className="w-4 h-4" />
+        </button>
+
+        {/* Pulsing Icon */}
+        <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse-slow">
+          <RefreshCw className="w-8 h-8 animate-spin-slow" />
+        </div>
+
+        {/* Text Details */}
+        <h3 className="text-base font-bold text-slate-800 mb-2">
+          Pembaruan Aplikasi Tersedia
+        </h3>
+        <p className="text-xs text-slate-500 leading-relaxed mb-6">
+          Versi terbaru aplikasi telah dirilis. Silakan muat ulang halaman sekarang untuk menikmati fitur terbaru dan peningkatan performa sistem.
+        </p>
+
+        {/* Actions */}
+        <div className="space-y-2">
+          <button
+            onClick={handleUpdate}
+            disabled={isReloading}
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md shadow-blue-500/10 hover:shadow-blue-500/20 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed min-h-0"
+          >
+            {isReloading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Sedang Memperbarui...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="w-4 h-4" />
+                Muat Ulang Sekarang
+              </>
+            )}
+          </button>
+          
           <button
             onClick={handleDismiss}
-            className="flex-shrink-0 text-blue-100 hover:text-white transition-colors"
+            disabled={isReloading}
+            className="w-full py-2.5 text-xs text-slate-400 hover:text-slate-600 font-semibold transition-colors rounded-xl hover:bg-slate-50 min-h-0"
           >
-            <X className="w-4 h-4" />
+            Nanti Saja
           </button>
+        </div>
+
+        {/* Version */}
+        <div className="text-[9px] text-slate-400 mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+          <span>Pulse App</span>
+          <span>Versi {getCurrentVersion()}</span>
         </div>
       </div>
     </div>
@@ -84,20 +93,37 @@ export const UpdateNotification: React.FC = () => {
 };
 
 // Add animation styles
-const style = document.createElement('style');
-style.textContent = `
-  @keyframes slide-in-right {
-    from {
-      transform: translateX(100%);
-      opacity: 0;
+if (typeof document !== 'undefined') {
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes fade-in {
+      from { opacity: 0; }
+      to { opacity: 1; }
     }
-    to {
-      transform: translateX(0);
-      opacity: 1;
+    @keyframes scale-up {
+      from { transform: scale(0.95); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
     }
-  }
-  .animate-slide-in-right {
-    animation: slide-in-right 0.3s ease-out;
-  }
-`;
-document.head.appendChild(style);
+    @keyframes pulse-slow {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.05); opacity: 0.9; }
+    }
+    @keyframes spin-slow {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    .animate-fade-in {
+      animation: fade-in 0.2s ease-out forwards;
+    }
+    .animate-scale-up {
+      animation: scale-up 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+    .animate-pulse-slow {
+      animation: pulse-slow 2s infinite ease-in-out;
+    }
+    .animate-spin-slow {
+      animation: spin-slow 4s linear infinite;
+    }
+  `;
+  document.head.appendChild(style);
+}
