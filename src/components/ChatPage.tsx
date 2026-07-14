@@ -390,6 +390,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({
   const [mentionSearchQuery, setMentionSearchQuery] = useState('');
   const [mentionTriggerIndex, setMentionTriggerIndex] = useState(-1);
   const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(0);
+  const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
 
   // Realtime Cache & References
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
@@ -538,6 +539,10 @@ export const ChatPage: React.FC<ChatPageProps> = ({
     const timer = setTimeout(fetchGifs, gifSearchQuery.trim() ? 400 : 0);
     return () => clearTimeout(timer);
   }, [showPicker, pickerTab, gifSearchQuery]);
+
+  useEffect(() => {
+    setShowAttachmentMenu(false);
+  }, [activeRoomId]);
 
   const handleEmojiClick = (emoji: string) => {
     setMessageInput(prev => prev + emoji);
@@ -2496,11 +2501,11 @@ export const ChatPage: React.FC<ChatPageProps> = ({
       </div>
 
       {/* RIGHT COLUMN: Active Chat Panel */}
-      <div className={`flex-1 flex flex-col h-full bg-slate-50 ${activeRoomId ? 'flex' : 'hidden md:flex'}`}>
+      <div className={`flex-1 flex flex-col h-full bg-slate-50 min-w-0 w-full ${activeRoomId ? 'flex' : 'hidden md:flex'}`}>
         {activeRoomId && activeRoom ? (
           <>
             {/* Active Room Header */}
-            <div className="h-16 border-b border-slate-200 bg-white px-3 sm:px-6 flex items-center justify-between select-none shrink-0 pt-3 md:pt-0">
+            <div className="h-16 border-b border-slate-200 bg-white px-4 sm:px-6 flex items-center justify-between select-none shrink-0 pt-3 md:pt-0">
               <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                 {/* Back Button for mobile */}
                 <button
@@ -2621,7 +2626,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({
             )}
 
             {/* Messages Content Area */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-thin">
+            <div className="flex-1 overflow-y-auto px-4 py-4 sm:p-6 space-y-6 scrollbar-thin">
               {isLoadingMessages ? (
                 <div className="h-full flex items-center justify-center">
                   <Loader2 className="animate-spin text-gov-600" size={32} />
@@ -3126,7 +3131,59 @@ export const ChatPage: React.FC<ChatPageProps> = ({
             </div>
 
             {/* Message Input Bar */}
-            <div className="p-3 sm:p-4 bg-white border-t border-slate-200 shrink-0 relative">
+            <div className="px-4 py-3 sm:p-4 bg-white border-t border-slate-200 shrink-0 relative">
+              {/* Mobile Attachment Combined Menu Popover */}
+              {showAttachmentMenu && (
+                <div className="absolute bottom-full left-4 mb-2 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 p-2 w-56 space-y-1 animate-scaleIn">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAttachmentMenu(false);
+                      fileInputRef.current?.click();
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-slate-700 hover:bg-slate-50 rounded-lg text-xs font-semibold text-left min-h-0"
+                  >
+                    <Paperclip size={16} className="text-blue-500" />
+                    <span>Lampirkan Berkas / File</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAttachmentMenu(false);
+                      setShareType('task');
+                      setIsShareModalOpen(true);
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-slate-700 hover:bg-slate-50 rounded-lg text-xs font-semibold text-left min-h-0"
+                  >
+                    <CheckSquare size={16} className="text-gov-500" />
+                    <span>Bagikan Penugasan</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAttachmentMenu(false);
+                      setShareType('meeting');
+                      setIsShareModalOpen(true);
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-slate-700 hover:bg-slate-50 rounded-lg text-xs font-semibold text-left min-h-0"
+                  >
+                    <CalendarRange size={16} className="text-sky-500" />
+                    <span>Bagikan Jadwal Kegiatan</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAttachmentMenu(false);
+                      setShareType('project');
+                      setIsShareModalOpen(true);
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-slate-700 hover:bg-slate-50 rounded-lg text-xs font-semibold text-left min-h-0"
+                  >
+                    <Briefcase size={16} className="text-emerald-500" />
+                    <span>Bagikan Proyek</span>
+                  </button>
+                </div>
+              )}
               {/* Mentions Autocomplete Suggestion */}
               {showMentionSuggestions && suggestedUsers.length > 0 && (
                 <div className="absolute bottom-full left-4 bg-white border border-slate-200 rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto w-64 mb-2 p-1 divide-y divide-slate-50">
@@ -3233,7 +3290,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({
                   disabled={isUploading}
                   onClick={() => fileInputRef.current?.click()}
                   title="Lampirkan File"
-                  className="w-10 h-10 flex items-center justify-center bg-slate-100 hover:bg-slate-200 rounded-full text-slate-500 transition-colors shrink-0 disabled:opacity-50 min-h-0"
+                  className="hidden sm:flex w-10 h-10 items-center justify-center bg-slate-100 hover:bg-slate-200 rounded-full text-slate-500 transition-colors shrink-0 disabled:opacity-50 min-h-0"
                 >
                   {isUploading ? (
                     <Loader2 className="animate-spin" size={18} />
@@ -3246,10 +3303,14 @@ export const ChatPage: React.FC<ChatPageProps> = ({
                 <button
                   type="button"
                   onClick={() => {
-                    setShareType('task');
-                    setIsShareModalOpen(true);
+                    if (window.innerWidth < 640) {
+                      setShowAttachmentMenu(prev => !prev);
+                    } else {
+                      setShareType('task');
+                      setIsShareModalOpen(true);
+                    }
                   }}
-                  title="Bagi Penugasan / Kegiatan"
+                  title="Bagi Penugasan / Kegiatan / File"
                   className="w-10 h-10 flex items-center justify-center bg-slate-100 hover:bg-slate-200 rounded-full text-slate-500 transition-colors shrink-0 min-h-0"
                 >
                   <Plus size={18} />
