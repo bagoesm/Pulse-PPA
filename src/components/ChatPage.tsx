@@ -24,11 +24,31 @@ import {
   ArrowLeft,
   Eye,
   CornerUpLeft,
-  CheckSquare
+  CheckSquare,
+  Smile
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { User, ProjectDefinition, Task, Meeting, ChatRoom, ChatMessage } from '../../types';
 import UserAvatar from './UserAvatar';
+
+const EMOJI_CATEGORIES = [
+  {
+    name: 'Smileys & People',
+    emojis: ['😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇', '🙂', '🙃', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚', '😋', '😛', '😝', '😜', '🤪', '🤨', '🧐', '🤓', '😎', '🥸', '🤩', '🥳', '😏', '😒', '😞', '😔', '😟', '😕', '🙁', '☹️', '😣', '😖', '😫', '😩', '🥺', '😢', '😭', '😤', '😠', '😡', '🤬', '🤯', '😳', '🥵', '🥶', '😱', '😨', '😰', '😥', '😓', '🤗', '🤔', '🫣', '🤭', '🤫', '🫡', '🤥', '😶', '😶‍🌫️', '😐', '😑', '😬', '🫨', '🫵', '👍', '👎', '👊', '✊', '🤛', '🤜', '🤞', '✌️', '🤟', '🤘', '👌', '🤌', '🤏', '👈', '👉', '👆', '👇', '☝️', '✋', '🤚', '🖐️', '🖖', '👋', '✍️', '👏', '🙌', '👐', '🤲', '🙏', '🤝', '🎈', '🎉', '🔥', '✨', '💖', '❤️', '💔']
+  },
+  {
+    name: 'Animals & Nature',
+    emojis: ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐻‍❄️', '🐨', '🐯', '🦁', '🐮', '🐷', '🐸', '🐵', '🐔', '🐧', '🐦', '🦆', '🦅', '🦉', '🦇', '🐺', '🐗', '🐴', '🦄', '🐝', '🪱', '🐛', '🦋', '🐌', '🐞', '🐜', '🕷️', '🐢', '🐍', '🦎', '🐙', '🦑', '🦞', '🦀', '🦐', '🐠', '🐟', '🐬', '🐳', '🐋', '🦈', '🐊', '🐆', '🐅', '🐘', '🦣', '🦍', '🦧', '🐪', '🦒', '🦘', '🦬', '🐑', '🐐', '🦌', '🐕', '🐈', '🐇', '🐾', '🌲', '🌳', '🌴', '🌵', '🌱', '🌿', '☘️', '🍀', '🍁', '🍂', '🍃', '🍄', '🐚', '🪨']
+  },
+  {
+    name: 'Food & Drink',
+    emojis: ['🍏', '🍎', '🍐', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🫐', '🍈', '🍒', '🍑', '🥭', '🍍', '🥥', '🥝', '🍅', '🍆', '🥑', '🥦', '🥬', '🥒', '🌶️', '🌽', '🥕', '🥔', '🍠', '🥐', '🥯', '🍞', '🥖', '🥨', '🧀', '🥚', '🍳', '🧈', '🥞', '🧇', '🥓', '🥩', '🍗', '🍔', '🍟', '🍕', '🌭', '🥪', '🌮', '🌯', '🍣', '🍱', '🥟', '🍤', '🍙', '🍘', '🍦', '🍧', '🍨', '🍩', '🍪', '🎂', '🍰', '🍫', '🍬', '🍭', '🍮', '🍯', '🍼', '🥛', '☕', '🍵', '🧉', '🥤', '🍺', '🍻', '🥂', '🍷', '🥃', '🍹']
+  },
+  {
+    name: 'Activities & Travel',
+    emojis: ['⚽', '🏀', '🏈', '⚾', '🥎', '🎾', '🏐', '🏉', '🥏', '🎱', '🪀', '🏓', '🏸', '🏒', '🥍', '🏹', '🧗', '🧘', '🚶', '🚴', '🛹', '🛼', '🥊', '🥋', '🚗', '🚕', '🚙', '🚌', '🚎', '🏎️', '🚓', '🚑', '🚒', '🚐', '🛻', '🚚', '🚛', '🚜', '🛵', '🚲', '🛴', '🚂', '🚇', '✈️', '🚁', '🚀', '🛸', '⛵', '🚢', '⚓', '🏕️', '⛺', '🗼', '🗽', '🎡', '🎢', '🌋', '🗻', '🏝️', '🏜️', '🏟️']
+  }
+];
 
 interface CustomSelectOption {
   value: string;
@@ -358,6 +378,13 @@ export const ChatPage: React.FC<ChatPageProps> = ({
   // Reply / Quote Message State
   const [replyToMessage, setReplyToMessage] = useState<ChatMessage | null>(null);
 
+  // Emoji & GIF Picker states
+  const [showPicker, setShowPicker] = useState(false);
+  const [pickerTab, setPickerTab] = useState<'emoji' | 'gif'>('emoji');
+  const [gifSearchQuery, setGifSearchQuery] = useState('');
+  const [gifs, setGifs] = useState<any[]>([]);
+  const [isGifsLoading, setIsGifsLoading] = useState(false);
+
   // Mentions Suggestion States
   const [showMentionSuggestions, setShowMentionSuggestions] = useState(false);
   const [mentionSearchQuery, setMentionSearchQuery] = useState('');
@@ -421,6 +448,102 @@ export const ChatPage: React.FC<ChatPageProps> = ({
     }
     return rawMsg;
   }, []);
+
+  const isGifUrl = useCallback((text: string | undefined | null) => {
+    if (!text) return false;
+    return (
+      (text.startsWith('http://') || text.startsWith('https://')) &&
+      (text.includes('giphy.com') || text.includes('tenor.com') || text.endsWith('.gif'))
+    );
+  }, []);
+
+  // Click outside listener to close Emoji/GIF picker
+  useEffect(() => {
+    if (!showPicker) return;
+    
+    const handleOutsideClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.relative')) {
+        setShowPicker(false);
+      }
+    };
+    
+    document.addEventListener('click', handleOutsideClick);
+    return () => document.removeEventListener('click', handleOutsideClick);
+  }, [showPicker]);
+
+  // Fetch GIFs from Giphy
+  useEffect(() => {
+    if (!showPicker || pickerTab !== 'gif') return;
+
+    const fetchGifs = async () => {
+      const apiKey = import.meta.env.VITE_GIPHY_API_KEY;
+      if (!apiKey) {
+        setGifs([]);
+        setIsGifsLoading(false);
+        return;
+      }
+
+      setIsGifsLoading(true);
+      try {
+        const limit = 15;
+        const query = gifSearchQuery.trim();
+        const url = query
+          ? `https://api.giphy.com/v1/gifs/search?q=${encodeURIComponent(query)}&api_key=${apiKey}&limit=${limit}`
+          : `https://api.giphy.com/v1/gifs/trending?api_key=${apiKey}&limit=${limit}`;
+
+        const res = await fetch(url);
+        const json = await res.json();
+        if (json && json.data) {
+          setGifs(json.data.map((item: any) => ({
+            id: item.id,
+            url: item.images?.fixed_height_small?.url || item.images?.fixed_height?.url || item.images?.original?.url,
+            title: item.title
+          })));
+        } else if (json && json.meta && json.meta.status === 403) {
+          setGifs([]);
+        }
+      } catch (err) {
+        console.error('Error fetching GIFs:', err);
+      } finally {
+        setIsGifsLoading(false);
+      }
+    };
+
+    const timer = setTimeout(fetchGifs, gifSearchQuery.trim() ? 400 : 0);
+    return () => clearTimeout(timer);
+  }, [showPicker, pickerTab, gifSearchQuery]);
+
+  const handleEmojiClick = (emoji: string) => {
+    setMessageInput(prev => prev + emoji);
+    if (chatInputRef.current) {
+      chatInputRef.current.focus();
+    }
+  };
+
+  const handleGifClick = async (gifUrl: string) => {
+    if (!activeRoomId || isSending) return;
+    
+    setIsSending(true);
+    setShowPicker(false);
+    
+    try {
+      const { error } = await supabase.from('chat_messages').insert({
+        room_id: activeRoomId,
+        sender_id: currentUser.id,
+        message: gifUrl,
+        type: 'text'
+      });
+      if (error) throw error;
+      
+      await supabase.from('chat_rooms').update({ updated_at: new Date().toISOString() }).eq('id', activeRoomId);
+    } catch (err: any) {
+      console.error('Error sending GIF message:', err);
+      addToast('Gagal mengirim GIF: ' + err.message, 'error');
+    } finally {
+      setIsSending(false);
+    }
+  };
 
   const addToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'success') => {
     const id = Math.random().toString(36).substring(7);
@@ -2536,7 +2659,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({
                                 </span>
                               )}
                               
-                              <div className={`p-3 rounded-2xl shadow-sm text-sm ${
+                              <div className={`p-3 rounded-2xl shadow-sm text-sm break-words ${
                                 isMe 
                                   ? 'bg-gov-600 text-white rounded-tr-none' 
                                   : 'bg-white text-slate-800 border border-slate-100 rounded-tl-none'
@@ -2631,8 +2754,19 @@ export const ChatPage: React.FC<ChatPageProps> = ({
                                       )}
 
                                       {/* 2. Render Main Content based on msg.type */}
-                                      {msg.type === 'text' && (
-                                        <p className="leading-relaxed whitespace-pre-wrap">{renderParsedMessageText(parsedMsg.text, isMe)}</p>
+                                      {msg.type === 'text' && !isGifUrl(parsedMsg.text) && (
+                                        <p className="leading-relaxed whitespace-pre-wrap break-words">{renderParsedMessageText(parsedMsg.text, isMe)}</p>
+                                      )}
+
+                                      {msg.type === 'text' && isGifUrl(parsedMsg.text) && (
+                                        <div className="rounded-lg overflow-hidden border border-slate-100 max-w-[240px] max-h-60 bg-slate-50 mt-1 select-none">
+                                          <img 
+                                            src={parsedMsg.text} 
+                                            alt="GIF" 
+                                            className="w-full h-auto object-cover max-h-60"
+                                            loading="lazy"
+                                          />
+                                        </div>
                                       )}
 
                                       {msg.type === 'file' && msg.attachmentPath && (
@@ -2835,7 +2969,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({
 
                                       {/* 3. Render Caption Text if present (only for non-text messages) */}
                                       {msg.type !== 'text' && parsedMsg.text && (
-                                        <p className="mt-2 leading-relaxed whitespace-pre-wrap">{renderParsedMessageText(parsedMsg.text, isMe)}</p>
+                                        <p className="mt-2 leading-relaxed whitespace-pre-wrap break-words">{renderParsedMessageText(parsedMsg.text, isMe)}</p>
                                       )}
                                     </>
                                   );
@@ -3059,6 +3193,141 @@ export const ChatPage: React.FC<ChatPageProps> = ({
                 >
                   <Plus size={18} />
                 </button>
+
+                {/* Emoji & GIF Trigger */}
+                <div className="relative shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setShowPicker(!showPicker)}
+                    title="Pilih Emoji & GIF"
+                    className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors shrink-0 min-h-0 ${
+                      showPicker ? 'bg-gov-100 text-gov-600' : 'bg-slate-100 hover:bg-slate-200 text-slate-500'
+                    }`}
+                  >
+                    <Smile size={18} />
+                  </button>
+
+                  {/* Popover Picker */}
+                  {showPicker && (
+                    <div className="absolute bottom-12 left-0 z-50 bg-white rounded-2xl border border-slate-200 shadow-2xl p-3 w-80 h-96 flex flex-col">
+                      {/* Tabs Header */}
+                      <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 gap-1 mb-2.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => setPickerTab('emoji')}
+                          className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                            pickerTab === 'emoji' ? 'bg-white text-gov-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+                          }`}
+                        >
+                          😊 Emoji
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setPickerTab('gif')}
+                          className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                            pickerTab === 'gif' ? 'bg-white text-gov-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+                          }`}
+                        >
+                          🎬 GIF
+                        </button>
+                      </div>
+
+                      {/* Content Panel */}
+                      {pickerTab === 'emoji' ? (
+                        <div className="flex-1 overflow-y-auto pr-1 space-y-3.5 scrollbar-thin">
+                          {EMOJI_CATEGORIES.map((cat, idx) => (
+                            <div key={idx}>
+                              <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 pl-1 text-left">
+                                {cat.name}
+                              </h5>
+                              <div className="grid grid-cols-8 gap-1.5">
+                                {cat.emojis.map((emoji, eIdx) => (
+                                  <button
+                                    key={eIdx}
+                                    type="button"
+                                    onClick={() => handleEmojiClick(emoji)}
+                                    className="w-8 h-8 text-xl flex items-center justify-center hover:bg-slate-100 rounded-lg transition-all hover:scale-110 active:scale-95"
+                                  >
+                                    {emoji}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="flex-1 flex flex-col min-h-0">
+                          {!import.meta.env.VITE_GIPHY_API_KEY ? (
+                            <div className="flex-1 flex flex-col items-center justify-center p-4 text-center text-slate-500 gap-3 select-none animate-fade-in">
+                              <span className="text-3xl">🔑</span>
+                              <div className="space-y-1">
+                                <p className="text-xs font-semibold text-slate-700">Kunci API GIPHY Belum Diatur</p>
+                                <p className="text-[10px] text-slate-400 leading-relaxed max-w-[220px]">
+                                  GIPHY melarang penggunaan kunci publik lama. Silakan tambahkan <code className="bg-slate-100 px-1 py-0.5 rounded text-[9px] text-pink-600 font-mono font-semibold">VITE_GIPHY_API_KEY</code> pada file <code className="bg-slate-100 px-1 py-0.5 rounded text-[9px] text-pink-600 font-mono font-semibold">.env</code> Anda.
+                                </p>
+                              </div>
+                              <a
+                                href="https://developers.giphy.com/dashboard/"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-[10px] font-bold text-gov-600 hover:text-gov-700 hover:underline flex items-center gap-1 mt-1"
+                              >
+                                Dapatkan Kunci API Gratis <ExternalLink size={10} />
+                              </a>
+                            </div>
+                          ) : (
+                            <>
+                              {/* Search Input */}
+                              <div className="relative mb-2 shrink-0">
+                                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
+                                <input
+                                  type="text"
+                                  placeholder="Cari GIF di Giphy..."
+                                  value={gifSearchQuery}
+                                  onChange={(e) => setGifSearchQuery(e.target.value)}
+                                  className="w-full pl-8 pr-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-gov-500 focus:border-gov-500 bg-slate-50 text-slate-700"
+                                />
+                              </div>
+
+                              {/* GIF Grid list */}
+                              <div className="flex-1 overflow-y-auto grid grid-cols-2 gap-1.5 scrollbar-thin">
+                                {isGifsLoading ? (
+                                  <div className="col-span-2 flex flex-col items-center justify-center py-12 text-slate-400 gap-1.5">
+                                    <Loader2 className="animate-spin text-gov-600" size={18} />
+                                    <span className="text-[10px] font-medium">Memuat GIF...</span>
+                                  </div>
+                                ) : gifs.length === 0 ? (
+                                  <div className="col-span-2 flex flex-col items-center justify-center py-12 text-slate-400 gap-1.5 text-center">
+                                    <span className="text-lg">⚠️</span>
+                                    <span className="text-[10px] font-medium max-w-[200px] text-slate-400 leading-normal">
+                                      Tidak ada GIF atau Kunci API GIPHY Anda tidak valid/diblokir.
+                                    </span>
+                                  </div>
+                                ) : (
+                                  gifs.map((gif) => (
+                                    <button
+                                      key={gif.id}
+                                      type="button"
+                                      onClick={() => handleGifClick(gif.url)}
+                                      className="aspect-video rounded-lg overflow-hidden border border-slate-100 hover:border-gov-400 transition-all hover:scale-[1.02] focus:outline-none relative group bg-slate-50"
+                                    >
+                                      <img
+                                        src={gif.url}
+                                        alt={gif.title}
+                                        className="w-full h-full object-cover"
+                                        loading="lazy"
+                                      />
+                                    </button>
+                                  ))
+                                )}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
 
                 <input
                   ref={chatInputRef}

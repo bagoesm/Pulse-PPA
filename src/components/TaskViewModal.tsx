@@ -766,17 +766,20 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                     <ExternalLink size={16} />
                     <span className="text-sm">Link ({task.links.length})</span>
                   </div>
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <div className="space-y-2">
                       {(task.links || []).map(link => (
                         <div key={link.id} className="bg-gray-50 rounded-lg border border-gray-200 group hover:border-blue-200 transition-colors overflow-hidden">
-                          <div className="flex items-center justify-between p-3">
+                          <div className="flex items-center justify-between p-3 min-w-0">
                             <div className="flex items-center gap-3 min-w-0 flex-1">
                               <div className="w-6 h-6 rounded bg-white border border-gray-100 flex items-center justify-center text-blue-600 shrink-0">
                                 <ExternalLink size={12} />
                               </div>
                               <div className="min-w-0 flex-1">
-                                <div className="text-sm font-medium text-gray-700 truncate">
+                                <div 
+                                  className="text-sm font-medium text-gray-700 truncate"
+                                  title={link.title || 'Link'}
+                                >
                                   {link.title || 'Untitled Link'}
                                 </div>
                               </div>
@@ -793,7 +796,10 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                           </div>
                           {link.url && (
                             <div className="px-3 pb-3">
-                              <div className="text-xs text-gray-500 bg-white rounded px-2 py-1 border border-gray-100 font-mono break-all">
+                              <div 
+                                className="text-xs text-gray-500 bg-white rounded px-2 py-1 border border-gray-100 font-mono truncate"
+                                title={link.url}
+                              >
                                 {link.url}
                               </div>
                             </div>
