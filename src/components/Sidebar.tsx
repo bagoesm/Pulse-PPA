@@ -111,6 +111,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser,
       toggleCollapse();
     }
     setOpenSubmenu(openSubmenu === menuName ? null : menuName);
+    
+    if (menuName === 'Surat & Kegiatan') {
+      setActiveTab('Dashboard Statistik');
+    }
   };
 
   const handleMouseEnter = (e: React.MouseEvent<HTMLButtonElement>) => {

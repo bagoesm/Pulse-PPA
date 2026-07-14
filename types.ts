@@ -389,6 +389,7 @@ export const SIDEBAR_ITEMS = [
       { name: 'Jadwal Kegiatan', icon: 'CalendarDays' },
       { name: 'Daftar Surat', icon: 'FileSpreadsheet' },
       { name: 'Daftar Disposisi', icon: 'ClipboardList' },
+      { name: 'Dashboard Statistik', icon: 'LayoutDashboard' },
     ]
   },
   {

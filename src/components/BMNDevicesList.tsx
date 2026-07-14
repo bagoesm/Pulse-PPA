@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { BMNDevice, Satker, User } from '../../types';
 import { BMNDevicesService } from '../services/BMNDevicesService';
 import BMNDevicesFormModal from './BMNDevicesFormModal';
+import SearchableSelect from './SearchableSelect';
 import { supabase } from '../lib/supabaseClient';
 import * as XLSX from 'xlsx';
 import { 
@@ -32,6 +33,7 @@ const BMNDevicesList: React.FC<BMNDevicesListProps> = ({
   const [filterOwnership, setFilterOwnership] = useState('All');
   const [filterPerformance, setFilterPerformance] = useState('All');
   const [filterSatker, setFilterSatker] = useState('All');
+  const [filterUnitKerja, setFilterUnitKerja] = useState('All');
   const [showFilters, setShowFilters] = useState(false);
 
   // Modals State
@@ -94,6 +96,37 @@ const BMNDevicesList: React.FC<BMNDevicesListProps> = ({
     return userEditableSatkers.includes(device.satker?.name || '');
   };
 
+  // Filtered Satker options (only parent satkers)
+  const parentSatkerOptions = useMemo(() => {
+    return satkers
+      .filter(s => !s.parentId)
+      .map(s => ({ value: s.id, label: s.name }));
+  }, [satkers]);
+
+  // Unit Kerja options based on selected parent Satker
+  const unitKerjaOptions = useMemo(() => {
+    const childSatkers = filterSatker === 'All'
+      ? satkers.filter(s => s.parentId)
+      : satkers.filter(s => s.parentId === filterSatker);
+    
+    const uniqueNames = Array.from(new Set(childSatkers.map(s => s.name)));
+    return uniqueNames
+      .map(name => ({ value: name, label: name }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [satkers, filterSatker]);
+
+  // Auto-reset Unit Kerja filter if it's no longer valid for the selected Satker
+  useEffect(() => {
+    if (filterSatker !== 'All') {
+      const allowedUnits = satkers
+        .filter(s => s.parentId === filterSatker)
+        .map(s => s.name);
+      if (filterUnitKerja !== 'All' && !allowedUnits.includes(filterUnitKerja)) {
+        setFilterUnitKerja('All');
+      }
+    }
+  }, [filterSatker, satkers, filterUnitKerja]);
+
   // Filter devices based on search and filters
   const filteredDevices = useMemo(() => {
     return devices.filter(d => {
@@ -117,9 +150,12 @@ const BMNDevicesList: React.FC<BMNDevicesListProps> = ({
       // Filter Satker
       const matchesSatker = filterSatker === 'All' || d.satkerId === filterSatker;
 
-      return matchesSearch && matchesDeviceType && matchesOwnership && matchesPerformance && matchesSatker;
+      // Filter Unit Kerja
+      const matchesUnitKerja = filterUnitKerja === 'All' || d.unitKerja === filterUnitKerja;
+
+      return matchesSearch && matchesDeviceType && matchesOwnership && matchesPerformance && matchesSatker && matchesUnitKerja;
     });
-  }, [devices, searchTerm, filterDeviceType, filterOwnership, filterPerformance, filterSatker]);
+  }, [devices, searchTerm, filterDeviceType, filterOwnership, filterPerformance, filterSatker, filterUnitKerja]);
 
   // Calculate statistics
   const stats = useMemo(() => {
@@ -404,7 +440,7 @@ const BMNDevicesList: React.FC<BMNDevicesListProps> = ({
           <button
             onClick={() => setShowFilters(!showFilters)}
             className={`px-4 py-2.5 border rounded-lg flex items-center justify-center gap-2 font-semibold text-xs transition-all whitespace-nowrap outline-none ${
-              showFilters || filterDeviceType !== 'All' || filterOwnership !== 'All' || filterPerformance !== 'All' || filterSatker !== 'All'
+              showFilters || filterDeviceType !== 'All' || filterOwnership !== 'All' || filterPerformance !== 'All' || filterSatker !== 'All' || filterUnitKerja !== 'All'
                 ? 'bg-gov-50 border-gov-300 text-gov-700 ring-1 ring-gov-300'
                 : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
             }`}
@@ -417,62 +453,78 @@ const BMNDevicesList: React.FC<BMNDevicesListProps> = ({
 
         {/* Collapsible Filters */}
         {showFilters && (
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 pt-3 border-t border-slate-100 animate-slide-down">
+          <div className="grid grid-cols-1 sm:grid-cols-5 gap-4 pt-3 border-t border-slate-100 animate-slide-down">
             <div>
               <label className="block text-[11px] font-semibold text-slate-500 uppercase mb-1">Jenis Perangkat</label>
-              <select
-                value={filterDeviceType}
-                onChange={(e) => setFilterDeviceType(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs bg-white text-slate-700"
-              >
-                <option value="All">Semua Perangkat</option>
-                <option value="Laptop">Laptop</option>
-                <option value="PC">PC</option>
-                <option value="Printer">Printer</option>
-                <option value="Scanner">Scanner</option>
-                <option value="Lainnya">Lainnya</option>
-              </select>
+              <SearchableSelect
+                options={[
+                  { value: 'Laptop', label: 'Laptop' },
+                  { value: 'PC', label: 'PC' },
+                  { value: 'Printer', label: 'Printer' },
+                  { value: 'Scanner', label: 'Scanner' },
+                  { value: 'Lainnya', label: 'Lainnya' }
+                ]}
+                value={filterDeviceType === 'All' ? '' : filterDeviceType}
+                onChange={(val) => setFilterDeviceType(val || 'All')}
+                placeholder="Pilih Perangkat"
+                emptyOption="Semua Perangkat"
+                className="w-full text-xs"
+              />
             </div>
 
             <div>
               <label className="block text-[11px] font-semibold text-slate-500 uppercase mb-1">Jenis Kepemilikan</label>
-              <select
-                value={filterOwnership}
-                onChange={(e) => setFilterOwnership(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs bg-white text-slate-700"
-              >
-                <option value="All">Semua Kepemilikan</option>
-                <option value="Kantor">Kantor</option>
-                <option value="Pribadi">Pribadi</option>
-              </select>
+              <SearchableSelect
+                options={[
+                  { value: 'Kantor', label: 'Kantor' },
+                  { value: 'Pribadi', label: 'Pribadi' }
+                ]}
+                value={filterOwnership === 'All' ? '' : filterOwnership}
+                onChange={(val) => setFilterOwnership(val || 'All')}
+                placeholder="Pilih Kepemilikan"
+                emptyOption="Semua Kepemilikan"
+                className="w-full text-xs"
+              />
             </div>
 
             <div>
               <label className="block text-[11px] font-semibold text-slate-500 uppercase mb-1">Kondisi / Performa</label>
-              <select
-                value={filterPerformance}
-                onChange={(e) => setFilterPerformance(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs bg-white text-slate-700"
-              >
-                <option value="All">Semua Performa</option>
-                <option value="Baik">Baik</option>
-                <option value="Cukup">Cukup</option>
-                <option value="Kurang">Kurang</option>
-              </select>
+              <SearchableSelect
+                options={[
+                  { value: 'Baik', label: 'Baik' },
+                  { value: 'Cukup', label: 'Cukup' },
+                  { value: 'Kurang', label: 'Kurang' }
+                ]}
+                value={filterPerformance === 'All' ? '' : filterPerformance}
+                onChange={(val) => setFilterPerformance(val || 'All')}
+                placeholder="Pilih Performa"
+                emptyOption="Semua Performa"
+                className="w-full text-xs"
+              />
             </div>
 
             <div>
               <label className="block text-[11px] font-semibold text-slate-500 uppercase mb-1">Satker</label>
-              <select
-                value={filterSatker}
-                onChange={(e) => setFilterSatker(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs bg-white text-slate-700"
-              >
-                <option value="All">Semua Satker</option>
-                {satkers.map(s => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </select>
+              <SearchableSelect
+                options={parentSatkerOptions}
+                value={filterSatker === 'All' ? '' : filterSatker}
+                onChange={(val) => setFilterSatker(val || 'All')}
+                placeholder="Pilih Satker"
+                emptyOption="Semua Satker"
+                className="w-full text-xs"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-500 uppercase mb-1">Unit Kerja</label>
+              <SearchableSelect
+                options={unitKerjaOptions}
+                value={filterUnitKerja === 'All' ? '' : filterUnitKerja}
+                onChange={(val) => setFilterUnitKerja(val || 'All')}
+                placeholder="Pilih Unit Kerja"
+                emptyOption="Semua Unit Kerja"
+                className="w-full text-xs"
+              />
             </div>
           </div>
         )}
