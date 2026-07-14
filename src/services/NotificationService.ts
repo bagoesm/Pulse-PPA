@@ -106,7 +106,9 @@ export class NotificationService {
         return;
       }
 
-      const message = `${assignerName} menugaskan Anda untuk disposisi Surat "${suratNumber}" terkait kegiatan "${kegiatanTitle}"`;
+      const message = kegiatanTitle && kegiatanTitle !== 'Unknown'
+        ? `${assignerName} menugaskan Anda untuk disposisi Surat "${suratNumber}" terkait kegiatan "${kegiatanTitle}"`
+        : `${assignerName} menugaskan Anda untuk disposisi Surat "${suratNumber}"`;
 
       await this.createNotification(
         user.id,
@@ -115,8 +117,8 @@ export class NotificationService {
         message,
         undefined, // No task ID
         undefined, // No task title
-        disposisi.kegiatanId, // Meeting ID
-        kegiatanTitle, // Meeting title
+        disposisi.kegiatanId || undefined, // Meeting ID
+        kegiatanTitle && kegiatanTitle !== 'Unknown' ? kegiatanTitle : undefined, // Meeting title
         disposisi.id,
         disposisi.disposisiText
       );
@@ -207,7 +209,9 @@ export class NotificationService {
         year: 'numeric'
       });
 
-      const message = `Disposisi untuk Surat "${suratNumber}" terkait kegiatan "${kegiatanTitle}" akan berakhir pada ${formattedDate}`;
+      const message = kegiatanTitle && kegiatanTitle !== 'Unknown'
+        ? `Disposisi untuk Surat "${suratNumber}" terkait kegiatan "${kegiatanTitle}" akan berakhir pada ${formattedDate}`
+        : `Disposisi untuk Surat "${suratNumber}" akan berakhir pada ${formattedDate}`;
 
       await this.createNotification(
         user.id,
@@ -216,8 +220,8 @@ export class NotificationService {
         message,
         undefined, // No task ID
         undefined, // No task title
-        disposisi.kegiatanId, // Meeting ID
-        kegiatanTitle, // Meeting title
+        disposisi.kegiatanId || undefined, // Meeting ID
+        kegiatanTitle && kegiatanTitle !== 'Unknown' ? kegiatanTitle : undefined, // Meeting title
         disposisi.id,
         disposisi.disposisiText
       );

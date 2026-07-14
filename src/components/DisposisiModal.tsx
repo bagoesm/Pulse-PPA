@@ -15,7 +15,8 @@ interface DisposisiModalProps {
   currentUser: User | null;
   users: User[];
   suratId?: string;
-  kegiatanId?: string;
+  kegiatanId?: string | null;
+  initialText?: string;
   showNotification: (title: string, message: string, type?: 'success' | 'error' | 'warning' | 'info') => void;
 }
 
@@ -70,6 +71,7 @@ const DisposisiModal: React.FC<DisposisiModalProps> = ({
   users,
   suratId,
   kegiatanId,
+  initialText = '',
   showNotification,
 }) => {
   const { createSubdisposisi } = useDisposisi();
@@ -160,7 +162,7 @@ const DisposisiModal: React.FC<DisposisiModalProps> = ({
       } else {
         // Reset form for new disposisi
         setSelectedUsers([]);
-        setDisposisiText('');
+        setDisposisiText(initialText || '');
         setDeadline('');
         setStatus('Pending');
         setNotes('');
@@ -176,7 +178,7 @@ const DisposisiModal: React.FC<DisposisiModalProps> = ({
       setSubUserSearch('');
       setShowSubUserDropdown(false);
     }
-  }, [isOpen, initialData]);
+  }, [isOpen, initialData, initialText]);
 
   // Fetch context data (Surat & Kegiatan) when context tab is opened
   useEffect(() => {
@@ -200,15 +202,19 @@ const DisposisiModal: React.FC<DisposisiModalProps> = ({
       if (suratError) throw suratError;
       setSuratData(suratRow);
       
-      // Fetch Kegiatan data
-      const { data: kegiatanRow, error: kegiatanError } = await supabase
-        .from('meetings')
-        .select('*')
-        .eq('id', initialData.kegiatanId)
-        .single();
-      
-      if (kegiatanError) throw kegiatanError;
-      setKegiatanData(kegiatanRow);
+      // Fetch Kegiatan data if exists
+      if (initialData.kegiatanId) {
+        const { data: kegiatanRow, error: kegiatanError } = await supabase
+          .from('meetings')
+          .select('*')
+          .eq('id', initialData.kegiatanId)
+          .single();
+        
+        if (kegiatanError) throw kegiatanError;
+        setKegiatanData(kegiatanRow);
+      } else {
+        setKegiatanData(null);
+      }
     } catch (error) {
       console.error('Error loading context data:', error);
       showNotification('Gagal Memuat', 'Gagal memuat data surat dan kegiatan', 'error');
@@ -383,8 +389,8 @@ const DisposisiModal: React.FC<DisposisiModalProps> = ({
       return;
     }
 
-    if (!suratId || !kegiatanId) {
-      showNotification('Data Tidak Lengkap', 'Surat ID dan Kegiatan ID harus tersedia', 'error');
+    if (!suratId) {
+      showNotification('Data Tidak Lengkap', 'Surat ID harus tersedia', 'error');
       return;
     }
 
@@ -416,7 +422,7 @@ const DisposisiModal: React.FC<DisposisiModalProps> = ({
         for (const userId of selectedUsers) {
           const payload: Omit<Disposisi, 'id' | 'createdAt'> = {
             suratId: suratId!,
-            kegiatanId: kegiatanId!,
+            kegiatanId: kegiatanId || null,
             assignedTo: userId,
             disposisiText: disposisiText.trim(),
             status: 'Pending',

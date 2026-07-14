@@ -86,7 +86,8 @@ const DisposisiListView: React.FC<DisposisiListViewProps> = ({ currentUser, show
   };
 
   // Helper function to get kegiatan title by ID
-  const getKegiatanTitle = (kegiatanId: string): string => {
+  const getKegiatanTitle = (kegiatanId: string | null | undefined): string => {
+    if (!kegiatanId) return '-';
     const kegiatan = meetings.find(m => m.id === kegiatanId);
     return kegiatan?.title || '-';
   };

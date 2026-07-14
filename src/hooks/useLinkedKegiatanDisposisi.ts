@@ -23,7 +23,7 @@ interface UseLinkedKegiatanDisposisiResult {
  */
 export const useLinkedKegiatanDisposisi = (
   suratId: string | undefined,
-  kegiatanId: string | undefined,
+  kegiatanId: string | null | undefined,
   enabled: boolean = true
 ): UseLinkedKegiatanDisposisiResult => {
   const [kegiatan, setKegiatan] = useState<Meeting | null>(null);
@@ -32,7 +32,7 @@ export const useLinkedKegiatanDisposisi = (
   const [error, setError] = useState<Error | null>(null);
 
   const fetchData = useCallback(async () => {
-    if (!suratId || !kegiatanId || !enabled) {
+    if (!suratId || !enabled) {
       setKegiatan(null);
       setDisposisi([]);
       return;
@@ -42,23 +42,21 @@ export const useLinkedKegiatanDisposisi = (
     setError(null);
 
     try {
-      // OPTIMIZATION: Single query instead of 2 separate queries
-      // Fetch Kegiatan and Disposisi in parallel
-      const [kegiatanResult, disposisiResult] = await Promise.all([
-        supabase
-          .from('meetings')
-          .select('*')
-          .eq('id', kegiatanId)
-          .single(),
+      // Fetch Kegiatan only if kegiatanId is provided
+      const promises = [
+        kegiatanId
+          ? supabase.from('meetings').select('*').eq('id', kegiatanId).single()
+          : Promise.resolve({ data: null, error: null }),
         supabase
           .from('disposisi')
           .select('*')
           .eq('surat_id', suratId)
-          .eq('kegiatan_id', kegiatanId)
           .order('created_at', { ascending: false })
-      ]);
+      ];
 
-      if (kegiatanResult.error) throw kegiatanResult.error;
+      const [kegiatanResult, disposisiResult] = await Promise.all(promises);
+
+      if (kegiatanResult.error && kegiatanResult.error.code !== 'PGRST116') throw kegiatanResult.error;
       if (disposisiResult.error) throw disposisiResult.error;
 
       // Use centralized mappers

@@ -74,7 +74,7 @@ const SuratViewModal: React.FC<SuratViewModalProps> = ({
   } = useLinkedKegiatanDisposisi(
     surat?.id,
     surat?.meetingId || editData.meetingId,
-    isOpen && !!(surat?.meetingId || editData.meetingId)
+    isOpen
   );
 
   const [selectedDisposisi, setSelectedDisposisi] = useState<Disposisi | null>(null);
@@ -300,9 +300,7 @@ const SuratViewModal: React.FC<SuratViewModalProps> = ({
         if (error) throw error;
 
         // Refresh disposisi list using hook
-        if (surat.meetingId) {
-          await refetchLinkedData();
-        }
+        await refetchLinkedData();
       }
     } catch (error: any) {
       throw error;
@@ -335,9 +333,7 @@ const SuratViewModal: React.FC<SuratViewModalProps> = ({
       showNotification('Disposisi Dibuat', 'Disposisi berhasil dibuat', 'success');
 
       // Refresh disposisi list using hook
-      if (surat.meetingId) {
-        await refetchLinkedData();
-      }
+      await refetchLinkedData();
 
       // Trigger update to refresh parent components
       onUpdate();
@@ -1226,15 +1222,24 @@ const SuratViewModal: React.FC<SuratViewModalProps> = ({
               </div>
             )}
 
-            {/* Linked Kegiatan and Disposisi Section */}
-            {surat.meetingId && (
+            {/* Linked Kegiatan and Disposisi Section or Direct Disposisi Section */}
+            {(surat.meetingId || disposisiList.length > 0 || isEditing) && (
               <div className="bg-gradient-to-br from-purple-50 to-indigo-50 border-2 border-purple-200 rounded-xl p-5 space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Link2 size={20} className="text-purple-600" />
-                    <h4 className="text-base font-bold text-purple-900">Linked Kegiatan & Disposisi</h4>
+                    {surat.meetingId ? (
+                      <>
+                        <Link2 size={20} className="text-purple-600" />
+                        <h4 className="text-base font-bold text-purple-900">Linked Kegiatan & Disposisi</h4>
+                      </>
+                    ) : (
+                      <>
+                        <FileText size={20} className="text-purple-600" />
+                        <h4 className="text-base font-bold text-purple-900">Disposisi Surat</h4>
+                      </>
+                    )}
                   </div>
-                  {onUnlinkFromKegiatan && isEditing && (
+                  {surat.meetingId && onUnlinkFromKegiatan && isEditing && (
                     <button
                       onClick={handleUnlinkFromKegiatan}
                       className="flex items-center gap-1.5 px-3 py-1.5 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors text-sm font-medium"
@@ -1246,20 +1251,24 @@ const SuratViewModal: React.FC<SuratViewModalProps> = ({
                 </div>
 
                 {/* Linked Kegiatan Info */}
-                {isLoadingDisposisi ? (
-                  <div className="flex items-center justify-center py-4">
-                    <div className="animate-spin rounded-full h-6 w-6 border-2 border-purple-600 border-t-transparent"></div>
-                  </div>
-                ) : linkedKegiatan ? (
-                  <LinkedKegiatanCard
-                    kegiatan={linkedKegiatan}
-                    onClick={() => setShowMeetingModal(true)}
-                    allUsers={users}
-                  />
-                ) : (
-                  <div className="bg-white rounded-lg p-4 border border-purple-200 text-center text-sm text-slate-500">
-                    Kegiatan tidak ditemukan
-                  </div>
+                {surat.meetingId && (
+                  <>
+                    {isLoadingDisposisi ? (
+                      <div className="flex items-center justify-center py-4">
+                        <div className="animate-spin rounded-full h-6 w-6 border-2 border-purple-600 border-t-transparent"></div>
+                      </div>
+                    ) : linkedKegiatan ? (
+                      <LinkedKegiatanCard
+                        kegiatan={linkedKegiatan}
+                        onClick={() => setShowMeetingModal(true)}
+                        allUsers={users}
+                      />
+                    ) : (
+                      <div className="bg-white rounded-lg p-4 border border-purple-200 text-center text-sm text-slate-500">
+                        Kegiatan tidak ditemukan
+                      </div>
+                    )}
+                  </>
                 )}
 
                 {/* Disposisi List */}
@@ -1272,7 +1281,7 @@ const SuratViewModal: React.FC<SuratViewModalProps> = ({
                           Disposisi Assignments ({disposisiList.length})
                         </h5>
                       </div>
-                      {isEditing && (
+                      {currentUser && (
                         <button
                           type="button"
                           onClick={() => setShowCreateDisposisiModal(true)}
@@ -1347,8 +1356,8 @@ const SuratViewModal: React.FC<SuratViewModalProps> = ({
 
                 {disposisiList.length === 0 && !isLoadingDisposisi && (
                   <div className="bg-white rounded-lg p-4 border border-purple-200">
-                    <p className="text-sm text-slate-500 text-center mb-3">Belum ada disposisi untuk link ini</p>
-                    {isEditing && (
+                    <p className="text-sm text-slate-500 text-center mb-3">Belum ada disposisi untuk surat ini</p>
+                    {currentUser && (
                       <div className="flex justify-center">
                         <button
                           type="button"
@@ -1481,7 +1490,7 @@ const SuratViewModal: React.FC<SuratViewModalProps> = ({
       )}
 
       {/* Create Disposisi Modal */}
-      {showCreateDisposisiModal && surat.meetingId && (
+      {showCreateDisposisiModal && (
         <DisposisiModal
           isOpen={showCreateDisposisiModal}
           onClose={handleCreateDisposisiModalClose}
@@ -1490,7 +1499,8 @@ const SuratViewModal: React.FC<SuratViewModalProps> = ({
           currentUser={currentUser}
           users={users}
           suratId={surat.id}
-          kegiatanId={surat.meetingId}
+          kegiatanId={surat.meetingId || null}
+          initialText={surat.catatan || ''}
           showNotification={showNotification}
         />
       )}

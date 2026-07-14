@@ -35,7 +35,7 @@ export class DisposisiService {
    */
   async createMultiUserDisposisi(
     suratId: string,
-    kegiatanId: string,
+    kegiatanId: string | null | undefined,
     assignees: string[],
     disposisiText: string,
     createdBy: string,
@@ -59,12 +59,12 @@ export class DisposisiService {
       }
 
       validateRequiredFields(
-        { suratId, kegiatanId, createdBy },
-        ['suratId', 'kegiatanId', 'createdBy']
+        { suratId, createdBy },
+        ['suratId', 'createdBy']
       );
 
       // Validate foreign key references (Requirements 10.2, 10.3, 15.1, 15.2)
-      await validateDisposisiReferences(suratId, kegiatanId, assignees, this.supabase);
+      await validateDisposisiReferences(suratId, kegiatanId || null, assignees, this.supabase);
 
       const createdDisposisi: Disposisi[] = [];
       const failedAssignees: string[] = [];
@@ -74,7 +74,7 @@ export class DisposisiService {
         try {
           const insertData = {
             surat_id: suratId,
-            kegiatan_id: kegiatanId,
+            kegiatan_id: kegiatanId || null,
             assigned_to: assignee,
             disposisi_text: disposisiText.trim(),
             status: 'Pending' as DisposisiStatus,

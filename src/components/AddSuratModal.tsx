@@ -105,6 +105,7 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
   const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]); // Array of user names
   const [showAssigneeDropdown, setShowAssigneeDropdown] = useState(false);
   const [assigneeSearch, setAssigneeSearch] = useState('');
+  const [showDirectDisposisi, setShowDirectDisposisi] = useState(false);
 
   // Smart Extract / Auto-Fill states
   const [reviewData, setReviewData] = useState<any>(null);
@@ -353,18 +354,16 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
       return;
     }
 
-    // Validate Disposisi when linking to Kegiatan (existing)
-    if (linkToKegiatan && kegiatanMode === 'existing' && selectedKegiatan) {
-      const hasAssignees = selectedAssignees.length > 0;
-      const hasText = disposisiText.trim() !== '';
-      if ((hasAssignees && !hasText) || (!hasAssignees && hasText)) {
-        showNotification(
-          'Disposisi Tidak Lengkap', 
-          'Mohon isi penerima (assignee) DAN instruksi disposisi jika ingin membuat disposisi, atau kosongkan keduanya jika tidak diperlukan.', 
-          'warning'
-        );
-        return;
-      }
+    // Validate Disposisi completeness (must have both assignee and text, or neither)
+    const hasAssignees = selectedAssignees.length > 0;
+    const hasText = disposisiText.trim() !== '';
+    if ((hasAssignees && !hasText) || (!hasAssignees && hasText)) {
+      showNotification(
+        'Disposisi Tidak Lengkap', 
+        'Mohon isi penerima (assignee) DAN instruksi disposisi jika ingin membuat disposisi, atau kosongkan keduanya jika tidak diperlukan.', 
+        'warning'
+      );
+      return;
     }
 
     // Validate New Kegiatan form
@@ -387,17 +386,6 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
           showNotification('Lokasi Kegiatan Wajib Diisi', 'Mohon isi lokasi kegiatan offline', 'warning');
           return;
         }
-      }
-      
-      const hasAssignees = selectedAssignees.length > 0;
-      const hasText = disposisiText.trim() !== '';
-      if ((hasAssignees && !hasText) || (!hasAssignees && hasText)) {
-        showNotification(
-          'Disposisi Tidak Lengkap', 
-          'Mohon isi penerima (assignee) DAN instruksi disposisi jika ingin membuat disposisi, atau kosongkan keduanya jika tidak diperlukan.', 
-          'warning'
-        );
-        return;
       }
     }
 
@@ -608,7 +596,43 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
           );
         }
       } else {
-        showNotification('Surat Berhasil Ditambahkan', `Surat ${nomorSurat} berhasil disimpan`, 'success');
+        // Create Disposisi directly without Kegiatan
+        if (selectedAssignees.length > 0 && disposisiText.trim() !== '') {
+          try {
+            // Map assignee names to their user IDs (UUIDs)
+            const assigneeIds = selectedAssignees.map(name => {
+              const matchedUser = allUsers.find(u => u.name === name);
+              return matchedUser ? matchedUser.id : name;
+            });
+
+            await disposisiService.createMultiUserDisposisi(
+              suratData.id,
+              null, // No Kegiatan ID
+              assigneeIds,
+              disposisiText,
+              currentUser?.id || currentUserName,
+              currentUser,
+              disposisiDeadline || undefined,
+              currentUser?.name || currentUserName,
+              nomorSurat,
+              undefined // No kegiatan title
+            );
+            showNotification(
+              'Surat & Disposisi Berhasil Dibuat',
+              `Surat ${nomorSurat} berhasil dibuat dengan ${selectedAssignees.length} disposisi.`,
+              'success'
+            );
+          } catch (disposisiError: any) {
+            console.error('Error creating unlinked Disposisi:', disposisiError);
+            showNotification(
+              'Surat Tersimpan, Disposisi Gagal',
+              `Surat ${nomorSurat} tersimpan, tapi gagal membuat disposisi`,
+              'warning'
+            );
+          }
+        } else {
+          showNotification('Surat Berhasil Ditambahkan', `Surat ${nomorSurat} berhasil disimpan`, 'success');
+        }
       }
 
       onSave();
@@ -663,7 +687,8 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
     
     setReviewData(null);
     setIsExtracting(false);
-
+    setShowDirectDisposisi(false);
+ 
     onClose();
   };
 
@@ -1402,7 +1427,9 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
                 checked={linkToKegiatan}
                 onChange={(e) => {
                   setLinkToKegiatan(e.target.checked);
-                  if (!e.target.checked) {
+                  if (e.target.checked) {
+                    setShowDirectDisposisi(false);
+                  } else {
                     setSelectedKegiatan(null);
                     setKegiatanSearch('');
                     setKegiatanMode('existing');
@@ -1414,9 +1441,6 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
                     setNewKegiatanIsOnline(false);
                     setNewKegiatanOnlineLink('');
                     setNewKegiatanType('internal');
-                    setDisposisiText('');
-                    setDisposisiDeadline('');
-                    setSelectedAssignees([]);
                   }
                 }}
                 className="w-4 h-4 text-gov-600 border-slate-300 rounded focus:ring-gov-500"
@@ -1753,6 +1777,85 @@ const AddSuratModal: React.FC<AddSuratModalProps> = ({
                           className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 focus:border-gov-400 outline-none"
                         />
                       </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Direct Disposisi Form if not linking to Kegiatan */}
+            {!linkToKegiatan && (
+              <div className="space-y-4 pt-4 border-t border-slate-300">
+                {!showDirectDisposisi ? (
+                  <div className="flex justify-center">
+                    <button
+                      type="button"
+                      onClick={() => setShowDirectDisposisi(true)}
+                      className="flex items-center gap-1.5 px-4 py-2 border border-slate-300 hover:border-purple-300 text-slate-700 bg-white rounded-lg hover:bg-purple-50 hover:text-purple-700 transition-all font-medium text-sm shadow-sm"
+                    >
+                      <Plus size={16} className="text-purple-600" />
+                      Tambah Disposisi (Opsional)
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-4 bg-purple-50/50 border border-purple-200 rounded-xl p-4 relative">
+                    <div className="flex items-center justify-between border-b border-purple-100 pb-2 mb-3">
+                      <h5 className="text-sm font-bold text-purple-900 flex items-center gap-2">
+                        <Users size={16} className="text-purple-600" />
+                        Disposisi (Opsional)
+                      </h5>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowDirectDisposisi(false);
+                          setDisposisiText('');
+                          setDisposisiDeadline('');
+                          setSelectedAssignees([]);
+                        }}
+                        className="text-xs font-semibold text-red-600 hover:text-red-700 flex items-center gap-1"
+                      >
+                        Batal
+                      </button>
+                    </div>
+
+                    {/* Disposisi Text */}
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">
+                        Isi Disposisi
+                      </label>
+                      <textarea
+                        value={disposisiText}
+                        onChange={(e) => setDisposisiText(e.target.value)}
+                        rows={3}
+                        className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 focus:border-gov-400 outline-none resize-none bg-white"
+                        placeholder="Instruksi atau arahan disposisi surat..."
+                      />
+                    </div>
+
+                    {/* Assignees Selection */}
+                    <div>
+                      <DivisionFilteredMultiSelect
+                        users={allUsers}
+                        currentUserDivisi={currentUser?.divisi}
+                        value={selectedAssignees}
+                        onChange={setSelectedAssignees}
+                        placeholder="Pilih assignee untuk disposisi..."
+                        label="Ditugaskan Kepada"
+                        maxVisibleChips={5}
+                      />
+                    </div>
+
+                    {/* Deadline */}
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">
+                        Deadline (Opsional)
+                      </label>
+                      <input
+                        type="date"
+                        value={disposisiDeadline}
+                        onChange={(e) => setDisposisiDeadline(e.target.value)}
+                        className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 focus:border-gov-400 outline-none bg-white"
+                      />
                     </div>
                   </div>
                 )}

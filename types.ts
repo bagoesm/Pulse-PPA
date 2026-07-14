@@ -434,7 +434,7 @@ export type DisposisiAction =
 export interface Disposisi {
   id: string;
   suratId: string;                    // Foreign key to Surat
-  kegiatanId: string;                 // Foreign key to Meeting/Kegiatan
+  kegiatanId?: string | null;                 // Foreign key to Meeting/Kegiatan
   assignedTo: string;                 // User ID of assignee
   disposisiText: string;              // Disposition instructions
   status: DisposisiStatus;            // Current status

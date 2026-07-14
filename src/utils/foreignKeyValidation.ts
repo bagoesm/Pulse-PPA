@@ -178,14 +178,25 @@ export async function validateLinkReferences(
  */
 export async function validateDisposisiReferences(
   suratId: string,
-  kegiatanId: string,
+  kegiatanId: string | null | undefined,
   assignees: string[],
   supabaseClient?: any
 ): Promise<void> {
   const supabase = supabaseClient || defaultSupabase;
 
-  // Validate Surat and Kegiatan
-  await validateLinkReferences(suratId, kegiatanId, supabase);
+  // Validate Surat exists
+  const suratExists = await validateSuratExists(suratId, supabase);
+  if (!suratExists) {
+    throw new ForeignKeyValidationError('Surat', suratId);
+  }
+
+  // Validate Kegiatan only if provided
+  if (kegiatanId) {
+    const kegiatanExists = await validateKegiatanExists(kegiatanId, supabase);
+    if (!kegiatanExists) {
+      throw new ForeignKeyValidationError('Kegiatan', kegiatanId);
+    }
+  }
 
   // Validate all assignees exist
   const { valid, invalidUsers } = await validateUsersExist(assignees, supabase);
