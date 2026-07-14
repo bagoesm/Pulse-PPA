@@ -2341,7 +2341,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({
   }, [messages]);
 
   return (
-    <div className="flex-1 flex bg-slate-50 h-full overflow-hidden" style={{ minHeight: '500px' }}>
+    <div className="flex-1 flex bg-slate-50 h-full overflow-hidden min-h-0 w-full min-w-0">
       
       {/* LEFT COLUMN: Sidebar Chat */}
       <div className={`w-full md:w-80 border-r border-slate-200 bg-white flex flex-col h-full select-none shrink-0 ${activeRoomId ? 'hidden md:flex' : 'flex'}`}>
@@ -3404,7 +3404,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({
                   onChange={handleMessageInputChange}
                   onPaste={handlePaste}
                   onKeyDown={handleInputKeyDown}
-                  className="flex-1 bg-slate-50 border border-slate-200 rounded-full px-5 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-gov-500/20 focus:border-gov-500"
+                  className="flex-1 min-w-0 bg-slate-50 border border-slate-200 rounded-full px-5 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-gov-500/20 focus:border-gov-500"
                 />
 
                 <button

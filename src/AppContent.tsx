@@ -856,7 +856,7 @@ const AppContent: React.FC = () => {
       />
 
       {/* Main Content */}
-      <main className={`flex-1 ml-0 flex flex-col h-screen overflow-hidden pt-14 pb-16 md:pt-0 md:pb-0 relative transition-all duration-300 ${
+      <main className={`flex-1 ml-0 flex flex-col h-screen h-[100dvh] w-full min-w-0 overflow-hidden pt-14 pb-16 md:pt-0 md:pb-0 relative transition-all duration-300 ${
         isCollapsed ? 'md:ml-20' : 'md:ml-64'
       }`}>
         {/* Global Loading Overlay for Transitions */}
