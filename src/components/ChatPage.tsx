@@ -457,6 +457,31 @@ export const ChatPage: React.FC<ChatPageProps> = ({
     );
   }, []);
 
+  const isEmojiOnly = useCallback((text: string | undefined | null) => {
+    if (!text) return false;
+    const clean = text.trim().replace(/\s/g, '');
+    if (!clean) return false;
+    try {
+      const emojiRegex = /^(\p{Emoji_Presentation}|\p{Emoji}\uFE0F|\p{Emoji_Modifier_Base}|\p{Emoji_Modifier}|\p{Extended_Pictographic}|\u200d)+$/u;
+      return emojiRegex.test(clean);
+    } catch {
+      return false;
+    }
+  }, []);
+
+  const renderEmojiOnlyText = useCallback((text: string) => {
+    const emojiArray = Array.from(text.trim().replace(/\s/g, ''));
+    return emojiArray.map((emoji, idx) => (
+      <span 
+        key={idx} 
+        className="inline-block hover-emoji-wiggle animate-emoji-bounce-in mx-0.5"
+        style={{ animationDelay: `${idx * 80}ms` }}
+      >
+        {emoji}
+      </span>
+    ));
+  }, []);
+
   // Click outside listener to close Emoji/GIF picker
   useEffect(() => {
     if (!showPicker) return;
@@ -2633,6 +2658,64 @@ export const ChatPage: React.FC<ChatPageProps> = ({
                           } catch {}
                         }
 
+                        const parsedMsg = (() => {
+                          let text = '';
+                          let isReply = false;
+                          let replyQuote: any = null;
+                          const rawMsg = msg.message || '';
+
+                          if (msg.type === 'text') {
+                            text = rawMsg;
+                            if (rawMsg.startsWith('{')) {
+                              try {
+                                const parsed = JSON.parse(rawMsg);
+                                text = parsed.text !== undefined ? parsed.text : rawMsg;
+                                if (parsed.replyTo) {
+                                  isReply = true;
+                                  replyQuote = parsed.replyTo;
+                                }
+                              } catch {}
+                            }
+                          } else if (msg.type === 'file') {
+                            if (rawMsg && rawMsg !== msg.attachmentName) {
+                              if (rawMsg.startsWith('{')) {
+                                try {
+                                  const parsed = JSON.parse(rawMsg);
+                                  text = parsed.text || '';
+                                  replyQuote = parsed.replyTo || null;
+                                  isReply = !!replyQuote;
+                                } catch {
+                                  text = rawMsg;
+                                }
+                              } else {
+                                text = rawMsg;
+                              }
+                            } else if (rawMsg && rawMsg.startsWith('{')) {
+                              try {
+                                const parsed = JSON.parse(rawMsg);
+                                text = parsed.text || '';
+                                replyQuote = parsed.replyTo || null;
+                                isReply = !!replyQuote;
+                              } catch {}
+                            }
+                          } else {
+                            // task, meeting, project
+                            try {
+                              const parsed = JSON.parse(rawMsg);
+                              text = parsed.text || '';
+                              replyQuote = parsed.replyTo || null;
+                              isReply = !!replyQuote;
+                            } catch {}
+                          }
+
+                          return { text, isReply, replyQuote };
+                        })();
+
+                        const onlyEmoji = msg.type === 'text' && !isGifUrl(parsedMsg.text) && isEmojiOnly(parsedMsg.text);
+                        const emojiCount = onlyEmoji ? Array.from(parsedMsg.text.trim().replace(/\s/g, '')).length : 0;
+                        const emojiSizeClass = emojiCount <= 3 ? 'text-4xl py-1' : 'text-2xl py-1';
+                        const isBubbleless = onlyEmoji;
+
                         return (
                         <div
                           key={msg.id}
@@ -2659,11 +2742,15 @@ export const ChatPage: React.FC<ChatPageProps> = ({
                                 </span>
                               )}
                               
-                              <div className={`p-3 rounded-2xl shadow-sm text-sm break-words ${
-                                isMe 
-                                  ? 'bg-gov-600 text-white rounded-tr-none' 
-                                  : 'bg-white text-slate-800 border border-slate-100 rounded-tl-none'
-                              }`}>
+                              <div className={
+                                isBubbleless 
+                                  ? `break-words ${onlyEmoji ? emojiSizeClass : ''} select-all ${isMe ? 'text-right w-full' : ''}`
+                                  : `p-3 rounded-2xl shadow-sm text-sm break-words ${
+                                      isMe 
+                                        ? 'bg-gov-600 text-white rounded-tr-none' 
+                                        : 'bg-white text-slate-800 border border-slate-100 rounded-tl-none'
+                                    }`
+                              }>
                                 {(() => {
                                   if (isDeleted) {
                                     return (
@@ -2673,59 +2760,6 @@ export const ChatPage: React.FC<ChatPageProps> = ({
                                       </p>
                                     );
                                   }
-
-                                  const parsedMsg = (() => {
-                                    let text = '';
-                                    let isReply = false;
-                                    let replyQuote: any = null;
-                                    const rawMsg = msg.message || '';
-
-                                    if (msg.type === 'text') {
-                                      text = rawMsg;
-                                      if (rawMsg.startsWith('{')) {
-                                        try {
-                                          const parsed = JSON.parse(rawMsg);
-                                          text = parsed.text !== undefined ? parsed.text : rawMsg;
-                                          if (parsed.replyTo) {
-                                            isReply = true;
-                                            replyQuote = parsed.replyTo;
-                                          }
-                                        } catch {}
-                                      }
-                                    } else if (msg.type === 'file') {
-                                      if (rawMsg && rawMsg !== msg.attachmentName) {
-                                        if (rawMsg.startsWith('{')) {
-                                          try {
-                                            const parsed = JSON.parse(rawMsg);
-                                            text = parsed.text || '';
-                                            replyQuote = parsed.replyTo || null;
-                                            isReply = !!replyQuote;
-                                          } catch {
-                                            text = rawMsg;
-                                          }
-                                        } else {
-                                          text = rawMsg;
-                                        }
-                                      } else if (rawMsg && rawMsg.startsWith('{')) {
-                                        try {
-                                          const parsed = JSON.parse(rawMsg);
-                                          text = parsed.text || '';
-                                          replyQuote = parsed.replyTo || null;
-                                          isReply = !!replyQuote;
-                                        } catch {}
-                                      }
-                                    } else {
-                                      // task, meeting, project
-                                      try {
-                                        const parsed = JSON.parse(rawMsg);
-                                        text = parsed.text || '';
-                                        replyQuote = parsed.replyTo || null;
-                                        isReply = !!replyQuote;
-                                      } catch {}
-                                    }
-
-                                    return { text, isReply, replyQuote };
-                                  })();
 
                                   return (
                                     <>
@@ -2753,9 +2787,10 @@ export const ChatPage: React.FC<ChatPageProps> = ({
                                         </div>
                                       )}
 
-                                      {/* 2. Render Main Content based on msg.type */}
                                       {msg.type === 'text' && !isGifUrl(parsedMsg.text) && (
-                                        <p className="leading-relaxed whitespace-pre-wrap break-words">{renderParsedMessageText(parsedMsg.text, isMe)}</p>
+                                        <p className={`${onlyEmoji ? 'leading-normal font-sans animate-fade-in' : 'leading-relaxed whitespace-pre-wrap'} break-words`}>
+                                          {onlyEmoji ? renderEmojiOnlyText(parsedMsg.text) : renderParsedMessageText(parsedMsg.text, isMe)}
+                                        </p>
                                       )}
 
                                       {msg.type === 'text' && isGifUrl(parsedMsg.text) && (
@@ -2796,11 +2831,15 @@ export const ChatPage: React.FC<ChatPageProps> = ({
                                           ) : (() => {
                                             const isPdf = msg.attachmentName?.toLowerCase().endsWith('.pdf') || msg.attachmentType === 'application/pdf';
                                             return (
-                                              <div className="flex items-center gap-3 p-2 bg-slate-100/10 border border-white/20 rounded-lg text-xs max-w-sm">
+                                              <div className={`flex items-center gap-3 p-2 rounded-lg text-xs max-w-sm ${
+                                                isMe 
+                                                  ? 'bg-slate-100/10 border border-white/20 text-white' 
+                                                  : 'bg-slate-100/80 border border-slate-200 text-slate-800'
+                                              }`}>
                                                 <FileText size={28} className={isMe ? 'text-white' : 'text-slate-500'} />
                                                 <div className="min-w-0 flex-1">
-                                                  <p className="font-semibold truncate">{msg.attachmentName}</p>
-                                                  <p className="text-[10px] opacity-75">Dokumen berkas</p>
+                                                  <p className={`font-semibold truncate ${isMe ? 'text-white' : 'text-slate-800'}`}>{msg.attachmentName}</p>
+                                                  <p className={`text-[10px] ${isMe ? 'text-white/70' : 'text-slate-400'}`}>Dokumen berkas</p>
                                                 </div>
                                                 {signedUrls[msg.id] && (
                                                   <div className="flex items-center gap-1 shrink-0">
@@ -2969,7 +3008,27 @@ export const ChatPage: React.FC<ChatPageProps> = ({
 
                                       {/* 3. Render Caption Text if present (only for non-text messages) */}
                                       {msg.type !== 'text' && parsedMsg.text && (
-                                        <p className="mt-2 leading-relaxed whitespace-pre-wrap break-words">{renderParsedMessageText(parsedMsg.text, isMe)}</p>
+                                        <div className={`mt-2.5 pt-2 border-t ${isMe ? 'border-white/10' : 'border-slate-100'}`}>
+                                          {(() => {
+                                            const isOnlyEmojiCap = isEmojiOnly(parsedMsg.text);
+                                            const emojiCapCount = isOnlyEmojiCap ? Array.from(parsedMsg.text.trim().replace(/\s/g, '')).length : 0;
+                                            const emojiCapSizeClass = emojiCapCount <= 3 ? 'text-4xl py-0.5' : 'text-2xl py-0.5';
+                                            
+                                            if (isOnlyEmojiCap) {
+                                              return (
+                                                <div className={`break-words ${emojiCapSizeClass} ${isMe ? 'text-right' : ''}`}>
+                                                  {renderEmojiOnlyText(parsedMsg.text)}
+                                                </div>
+                                              );
+                                            }
+                                            
+                                            return (
+                                              <p className={`text-sm leading-relaxed whitespace-pre-wrap break-words ${isMe ? 'text-right' : ''}`}>
+                                                {renderParsedMessageText(parsedMsg.text, isMe)}
+                                              </p>
+                                            );
+                                          })()}
+                                        </div>
                                       )}
                                     </>
                                   );
@@ -2979,14 +3038,16 @@ export const ChatPage: React.FC<ChatPageProps> = ({
                               {/* Timestamp & Read Status */}
                               <div className="flex items-center justify-end gap-1 mt-1 select-none">
                                 <span className={`text-[9px] leading-none ${
-                                  isMe ? 'text-white/70' : 'text-slate-400'
+                                  isBubbleless ? 'text-slate-400' : (isMe ? 'text-white/70' : 'text-slate-400')
                                 }`}>
                                   {timeStr}
                                 </span>
                                 {isMe && (
                                   <span 
                                     className={`text-[10px] font-bold leading-none select-none ${
-                                      msg.isRead ? 'text-sky-200' : 'text-white/50'
+                                      isBubbleless
+                                        ? (msg.isRead ? 'text-blue-500' : 'text-slate-400')
+                                        : (msg.isRead ? 'text-sky-200' : 'text-white/50')
                                     }`}
                                     title={msg.isRead ? 'Dibaca' : 'Terkirim'}
                                   >
@@ -3093,7 +3154,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({
                   <div className="min-w-0 flex-1">
                     <p className="text-[10px] font-bold text-gov-600">Membalas {replyToMessage.senderName}</p>
                     <p className="text-xs text-slate-500 truncate leading-relaxed">
-                      {replyToMessage.type === 'file' ? `📁 File: ${replyToMessage.attachmentName}` : replyToMessage.message}
+                      {replyToMessage.type === 'file' ? `📁 File: ${replyToMessage.attachmentName}` : getCleanMessageText(replyToMessage.message)}
                     </p>
                   </div>
                   <button
