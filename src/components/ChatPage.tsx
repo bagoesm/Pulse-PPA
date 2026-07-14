@@ -3321,6 +3321,12 @@ export const ChatPage: React.FC<ChatPageProps> = ({
                                   ))
                                 )}
                               </div>
+
+                              {/* Giphy Attribution Watermark */}
+                              <div className="flex items-center justify-center gap-1 text-[9px] text-slate-400 py-1 border-t border-slate-100 mt-2 shrink-0 select-none bg-slate-50 rounded-b-xl">
+                                <span className="font-medium">Powered by</span>
+                                <span className="font-extrabold tracking-widest text-slate-800 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent uppercase text-[10px]">GIPHY</span>
+                              </div>
                             </>
                           )}
                         </div>
