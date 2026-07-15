@@ -66,17 +66,31 @@ export function useProjectFilters(): UseProjectFiltersResult {
     const [linksPage, setLinksPage] = useState(1);
 
     // Selected project
-    const [selectedProjectId, setSelectedProjectId] = useState<string | null>(() => {
+    const [selectedProjectId, setSelectedProjectIdInternal] = useState<string | null>(() => {
         const params = new URLSearchParams(window.location.search);
         return params.get('projectId');
     });
+
+    const setSelectedProjectId = useCallback((id: string | null) => {
+        setSelectedProjectIdInternal(id);
+        const params = new URLSearchParams(window.location.search);
+        if (id) {
+            params.set('projectId', id);
+        } else {
+            params.delete('projectId');
+        }
+        const searchStr = params.toString();
+        const newRelativePathQuery = window.location.pathname + (searchStr ? '?' + searchStr : '');
+        window.history.pushState(null, '', newRelativePathQuery);
+        window.dispatchEvent(new Event('project-navigated'));
+    }, []);
 
     useEffect(() => {
         const checkParam = () => {
             const params = new URLSearchParams(window.location.search);
             const pId = params.get('projectId');
             if (pId !== selectedProjectId) {
-                setSelectedProjectId(pId);
+                setSelectedProjectIdInternal(pId);
             }
         };
         checkParam();

@@ -836,6 +836,15 @@ const AppContent: React.FC = () => {
         setActiveTab={(tab) => {
           startTransition(() => setActiveTab(tab));
           if (tab !== 'Dokumen') setSuratSubTab('Tasks');
+          if (tab !== 'Project') {
+            const params = new URLSearchParams(window.location.search);
+            if (params.has('projectId')) {
+              params.delete('projectId');
+              const newRelativePathQuery = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
+              window.history.pushState(null, '', newRelativePathQuery);
+              window.dispatchEvent(new Event('project-navigated'));
+            }
+          }
         }}
         currentUser={currentUser}
         onLogout={handleLogout}
@@ -848,6 +857,15 @@ const AppContent: React.FC = () => {
         setActiveTab={(tab) => {
           startTransition(() => setActiveTab(tab));
           if (tab !== 'Dokumen') setSuratSubTab('Tasks');
+          if (tab !== 'Project') {
+            const params = new URLSearchParams(window.location.search);
+            if (params.has('projectId')) {
+              params.delete('projectId');
+              const newRelativePathQuery = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
+              window.history.pushState(null, '', newRelativePathQuery);
+              window.dispatchEvent(new Event('project-navigated'));
+            }
+          }
         }}
         currentUser={currentUser}
         users={allUsers}
