@@ -13,6 +13,7 @@ import {
 import SearchableSelect from './SearchableSelect';
 import DivisionFilter from './DivisionFilter';
 import { useDivision } from '../contexts/DivisionContext';
+import { translateProjectStatus } from '../utils/translations';
 
 interface ProjectStats {
     total: number;
@@ -148,9 +149,9 @@ const ProjectListView: React.FC<ProjectListViewProps> = ({
                             className="px-2 sm:px-3 py-2 sm:py-2.5 border border-slate-300 rounded-lg bg-white text-xs sm:text-sm focus:ring-2 focus:ring-gov-400 outline-none"
                         >
                             <option value="All">Status</option>
-                            <option value="In Progress">In Progress</option>
-                            <option value="Pending">Pending</option>
-                            <option value="Live">Live</option>
+                            <option value="In Progress">{translateProjectStatus('In Progress')}</option>
+                            <option value="Pending">{translateProjectStatus('Pending')}</option>
+                            <option value="Live">{translateProjectStatus('Live')}</option>
                         </select>
 
                         <SearchableSelect
@@ -267,7 +268,7 @@ const ProjectListView: React.FC<ProjectListViewProps> = ({
                                             project.status === 'In Progress' ? 'bg-blue-100 text-blue-700' :
                                                 'bg-orange-100 text-orange-700'
                                             }`}>
-                                            {project.status || 'In Progress'}
+                                            {translateProjectStatus(project.status || 'In Progress')}
                                         </span>
                                     </div>
                                 </div>

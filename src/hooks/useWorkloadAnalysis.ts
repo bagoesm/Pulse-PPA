@@ -129,7 +129,7 @@ export function useWorkloadAnalysis({ users, tasks, getFilteredTasksByDate }: Us
 
     const getWorkloadVisuals = useCallback((score: number): WorkloadVisuals => {
         if (score === 0) return {
-            label: 'Idle',
+            label: 'Santai',
             color: 'bg-slate-400',
             textColor: 'text-slate-700',
             bg: 'bg-slate-50',
@@ -138,7 +138,7 @@ export function useWorkloadAnalysis({ users, tasks, getFilteredTasksByDate }: Us
             category: 'relaxed'
         };
         if (score < 6) return {
-            label: 'Relaxed',
+            label: 'Santai',
             color: 'bg-emerald-500',
             textColor: 'text-emerald-700',
             bg: 'bg-emerald-50',
@@ -147,7 +147,7 @@ export function useWorkloadAnalysis({ users, tasks, getFilteredTasksByDate }: Us
             category: 'relaxed'
         };
         if (score < 15) return {
-            label: 'Balanced',
+            label: 'Seimbang',
             color: 'bg-gov-500',
             textColor: 'text-gov-700',
             bg: 'bg-gov-50',
@@ -156,7 +156,7 @@ export function useWorkloadAnalysis({ users, tasks, getFilteredTasksByDate }: Us
             category: 'balanced'
         };
         if (score < 25) return {
-            label: 'Busy',
+            label: 'Sibuk',
             color: 'bg-orange-500',
             textColor: 'text-orange-700',
             bg: 'bg-orange-50',
@@ -165,7 +165,7 @@ export function useWorkloadAnalysis({ users, tasks, getFilteredTasksByDate }: Us
             category: 'busy'
         };
         return {
-            label: 'Overload',
+            label: 'Kelebihan Beban',
             color: 'bg-red-500',
             textColor: 'text-red-700',
             bg: 'bg-red-50',

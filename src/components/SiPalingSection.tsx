@@ -117,7 +117,7 @@ const SiPalingSection: React.FC<SiPalingSectionProps> = ({ tasks, users }) => {
     });
 
     const sibuk = userStats.filter(s => !usedUserIds.has(s.user.id) && s.activeCount > 0).sort((a, b) => b.workloadScore - a.workloadScore)[0];
-    if (sibuk) { usedUserIds.add(sibuk.user.id); winners.push({ category: SI_PALING_CATEGORIES[0], user: sibuk.user, stat: `${sibuk.activeCount} task` }); }
+    if (sibuk) { usedUserIds.add(sibuk.user.id); winners.push({ category: SI_PALING_CATEGORIES[0], user: sibuk.user, stat: `${sibuk.activeCount} tugas` }); }
 
     const produktif = userStats.filter(s => !usedUserIds.has(s.user.id) && s.completedCount > 0).sort((a, b) => b.completedCount - a.completedCount)[0];
     if (produktif) { usedUserIds.add(produktif.user.id); winners.push({ category: SI_PALING_CATEGORIES[1], user: produktif.user, stat: `${produktif.completedCount} selesai` }); }
@@ -126,7 +126,7 @@ const SiPalingSection: React.FC<SiPalingSectionProps> = ({ tasks, users }) => {
     if (cepat) { usedUserIds.add(cepat.user.id); winners.push({ category: SI_PALING_CATEGORIES[2], user: cepat.user, stat: `${cepat.avgCompletionDays.toFixed(0)} hari` }); }
 
     const urgent = userStats.filter(s => !usedUserIds.has(s.user.id) && s.urgentCompleted > 0).sort((a, b) => b.urgentCompleted - a.urgentCompleted)[0];
-    if (urgent) { usedUserIds.add(urgent.user.id); winners.push({ category: SI_PALING_CATEGORIES[3], user: urgent.user, stat: `${urgent.urgentCompleted} urgent` }); }
+    if (urgent) { usedUserIds.add(urgent.user.id); winners.push({ category: SI_PALING_CATEGORIES[3], user: urgent.user, stat: `${urgent.urgentCompleted} mendesak` }); }
 
     const ontime = userStats.filter(s => !usedUserIds.has(s.user.id) && s.completedCount >= 1).sort((a, b) => b.onTimeRate - a.onTimeRate)[0];
     if (ontime) { usedUserIds.add(ontime.user.id); winners.push({ category: SI_PALING_CATEGORIES[4], user: ontime.user, stat: `${ontime.onTimeRate}%` }); }
@@ -135,7 +135,7 @@ const SiPalingSection: React.FC<SiPalingSectionProps> = ({ tasks, users }) => {
     if (multi) { usedUserIds.add(multi.user.id); winners.push({ category: SI_PALING_CATEGORIES[5], user: multi.user, stat: `${multi.uniqueCategories} kategori` }); }
 
     const santai = userStats.filter(s => !usedUserIds.has(s.user.id)).sort((a, b) => a.workloadScore - b.workloadScore)[0];
-    if (santai) { usedUserIds.add(santai.user.id); winners.push({ category: SI_PALING_CATEGORIES[6], user: santai.user, stat: santai.activeCount === 0 ? 'Bebas!' : `${santai.activeCount} task` }); }
+    if (santai) { usedUserIds.add(santai.user.id); winners.push({ category: SI_PALING_CATEGORIES[6], user: santai.user, stat: santai.activeCount === 0 ? 'Bebas!' : `${santai.activeCount} tugas` }); }
 
     return winners;
   };

@@ -2,6 +2,7 @@
 import React from 'react';
 import { Layers, X, Target, Flag, Star, Rocket, Zap, Shield, Heart, Lightbulb, Trophy, Bookmark, Compass, Calendar, CheckCircle2, ListTodo, ExternalLink } from 'lucide-react';
 import { Epic, Task, Status, Priority } from '../../types';
+import { translateEpicStatus } from '../utils/translations';
 
 interface EpicViewModalProps {
     isOpen: boolean;
@@ -75,7 +76,7 @@ const EpicViewModal: React.FC<EpicViewModalProps> = ({ isOpen, onClose, epic, ta
                             <div className="flex items-center gap-2 mb-1">
                                 <h2 className="text-xl font-bold text-slate-800">{epic.name}</h2>
                                 <span className={`px-2 py-0.5 text-xs font-bold rounded-full ${statusColors[epic.status]}`}>
-                                    {epic.status}
+                                    {translateEpicStatus(epic.status)}
                                 </span>
                             </div>
                             <div className="flex items-center gap-4 text-sm text-slate-600 font-medium">

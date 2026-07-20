@@ -13,6 +13,7 @@ import {
 import { useSurats } from '../contexts/SuratsContext';
 import { useDisposisi } from '../contexts/DisposisiContext';
 import { useUsers } from '../contexts/UsersContext';
+import { translateDisposisiStatus } from '../utils/translations';
 import { useDivision } from '../contexts/DivisionContext';
 import { useMasterData } from '../contexts/MasterDataContext';
 import { useMeetings } from '../contexts/MeetingsContext';
@@ -334,8 +335,8 @@ export const SuratDisposisiDashboard: React.FC<SuratDisposisiDashboardProps> = (
       }
     });
     return [
-      { name: 'Pending', value: counts.Pending, color: '#f59e0b' },
-      { name: 'In Progress', value: counts['In Progress'], color: '#3b82f6' },
+      { name: 'Tertunda', value: counts.Pending, color: '#f59e0b' },
+      { name: 'Sedang Dikerjakan', value: counts['In Progress'], color: '#3b82f6' },
       { name: 'Selesai', value: counts.Completed, color: '#10b981' },
       { name: 'Dibatalkan', value: counts.Cancelled, color: '#94a3b8' }
     ].filter(item => item.value > 0);
@@ -1101,7 +1102,7 @@ export const SuratDisposisiDashboard: React.FC<SuratDisposisiDashboardProps> = (
                               ? 'bg-blue-50 text-blue-700 border border-blue-200'
                               : 'bg-amber-50 text-amber-700 border border-amber-200'
                           }`}>
-                            {item.status}
+                            {translateDisposisiStatus(item.status)}
                           </span>
                         </td>
                       </tr>

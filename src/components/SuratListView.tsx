@@ -23,6 +23,7 @@ import { useDivision } from '../contexts/DivisionContext';
 import DivisionFilter from './DivisionFilter';
 import { useVisibilityFilter } from '../hooks/useVisibilityFilter';
 import { supabase } from '../lib/supabaseClient';
+import { translateDisposisiStatus } from '../utils/translations';
 
 interface SuratListViewProps {
   currentUser: User | null;
@@ -834,10 +835,10 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
             <SearchableSelect
               options={[
                 { value: 'All', label: '📋 Semua Status' },
-                { value: 'Pending', label: '⏳ Pending' },
-                { value: 'In Progress', label: '🔄 In Progress' },
-                { value: 'Completed', label: '✅ Completed' },
-                { value: 'Mixed', label: '🔀 Mixed' }
+                { value: 'Pending', label: `⏳ ${translateDisposisiStatus('Pending')}` },
+                { value: 'In Progress', label: `🔄 ${translateDisposisiStatus('In Progress')}` },
+                { value: 'Completed', label: `✅ ${translateDisposisiStatus('Completed')}` },
+                { value: 'Mixed', label: `🔀 ${translateDisposisiStatus('Mixed')}` }
               ]}
               value={filterDisposisiStatus === 'All' ? '' : filterDisposisiStatus}
               onChange={(value) => setFilterDisposisiStatus((value || 'All') as any)}
@@ -1099,7 +1100,7 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
                                 {surat.disposisiStatus === 'In Progress' && <Clock size={12} />}
                                 {surat.disposisiStatus === 'Pending' && <AlertCircle size={12} />}
                                 {surat.disposisiStatus === 'Mixed' && <Users size={12} />}
-                                {surat.disposisiStatus}
+                                {translateDisposisiStatus(surat.disposisiStatus)}
                               </span>
                             )}
                           </div>

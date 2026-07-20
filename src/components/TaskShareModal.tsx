@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { X, Download, RefreshCw, Upload, Image as ImageIcon } from 'lucide-react';
 import { Task, User, Priority } from '../../types';
 import { addRoundRectSupport, loadImage, loadSVGAsImage } from '../lib/canvasUtils';
+import { translateStatus, translatePriority } from '../utils/translations';
 
 interface TaskShareModalProps {
   isOpen: boolean;
@@ -212,7 +213,7 @@ const TaskShareModal: React.FC<TaskShareModalProps> = ({
 
       // Status
       ctx.font = 'bold 60px system-ui, -apple-system, sans-serif';
-      ctx.fillText(task.status, leftMargin, currentY);
+      ctx.fillText(translateStatus(task.status), leftMargin, currentY);
       currentY += 50;
       ctx.font = 'bold 32px system-ui, -apple-system, sans-serif';
       ctx.fillText('STATUS', leftMargin, currentY);
@@ -220,7 +221,7 @@ const TaskShareModal: React.FC<TaskShareModalProps> = ({
 
       // Priority
       ctx.font = 'bold 60px system-ui, -apple-system, sans-serif';
-      ctx.fillText(task.priority, leftMargin, currentY);
+      ctx.fillText(translatePriority(task.priority), leftMargin, currentY);
       currentY += 50;
       ctx.font = 'bold 32px system-ui, -apple-system, sans-serif';
       ctx.fillText('PRIORITAS', leftMargin, currentY);
@@ -295,8 +296,8 @@ const TaskShareModal: React.FC<TaskShareModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-slate-200">
           <div>
-            <h2 className="text-xl font-bold text-slate-800">Share Task</h2>
-            <p className="text-sm text-slate-600">Generate and share task information</p>
+            <h2 className="text-xl font-bold text-slate-800">Bagikan Tugas</h2>
+            <p className="text-sm text-slate-600">Buat dan bagikan informasi tugas Anda</p>
           </div>
           <button
             onClick={onClose}
@@ -312,33 +313,33 @@ const TaskShareModal: React.FC<TaskShareModalProps> = ({
             <div className="space-y-6">
               {/* Task Info Preview */}
               <div>
-                <h3 className="font-semibold text-slate-800 mb-3">Task Information</h3>
+                <h3 className="font-semibold text-slate-800 mb-3">Informasi Tugas</h3>
                 <div className="space-y-2 text-sm">
                   <div>
-                    <span className="text-slate-600 block">Title:</span>
+                    <span className="text-slate-600 block">Judul:</span>
                     <span className="font-medium">{task.title}</span>
                   </div>
                   <div>
-                    <span className="text-slate-600 block">Category:</span>
+                    <span className="text-slate-600 block">Kategori:</span>
                     <span className="font-medium">{task.category}</span>
                   </div>
                   <div>
                     <span className="text-slate-600 block">Status:</span>
-                    <span className="font-medium">{task.status}</span>
+                    <span className="font-medium">{translateStatus(task.status)}</span>
                   </div>
                   <div>
-                    <span className="text-slate-600 block">Priority:</span>
-                    <span className="font-medium">{task.priority}</span>
+                    <span className="text-slate-600 block">Prioritas:</span>
+                    <span className="font-medium">{translatePriority(task.priority)}</span>
                   </div>
                   <div>
-                    <span className="text-slate-600 block">Deadline:</span>
+                    <span className="text-slate-600 block">Tenggat Waktu:</span>
                     <span className="font-medium">
                       {new Date(task.deadline).toLocaleDateString('id-ID')}
                     </span>
                   </div>
                   {task.pic && task.pic.length > 0 && (
                     <div>
-                      <span className="text-slate-600 block">Assigned to:</span>
+                      <span className="text-slate-600 block">Ditugaskan kepada:</span>
                       <span className="font-medium">
                         {Array.isArray(task.pic) ? task.pic.join(', ') : task.pic}
                       </span>
@@ -349,7 +350,7 @@ const TaskShareModal: React.FC<TaskShareModalProps> = ({
 
               {/* Background Selection */}
               <div>
-                <h3 className="font-semibold text-slate-800 mb-3">Background</h3>
+                <h3 className="font-semibold text-slate-800 mb-3">Latar Belakang</h3>
 
                 {/* Upload Custom Background */}
                 <button
@@ -357,7 +358,7 @@ const TaskShareModal: React.FC<TaskShareModalProps> = ({
                   className="w-full mb-3 p-3 border-2 border-dashed border-slate-300 rounded-lg hover:border-gov-400 transition-colors flex items-center justify-center gap-2 text-slate-600 hover:text-gov-600"
                 >
                   <Upload size={16} />
-                  Upload Custom Image
+                  Unggah Gambar Kustom
                 </button>
                 <input
                   ref={fileInputRef}
@@ -401,12 +402,12 @@ const TaskShareModal: React.FC<TaskShareModalProps> = ({
                   {isGenerating ? (
                     <>
                       <RefreshCw size={16} className="animate-spin" />
-                      Generating...
+                      Membuat Gambar...
                     </>
                   ) : (
                     <>
                       <ImageIcon size={16} />
-                      Regenerate
+                      Buat Ulang
                     </>
                   )}
                 </button>
@@ -416,7 +417,7 @@ const TaskShareModal: React.FC<TaskShareModalProps> = ({
                   className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors"
                 >
                   <Download size={16} />
-                  Download JPG
+                  Unduh JPG
                 </button>
               </div>
             </div>
@@ -425,7 +426,7 @@ const TaskShareModal: React.FC<TaskShareModalProps> = ({
           {/* Preview */}
           <div className="lg:w-2/3 p-6 overflow-y-auto">
             <div className="text-center">
-              <h3 className="font-semibold text-slate-800 mb-4">Preview</h3>
+              <h3 className="font-semibold text-slate-800 mb-4">Pratinjau</h3>
               <div className="inline-block bg-slate-100 p-4 rounded-lg">
                 <canvas
                   ref={canvasRef}
@@ -434,7 +435,7 @@ const TaskShareModal: React.FC<TaskShareModalProps> = ({
                 />
               </div>
               <p className="text-xs text-slate-500 mt-2">
-                Image will be generated at 1080x1920 pixels (9:16 ratio)
+                Gambar akan dibuat pada ukuran 1080x1920 piksel (rasio 9:16)
               </p>
             </div>
           </div>

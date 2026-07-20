@@ -13,6 +13,7 @@ import DisposisiModal from './DisposisiModal';
 import SearchableSelect from './SearchableSelect';
 import ConfirmModal from './ConfirmModal';
 import { useDivision } from '../contexts/DivisionContext';
+import { translateDisposisiStatus } from '../utils/translations';
 import DivisionFilter from './DivisionFilter';
 import { useVisibilityFilter } from '../hooks/useVisibilityFilter';
 import { supabase } from '../lib/supabaseClient';
@@ -321,10 +322,10 @@ const DisposisiListView: React.FC<DisposisiListViewProps> = ({ currentUser, show
             <SearchableSelect
               options={[
                 { value: 'All', label: '📋 Semua Status' },
-                { value: 'Pending', label: '⏳ Pending' },
-                { value: 'In Progress', label: '🔄 In Progress' },
-                { value: 'Completed', label: '✅ Completed' },
-                { value: 'Cancelled', label: '❌ Cancelled' }
+                { value: 'Pending', label: `⏳ ${translateDisposisiStatus('Pending')}` },
+                { value: 'In Progress', label: `🔄 ${translateDisposisiStatus('In Progress')}` },
+                { value: 'Completed', label: `✅ ${translateDisposisiStatus('Completed')}` },
+                { value: 'Cancelled', label: `❌ ${translateDisposisiStatus('Cancelled')}` }
               ]}
               value={filterStatus === 'All' ? '' : filterStatus}
               onChange={(value) => setFilterStatus((value || 'All') as any)}
@@ -492,7 +493,7 @@ const DisposisiListView: React.FC<DisposisiListViewProps> = ({ currentUser, show
                     </td>
                     <td className="px-4 py-4">
                       <span className={`inline-flex items-center text-xs font-semibold px-3 py-1.5 rounded-full ${getStatusColor(d.status)}`}>
-                        {d.status}
+                        {translateDisposisiStatus(d.status)}
                       </span>
                     </td>
                     <td className="px-4 py-4">

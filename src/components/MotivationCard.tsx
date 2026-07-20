@@ -310,7 +310,7 @@ const MotivationCard: React.FC<MotivationCardProps> = ({ className = '' }) => {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Quote size={20} className="text-white/90" />
-            <h3 className="text-lg font-bold">Daily Motivation</h3>
+            <h3 className="text-lg font-bold">Motivasi Harian</h3>
           </div>
           <div className="flex gap-2">
             {/* Translation Toggle Button */}
@@ -373,7 +373,7 @@ const MotivationCard: React.FC<MotivationCardProps> = ({ className = '' }) => {
               {quote.translatedText && (
                 <div className="text-center mt-2">
                   <span className="text-xs text-white/60 px-2 py-1 bg-white/10 rounded-full">
-                    {showTranslation ? '🇮🇩 Indonesia' : '🇺🇸 English'}
+                    {showTranslation ? '🇮🇩 Indonesia' : '🇺🇸 Inggris'}
                   </span>
                 </div>
               )}

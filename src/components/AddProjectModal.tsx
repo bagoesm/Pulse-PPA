@@ -26,6 +26,7 @@ import {
 import { ProjectDefinition, ProjectStatus, User } from '../../types';
 import DivisionFilteredUserSelect from './DivisionFilteredUserSelect';
 import { useAuth } from '../contexts/AuthContext';
+import { translateProjectStatus } from '../utils/translations';
 
 interface AddProjectModalProps {
   isOpen: boolean;
@@ -214,9 +215,9 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ isOpen, onClose, onSa
                     onChange={(e) => setFormData({...formData, status: e.target.value as ProjectStatus})}
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm bg-white"
                   >
-                    <option value="In Progress">In Progress</option>
-                    <option value="Pending">Pending</option>
-                    <option value="Live">Live</option>
+                    <option value="In Progress">{translateProjectStatus('In Progress')}</option>
+                    <option value="Pending">{translateProjectStatus('Pending')}</option>
+                    <option value="Live">{translateProjectStatus('Live')}</option>
                   </select>
                 </div>
               </div>
@@ -296,7 +297,7 @@ const AddProjectModal: React.FC<AddProjectModalProps> = ({ isOpen, onClose, onSa
                           ? 'bg-blue-100 text-blue-700'
                           : 'bg-orange-100 text-orange-700'
                       }`}>
-                        {formData.status}
+                        {translateProjectStatus(formData.status || 'In Progress')}
                       </span>
                     </div>
                     {formData.targetLiveDate && (

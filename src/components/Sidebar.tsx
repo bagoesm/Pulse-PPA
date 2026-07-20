@@ -37,6 +37,7 @@ import { SIDEBAR_ITEMS, User } from '../../types';
 import { useSidebar } from '../contexts/SidebarContext';
 import { useModuleVisibility } from '../hooks/useModuleVisibility';
 import { useUnreadChatCount } from '../hooks/useUnreadChatCount';
+import { translateTabName } from '../utils/translations';
 
 interface SidebarProps {
   activeTab: string;
@@ -201,7 +202,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser,
                         isSubmenuItemActive ? 'text-gov-600' : 'text-slate-400 group-hover:text-slate-600'
                       } ${isCollapsed ? '' : ''}`}
                     />
-                    {!isCollapsed && <span className="truncate">{item.name}</span>}
+                    {!isCollapsed && <span className="truncate">{translateTabName(item.name)}</span>}
                   </div>
                   {!isCollapsed && (
                     <div className={`transition-transform duration-200 ${isSubmenuOpen ? 'rotate-0' : '-rotate-90'}`}>
@@ -221,7 +222,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser,
                       transform: 'translateY(-50%)'
                     }}
                   >
-                    {item.name}
+                    {translateTabName(item.name)}
                     <div className="absolute right-full top-1/2 -translate-y-1/2 mr-1 border-[6px] border-transparent border-r-slate-900" />
                   </div>
                 )}
@@ -259,7 +260,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser,
                                       isNestedActive ? 'text-gov-600' : 'text-slate-400 group-hover/sub:text-slate-600'
                                     }`}
                                   />
-                                  <span className="truncate">{subItem.name}</span>
+                                  <span className="truncate">{translateTabName(subItem.name)}</span>
                                 </div>
                                 <div className={`transition-transform duration-200 ${isNestedOpen ? 'rotate-0' : '-rotate-90'}`}>
                                   <ChevronDown size={14} className="text-slate-400" />
@@ -290,7 +291,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser,
                                             isNestedItemActive ? 'text-gov-600' : 'text-slate-400 group-hover/nested:text-slate-600'
                                           }`}
                                         />
-                                        <span className="truncate">{nestedItem.name}</span>
+                                        <span className="truncate">{translateTabName(nestedItem.name)}</span>
                                       </button>
                                     );
                                   })}
@@ -320,7 +321,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser,
                                 isSubActive ? 'text-gov-600' : 'text-slate-400 group-hover/sub:text-slate-600'
                               }`}
                             />
-                            <span className="truncate">{subItem.name}</span>
+                            <span className="truncate">{translateTabName(subItem.name)}</span>
                           </button>
                         );
                       })}
@@ -351,7 +352,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser,
                     isActive ? 'text-gov-600' : 'text-slate-400 group-hover:text-slate-600'
                   }`}
                 />
-                {!isCollapsed && <span className="truncate">{item.name}</span>}
+                {!isCollapsed && <span className="truncate">{translateTabName(item.name)}</span>}
                 {!isCollapsed && item.name === 'Diskusi & Chat' && unreadChatCount > 0 && (
                   <span className="ml-auto shrink-0 bg-red-500 text-white text-[10px] font-bold h-5 min-w-[20px] px-1.5 rounded-full flex items-center justify-center animate-pulse">
                     {unreadChatCount}
@@ -374,7 +375,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser,
                     transform: 'translateY(-50%)'
                   }}
                 >
-                  {item.name}
+                  {translateTabName(item.name)}
                   <div className="absolute right-full top-1/2 -translate-y-1/2 mr-1 border-[6px] border-transparent border-r-slate-900" />
                 </div>
               )}

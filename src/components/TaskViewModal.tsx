@@ -7,6 +7,7 @@ import PICDisplay from './PICDisplay';
 import UserAvatar from './UserAvatar';
 import MentionInput, { renderMentionText, renderRichText } from './MentionInput';
 import { formatFileSize, ensureHttps } from '../utils/formatters';
+import { translateStatus, translatePriority } from '../utils/translations';
 import ChecklistSection from './ChecklistSection';
 import SubtaskSection from './SubtaskSection';
 import { Subtask } from '../../types';
@@ -408,7 +409,7 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
               </svg>
             </button>
             <span className="text-xs sm:text-sm truncate max-w-[200px] sm:max-w-none">
-              {project ? `${project.name} / ` : ''}{task.status}
+              {project ? `${project.name} / ` : ''}{translateStatus(task.status)}
             </span>
           </div>
           <div className="flex items-center gap-1 sm:gap-2">
@@ -454,7 +455,7 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                         }`}
                     >
                       <span className={`w-2 h-2 rounded-full ${getStatusConfig(task.status).color}`}></span>
-                      <span className="text-sm font-medium text-gray-900">{task.status}</span>
+                      <span className="text-sm font-medium text-gray-900">{translateStatus(task.status)}</span>
                       <ChevronDown
                         size={14}
                         className={`text-gray-400 transition-transform ${isStatusDropdownOpen ? 'rotate-180' : ''}`}
@@ -472,7 +473,7 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                           >
                             <span className={`w-2.5 h-2.5 rounded-full ${getStatusConfig(status).color}`}></span>
                             <span className={`text-sm ${task.status === status ? 'font-medium text-blue-700' : 'text-gray-700'}`}>
-                              {status}
+                              {translateStatus(status)}
                             </span>
                             {task.status === status && (
                               <span className="ml-auto text-blue-600">✓</span>
@@ -483,7 +484,7 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                     )}
                   </div>
                 ) : (
-                  <span className="text-sm font-medium text-gray-900">{task.status}</span>
+                  <span className="text-sm font-medium text-gray-900">{translateStatus(task.status)}</span>
                 )}
               </div>
 
@@ -645,7 +646,7 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                               {blockingTask.status === Status.Done ? (
                                 <span className="text-green-600">✓ Selesai</span>
                               ) : (
-                                <span>{blockingTask.status}</span>
+                                <span>{translateStatus(blockingTask.status)}</span>
                               )}
                             </div>
                           </div>
@@ -688,7 +689,7 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                               {blockedTask.status === Status.Done ? (
                                 <span className="text-green-600">✓ Selesai</span>
                               ) : (
-                                <span className="text-orange-600">Menunggu task ini selesai</span>
+                                <span className="text-orange-600">Menunggu tugas ini selesai</span>
                               )}
                             </div>
                           </div>
@@ -710,7 +711,7 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                 </div>
                 <div className="flex items-center gap-2">
                   <span className={`px-3 py-1 rounded-full text-xs font-medium ${getPriorityConfig(task.priority).bg} ${getPriorityConfig(task.priority).text}`}>
-                    {task.priority}
+                    {translatePriority(task.priority)}
                   </span>
                 </div>
               </div>

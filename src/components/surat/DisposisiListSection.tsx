@@ -3,6 +3,7 @@
 import React from 'react';
 import { Users, Eye, Trash2, Calendar, FileText, Plus } from 'lucide-react';
 import { Disposisi, User } from '../../../types';
+import { translateDisposisiStatus } from '../../utils/translations';
 
 interface DisposisiListSectionProps {
   disposisi: Disposisi[];
@@ -90,7 +91,7 @@ const DisposisiListSection: React.FC<DisposisiListSectionProps> = ({
                     {getUserName(d.assignedTo)}
                   </p>
                   <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${getStatusColor(d.status)}`}>
-                    {d.status}
+                    {translateDisposisiStatus(d.status)}
                   </span>
                 </div>
                 <p className="text-xs text-slate-600 line-clamp-2">
@@ -104,7 +105,7 @@ const DisposisiListSection: React.FC<DisposisiListSectionProps> = ({
                   title="View Disposisi"
                 >
                   <Eye size={14} />
-                  View
+                  Lihat
                 </button>
                 {!isEditing && (
                   <button
@@ -113,7 +114,7 @@ const DisposisiListSection: React.FC<DisposisiListSectionProps> = ({
                     title="Remove Assignee"
                   >
                     <Trash2 size={14} />
-                    Remove
+                    Hapus
                   </button>
                 )}
               </div>
@@ -135,7 +136,7 @@ const DisposisiListSection: React.FC<DisposisiListSectionProps> = ({
             {d.laporan && d.laporan.length > 0 && (
               <div className="flex items-center gap-1.5 text-xs text-green-600 mt-1">
                 <FileText size={12} />
-                <span>{d.laporan.length} laporan uploaded</span>
+                <span>{d.laporan.length} laporan diunggah</span>
               </div>
             )}
           </div>

@@ -70,7 +70,7 @@ const UserWorkloadCard: React.FC<UserWorkloadCardProps> = ({
             onClick={onClick}
             onMouseEnter={() => onHover(data.user.id)}
             onMouseLeave={() => onHover(null)}
-            title={`Klik untuk melihat semua task ${data.userName} (${data.activeCount} aktif, ${data.completedCount} selesai)`}
+            title={`Klik untuk melihat semua tugas ${data.userName} (${data.activeCount} aktif, ${data.completedCount} selesai)`}
         >
             {/* Christmas Decorations */}
             <ChristmasDecorations
@@ -254,10 +254,10 @@ const UserWorkloadCard: React.FC<UserWorkloadCardProps> = ({
                 {/* Priority Breakdown */}
                 <div className="grid grid-cols-4 gap-2">
                     {[
-                        { count: data.urgentCount, label: 'Urgent', defaultBg: 'bg-red-50', defaultBorder: 'border-red-100', defaultText: 'text-red-600', defaultLabel: 'text-red-500' },
-                        { count: data.highCount, label: 'High', defaultBg: 'bg-orange-50', defaultBorder: 'border-orange-100', defaultText: 'text-orange-600', defaultLabel: 'text-orange-500' },
-                        { count: data.mediumCount, label: 'Med', defaultBg: 'bg-blue-50', defaultBorder: 'border-blue-100', defaultText: 'text-blue-600', defaultLabel: 'text-blue-500' },
-                        { count: data.lowCount, label: 'Low', defaultBg: 'bg-slate-50', defaultBorder: 'border-slate-100', defaultText: 'text-slate-600', defaultLabel: 'text-slate-500' }
+                        { count: data.urgentCount, label: 'Mendesak', defaultBg: 'bg-red-50', defaultBorder: 'border-red-100', defaultText: 'text-red-600', defaultLabel: 'text-red-500' },
+                        { count: data.highCount, label: 'Tinggi', defaultBg: 'bg-orange-50', defaultBorder: 'border-orange-100', defaultText: 'text-orange-600', defaultLabel: 'text-orange-500' },
+                        { count: data.mediumCount, label: 'Sedang', defaultBg: 'bg-blue-50', defaultBorder: 'border-blue-100', defaultText: 'text-blue-600', defaultLabel: 'text-blue-500' },
+                        { count: data.lowCount, label: 'Rendah', defaultBg: 'bg-slate-50', defaultBorder: 'border-slate-100', defaultText: 'text-slate-600', defaultLabel: 'text-slate-500' }
                     ].map((item, idx) => (
                         <div key={idx} className={`text-center p-2 rounded-lg transition-colors ${isHoveredWithSakura
                             ? 'bg-pink-50 border border-pink-100 hover:bg-pink-100'
@@ -281,7 +281,7 @@ const UserWorkloadCard: React.FC<UserWorkloadCardProps> = ({
                 <div className="mt-4 text-center opacity-0 group-hover:opacity-100 transition-opacity">
                     <span className={`text-xs font-medium flex items-center justify-center gap-1 transition-colors ${getHoverTextColorLight('text-gov-600')}`}>
                         <Eye size={12} />
-                        Klik untuk lihat task
+                        Klik untuk lihat tugas
                     </span>
                 </div>
             </div>

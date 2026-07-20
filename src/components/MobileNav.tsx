@@ -20,6 +20,7 @@ import { User } from '../../types';
 import UserAvatar from './UserAvatar';
 import { useModuleVisibility } from '../hooks/useModuleVisibility';
 import { useUnreadChatCount } from '../hooks/useUnreadChatCount';
+import { translateTabName } from '../utils/translations';
 
 interface MobileNavProps {
   activeTab: string;
@@ -164,7 +165,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
                     <div className={`p-2 rounded-lg ${item.bg}`}>
                       <Icon size={20} className={item.color} />
                     </div>
-                    <span className="font-medium">{item.name}</span>
+                    <span className="font-medium">{translateTabName(item.name)}</span>
                     {item.name === 'Diskusi & Chat' && unreadChatCount > 0 && (
                       <span className="ml-auto shrink-0 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-pulse">
                         {unreadChatCount}
@@ -220,7 +221,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
                     )}
                   </div>
                 )}
-                <span className="text-[9px] font-medium">{item.name}</span>
+                <span className="text-[9px] font-medium">{translateTabName(item.name)}</span>
               </button>
             );
           })}

@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabaseClient';
 import { formatErrorForUser, validateFile as validateFileUtil } from '../utils/errorHandling';
 import AuditTrailDisplay from './AuditTrailDisplay';
 import { useDisposisi } from '../contexts/DisposisiContext';
+import { translateDisposisiStatus } from '../utils/translations';
 
 interface DisposisiModalProps {
   isOpen: boolean;
@@ -671,7 +672,7 @@ const DisposisiModal: React.FC<DisposisiModalProps> = ({
                     <div className={`inline-flex items-center px-4 py-2 rounded-lg font-medium ${
                       DISPOSISI_STATUSES.find(s => s.value === initialData.status)?.color || 'bg-slate-100 text-slate-800'
                     }`}>
-                      {initialData.status}
+                      {translateDisposisiStatus(initialData.status)}
                     </div>
                   </div>
                   <div>
@@ -951,13 +952,13 @@ const DisposisiModal: React.FC<DisposisiModalProps> = ({
               >
                 {DISPOSISI_STATUSES.map(s => (
                   <option key={s.value} value={s.value}>
-                    {s.label}
+                    {translateDisposisiStatus(s.value)}
                   </option>
                 ))}
               </select>
               {!isEditMode ? (
                 <p className="text-xs text-slate-500 mt-1">
-                  Status awal akan diset ke "Pending"
+                  Status awal akan diset ke "Tertunda"
                 </p>
               ) : (
                 <p className="text-xs text-slate-500 mt-1">

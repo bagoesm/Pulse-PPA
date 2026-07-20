@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { Epic, EpicStatus, ProjectDefinition, User } from '../../types';
 import SearchableSelect from './SearchableSelect';
+import { translateEpicStatus } from '../utils/translations';
 
 interface AddEpicModalProps {
     isOpen: boolean;
@@ -263,7 +264,7 @@ const AddEpicModal: React.FC<AddEpicModalProps> = ({
                                         className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-400 outline-none text-sm bg-white"
                                     >
                                         {statusOptions.map(s => (
-                                            <option key={s} value={s}>{s}</option>
+                                            <option key={s} value={s}>{translateEpicStatus(s)}</option>
                                         ))}
                                     </select>
                                 </div>
@@ -358,7 +359,7 @@ const AddEpicModal: React.FC<AddEpicModalProps> = ({
                                                     ? 'bg-blue-100 text-blue-700'
                                                     : 'bg-slate-100 text-slate-600'
                                                 }`}>
-                                                {formData.status}
+                                                {translateEpicStatus(formData.status)}
                                             </span>
                                             {formData.pic.length > 0 && (
                                                 <span className="text-xs text-slate-500">

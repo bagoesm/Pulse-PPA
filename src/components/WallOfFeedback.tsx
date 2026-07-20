@@ -77,10 +77,10 @@ const WallOfFeedback: React.FC<WallOfFeedbackProps> = ({
 
   const getStatusBadge = (status: FeedbackStatus) => {
       switch(status) {
-          case 'Planned': return <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[10px] font-bold uppercase"><MapPin size={10} /> Planned</span>;
-          case 'In Progress': return <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 text-[10px] font-bold uppercase"><Clock size={10} /> In Progress</span>;
-          case 'Done': return <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-[10px] font-bold uppercase"><CheckCircle2 size={10} /> Deployed</span>;
-          default: return <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold uppercase">Open Voting</span>;
+          case 'Planned': return <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[10px] font-bold uppercase"><MapPin size={10} /> Direncanakan</span>;
+          case 'In Progress': return <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 text-[10px] font-bold uppercase"><Clock size={10} /> Sedang Dikerjakan</span>;
+          case 'Done': return <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-[10px] font-bold uppercase"><CheckCircle2 size={10} /> Selesai</span>;
+          default: return <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold uppercase">Voting Terbuka</span>;
       }
   };
 
@@ -355,7 +355,7 @@ const WallOfFeedback: React.FC<WallOfFeedbackProps> = ({
                     </div>
                     <form onSubmit={handleEditSubmit} className="p-6 space-y-4">
                         <div className="p-3 bg-blue-50 text-blue-800 text-xs rounded-lg mb-4">
-                            Mengubah status menjadi "Planned", "In Progress", atau "Done" akan mengunci fitur voting untuk user.
+                            Mengubah status menjadi "Direncanakan", "Sedang Dikerjakan", atau "Selesai" akan mengunci fitur voting untuk user.
                         </div>
 
                         <div>
@@ -365,10 +365,10 @@ const WallOfFeedback: React.FC<WallOfFeedbackProps> = ({
                                 onChange={e => setEditingFeedback({...editingFeedback, status: e.target.value as FeedbackStatus})}
                                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm bg-white"
                             >
-                                <option value="Open">Open (Voting Aktif)</option>
-                                <option value="Planned">Planned (Direncanakan)</option>
-                                <option value="In Progress">In Progress (Sedang Dikerjakan)</option>
-                                <option value="Done">Done (Selesai/Deployed)</option>
+                                <option value="Open">Terbuka (Voting Aktif)</option>
+                                <option value="Planned">Direncanakan</option>
+                                <option value="In Progress">Sedang Dikerjakan</option>
+                                <option value="Done">Selesai (Dirilis)</option>
                             </select>
                         </div>
 

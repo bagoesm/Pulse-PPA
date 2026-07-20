@@ -13,6 +13,7 @@ import DivisionFilteredMultiSelect from './DivisionFilteredMultiSelect';
 import RichTextEditor from './RichTextEditor';
 import SearchableSelect from './SearchableSelect';
 import TaskDependencySelector from './TaskDependencySelector';
+import { translatePriority, translateStatus } from '../utils/translations';
 import ChecklistEditor from './ChecklistEditor';
 import { formatFileSize } from '../utils/formatters';
 
@@ -926,7 +927,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
                               onChange={(e) => handleAiTaskChange(task.tempId, 'priority', e.target.value as Priority)}
                               className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs text-slate-700 bg-white focus:ring-2 focus:ring-gov-400 outline-none"
                             >
-                              {Object.values(Priority).map(p => <option key={p} value={p}>{p}</option>)}
+                              {Object.values(Priority).map(p => <option key={p} value={p}>{translatePriority(p)}</option>)}
                             </select>
                           </div>
                           <div>
@@ -1216,7 +1217,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm text-slate-700 bg-white disabled:bg-slate-50 disabled:text-slate-500"
                 >
                   <option value="" disabled hidden>-- Pilih Prioritas --</option>
-                  {Object.values(Priority).map(p => <option key={p} value={p}>{p}</option>)}
+                  {Object.values(Priority).map(p => <option key={p} value={p}>{translatePriority(p)}</option>)}
                 </select>
               </div>
 
@@ -1230,7 +1231,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm text-slate-700 bg-white disabled:bg-slate-50 disabled:text-slate-500"
                 >
                   <option value="" disabled hidden>-- Pilih Status --</option>
-                  {Object.values(Status).map(s => <option key={s} value={s}>{s}</option>)}
+                  {Object.values(Status).map(s => <option key={s} value={s}>{translateStatus(s)}</option>)}
                 </select>
               </div>
             </div>

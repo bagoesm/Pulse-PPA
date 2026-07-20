@@ -45,7 +45,7 @@ const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                                 <Award size={20} className="sm:w-6 sm:h-6" />
                             </div>
                             <div>
-                                <h2 className="text-lg sm:text-2xl font-bold text-slate-800">🏆 Leaderboard</h2>
+                                <h2 className="text-lg sm:text-2xl font-bold text-slate-800">🏆 Papan Peringkat</h2>
                                 <p className="text-xs sm:text-sm text-slate-600 hidden sm:block">
                                     Ranking berdasarkan Performance Score (0-100)
                                 </p>
@@ -82,11 +82,11 @@ const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                     <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-6">
                         <div className="bg-purple-50 p-2 sm:p-4 rounded-lg border border-purple-200 text-center">
                             <div className="text-lg sm:text-2xl font-bold text-purple-600">{highPerformersCount}</div>
-                            <div className="text-[10px] sm:text-sm text-purple-700">High Performers</div>
+                            <div className="text-[10px] sm:text-sm text-purple-700">Performa Tinggi</div>
                         </div>
                         <div className="bg-green-50 p-2 sm:p-4 rounded-lg border border-green-200 text-center">
                             <div className="text-lg sm:text-2xl font-bold text-green-600">{avgCompletionRate}%</div>
-                            <div className="text-[10px] sm:text-sm text-green-700">Avg Rate</div>
+                            <div className="text-[10px] sm:text-sm text-green-700">Rata-rata Selesai</div>
                         </div>
                         <div className="bg-blue-50 p-2 sm:p-4 rounded-lg border border-blue-200 text-center">
                             <div className="text-lg sm:text-2xl font-bold text-blue-600">{totalCompleted}</div>
@@ -139,7 +139,7 @@ const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                                             <div><span className="block text-xs font-bold text-purple-600">{data.performanceScore}</span><span className="text-[10px] text-slate-500">Poin</span></div>
                                         </div>
                                         {data.isHighPerformer && (
-                                            <div className="text-xs text-purple-600 font-medium mt-1.5 text-center">🏆 High Performer</div>
+                                            <div className="text-xs text-purple-600 font-medium mt-1.5 text-center">🏆 Performa Tinggi</div>
                                         )}
                                     </div>
 
@@ -162,7 +162,7 @@ const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                                                 <div><span className="block text-sm font-bold text-slate-800">{data.activeCount}</span><span className="text-xs text-slate-500">Aktif</span></div>
                                                 <div><span className="block text-sm font-bold text-green-600">{data.completedCount}</span><span className="text-xs text-slate-500">Selesai</span></div>
                                                 <div><span className="block text-sm font-bold text-gov-600">{data.completionRate.toFixed(0)}%</span><span className="text-xs text-slate-500">Rate</span></div>
-                                                <div><span className="block text-sm font-bold text-purple-600">{data.performanceScore}</span><span className="text-xs text-slate-500">Task Poin</span></div>
+                                                <div><span className="block text-sm font-bold text-purple-600">{data.performanceScore}</span><span className="text-xs text-slate-500">Poin Tugas</span></div>
                                             </div>
 
                                             <div className="text-right">
@@ -171,7 +171,7 @@ const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                                                 </div>
                                                 <div className="text-xs text-slate-500">/ 100</div>
                                                 {data.isHighPerformer && (
-                                                    <div className="text-xs text-purple-600 font-medium mt-1">🏆 High Performer</div>
+                                                    <div className="text-xs text-purple-600 font-medium mt-1">🏆 Performa Tinggi</div>
                                                 )}
                                             </div>
                                         </div>
@@ -181,7 +181,6 @@ const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                         })}
                     </div>
 
-                    {/* Info Perhitungan */}
                     <div className="border-t border-slate-200 pt-4 sm:pt-6">
                         <details className="sm:open">
                             <summary className="font-bold text-slate-800 mb-3 sm:mb-4 flex items-center gap-2 cursor-pointer sm:cursor-default list-none">
@@ -192,27 +191,27 @@ const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                             <div className="grid grid-cols-2 gap-2 sm:gap-4 mb-3 sm:mb-4">
                                 <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-green-50 rounded-lg border border-green-200">
                                     <div className="w-6 h-6 sm:w-8 sm:h-8 bg-green-500 text-white rounded-full flex items-center justify-center text-xs sm:text-sm font-bold">40</div>
-                                    <div><h4 className="font-semibold text-green-800 text-xs sm:text-sm">Completion</h4><p className="text-[10px] sm:text-xs text-green-700">Rate × 0.4</p></div>
+                                    <div><h4 className="font-semibold text-green-800 text-xs sm:text-sm">Penyelesaian</h4><p className="text-[10px] sm:text-xs text-green-700">Rate × 0.4</p></div>
                                 </div>
                                 <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-blue-50 rounded-lg border border-blue-200">
                                     <div className="w-6 h-6 sm:w-8 sm:h-8 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs sm:text-sm font-bold">30</div>
-                                    <div><h4 className="font-semibold text-blue-800 text-xs sm:text-sm">Task Points</h4><p className="text-[10px] sm:text-xs text-blue-700">Poin × 3</p></div>
+                                    <div><h4 className="font-semibold text-blue-800 text-xs sm:text-sm">Poin Tugas</h4><p className="text-[10px] sm:text-xs text-blue-700">Poin × 3</p></div>
                                 </div>
                                 <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-orange-50 rounded-lg border border-orange-200">
                                     <div className="w-6 h-6 sm:w-8 sm:h-8 bg-orange-500 text-white rounded-full flex items-center justify-center text-xs sm:text-sm font-bold">20</div>
-                                    <div><h4 className="font-semibold text-orange-800 text-xs sm:text-sm">Aktivitas</h4><p className="text-[10px] sm:text-xs text-orange-700">Task aktif</p></div>
+                                    <div><h4 className="font-semibold text-orange-800 text-xs sm:text-sm">Aktivitas</h4><p className="text-[10px] sm:text-xs text-orange-700">Tugas aktif</p></div>
                                 </div>
                                 <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-purple-50 rounded-lg border border-purple-200">
                                     <div className="w-6 h-6 sm:w-8 sm:h-8 bg-purple-500 text-white rounded-full flex items-center justify-center text-xs sm:text-sm font-bold">10</div>
-                                    <div><h4 className="font-semibold text-purple-800 text-xs sm:text-sm">Konsistensi</h4><p className="text-[10px] sm:text-xs text-purple-700">≥3 task</p></div>
+                                    <div><h4 className="font-semibold text-purple-800 text-xs sm:text-sm">Konsistensi</h4><p className="text-[10px] sm:text-xs text-purple-700">≥3 tugas</p></div>
                                 </div>
                             </div>
 
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
                                 <div className="bg-gradient-to-r from-purple-50 to-yellow-50 p-2 sm:p-4 rounded-lg border border-purple-200">
                                     <p className="text-xs sm:text-sm text-purple-700 text-center">
-                                        <strong>High Performer:</strong> Skor ≥ 60<br />
-                                        <span className="hidden sm:inline"><strong>Task Points:</strong> Urgent=4, High=3, Medium=2, Low=1</span>
+                                        <strong>Performa Tinggi:</strong> Skor ≥ 60<br />
+                                        <span className="hidden sm:inline"><strong>Poin Tugas:</strong> Mendesak=4, Tinggi=3, Sedang=2, Rendah=1</span>
                                     </p>
                                 </div>
                                 <div className="bg-blue-50 p-2 sm:p-4 rounded-lg border border-blue-200">
@@ -230,7 +229,7 @@ const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                             onClick={onClose}
                             className="w-full sm:w-auto px-6 py-2.5 sm:py-2 bg-gradient-to-r from-purple-600 to-yellow-600 text-white rounded-lg font-medium hover:from-purple-700 hover:to-yellow-700 transition-all"
                         >
-                            Tutup Leaderboard
+                            Tutup Papan Peringkat
                         </button>
                     </div>
                 </div>

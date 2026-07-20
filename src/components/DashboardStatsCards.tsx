@@ -51,7 +51,7 @@ const DashboardStatsCards: React.FC<DashboardStatsCardsProps> = ({
                 <h3 className="text-xl md:text-2xl font-bold text-slate-800 mb-0.5 md:mb-1 tabular-nums">
                     {animatedActiveTasks}
                 </h3>
-                <p className="text-xs md:text-sm text-slate-500">Task Aktif</p>
+                <p className="text-xs md:text-sm text-slate-500">Tugas Aktif</p>
             </div>
 
             {/* Completion Rate */}
@@ -67,7 +67,7 @@ const DashboardStatsCards: React.FC<DashboardStatsCardsProps> = ({
                 <h3 className="text-xl md:text-2xl font-bold text-slate-800 mb-0.5 md:mb-1 tabular-nums">
                     {animatedCompletedTasks}
                 </h3>
-                <p className="text-xs md:text-sm text-slate-500">Task Selesai</p>
+                <p className="text-xs md:text-sm text-slate-500">Tugas Selesai</p>
             </div>
 
             {/* Urgent Tasks */}
@@ -77,7 +77,7 @@ const DashboardStatsCards: React.FC<DashboardStatsCardsProps> = ({
                         <AlertCircle size={18} />
                     </div>
                     <span className="text-[10px] md:text-xs font-medium text-red-600 bg-red-50 px-1.5 md:px-2 py-0.5 md:py-1 rounded-full">
-                        Urgent
+                        Mendesak
                     </span>
                 </div>
                 <h3 className="text-xl md:text-2xl font-bold text-slate-800 mb-0.5 md:mb-1 tabular-nums">
@@ -96,13 +96,13 @@ const DashboardStatsCards: React.FC<DashboardStatsCardsProps> = ({
                         <Award size={18} />
                     </div>
                     <span className="text-[10px] md:text-xs font-medium text-purple-600 bg-purple-50 px-1.5 md:px-2 py-0.5 md:py-1 rounded-full group-hover:bg-purple-100 transition-colors hidden sm:inline">
-                        Klik untuk Leaderboard
+                        Klik untuk Papan Peringkat
                     </span>
                 </div>
                 <h3 className="text-xl md:text-2xl font-bold text-slate-800 mb-0.5 md:mb-1 tabular-nums">
                     {animatedHighPerformers}
                 </h3>
-                <p className="text-xs md:text-sm text-slate-500">High Performers</p>
+                <p className="text-xs md:text-sm text-slate-500">Performa Tinggi</p>
             </button>
         </div>
     );

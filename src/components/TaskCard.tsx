@@ -1,6 +1,7 @@
 import React from 'react';
 import { Task, Priority, Category, ProjectDefinition, User, Status } from '../../types';
 import { Calendar, Layers, Paperclip, Link2, CheckSquare } from 'lucide-react';
+import { translatePriority } from '../utils/translations';
 import PICDisplay from './PICDisplay';
 import ShareButton from './ShareButton';
 
@@ -71,7 +72,7 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({ task, projects, users = 
         <div className="flex items-center gap-1.5 overflow-hidden">
           {(task as any).isSubtask && (
             <span className="text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded border bg-violet-100 text-violet-700 border-violet-200 whitespace-nowrap">
-              Subtask
+              Subtugas
             </span>
           )}
           <span className={`text-[9px] sm:text-[10px] uppercase font-bold px-1.5 sm:px-2 py-0.5 rounded border ${getCategoryColor(task.category)} truncate`}>
@@ -86,7 +87,7 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({ task, projects, users = 
             />
           )}
           <span className={`text-[9px] sm:text-[10px] font-semibold px-1.5 sm:px-2 py-0.5 rounded border ${getPriorityColor(task.priority)}`}>
-            {task.priority}
+            {translatePriority(task.priority)}
           </span>
         </div>
       </div>
@@ -131,7 +132,7 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({ task, projects, users = 
             </span>
           </div>
           {hasAttachments && (
-            <div className="flex items-center gap-1 text-slate-400" title={`${task.attachments.length} attachment(s)`}>
+            <div className="flex items-center gap-1 text-slate-400" title={`${task.attachments.length} lampiran`}>
               <Paperclip size={10} />
               <span className="text-[9px] sm:text-[10px] font-medium">{task.attachments.length}</span>
             </div>
@@ -139,7 +140,7 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({ task, projects, users = 
           {isBlocked && (
             <div
               className="flex items-center gap-1 text-amber-500"
-              title={`Diblokir oleh ${unfinishedBlockers.length} task: ${unfinishedBlockers.map(t => t.title).join(', ')}`}
+              title={`Diblokir oleh ${unfinishedBlockers.length} tugas: ${unfinishedBlockers.map(t => t.title).join(', ')}`}
             >
               <Link2 size={10} />
               <span className="text-[9px] sm:text-[10px] font-medium">{unfinishedBlockers.length}</span>
@@ -148,7 +149,7 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({ task, projects, users = 
           {blocksOthers && (
             <div
               className="flex items-center gap-1 text-orange-500"
-              title={`Memblokir ${blockedTasks.length} task: ${blockedTasks.map(t => t.title).join(', ')}`}
+              title={`Memblokir ${blockedTasks.length} tugas: ${blockedTasks.map(t => t.title).join(', ')}`}
             >
               <Link2 size={10} className="rotate-90" />
               <span className="text-[9px] sm:text-[10px] font-medium">{blockedTasks.length}</span>
@@ -166,7 +167,7 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({ task, projects, users = 
           {hasSubtasks && (
             <div
               className={`flex items-center gap-1 ${doneSubtasks === totalSubtasks ? 'text-emerald-500' : 'text-slate-400'}`}
-              title={`${doneSubtasks}/${totalSubtasks} subtask selesai`}
+              title={`${doneSubtasks}/${totalSubtasks} subtugas selesai`}
             >
               <div className="flex items-end space-x-0.5">
                 <div className="w-[3px] h-2 bg-current rounded-sm"></div>

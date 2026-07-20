@@ -143,10 +143,10 @@ const DashboardFilters: React.FC<DashboardFiltersProps> = ({
                                 className="pl-9 pr-6 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm bg-white appearance-none cursor-pointer w-full"
                             >
                                 <option value="all">Semua Beban</option>
-                                <option value="relaxed">Relaxed</option>
-                                <option value="balanced">Balanced</option>
-                                <option value="busy">Busy</option>
-                                <option value="overload">Overload</option>
+                                <option value="relaxed">Santai</option>
+                                <option value="balanced">Seimbang</option>
+                                <option value="busy">Sibuk</option>
+                                <option value="overload">Kelebihan Beban</option>
                             </select>
                             <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                         </div>

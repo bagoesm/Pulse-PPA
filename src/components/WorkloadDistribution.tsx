@@ -40,7 +40,7 @@ const WorkloadDistribution: React.FC<WorkloadDistributionProps> = ({
                                 <Coffee size={14} className="text-white" />
                             </div>
                             <span className="block text-lg md:text-2xl font-bold text-emerald-700">{distribution.relaxed}</span>
-                            <span className="text-[10px] md:text-xs text-emerald-600 font-medium">Relaxed</span>
+                            <span className="text-[10px] md:text-xs text-emerald-600 font-medium">Santai</span>
                         </div>
 
                         <div className="text-center p-3 md:p-4 bg-gov-50 rounded-lg border border-gov-100">
@@ -48,7 +48,7 @@ const WorkloadDistribution: React.FC<WorkloadDistributionProps> = ({
                                 <Zap size={14} className="text-white" />
                             </div>
                             <span className="block text-lg md:text-2xl font-bold text-gov-700">{distribution.balanced}</span>
-                            <span className="text-[10px] md:text-xs text-gov-600 font-medium">Balanced</span>
+                            <span className="text-[10px] md:text-xs text-gov-600 font-medium">Seimbang</span>
                         </div>
 
                         <div className="text-center p-3 md:p-4 bg-orange-50 rounded-lg border border-orange-100">
@@ -56,7 +56,7 @@ const WorkloadDistribution: React.FC<WorkloadDistributionProps> = ({
                                 <AlertTriangle size={14} className="text-white" />
                             </div>
                             <span className="block text-lg md:text-2xl font-bold text-orange-700">{distribution.busy}</span>
-                            <span className="text-[10px] md:text-xs text-orange-600 font-medium">Busy</span>
+                            <span className="text-[10px] md:text-xs text-orange-600 font-medium">Sibuk</span>
                         </div>
 
                         <div className="text-center p-3 md:p-4 bg-red-50 rounded-lg border border-red-100">
@@ -64,7 +64,7 @@ const WorkloadDistribution: React.FC<WorkloadDistributionProps> = ({
                                 <Flame size={14} className="text-white" />
                             </div>
                             <span className="block text-lg md:text-2xl font-bold text-red-700">{distribution.overload}</span>
-                            <span className="text-[10px] md:text-xs text-red-600 font-medium">Overload</span>
+                            <span className="text-[10px] md:text-xs text-red-600 font-medium">Kelebihan Beban</span>
                         </div>
                     </div>
                 </div>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Task, Status, ProjectDefinition } from '../../types';
+import { translateStatus } from '../utils/translations';
 import TaskCard from './TaskCard';
 
 interface KanbanColumnProps {
@@ -128,7 +129,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = React.memo(({
       {/* Column Header */}
       <div className="p-3 sm:p-4 flex items-center justify-between sticky top-0 bg-slate-100/50 backdrop-blur-sm z-10 rounded-t-xl">
         <div className="flex items-center gap-1.5 sm:gap-2">
-          <h3 className="font-bold text-slate-700 text-xs sm:text-sm tracking-wide">{status}</h3>
+          <h3 className="font-bold text-slate-700 text-xs sm:text-sm tracking-wide">{translateStatus(status)}</h3>
           <span className="bg-slate-200 text-slate-600 px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold">
             {tasks.length}
           </span>
@@ -168,7 +169,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = React.memo(({
               <div className="flex items-center justify-center p-4">
                 <div className="flex items-center gap-2 text-slate-500">
                   <div className="w-4 h-4 border-2 border-slate-300 border-t-gov-500 rounded-full animate-spin"></div>
-                  <span className="text-xs">Loading...</span>
+                  <span className="text-xs">Memuat...</span>
                 </div>
               </div>
             )}
@@ -179,14 +180,14 @@ const KanbanColumn: React.FC<KanbanColumnProps> = React.memo(({
                 onClick={loadMoreTasks}
                 className="w-full p-3 mt-2 text-xs font-medium text-slate-600 hover:text-gov-600 hover:bg-white/50 rounded-lg border-2 border-dashed border-slate-200 hover:border-gov-200 transition-all"
               >
-                Load {Math.min(TASKS_PER_PAGE, tasks.length - visibleTasks.length)} more tasks
+                Muat {Math.min(TASKS_PER_PAGE, tasks.length - visibleTasks.length)} tugas lagi
               </button>
             )}
 
             {/* End indicator */}
             {visibleTasks.length >= tasks.length && tasks.length > TASKS_PER_PAGE && (
               <div className="text-center p-2 text-xs text-slate-400">
-                All {tasks.length} tasks loaded
+                Semua {tasks.length} tugas telah dimuat
               </div>
             )}
           </>
