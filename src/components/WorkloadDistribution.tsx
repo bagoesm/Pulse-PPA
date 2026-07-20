@@ -76,7 +76,7 @@ const WorkloadDistribution: React.FC<WorkloadDistributionProps> = ({
                             <Clock size={14} className="text-orange-600 flex-shrink-0" />
                             <div className="min-w-0">
                                 <p className="text-xs md:text-sm font-bold text-orange-800">{totalUpcomingDeadlines}</p>
-                                <p className="text-[10px] md:text-xs text-orange-600 truncate">Deadline 3 hari</p>
+                                <p className="text-[10px] md:text-xs text-orange-600 truncate">Tenggat 3 hari</p>
                             </div>
                         </div>
 
@@ -84,7 +84,7 @@ const WorkloadDistribution: React.FC<WorkloadDistributionProps> = ({
                             <TrendingUp size={14} className="text-green-600 flex-shrink-0" />
                             <div className="min-w-0">
                                 <p className="text-xs md:text-sm font-bold text-green-800">{avgCompletionRate.toFixed(1)}%</p>
-                                <p className="text-[10px] md:text-xs text-green-600 truncate">Completion rate</p>
+                                <p className="text-[10px] md:text-xs text-green-600 truncate">Tingkat Penyelesaian</p>
                             </div>
                         </div>
 

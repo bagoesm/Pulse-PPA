@@ -246,7 +246,7 @@ const UserWorkloadCard: React.FC<UserWorkloadCardProps> = ({
                         }`}>
                         <Clock size={14} className={getHoverTextColorLight('text-orange-600')} />
                         <span className={`text-xs font-medium transition-colors ${getHoverTextColor('text-orange-700')}`}>
-                            {data.upcomingDeadlines} deadline dalam 3 hari
+                            {data.upcomingDeadlines} tenggat dalam 3 hari
                         </span>
                     </div>
                 )}
