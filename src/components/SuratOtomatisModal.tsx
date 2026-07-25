@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { X, FileText, Download, AlertCircle, CheckCircle, Eye, Trash2, Upload } from 'lucide-react';
 import { SURAT_TEMPLATES, SuratTemplate, SuratTemplateField, SuratTemplateType } from '../types/suratOtomatis';
 import { SuratOtomatisService } from '../services/SuratOtomatisService';
+import { budgetService } from '../services/BudgetService';
+import { BudgetMaster } from '../../types';
 import { useAuth } from '../contexts/AuthContext';
 import { useUsers } from '../contexts/UsersContext';
 import SearchableSelect from './SearchableSelect';
@@ -32,9 +34,43 @@ export const SuratOtomatisModal: React.FC<SuratOtomatisModalProps> = ({ isOpen, 
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const [logos, setLogos] = useState<PartnerLogo[]>([]);
 
+  // Budget Monitoring state for SIMPERJADIN
+  const [budgetMasters, setBudgetMasters] = useState<BudgetMaster[]>([]);
+  const [isLoadingBudget, setIsLoadingBudget] = useState(false);
+
   // Get users by role
   const atasanUsers = allUsers.filter(u => u.role === 'Atasan');
   const allUsersForSelect = allUsers;
+
+  // Load budget masters from Monitoring Anggaran when modal opens or template selected
+  useEffect(() => {
+    if (isOpen) {
+      setIsLoadingBudget(true);
+      budgetService.fetchBudgetMasters('All')
+        .then(masters => setBudgetMasters(masters || []))
+        .catch(err => console.error('Gagal mengambil data monitoring anggaran:', err))
+        .finally(() => setIsLoadingBudget(false));
+    }
+  }, [isOpen]);
+
+  // Format budget options for SearchableSelect
+  const budgetOptions = useMemo(() => {
+    return budgetMasters.map(m => {
+      const makParts = [m.kegiatan, m.kro, m.ro, m.komponen, m.subkomponen, m.akun].filter(Boolean);
+      const makCode = makParts.join('.');
+      const detailLabel = m.detail || m.namaAkun || m.namaSubkomponen || m.namaKomponen || '';
+      const fullLabel = makCode
+        ? (detailLabel ? `${makCode} - ${detailLabel}` : makCode)
+        : (detailLabel || 'Mata Anggaran');
+
+      return {
+        value: makCode || detailLabel,
+        label: fullLabel
+      };
+    }).filter((opt, index, self) =>
+      opt.value && self.findIndex(o => o.value === opt.value) === index
+    );
+  }, [budgetMasters]);
 
   // Reset form when modal opens/closes
   useEffect(() => {
@@ -104,6 +140,28 @@ export const SuratOtomatisModal: React.FC<SuratOtomatisModalProps> = ({ isOpen, 
       }
     });
   }, [formData.penandatangan_user_id, formData.pegawai_user_id, formData.tanggal_kejadian, selectedTemplate, allUsers]);
+
+  // Auto fill periode_perjadin text when tanggal_mulai_perjadin or tanggal_selesai_perjadin changes
+  useEffect(() => {
+    const tglMulai = formData.tanggal_mulai_perjadin?.toString();
+    const tglSelesai = formData.tanggal_selesai_perjadin?.toString();
+
+    if (tglMulai || tglSelesai) {
+      const fmtMulai = tglMulai ? SuratOtomatisService.formatTanggalIndonesia(tglMulai) : '';
+      const fmtSelesai = tglSelesai ? SuratOtomatisService.formatTanggalIndonesia(tglSelesai) : '';
+
+      let text = '';
+      if (fmtMulai && fmtSelesai) {
+        text = `${fmtMulai} s/d ${fmtSelesai}`;
+      } else if (fmtMulai) {
+        text = fmtMulai;
+      } else if (fmtSelesai) {
+        text = fmtSelesai;
+      }
+
+      setFormData(prev => ({ ...prev, periode_perjadin: text }));
+    }
+  }, [formData.tanggal_mulai_perjadin, formData.tanggal_selesai_perjadin]);
 
   const handleFieldChange = (fieldId: string, value: string | number) => {
     setFormData(prev => ({
@@ -263,6 +321,29 @@ export const SuratOtomatisModal: React.FC<SuratOtomatisModalProps> = ({ isOpen, 
     const value = formData[field.id] || '';
 
     const baseInputClass = `w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${field.readOnly ? 'bg-gray-50 text-gray-600' : ''}`;
+
+    if (field.id === 'mata_anggaran') {
+      return (
+        <div className="space-y-2">
+          <SearchableSelect
+            options={budgetOptions}
+            value={value.toString()}
+            onChange={(val) => handleFieldChange(field.id, val)}
+            placeholder={isLoadingBudget ? "Memuat Monitoring Anggaran..." : "Pilih dari Monitoring Anggaran (POK)..."}
+            emptyOption="-- Pilih Mata Anggaran dari Monitoring Anggaran --"
+          />
+          <input
+            type="text"
+            value={value}
+            onChange={(e) => handleFieldChange(field.id, e.target.value)}
+            placeholder="Atau ketik/edit kode Mata Anggaran (MAK) manual..."
+            maxLength={field.maxLength}
+            readOnly={field.readOnly}
+            className={baseInputClass}
+          />
+        </div>
+      );
+    }
 
     switch (field.type) {
       case 'user-atasan-select':
@@ -923,6 +1004,107 @@ export const SuratOtomatisModal: React.FC<SuratOtomatisModalProps> = ({ isOpen, 
                           ))}
                         </div>
                       )}
+                    </div>
+                  </div>
+                </div>
+              ) : selectedTemplate.id.startsWith('simperjadin') ? (
+                /* CUSTOM FORM FOR SIMPERJADIN */
+                <div className="space-y-8">
+                  {/* Option to download all 3 SIMPERJADIN documents */}
+                  <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-lg flex items-center justify-between">
+                    <div>
+                      <h4 className="font-semibold text-indigo-900 text-sm">
+                        ✨ Fitur Paket Dokumen SIMPERJADIN
+                      </h4>
+                      <p className="text-xs text-indigo-700 mt-0.5">
+                        Anda dapat mengunduh 3 file Word sekaligus (Kwitansi, Rincian Biaya, & Pengeluaran Riil) dengan Kop & Logo Resmi KPPPA.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        setIsGenerating(true);
+                        setErrors([]);
+                        setSuccessMessage('');
+                        try {
+                          await SuratOtomatisService.generateAllSimperjadin(formData);
+                          setSuccessMessage('Ketiga dokumen SIMPERJADIN (Word) berhasil diunduh!');
+                          setTimeout(() => setSuccessMessage(''), 5000);
+                        } catch (err: any) {
+                          setErrors([err.message || 'Gagal mengunduh dokumen SIMPERJADIN']);
+                        } finally {
+                          setIsGenerating(false);
+                        }
+                      }}
+                      disabled={isGenerating}
+                      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs rounded-lg transition-colors flex items-center gap-2 shadow-sm"
+                    >
+                      <Download className="w-4 h-4" />
+                      Unduh 3 Dokumen (Batch)
+                    </button>
+                  </div>
+
+                  {/* Section 1: Informasi Dokumen & SPD */}
+                  <div>
+                    <h4 className="text-md font-semibold text-gray-800 mb-4 pb-2 border-b-2 border-blue-200 flex items-center gap-2">
+                      📄 1. Pilih Dokumen & Informasi Surat Perjalanan Dinas (SPD)
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {selectedTemplate.fields
+                        .filter(f => ['jenis_dokumen_simperjadin', 'format_output', 'nomor_spd', 'tanggal_spd', 'maksud_perjalanan_dinas', 'tanggal_mulai_perjadin', 'tanggal_selesai_perjadin', 'periode_perjadin', 'mata_anggaran', 'tanggal_dibayarkan', 'pembukuan_no'].includes(f.id))
+                        .map(field => (
+                          <div key={field.id} className={field.type === 'textarea' || field.id === 'jenis_dokumen_simperjadin' ? 'md:col-span-2' : ''}>
+                            <label className="block text-sm font-medium text-gray-700 mb-2 font-semibold">
+                              {field.label}
+                              {field.required && !field.readOnly && <span className="text-red-500 ml-1">*</span>}
+                            </label>
+                            {renderField(field)}
+                            {field.helpText && <p className="mt-1 text-xs text-gray-500">{field.helpText}</p>}
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+
+                  {/* Section 2: Pegawai & Pejabat Penandatangan */}
+                  <div>
+                    <h4 className="text-md font-semibold text-gray-800 mb-4 pb-2 border-b-2 border-emerald-200 flex items-center gap-2">
+                      👥 2. Pegawai & Pejabat Penandatangan (Pegawai, Bendahara, PPK)
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {selectedTemplate.fields
+                        .filter(f => ['pegawai_user_id', 'nama_pegawai', 'nip_pegawai', 'bendahara_user_id', 'nama_bendahara', 'nip_bendahara', 'ppk_user_id', 'nama_ppk', 'nip_ppk'].includes(f.id))
+                        .map(field => (
+                          <div key={field.id}>
+                            <label className="block text-sm font-medium text-gray-700 mb-2 font-semibold">
+                              {field.label}
+                              {field.required && !field.readOnly && <span className="text-red-500 ml-1">*</span>}
+                              {field.readOnly && <span className="text-gray-400 ml-1 text-xs">(otomatis)</span>}
+                            </label>
+                            {renderField(field)}
+                            {field.helpText && <p className="mt-1 text-xs text-gray-500">{field.helpText}</p>}
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+
+                  {/* Section 3: Rincian Biaya & Transport */}
+                  <div>
+                    <h4 className="text-md font-semibold text-gray-800 mb-4 pb-2 border-b-2 border-amber-200 flex items-center gap-2">
+                      💰 3. Perincian Biaya Perjalanan Dinas & Transport Riil
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {selectedTemplate.fields
+                        .filter(f => !['jenis_dokumen_simperjadin', 'format_output', 'nomor_spd', 'tanggal_spd', 'maksud_perjalanan_dinas', 'tanggal_mulai_perjadin', 'tanggal_selesai_perjadin', 'periode_perjadin', 'mata_anggaran', 'tanggal_dibayarkan', 'pembukuan_no', 'pegawai_user_id', 'nama_pegawai', 'nip_pegawai', 'bendahara_user_id', 'nama_bendahara', 'nip_bendahara', 'ppk_user_id', 'nama_ppk', 'nip_ppk'].includes(f.id))
+                        .map(field => (
+                          <div key={field.id}>
+                            <label className="block text-sm font-medium text-gray-700 mb-2 font-semibold">
+                              {field.label}
+                              {field.required && !field.readOnly && <span className="text-red-500 ml-1">*</span>}
+                            </label>
+                            {renderField(field)}
+                            {field.helpText && <p className="mt-1 text-xs text-gray-500">{field.helpText}</p>}
+                          </div>
+                        ))}
                     </div>
                   </div>
                 </div>
