@@ -80,6 +80,43 @@ export const WfaLaporanPage: React.FC<WfaLaporanPageProps> = ({ currentUser, sho
   const [statusFilter, setStatusFilter] = useState<string>('Semua');
   const [submissionStatusFilter, setSubmissionStatusFilter] = useState<string>('Semua');
   const [unitProfiles, setUnitProfiles] = useState<User[]>([]);
+  const [timeLeft, setTimeLeft] = useState<string>('');
+
+  useEffect(() => {
+    const calculateTimeLeft = () => {
+      const now = new Date();
+      const day = now.getDay();
+      const daysToNextMon = day === 0 ? 1 : 8 - day;
+      const nextMon = new Date(now);
+      nextMon.setDate(now.getDate() + daysToNextMon);
+      nextMon.setHours(9, 0, 0, 0);
+
+      const diff = nextMon.getTime() - now.getTime();
+      if (diff <= 0) {
+        return 'Waktu habis';
+      }
+
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+      const minutes = Math.floor((diff / 1000 / 60) % 60);
+      const seconds = Math.floor((diff / 1000) % 60);
+
+      const parts = [];
+      if (days > 0) parts.push(`${days} hari`);
+      if (hours > 0 || days > 0) parts.push(`${hours} jam`);
+      parts.push(`${minutes} menit`);
+      parts.push(`${seconds} detik`);
+
+      return parts.join(' ');
+    };
+
+    setTimeLeft(calculateTimeLeft());
+    const interval = setInterval(() => {
+      setTimeLeft(calculateTimeLeft());
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   // Modals
   const [isFormOpen, setIsFormOpen] = useState<boolean>(false);
@@ -411,13 +448,34 @@ export const WfaLaporanPage: React.FC<WfaLaporanPageProps> = ({ currentUser, sho
 
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex flex-wrap items-center gap-2 mb-1">
               <span className="px-2.5 py-0.5 text-[11px] font-bold bg-white/10 text-gov-200 border border-white/20 rounded-full backdrop-blur-md">
                 Informasi Lainnya
               </span>
               <span className="px-2.5 py-0.5 text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-full">
                 Role: {currentUser.role}
               </span>
+              <span className="px-2.5 py-0.5 text-[11px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-full flex items-center gap-1">
+                <Clock size={12} />
+                Batas Input: {(() => {
+                  const now = new Date();
+                  const day = now.getDay();
+                  const daysToNextMon = day === 0 ? 1 : 8 - day;
+                  const nextMon = new Date(now);
+                  nextMon.setDate(now.getDate() + daysToNextMon);
+                  const options: Intl.DateTimeFormatOptions = {
+                    weekday: 'long',
+                    day: 'numeric',
+                    month: 'long',
+                  };
+                  return `${nextMon.toLocaleDateString('id-ID', options)} 09:00 WIB`;
+                })()}
+              </span>
+              {timeLeft && (
+                <span className="px-2.5 py-0.5 text-[11px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30 rounded-full flex items-center gap-1 animate-pulse">
+                  Sisa Waktu: {timeLeft}
+                </span>
+              )}
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Laporan Work From Anywhere (WFA)</h1>
             <p className="text-sm text-gov-100/90 mt-1 max-w-2xl font-medium">
