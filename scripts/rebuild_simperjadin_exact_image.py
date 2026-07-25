@@ -567,7 +567,7 @@ def build_kwitansi():
     set_doc_default_font_arial(doc)
     clear_body(doc)
     s = doc.sections[0]
-    s.top_margin = Inches(0.75)
+    s.top_margin = Inches(0.7)
     s.bottom_margin = Inches(0.5)
     s.left_margin = Inches(0.5)
     s.right_margin = Inches(0.5)
@@ -583,7 +583,7 @@ def build_rincian():
     set_doc_default_font_arial(doc)
     clear_body(doc)
     s = doc.sections[0]
-    s.top_margin = Inches(0.75)
+    s.top_margin = Inches(0.7)
     s.bottom_margin = Inches(0.5)
     s.left_margin = Inches(0.5)
     s.right_margin = Inches(0.5)
@@ -599,7 +599,7 @@ def build_riil():
     set_doc_default_font_arial(doc)
     clear_body(doc)
     s = doc.sections[0]
-    s.top_margin = Inches(0.75)
+    s.top_margin = Inches(0.7)
     s.bottom_margin = Inches(0.5)
     s.left_margin = Inches(0.5)
     s.right_margin = Inches(0.5)
@@ -617,7 +617,7 @@ def build_lengkap():
 
     # Section 1: Kwitansi
     s1 = doc.sections[0]
-    s1.top_margin = Inches(0.75)
+    s1.top_margin = Inches(0.7)
     s1.bottom_margin = Inches(0.5)
     s1.left_margin = Inches(0.5)
     s1.right_margin = Inches(0.5)
@@ -627,7 +627,7 @@ def build_lengkap():
 
     # Section 2: Rincian
     s2 = doc.add_section(WD_SECTION.NEW_PAGE)
-    s2.top_margin = Inches(0.75)
+    s2.top_margin = Inches(0.7)
     s2.bottom_margin = Inches(0.5)
     s2.left_margin = Inches(0.5)
     s2.right_margin = Inches(0.5)
@@ -638,7 +638,7 @@ def build_lengkap():
 
     # Section 3: Riil
     s3 = doc.add_section(WD_SECTION.NEW_PAGE)
-    s3.top_margin = Inches(0.75)
+    s3.top_margin = Inches(0.7)
     s3.bottom_margin = Inches(0.5)
     s3.left_margin = Inches(0.5)
     s3.right_margin = Inches(0.5)
