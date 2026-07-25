@@ -147,7 +147,8 @@ export class ModuleVisibilityService {
         'Inventori Data',
         'Inventori BMN',
         'Pelayanan Zoom',
-        'Penilaian Arsip'
+        'Penilaian Arsip',
+        'Laporan WFA'
       ];
 
       // Filter visible modules
@@ -172,7 +173,9 @@ export class ModuleVisibilityService {
         'Surat & Kegiatan',
         'Realisasi Anggaran',
         'Inventori Data',
-        'Inventori BMN'
+        'Inventori BMN',
+        'Penilaian Arsip',
+        'Laporan WFA'
       ];
     }
   }

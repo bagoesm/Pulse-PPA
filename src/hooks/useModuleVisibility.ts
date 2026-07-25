@@ -27,6 +27,7 @@ export function useModuleVisibility(currentUser: User | null) {
         'Inventori BMN',
         'Pelayanan Zoom',
         'Penilaian Arsip',
+        'Laporan WFA',
         'Manajemen Modul'
       ]);
       setLoading(false);
@@ -49,7 +50,8 @@ export function useModuleVisibility(currentUser: User | null) {
         'Realisasi Anggaran',
         'Inventori Data',
         'Inventori BMN',
-        'Penilaian Arsip'
+        'Penilaian Arsip',
+        'Laporan WFA'
       ]);
     } finally {
       setLoading(false);

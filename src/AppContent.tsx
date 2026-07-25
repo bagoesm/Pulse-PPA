@@ -69,6 +69,7 @@ const AnalitikPage = lazy(() => import('./components/AnalitikPage'));
 const InventoriBMNPage = lazy(() => import('./components/InventoriBMNPage'));
 const BudgetRealizationPage = lazy(() => import('./components/BudgetRealization/BudgetRealizationPage'));
 const PenilaianArsipPage = lazy(() => import('./components/PenilaianArsipPage'));
+const WfaLaporanPage = lazy(() => import('./components/WfaLaporanPage').then(module => ({ default: module.WfaLaporanPage })));
 const PublicDeviceForm = lazy(() => import('./components/PublicDeviceForm'));
 const ChatPage = lazy(() => import('./components/ChatPage'));
 const SuratDisposisiDashboard = lazy(() => import('./components/SuratDisposisiDashboard'));
@@ -888,7 +889,7 @@ const AppContent: React.FC = () => {
         )}
 
         {/* Top Header / Filter Bar - HIDDEN for special pages */}
-        {activeTab !== 'Dashboard' && activeTab !== 'Dashboard Statistik' && activeTab !== 'Analitik' && activeTab !== 'Project' && activeTab !== 'Master Data' && activeTab !== 'Saran Masukan' && activeTab !== 'Pengumuman' && activeTab !== 'Inventori Data' && activeTab !== 'Inventori BMN' && activeTab !== 'Jadwal Kegiatan' && activeTab !== 'Daftar Surat' && activeTab !== 'Activity Log' && activeTab !== 'Daftar Disposisi' && activeTab !== 'Manajemen Visibility' && activeTab !== 'Riwayat Perubahan' && activeTab !== 'Pelayanan Zoom' && activeTab !== 'Manajemen Modul' && activeTab !== 'Penilaian Arsip' && activeTab !== 'Diskusi & Chat' && !['Dashboard Realisasi', 'Monitoring Anggaran', 'Daftar Transaksi', 'Laporan Anggaran', 'Master Anggaran'].includes(activeTab) && (
+        {activeTab !== 'Dashboard' && activeTab !== 'Dashboard Statistik' && activeTab !== 'Analitik' && activeTab !== 'Project' && activeTab !== 'Master Data' && activeTab !== 'Saran Masukan' && activeTab !== 'Pengumuman' && activeTab !== 'Inventori Data' && activeTab !== 'Inventori BMN' && activeTab !== 'Jadwal Kegiatan' && activeTab !== 'Daftar Surat' && activeTab !== 'Activity Log' && activeTab !== 'Daftar Disposisi' && activeTab !== 'Manajemen Visibility' && activeTab !== 'Riwayat Perubahan' && activeTab !== 'Pelayanan Zoom' && activeTab !== 'Manajemen Modul' && activeTab !== 'Penilaian Arsip' && activeTab !== 'Laporan WFA' && activeTab !== 'Diskusi & Chat' && !['Dashboard Realisasi', 'Monitoring Anggaran', 'Daftar Transaksi', 'Laporan Anggaran', 'Master Anggaran'].includes(activeTab) && (
           <header className="bg-white border-b border-slate-200 px-3 sm:px-6 py-3 sm:py-4 z-20 relative">
             <div className="flex flex-col gap-3 sm:gap-4 mb-3 sm:mb-4">
               {/* Title Section */}
@@ -1295,6 +1296,10 @@ const AppContent: React.FC = () => {
         ) : activeTab === 'Penilaian Arsip' ? (
           <Suspense fallback={<PageLoader />}>
             <PenilaianArsipPage />
+          </Suspense>
+        ) : activeTab === 'Laporan WFA' ? (
+          <Suspense fallback={<PageLoader />}>
+            <WfaLaporanPage currentUser={currentUser} showNotification={showNotification} />
           </Suspense>
         ) : activeTab === 'Manajemen Modul' ? (
           <Suspense fallback={<PageLoader />}>

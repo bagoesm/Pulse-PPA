@@ -396,6 +396,7 @@ export const SIDEBAR_ITEMS = [
     name: 'Informasi Lainnya',
     icon: 'MoreHorizontal',
     submenu: [
+      { name: 'Laporan WFA', icon: 'ClipboardCheck' },
       { name: 'Inventori BMN', icon: 'Package' },
       { name: 'Inventori Data', icon: 'Database' },
       { name: 'Pelayanan Zoom', icon: 'Video' },
@@ -1070,6 +1071,31 @@ export interface ChatMessage {
   senderAvatar?: string;
 }
 
+export interface WfaLaporan {
+  id: string;
+  userId: string;
+  nama: string;
+  nip?: string;
+  unitKerja?: string;
+  jabatan?: string;
+  rencanaHasilKinerja: string;
+  rencanaKinerja: string;
+  outputKinerja: string;
+  linkDataDukung?: string;
+  statusPelaksanaan: string; // e.g. 'Selesai', 'Dalam Proses', 'Belum Selesai'
+  tanggalWfa: string; // YYYY-MM-DD
+  penilaian?: string | null; // e.g. '👍'
+  evaluatedBy?: string | null;
+  evaluatedAt?: string | null;
+  createdAt: string;
+  updatedAt?: string;
+}
 
-
-
+export interface WfaSchedule {
+  id: string;
+  tanggal: string; // YYYY-MM-DD
+  isWfa: boolean; // true = active WFA, false = libur/disabled
+  keterangan?: string;
+  createdBy?: string;
+  createdAt: string;
+}
