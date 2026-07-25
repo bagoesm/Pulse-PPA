@@ -552,10 +552,10 @@ export const WfaFormModal: React.FC<WfaFormModalProps> = ({
                 Link Data Dukung
               </label>
               <input
-                type="url"
+                type="text"
                 value={linkDataDukung}
                 onChange={(e) => setLinkDataDukung(e.target.value)}
-                placeholder="https://drive.google.com/..."
+                placeholder="drive.google.com/..."
                 className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-gov-500/20 focus:border-gov-600 transition-all text-slate-800"
               />
             </div>

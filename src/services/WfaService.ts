@@ -115,16 +115,9 @@ export class WfaService {
         // Staff can ONLY view their own reports
         query = query.eq('user_id', user.id);
       } else if (user.role === 'Atasan') {
-        // Atasan can view reports of their unit kerja / divisi
-        const targetUnit = unitKerjaFilter || user.divisi;
-        if (targetUnit) {
-          query = query.eq('unit_kerja', targetUnit);
-        }
+        // Atasan can view reports of their unit kerja / divisi, filtered locally
       } else if (user.role === 'Super Admin') {
-        // Super Admin can see all, or filter by specific unit if requested
-        if (unitKerjaFilter && unitKerjaFilter !== 'Semua') {
-          query = query.eq('unit_kerja', unitKerjaFilter);
-        }
+        // Super Admin can see all, filtered locally
       }
 
       if (startDate) {
@@ -140,7 +133,21 @@ export class WfaService {
         throw error;
       }
 
-      return (data || []).map((row: any) => this.mapFromDB(row));
+      const mapped = (data || []).map((row: any) => this.mapFromDB(row));
+
+      // Local unit normalization filtering to handle "dan" / "Dan" casing mismatches
+      if (user.role !== 'Staff') {
+        const targetUnit = unitKerjaFilter || user.divisi;
+        if (targetUnit && targetUnit !== 'Semua') {
+          const filterNorm = targetUnit.toLowerCase().replace(/\s+dan\s+/g, ' dan ').trim();
+          return mapped.filter((item) => {
+            const itemUnitNorm = (item.unitKerja || '').toLowerCase().replace(/\s+dan\s+/g, ' dan ').trim();
+            return itemUnitNorm === filterNorm;
+          });
+        }
+      }
+
+      return mapped;
     } catch (error) {
       console.warn('WFA Service fallback to local storage for getWfaLaporan:', error);
       let local = this.getLocalReports();
@@ -460,6 +467,39 @@ export class WfaService {
     const futureDates = sorted.filter((item) => item.date >= today.toISOString().slice(0, 10));
     return futureDates.length > 0 ? futureDates.slice(-1) : sorted.slice(0, 1);
   }
+
+  /**
+   * Fetch registered employee profiles for a given unit (or all if unitKerja is 'Semua' or undefined)
+   */
+  async getUnitProfiles(unitKerjaFilter?: string): Promise<User[]> {
+    try {
+      let query = this.supabase.from('profiles').select('*').order('name', { ascending: true });
+      const { data, error } = await query;
+      if (error) throw error;
+      const mapped = (data || []).map((row: any) => ({
+        id: row.id,
+        name: row.name,
+        email: row.email || '',
+        role: row.role || 'Staff',
+        divisi: row.divisi || '',
+        jabatan: row.jabatan || 'Pegawai',
+        nip: row.nip || '',
+      }));
+
+      if (unitKerjaFilter && unitKerjaFilter !== 'Semua') {
+        const filterNorm = unitKerjaFilter.toLowerCase().replace(/\s+dan\s+/g, ' dan ').trim();
+        return mapped.filter((p) => {
+          const divNorm = (p.divisi || '').toLowerCase().replace(/\s+dan\s+/g, ' dan ').trim();
+          return divNorm === filterNorm;
+        });
+      }
+      return mapped;
+    } catch (error) {
+      console.warn('WFA Service fallback for getUnitProfiles:', error);
+      return [];
+    }
+  }
 }
 
 export const wfaService = new WfaService();
+
