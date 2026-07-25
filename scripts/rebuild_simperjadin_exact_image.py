@@ -567,11 +567,11 @@ def build_kwitansi():
     set_doc_default_font_arial(doc)
     clear_body(doc)
     s = doc.sections[0]
-    s.top_margin = Inches(0.25)
-    s.bottom_margin = Inches(0.4)
+    s.top_margin = Inches(0.75)
+    s.bottom_margin = Inches(0.5)
     s.left_margin = Inches(0.5)
     s.right_margin = Inches(0.5)
-    s.header_distance = Inches(0.1)
+    s.header_distance = Inches(0.4)
 
     build_kop_header_table(s.header, 'kwitansi')
     add_kwitansi_body(doc)
@@ -583,11 +583,11 @@ def build_rincian():
     set_doc_default_font_arial(doc)
     clear_body(doc)
     s = doc.sections[0]
-    s.top_margin = Inches(0.25)
-    s.bottom_margin = Inches(0.4)
+    s.top_margin = Inches(0.75)
+    s.bottom_margin = Inches(0.5)
     s.left_margin = Inches(0.5)
     s.right_margin = Inches(0.5)
-    s.header_distance = Inches(0.1)
+    s.header_distance = Inches(0.4)
 
     build_kop_header_table(s.header, 'rincian')
     add_rincian_body(doc)
@@ -599,11 +599,11 @@ def build_riil():
     set_doc_default_font_arial(doc)
     clear_body(doc)
     s = doc.sections[0]
-    s.top_margin = Inches(0.25)
-    s.bottom_margin = Inches(0.4)
+    s.top_margin = Inches(0.75)
+    s.bottom_margin = Inches(0.5)
     s.left_margin = Inches(0.5)
     s.right_margin = Inches(0.5)
-    s.header_distance = Inches(0.1)
+    s.header_distance = Inches(0.4)
 
     build_kop_header_table(s.header, 'riil')
     add_riil_body(doc)
@@ -617,32 +617,32 @@ def build_lengkap():
 
     # Section 1: Kwitansi
     s1 = doc.sections[0]
-    s1.top_margin = Inches(0.25)
-    s1.bottom_margin = Inches(0.4)
+    s1.top_margin = Inches(0.75)
+    s1.bottom_margin = Inches(0.5)
     s1.left_margin = Inches(0.5)
     s1.right_margin = Inches(0.5)
-    s1.header_distance = Inches(0.1)
+    s1.header_distance = Inches(0.4)
     build_kop_header_table(s1.header, 'kwitansi')
     add_kwitansi_body(doc)
 
     # Section 2: Rincian
     s2 = doc.add_section(WD_SECTION.NEW_PAGE)
-    s2.top_margin = Inches(0.25)
-    s2.bottom_margin = Inches(0.4)
+    s2.top_margin = Inches(0.75)
+    s2.bottom_margin = Inches(0.5)
     s2.left_margin = Inches(0.5)
     s2.right_margin = Inches(0.5)
-    s2.header_distance = Inches(0.1)
+    s2.header_distance = Inches(0.4)
     s2.header.is_linked_to_previous = False
     build_kop_header_table(s2.header, 'rincian')
     add_rincian_body(doc)
 
     # Section 3: Riil
     s3 = doc.add_section(WD_SECTION.NEW_PAGE)
-    s3.top_margin = Inches(0.25)
-    s3.bottom_margin = Inches(0.4)
+    s3.top_margin = Inches(0.75)
+    s3.bottom_margin = Inches(0.5)
     s3.left_margin = Inches(0.5)
     s3.right_margin = Inches(0.5)
-    s3.header_distance = Inches(0.1)
+    s3.header_distance = Inches(0.4)
     s3.header.is_linked_to_previous = False
     build_kop_header_table(s3.header, 'riil')
     add_riil_body(doc)
