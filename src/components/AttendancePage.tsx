@@ -924,8 +924,8 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
         const earRight = getEAR(rightEye);
         const avgEAR = (earLeft + earRight) / 2.0;
 
-        // If EAR falls below 0.23, count as closed eye (more tolerant threshold)
-        if (avgEAR < 0.23) {
+        // If EAR falls below 0.25, count as closed eye (more tolerant threshold for mobile cameras)
+        if (avgEAR < 0.25) {
           successCount++;
           const progress = Math.min(100, Math.round((successCount / 2) * 100));
           setLivenessProgress(progress);
@@ -964,15 +964,15 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
       }
 
       frameCount++;
-      // If 15 seconds pass with no success, fail the check
-      if (frameCount > 75) {
+      // If 15 seconds pass with no success, fail the check (150 frames at 100ms)
+      if (frameCount > 150) {
         clearInterval(detectionIntervalRef.current);
         setLivenessStatus('failed');
         setVerificationFeedback('Waktu liveness habis. Mohon ulangi gerakan.');
         stopCamera();
       }
 
-    }, 200);
+    }, 100);
   };
 
   const captureAndRegisterFace = async (detection: any) => {
@@ -1116,8 +1116,8 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
         matchAttempts++;
         setVerificationFeedback(`Mencari kemiripan... (${confidence}%)`);
         
-        // Timeout after 15 seconds of mismatch
-        if (matchAttempts > 75) {
+        // Timeout after 15 seconds of mismatch (150 frames at 100ms)
+        if (matchAttempts > 150) {
           clearInterval(detectionIntervalRef.current);
           setLivenessStatus('failed');
           setVerificationFeedback('Pencocokan wajah gagal. Wajah tidak sesuai dengan foto terdaftar.');
@@ -1138,7 +1138,8 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
         const earRight = getEAR(rightEye);
         const avgEAR = (earLeft + earRight) / 2.0;
 
-        if (avgEAR < 0.23) {
+        // If EAR falls below 0.25, count as closed eye (more tolerant threshold for mobile cameras)
+        if (avgEAR < 0.25) {
           successCount++;
           const progress = Math.min(100, Math.round((successCount / 2) * 100));
           setLivenessProgress(progress);
@@ -1183,15 +1184,15 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
       }
 
       frameCount++;
-      // Timeout after 15 seconds of fail liveness
-      if (frameCount > 75) {
+      // Timeout after 15 seconds of fail liveness (150 frames at 100ms)
+      if (frameCount > 150) {
         clearInterval(detectionIntervalRef.current);
         setLivenessStatus('failed');
         setVerificationFeedback('Waktu liveness habis. Mohon ulangi gerakan.');
         stopCamera();
       }
 
-    }, 200);
+    }, 100);
   };
 
   const saveAttendanceRecord = async (type: 'in' | 'out', confidence: number) => {
