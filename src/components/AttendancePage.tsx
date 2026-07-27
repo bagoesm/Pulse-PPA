@@ -1049,9 +1049,22 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
     setIsMatchingFace(true);
     await startCamera();
 
-    setLivenessStatus('verifying');
-    setVerificationFeedback('Mencocokkan wajah...');
+    // Begin liveness detection loop + face matching
+    setLivenessStatus('prompting');
+    setLivenessProgress(0);
+    
+    // Pick action
+    const action = Math.random() > 0.5 ? 'blink' : 'smile';
+    setLivenessAction(action);
+    setLivenessPrompt(
+      action === 'blink' 
+        ? 'Silakan BERKEDIP beberapa kali untuk memverifikasi wajah asli Anda.' 
+        : 'Silakan TERSENYUM lebar untuk memverifikasi wajah asli Anda.'
+    );
+    setVerificationFeedback('Mencocokkan wajah dan mendeteksi gerakan...');
 
+    let frameCount = 0;
+    let successCount = 0;
     let matchAttempts = 0;
 
     detectionIntervalRef.current = setInterval(async () => {
@@ -1066,7 +1079,7 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
       const ctx = canvasRef.current.getContext('2d');
       if (!ctx) return;
 
-      // Detect face and compute descriptor using SsdMobilenetv1 for accuracy
+      // Detect face, landmarks, and descriptor
       const detection = await faceapi
         .detectSingleFace(videoRef.current, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
         .withFaceLandmarks()
@@ -1076,42 +1089,106 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
 
       if (!detection) {
         setVerificationFeedback('Sejajarkan wajah Anda dengan kamera...');
+        setLivenessProgress(0);
+        successCount = 0;
         return;
       }
 
       // Draw bounds
+      const box = detection.detection.box;
       ctx.strokeStyle = '#2563eb';
       ctx.lineWidth = 3;
-      ctx.strokeRect(detection.detection.box.x, detection.detection.box.y, detection.detection.box.width, detection.detection.box.height);
+      ctx.strokeRect(box.x, box.y, box.width, box.height);
 
       // Match face embedding
       const currentDescriptor = detection.descriptor;
       const registeredDescriptor = new Float32Array(registeredFace.embedding);
 
-      // Compute Euclidean Distance (threshold: < 0.58 is a match for optimal balance)
+      // Compute Euclidean Distance
       const distance = faceapi.euclideanDistance(currentDescriptor, registeredDescriptor);
       const confidence = Math.max(0, Math.min(100, Math.round((1 - distance) * 100)));
       setMatchScore(confidence);
 
-      if (distance < 0.58) {
-        // MATCH FOUND!
-        clearInterval(detectionIntervalRef.current);
-        setLivenessStatus('success');
-        setVerificationFeedback(`Cocok! Tingkat kemiripan: ${confidence}%`);
-        stopCamera();
-        setIsMatchingFace(false);
-        saveAttendanceRecord(type, confidence);
-      } else {
+      if (distance >= 0.58) {
+        // Face doesn't match! Reset liveness progress
+        successCount = 0;
+        setLivenessProgress(0);
         matchAttempts++;
         setVerificationFeedback(`Mencari kemiripan... (${confidence}%)`);
         
-        // Timeout after 8 seconds of matching
-        if (matchAttempts > 40) {
+        // Timeout after 15 seconds of mismatch
+        if (matchAttempts > 75) {
           clearInterval(detectionIntervalRef.current);
           setLivenessStatus('failed');
           setVerificationFeedback('Pencocokan wajah gagal. Wajah tidak sesuai dengan foto terdaftar.');
           stopCamera();
         }
+        return;
+      }
+
+      // Wajah Cocok! Lanjutkan Liveness Check
+      setVerificationFeedback('Kemiripan terverifikasi. Melakukan Liveness check...');
+      
+      const landmarks = detection.landmarks;
+
+      if (action === 'blink') {
+        const leftEye = landmarks.getLeftEye();
+        const rightEye = landmarks.getRightEye();
+        const earLeft = getEAR(leftEye);
+        const earRight = getEAR(rightEye);
+        const avgEAR = (earLeft + earRight) / 2.0;
+
+        if (avgEAR < 0.23) {
+          successCount++;
+          const progress = Math.min(100, Math.round((successCount / 2) * 100));
+          setLivenessProgress(progress);
+          
+          if (successCount >= 2) {
+            // BOTH MATCHED & LIVENESS VERIFIED!
+            clearInterval(detectionIntervalRef.current);
+            setLivenessStatus('success');
+            setVerificationFeedback(`Absen Berhasil! Kemiripan: ${confidence}%`);
+            stopCamera();
+            setIsMatchingFace(false);
+            saveAttendanceRecord(type, confidence);
+          }
+        }
+      } else if (action === 'smile') {
+        const mouth = landmarks.getMouth();
+        const cornerLeft = mouth[0];
+        const cornerRight = mouth[6];
+        const mouthWidth = Math.sqrt(Math.pow(cornerRight.x - cornerLeft.x, 2) + Math.pow(cornerRight.y - cornerLeft.y, 2));
+        
+        const jawLeft = landmarks.getJawOutline()[0];
+        const jawRight = landmarks.getJawOutline()[16];
+        const jawWidth = Math.sqrt(Math.pow(jawRight.x - jawLeft.x, 2) + Math.pow(jawRight.y - jawLeft.y, 2));
+
+        const smileRatio = mouthWidth / jawWidth;
+
+        if (smileRatio > 0.42) {
+          successCount++;
+          const progress = Math.min(100, Math.round((successCount / 3) * 100));
+          setLivenessProgress(progress);
+          
+          if (successCount >= 3) {
+            // BOTH MATCHED & LIVENESS VERIFIED!
+            clearInterval(detectionIntervalRef.current);
+            setLivenessStatus('success');
+            setVerificationFeedback(`Absen Berhasil! Kemiripan: ${confidence}%`);
+            stopCamera();
+            setIsMatchingFace(false);
+            saveAttendanceRecord(type, confidence);
+          }
+        }
+      }
+
+      frameCount++;
+      // Timeout after 15 seconds of fail liveness
+      if (frameCount > 75) {
+        clearInterval(detectionIntervalRef.current);
+        setLivenessStatus('failed');
+        setVerificationFeedback('Waktu liveness habis. Mohon ulangi gerakan.');
+        stopCamera();
       }
 
     }, 200);
