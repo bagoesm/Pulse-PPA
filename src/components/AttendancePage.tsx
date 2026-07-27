@@ -1401,14 +1401,13 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
 
   // Designate Editor
   const handleAddEditor = async () => {
-    if (!newEditorUser || !newEditorDivisi) {
-      showNotification('Peringatan', 'Pilih pegawai dan unit kerja.', 'warning');
+    if (!newEditorUser) {
+      showNotification('Peringatan', 'Silakan pilih pegawai terlebih dahulu.', 'warning');
       return;
     }
     try {
-      await attendanceService.saveAttendanceEditor(newEditorUser, newEditorDivisi);
+      await attendanceService.saveAttendanceEditor(newEditorUser, 'Global');
       setNewEditorUser('');
-      setNewEditorDivisi('');
       showNotification('Sukses', 'Pegawai berhasil ditunjuk sebagai Editor Absensi.', 'success');
       loadAdminData();
     } catch (err) {
@@ -1419,7 +1418,7 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
   const handleRemoveEditor = async (userId: string, divisi: string, name: string) => {
     showConfirm(
       'Cabut Akses Editor',
-      `Hapus hak akses editor absensi divisi "${divisi}" untuk ${name}?`,
+      `Hapus hak akses editor absensi untuk ${name}?`,
       async () => {
         try {
           await attendanceService.removeAttendanceEditor(userId, divisi);
@@ -2516,31 +2515,18 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
           <div className="space-y-6">
             
             {/* Assign Form */}
-            <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm max-w-xl space-y-4">
-              <h3 className="font-bold text-sm text-slate-850">Tunjuk Editor Absensi Divisi Baru</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Pilih Pegawai</label>
-                  <SearchableSelect
-                    options={allProfiles.map((p) => ({ value: p.id, label: `${p.name} (${p.divisi || 'Tanpa Divisi'})` }))}
-                    value={newEditorUser}
-                    onChange={(val) => setNewEditorUser(val)}
-                    placeholder="Pilih Pegawai"
-                    emptyOption="-- Pilih Pegawai --"
-                    className="w-full mt-1 text-xs font-semibold text-slate-700 shadow-sm"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Pilih Divisi Tanggung Jawab</label>
-                  <SearchableSelect
-                    options={divisions.filter(d => d !== 'Semua').map((d) => ({ value: d, label: d }))}
-                    value={newEditorDivisi}
-                    onChange={(val) => setNewEditorDivisi(val)}
-                    placeholder="Pilih Divisi"
-                    emptyOption="-- Pilih Divisi --"
-                    className="w-full mt-1 text-xs font-semibold text-slate-700 shadow-sm"
-                  />
-                </div>
+            <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm max-w-md space-y-4">
+              <h3 className="font-bold text-sm text-slate-855">Tunjuk Editor Absensi Baru</h3>
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Pilih Pegawai</label>
+                <SearchableSelect
+                  options={allProfiles.map((p) => ({ value: p.id, label: `${p.name} (${p.divisi || 'Tanpa Divisi'})` }))}
+                  value={newEditorUser}
+                  onChange={(val) => setNewEditorUser(val)}
+                  placeholder="Pilih Pegawai"
+                  emptyOption="-- Pilih Pegawai --"
+                  className="w-full mt-1 text-xs font-semibold text-slate-700 shadow-sm"
+                />
               </div>
               <button
                 onClick={handleAddEditor}
@@ -2560,7 +2546,7 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-150 text-slate-500 font-bold uppercase tracking-wider">
                       <th className="px-6 py-3">Nama Pegawai</th>
-                      <th className="px-6 py-3">Divisi Penugasan</th>
+                      <th className="px-6 py-3">Akses Hak Editor</th>
                       <th className="px-6 py-3">Tanggal Ditunjuk</th>
                       <th className="px-6 py-3 text-center">Aksi</th>
                     </tr>
@@ -2575,8 +2561,10 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
                         const profile = allProfiles.find(p => p.id === e.userId);
                         return (
                           <tr key={e.id} className="hover:bg-slate-50/50">
-                            <td className="px-6 py-3.5 font-bold text-slate-850">{profile?.name || 'Loading...'}</td>
-                            <td className="px-6 py-3.5 font-semibold text-gov-600">{e.divisi}</td>
+                            <td className="px-6 py-3.5 font-bold text-slate-855">{profile?.name || 'Loading...'}</td>
+                            <td className="px-6 py-3.5">
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-600">Akses Global (Semua Divisi)</span>
+                            </td>
                             <td className="px-6 py-3.5">{new Date(e.createdAt).toLocaleDateString('id-ID')}</td>
                             <td className="px-6 py-3.5 text-center">
                               <button
