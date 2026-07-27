@@ -397,6 +397,7 @@ export const SIDEBAR_ITEMS = [
     icon: 'MoreHorizontal',
     submenu: [
       { name: 'Laporan WFA', icon: 'ClipboardCheck' },
+      { name: 'Absensi Wajah', icon: 'Camera' },
       { name: 'Inventori BMN', icon: 'Package' },
       { name: 'Inventori Data', icon: 'Database' },
       { name: 'Pelayanan Zoom', icon: 'Video' },
@@ -1099,3 +1100,52 @@ export interface WfaSchedule {
   createdBy?: string;
   createdAt: string;
 }
+
+export interface EmployeeFace {
+  id: string;
+  employeeId: string;
+  embedding: number[];
+  profilePhotoUrl: string;
+  status: 'Belum Registrasi' | 'Aktif' | 'Ditolak' | 'Dinonaktifkan';
+  registeredAt: string;
+  updatedAt: string;
+}
+
+export interface Geofence {
+  id: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  radius: number;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface Attendance {
+  id: string;
+  employeeId: string;
+  employeeName?: string;
+  employeeNip?: string;
+  employeeDivisi?: string;
+  checkIn: string;
+  checkOut?: string;
+  status: 'Hadir' | 'Terlambat' | 'Absen' | 'WFA';
+  locationId?: string;
+  latitude: number;
+  longitude: number;
+  accuracy: number;
+  faceConfidence: number;
+  livenessScore?: number;
+  browser?: string;
+  device?: string;
+  ipAddress?: string;
+  createdAt: string;
+}
+
+export interface AttendanceEditor {
+  id: string;
+  userId: string;
+  divisi: string;
+  createdAt: string;
+}
+

@@ -53,6 +53,7 @@ database/
 *_UPDATE.md
 *_FEATURE.md
 *_SEARCH.md
+*_Plan.md
 CARA_KERJA_*.md
 TESTING_*.md
 TROUBLESHOOTING_*.md
@@ -67,3 +68,10 @@ MANUAL_*.md
 public/version.json
 .vercel
 .env*.local
+
+# Excel spreadsheets & lock files
+*.xlsx
+~$*.xlsx
+
+# FaceAPI model weights
+public/models/

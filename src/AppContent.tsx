@@ -70,6 +70,7 @@ const InventoriBMNPage = lazy(() => import('./components/InventoriBMNPage'));
 const BudgetRealizationPage = lazy(() => import('./components/BudgetRealization/BudgetRealizationPage'));
 const PenilaianArsipPage = lazy(() => import('./components/PenilaianArsipPage'));
 const WfaLaporanPage = lazy(() => import('./components/WfaLaporanPage').then(module => ({ default: module.WfaLaporanPage })));
+const AttendancePage = lazy(() => import('./components/AttendancePage').then(module => ({ default: module.AttendancePage })));
 const PublicDeviceForm = lazy(() => import('./components/PublicDeviceForm'));
 const ChatPage = lazy(() => import('./components/ChatPage'));
 const SuratDisposisiDashboard = lazy(() => import('./components/SuratDisposisiDashboard'));
@@ -99,7 +100,7 @@ const AppContent: React.FC = () => {
       // Check if pathname contains a share token slug (e.g. /lpkra)
       const path = window.location.pathname.substring(1);
       // List of reserved paths that should not be interpreted as share token
-      const reservedPaths = ['login', 'dashboard', 'settings', 'tasks', 'admin', 'surat', 'bmn', 'zoom', 'meeting', 'calendar', 'epic', 'feedback', 'document', 'auth', 'callback', 'reset-password'];
+      const reservedPaths = ['login', 'dashboard', 'settings', 'tasks', 'admin', 'surat', 'bmn', 'zoom', 'meeting', 'calendar', 'epic', 'feedback', 'document', 'auth', 'callback', 'reset-password', 'hadir'];
       if (path && !path.includes('/') && !reservedPaths.includes(path.toLowerCase()) && !path.includes('.')) {
         setShareToken(path);
       }
@@ -790,6 +791,22 @@ const AppContent: React.FC = () => {
 
   // meetingsAsTasks, allTasksWithMeetings, and filteredTasks now come from DataContext
 
+  const isPublicAttendance = window.location.pathname === '/hadir';
+  if (isPublicAttendance) {
+    return (
+      <Suspense fallback={
+        <div className="h-screen w-screen flex items-center justify-center bg-slate-50">
+          <div className="flex flex-col items-center gap-3">
+            <Loader2 className="animate-spin text-gov-600" size={40} />
+            <span className="text-sm text-slate-500">Memuat halaman absensi...</span>
+          </div>
+        </div>
+      }>
+        <AttendancePage isPublic={true} />
+      </Suspense>
+    );
+  }
+
   // Render Public Project View if share token is present in URL
   if (shareToken) {
     return <PublicProjectView shareToken={shareToken} />;
@@ -889,7 +906,7 @@ const AppContent: React.FC = () => {
         )}
 
         {/* Top Header / Filter Bar - HIDDEN for special pages */}
-        {activeTab !== 'Dashboard' && activeTab !== 'Dashboard Statistik' && activeTab !== 'Analitik' && activeTab !== 'Project' && activeTab !== 'Master Data' && activeTab !== 'Saran Masukan' && activeTab !== 'Pengumuman' && activeTab !== 'Inventori Data' && activeTab !== 'Inventori BMN' && activeTab !== 'Jadwal Kegiatan' && activeTab !== 'Daftar Surat' && activeTab !== 'Activity Log' && activeTab !== 'Daftar Disposisi' && activeTab !== 'Manajemen Visibility' && activeTab !== 'Riwayat Perubahan' && activeTab !== 'Pelayanan Zoom' && activeTab !== 'Manajemen Modul' && activeTab !== 'Penilaian Arsip' && activeTab !== 'Laporan WFA' && activeTab !== 'Diskusi & Chat' && !['Dashboard Realisasi', 'Monitoring Anggaran', 'Daftar Transaksi', 'Laporan Anggaran', 'Master Anggaran'].includes(activeTab) && (
+        {activeTab !== 'Dashboard' && activeTab !== 'Dashboard Statistik' && activeTab !== 'Analitik' && activeTab !== 'Project' && activeTab !== 'Master Data' && activeTab !== 'Saran Masukan' && activeTab !== 'Pengumuman' && activeTab !== 'Inventori Data' && activeTab !== 'Inventori BMN' && activeTab !== 'Jadwal Kegiatan' && activeTab !== 'Daftar Surat' && activeTab !== 'Activity Log' && activeTab !== 'Daftar Disposisi' && activeTab !== 'Manajemen Visibility' && activeTab !== 'Riwayat Perubahan' && activeTab !== 'Pelayanan Zoom' && activeTab !== 'Manajemen Modul' && activeTab !== 'Penilaian Arsip' && activeTab !== 'Laporan WFA' && activeTab !== 'Diskusi & Chat' && activeTab !== 'Absensi Wajah' && !['Dashboard Realisasi', 'Monitoring Anggaran', 'Daftar Transaksi', 'Laporan Anggaran', 'Master Anggaran'].includes(activeTab) && (
           <header className="bg-white border-b border-slate-200 px-3 sm:px-6 py-3 sm:py-4 z-20 relative">
             <div className="flex flex-col gap-3 sm:gap-4 mb-3 sm:mb-4">
               {/* Title Section */}
@@ -1300,6 +1317,10 @@ const AppContent: React.FC = () => {
         ) : activeTab === 'Laporan WFA' ? (
           <Suspense fallback={<PageLoader />}>
             <WfaLaporanPage currentUser={currentUser} showNotification={showNotification} />
+          </Suspense>
+        ) : activeTab === 'Absensi Wajah' ? (
+          <Suspense fallback={<PageLoader />}>
+            <AttendancePage isPublic={false} currentUser={currentUser} showNotification={showNotification} />
           </Suspense>
         ) : activeTab === 'Manajemen Modul' ? (
           <Suspense fallback={<PageLoader />}>

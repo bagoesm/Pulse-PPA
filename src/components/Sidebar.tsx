@@ -31,7 +31,8 @@ import {
   Package,
   Video,
   Layers,
-  Presentation
+  Presentation,
+  Camera
 } from 'lucide-react';
 import { SIDEBAR_ITEMS, User } from '../../types';
 import { useSidebar } from '../contexts/SidebarContext';
@@ -75,7 +76,8 @@ const IconMap: Record<string, React.ElementType> = {
   'PieChart': PieChart,
   'Video': Video,
   'Layers': Layers,
-  'Presentation': Presentation
+  'Presentation': Presentation,
+  'Camera': Camera
 };
 
 const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser, users, onSwitchUser, onLogout }) => {
