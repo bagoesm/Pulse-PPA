@@ -2520,30 +2520,26 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
               <h3 className="font-bold text-sm text-slate-850">Tunjuk Editor Absensi Divisi Baru</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase">Pilih Pegawai</label>
-                  <select
+                  <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Pilih Pegawai</label>
+                  <SearchableSelect
+                    options={allProfiles.map((p) => ({ value: p.id, label: `${p.name} (${p.divisi || 'Tanpa Divisi'})` }))}
                     value={newEditorUser}
-                    onChange={(e) => setNewEditorUser(e.target.value)}
-                    className="w-full mt-1 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 focus:outline-none"
-                  >
-                    <option value="">-- Pilih Pegawai --</option>
-                    {allProfiles.map((p) => (
-                      <option key={p.id} value={p.id}>{p.name} ({p.divisi || 'Tanpa Divisi'})</option>
-                    ))}
-                  </select>
+                    onChange={(val) => setNewEditorUser(val)}
+                    placeholder="Pilih Pegawai"
+                    emptyOption="-- Pilih Pegawai --"
+                    className="w-full mt-1 text-xs font-semibold text-slate-700 shadow-sm"
+                  />
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase">Pilih Divisi Tanggung Jawab</label>
-                  <select
+                  <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Pilih Divisi Tanggung Jawab</label>
+                  <SearchableSelect
+                    options={divisions.filter(d => d !== 'Semua').map((d) => ({ value: d, label: d }))}
                     value={newEditorDivisi}
-                    onChange={(e) => setNewEditorDivisi(e.target.value)}
-                    className="w-full mt-1 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 focus:outline-none"
-                  >
-                    <option value="">-- Pilih Divisi --</option>
-                    {divisions.filter(d => d !== 'Semua').map((d) => (
-                      <option key={d} value={d}>{d}</option>
-                    ))}
-                  </select>
+                    onChange={(val) => setNewEditorDivisi(val)}
+                    placeholder="Pilih Divisi"
+                    emptyOption="-- Pilih Divisi --"
+                    className="w-full mt-1 text-xs font-semibold text-slate-700 shadow-sm"
+                  />
                 </div>
               </div>
               <button
