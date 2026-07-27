@@ -845,6 +845,45 @@ export class AttendanceService {
       return [];
     }
   }
+
+  /**
+   * Get the global bypass location setting (strict, always, friday)
+   */
+  async getBypassLocationSetting(): Promise<'strict' | 'always' | 'friday'> {
+    try {
+      const { data, error } = await this.supabase
+        .from('attendance_settings')
+        .select('value')
+        .eq('key', 'bypass_location')
+        .maybeSingle();
+
+      if (error) throw error;
+      if (data && data.value) {
+        return data.value as 'strict' | 'always' | 'friday';
+      }
+      return 'strict';
+    } catch (error) {
+      console.warn('AttendanceService getBypassLocationSetting fallback to local:', error);
+      return (localStorage.getItem('pulse_attendance_bypass_location') as any) || 'strict';
+    }
+  }
+
+  /**
+   * Update the global bypass location setting
+   */
+  async updateBypassLocationSetting(val: 'strict' | 'always' | 'friday'): Promise<void> {
+    try {
+      const { error } = await this.supabase
+        .from('attendance_settings')
+        .upsert({ key: 'bypass_location', value: val, updated_at: new Date().toISOString() });
+
+      if (error) throw error;
+      localStorage.setItem('pulse_attendance_bypass_location', val);
+    } catch (error) {
+      console.warn('AttendanceService updateBypassLocationSetting fallback to local:', error);
+      localStorage.setItem('pulse_attendance_bypass_location', val);
+    }
+  }
 }
 
 export const attendanceService = new AttendanceService();

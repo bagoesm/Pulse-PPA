@@ -226,6 +226,15 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
     return (localStorage.getItem('pulse_attendance_bypass_location') as any) || 'strict';
   });
 
+  // Load global bypass location setting from database on mount
+  useEffect(() => {
+    const fetchBypassSetting = async () => {
+      const setting = await attendanceService.getBypassLocationSetting();
+      setBypassLocationSetting(setting);
+    };
+    fetchBypassSetting();
+  }, []);
+
   const checkIsLocationBypassed = useCallback((): boolean => {
     if (bypassLocationSetting === 'always') return true;
     if (bypassLocationSetting === 'friday') {
@@ -235,13 +244,17 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
     return false;
   }, [bypassLocationSetting]);
 
-  const handleUpdateBypassSetting = (val: 'strict' | 'always' | 'friday') => {
+  const handleUpdateBypassSetting = async (val: 'strict' | 'always' | 'friday') => {
     setBypassLocationSetting(val);
-    localStorage.setItem('pulse_attendance_bypass_location', val);
-    showNotification('Sukses', `Kebijakan lokasi absensi diubah menjadi: ${
-      val === 'strict' ? 'Strict (Wajib di Kantor)' :
-      val === 'always' ? 'Bebas Setiap Hari' : 'Khusus Hari Jumat (WFA)'
-    }`, 'success');
+    try {
+      await attendanceService.updateBypassLocationSetting(val);
+      showNotification('Sukses', `Kebijakan lokasi absensi diubah menjadi: ${
+        val === 'strict' ? 'Strict (Wajib di Kantor)' :
+        val === 'always' ? 'Bebas Setiap Hari' : 'Khusus Hari Jumat (WFA)'
+      }`, 'success');
+    } catch (e) {
+      showNotification('Error', 'Gagal memperbarui kebijakan lokasi di database.', 'error');
+    }
   };
 
   // Export Modal states
