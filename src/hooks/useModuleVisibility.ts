@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { User } from '../../types';
 import { moduleVisibilityService } from '../services/ModuleVisibilityService';
+import { attendanceService } from '../services/AttendanceService';
 
 export function useModuleVisibility(currentUser: User | null) {
   const [visibleModules, setVisibleModules] = useState<string[]>([]);
@@ -37,9 +38,18 @@ export function useModuleVisibility(currentUser: User | null) {
 
     try {
       setLoading(true);
-      const modules = await moduleVisibilityService.getVisibleModulesForDivisi(currentUser.divisi);
+      const [modules, isAttendanceEditor] = await Promise.all([
+        moduleVisibilityService.getVisibleModulesForDivisi(currentUser.divisi),
+        attendanceService.checkIsAttendanceEditor(currentUser.id, currentUser.divisi || '')
+      ]);
+      
+      const finalModules = [...modules];
+      if (isAttendanceEditor && !finalModules.includes('Absensi Wajah')) {
+        finalModules.push('Absensi Wajah');
+      }
+
       // 'Dashboard' is always visible to everyone
-      setVisibleModules(['Dashboard', ...modules]);
+      setVisibleModules(['Dashboard', ...finalModules]);
     } catch (error) {
       console.error('Failed to load module visibility:', error);
       // Fallback in case of error: show standard modules, hide Pelayanan Zoom
