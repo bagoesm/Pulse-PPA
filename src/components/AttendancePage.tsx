@@ -772,18 +772,19 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
     if (modelsLoaded) return true;
     try {
       setLoadingModels(true);
-      // Serve model weights from the local public path
-      await faceapi.nets.ssdMobilenetv1.loadFromUri('/models');
-      await faceapi.nets.faceLandmark68Net.loadFromUri('/models');
-      await faceapi.nets.faceRecognitionNet.loadFromUri('/models');
-      await faceapi.nets.tinyFaceDetector.loadFromUri('/models');
+      // Serve model weights from the base-relative public path to prevent 404s in subdirectories
+      const baseModelPath = `${window.location.origin}${import.meta.env.BASE_URL.replace(/\/$/, '')}/models`;
+      await faceapi.nets.ssdMobilenetv1.loadFromUri(baseModelPath);
+      await faceapi.nets.faceLandmark68Net.loadFromUri(baseModelPath);
+      await faceapi.nets.faceRecognitionNet.loadFromUri(baseModelPath);
+      await faceapi.nets.tinyFaceDetector.loadFromUri(baseModelPath);
       setModelsLoaded(true);
       setLoadingModels(false);
       return true;
     } catch (err) {
       console.error('Failed to load faceapi models', err);
       setLoadingModels(false);
-      showNotification?.('Error Model', 'Gagal memuat model pengenal wajah.', 'error');
+      showNotification?.('Error Model', 'Gagal memuat model pengenal wajah. Pastikan koneksi internet stabil.', 'error');
       return false;
     }
   };
@@ -804,7 +805,18 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
           facingMode: 'user'
         }
       };
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+      } catch (e) {
+        console.warn('Overconstrained or default camera error, trying flexible fallback constraints:', e);
+        // Fallback for older/problematic Android devices or front-facing cameras
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'user' }
+        });
+      }
+
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
@@ -1661,10 +1673,20 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
                       </div>
                       <button
                         onClick={startRegistrationFlow}
-                        className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold text-xs sm:text-sm transition-all shadow-md shadow-indigo-600/10 flex items-center justify-center gap-1.5"
+                        disabled={loadingModels}
+                        className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-100 disabled:text-slate-400 text-white rounded-xl font-semibold text-xs sm:text-sm transition-all shadow-md shadow-indigo-600/10 flex items-center justify-center gap-1.5"
                       >
-                        <Camera size={16} />
-                        <span>Mulai Registrasi Wajah</span>
+                        {loadingModels ? (
+                          <>
+                            <span className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin"></span>
+                            <span>Memuat Model Pengenal Wajah (12MB)...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Camera size={16} />
+                            <span>Mulai Registrasi Wajah</span>
+                          </>
+                        )}
                       </button>
                     </div>
                   ) : (
@@ -1674,22 +1696,40 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
                         {/* Check-In Button */}
                         <button
                           onClick={() => startAttendanceVerification('in')}
-                          disabled={gpsLoading}
+                          disabled={gpsLoading || loadingModels}
                           className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white rounded-xl font-semibold text-xs sm:text-sm transition-all shadow-md shadow-indigo-600/10 flex items-center justify-center gap-1.5"
                         >
-                          <UserCheck size={16} />
-                          <span>Absen Masuk</span>
+                          {loadingModels ? (
+                            <>
+                              <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                              <span>Memuat...</span>
+                            </>
+                          ) : (
+                            <>
+                              <UserCheck size={16} />
+                              <span>Absen Masuk</span>
+                            </>
+                          )}
                         </button>
 
                         {/* Check-Out Button */}
                         <button
                           onClick={() => startAttendanceVerification('out')}
-                          disabled={gpsLoading}
+                          disabled={gpsLoading || loadingModels}
                           className="flex-1 py-3 bg-rose-600 hover:bg-rose-700 disabled:opacity-40 text-white rounded-xl font-semibold text-xs sm:text-sm transition-all shadow-md shadow-rose-600/10 flex items-center justify-center gap-1.5"
                           title={isBefore12PM ? "Absen pulang baru bisa dilakukan setelah pukul 12:00 siang" : ""}
                         >
-                          <LogOut size={16} />
-                          <span>Absen Pulang</span>
+                          {loadingModels ? (
+                            <>
+                              <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                              <span>Memuat...</span>
+                            </>
+                          ) : (
+                            <>
+                              <LogOut size={16} />
+                              <span>Absen Pulang</span>
+                            </>
+                          )}
                         </button>
                       </div>
 
