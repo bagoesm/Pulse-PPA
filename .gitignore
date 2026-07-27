@@ -72,6 +72,3 @@ public/version.json
 # Excel spreadsheets & lock files
 *.xlsx
 ~$*.xlsx
-
-# FaceAPI model weights
-public/models/
