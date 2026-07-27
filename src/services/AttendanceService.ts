@@ -514,7 +514,7 @@ export class AttendanceService {
   /**
    * Check if a user is designated as an Attendance Editor for a specific division/global
    */
-  async checkIsAttendanceEditor(userId: string, divisi: string): Promise<boolean> {
+  async checkIsAttendanceEditor(userId: string, _divisi?: string): Promise<boolean> {
     try {
       // Super admin is always editor
       const { data: userProfile, error: profileError } = await this.supabase
@@ -527,19 +527,18 @@ export class AttendanceService {
         return true;
       }
 
-      // Check attendance_editors table
+      // Check attendance_editors table for ANY assignment
       const { count, error } = await this.supabase
         .from('attendance_editors')
         .select('id', { count: 'exact', head: true })
-        .eq('user_id', userId)
-        .eq('divisi', divisi);
+        .eq('user_id', userId);
         
       if (error) throw error;
       return (count || 0) > 0;
     } catch {
       // Fallback local check
       const local = this.getLocalEditors();
-      return local.some((e) => e.userId === userId && e.divisi === divisi);
+      return local.some((e) => e.userId === userId);
     }
   }
 
