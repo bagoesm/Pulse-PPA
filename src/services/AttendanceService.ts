@@ -543,6 +543,29 @@ export class AttendanceService {
   }
 
   /**
+   * Get list of all appointed Attendance Editors
+   */
+  async getAttendanceEditors(): Promise<AttendanceEditor[]> {
+    try {
+      const { data, error } = await this.supabase
+        .from('attendance_editors')
+        .select('*')
+        .order('created_at', { ascending: false });
+        
+      if (error) throw error;
+      return (data || []).map((row: any) => ({
+        id: row.id,
+        userId: row.user_id,
+        divisi: row.divisi,
+        createdAt: row.created_at
+      }));
+    } catch (error) {
+      console.warn('AttendanceService getAttendanceEditors fallback:', error);
+      return this.getLocalEditors();
+    }
+  }
+
+  /**
    * Appoint an Attendance Editor
    */
   async saveAttendanceEditor(userId: string, divisi: string): Promise<void> {

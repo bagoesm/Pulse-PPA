@@ -546,9 +546,8 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
       }
       setFacesList(mockFaces);
 
-      // Fetch all editors list
-      // In this setup, we can fetch all or local editors
-      const editors = (attendanceService as any).getLocalEditors ? (attendanceService as any).getLocalEditors() : [];
+      // Fetch all editors list from database with fallback
+      const editors = await attendanceService.getAttendanceEditors();
       setEditorsList(editors);
 
       // Compute statistics
