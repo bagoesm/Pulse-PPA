@@ -217,7 +217,22 @@ export class AttendanceService {
       return face || null;
     }
   }
-
+  /**
+   * Get all employee face registrations in a single batch query
+   */
+  async getAllEmployeeFaces(): Promise<EmployeeFace[]> {
+    try {
+      const { data, error } = await this.supabase
+        .from('employee_faces')
+        .select('*');
+        
+      if (error) throw error;
+      return (data || []).map((row: any) => this.mapFromFaceDB(row));
+    } catch (error) {
+      console.warn('AttendanceService getAllEmployeeFaces fallback:', error);
+      return this.getLocalFaces();
+    }
+  }
   /**
    * Register employee face profile (Public/Kiosk mode)
    */
