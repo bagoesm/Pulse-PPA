@@ -4,7 +4,7 @@ import * as faceapi from '@vladmandic/face-api';
 import { 
   Camera, CheckCircle, AlertTriangle, Trash2, Users, Settings, 
   Download, Search, FileText, MapPin, RotateCcw, ShieldAlert, 
-  Sparkles, Smile, Eye, RefreshCw, Lock, Plus, Map, LayoutDashboard, 
+  Sparkles, Smile, Eye, RefreshCw, Lock, Unlock, Plus, Map, LayoutDashboard, 
   ClipboardList, UserCheck, AlertCircle, X, ShieldCheck, LogOut,
   ArrowLeft, ChevronRight, Clock, User as UserIcon
 } from 'lucide-react';
@@ -220,6 +220,29 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
   // Geofence Modal states
   const [editingGeofence, setEditingGeofence] = useState<Partial<Geofence> | null>(null);
   const [showGeofenceModal, setShowGeofenceModal] = useState<boolean>(false);
+
+  // Geofence Bypass Location settings
+  const [bypassLocationSetting, setBypassLocationSetting] = useState<'strict' | 'always' | 'friday'>(() => {
+    return (localStorage.getItem('pulse_attendance_bypass_location') as any) || 'strict';
+  });
+
+  const checkIsLocationBypassed = useCallback((): boolean => {
+    if (bypassLocationSetting === 'always') return true;
+    if (bypassLocationSetting === 'friday') {
+      const today = new Date();
+      return today.getDay() === 5; // 5 is Friday
+    }
+    return false;
+  }, [bypassLocationSetting]);
+
+  const handleUpdateBypassSetting = (val: 'strict' | 'always' | 'friday') => {
+    setBypassLocationSetting(val);
+    localStorage.setItem('pulse_attendance_bypass_location', val);
+    showNotification('Sukses', `Kebijakan lokasi absensi diubah menjadi: ${
+      val === 'strict' ? 'Strict (Wajib di Kantor)' :
+      val === 'always' ? 'Bebas Setiap Hari' : 'Khusus Hari Jumat (WFA)'
+    }`, 'success');
+  };
 
   // Export Modal states
   const [showExportModal, setShowExportModal] = useState<boolean>(false);
@@ -853,14 +876,10 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
     // Begin liveness detection loop
     setLivenessStatus('prompting');
     setLivenessProgress(0);
-    // Randomly select liveness action: blink or smile
-    const action = Math.random() > 0.5 ? 'blink' : 'smile';
+    // Always use smile liveness action for maximum reliability
+    const action = 'smile' as 'blink' | 'smile';
     setLivenessAction(action);
-    setLivenessPrompt(
-      action === 'blink' 
-        ? 'Silakan BERKEDIP beberapa kali di depan kamera.' 
-        : 'Silakan TERSENYUM dengan lebar menghadap kamera.'
-    );
+    setLivenessPrompt('Silakan TERSENYUM dengan lebar menghadap kamera.');
     setVerificationFeedback('Mendeteksi wajah Anda...');
 
     // Run interval analysis
@@ -1032,7 +1051,8 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
     if (!selectedProfile || !registeredFace) return;
 
     // 1. Validate Geofence
-    if (!isInGeofenceRange) {
+    const isLocationBypassed = checkIsLocationBypassed();
+    if (!isInGeofenceRange && !isLocationBypassed) {
       showNotification?.('Akses Ditolak', 'Anda berada di luar radius wilayah absensi kantor.', 'error');
       return;
     }
@@ -1047,14 +1067,10 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
     setLivenessStatus('prompting');
     setLivenessProgress(0);
     
-    // Pick action
-    const action = Math.random() > 0.5 ? 'blink' : 'smile';
+    // Always use smile liveness action for maximum reliability
+    const action = 'smile' as 'blink' | 'smile';
     setLivenessAction(action);
-    setLivenessPrompt(
-      action === 'blink' 
-        ? 'Silakan BERKEDIP beberapa kali untuk memverifikasi wajah asli Anda.' 
-        : 'Silakan TERSENYUM lebar untuk memverifikasi wajah asli Anda.'
-    );
+    setLivenessPrompt('Silakan TERSENYUM dengan lebar untuk memverifikasi wajah asli Anda.');
     setVerificationFeedback('Mencocokkan wajah dan mendeteksi gerakan...');
 
     let frameCount = 0;
@@ -1652,6 +1668,10 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
                           {isInGeofenceRange ? (
                             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-emerald-50 border border-emerald-100 text-emerald-700 text-[10px] sm:text-xs font-semibold">
                               <CheckCircle size={12} /> Dalam Radius Kantor
+                            </span>
+                          ) : checkIsLocationBypassed() ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-indigo-50 border border-indigo-100 text-indigo-700 text-[10px] sm:text-xs font-semibold">
+                              <CheckCircle size={12} /> {bypassLocationSetting === 'always' ? 'Bebas Lokasi Aktif' : 'Hari WFA (Bebas Lokasi)'}
                             </span>
                           ) : (
                             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-rose-50 border border-rose-100 text-rose-700 text-[10px] sm:text-xs font-semibold animate-pulse">
@@ -2549,8 +2569,56 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
 
         {/* TAB: GEOFENCES */}
         {activeAdminTab === 'geofence' && (
-          <div className="space-y-4">
+          <div className="space-y-6">
             
+            {/* Setting Bebas Lokasi / WFA Policy Card */}
+            <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm space-y-4 max-w-2xl">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center">
+                  <Unlock size={16} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-slate-800">Kebijakan Radius Absensi (Bebas Lokasi / WFA)</h3>
+                  <p className="text-[10px] text-slate-400 font-semibold">Tentukan apakah absensi harus dilakukan di dalam radius kantor atau diizinkan dari mana saja.</p>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2">
+                <button
+                  onClick={() => handleUpdateBypassSetting('strict')}
+                  className={`py-2.5 px-3 rounded-xl border text-xs font-bold transition-all ${
+                    bypassLocationSetting === 'strict'
+                      ? 'bg-gov-600 border-gov-600 text-white shadow-sm'
+                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  Strict (Wajib di Kantor)
+                </button>
+                <button
+                  onClick={() => handleUpdateBypassSetting('always')}
+                  className={`py-2.5 px-3 rounded-xl border text-xs font-bold transition-all ${
+                    bypassLocationSetting === 'always'
+                      ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm'
+                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  Bebas Setiap Hari
+                </button>
+                <button
+                  onClick={() => handleUpdateBypassSetting('friday')}
+                  className={`py-2.5 px-3 rounded-xl border text-xs font-bold transition-all ${
+                    bypassLocationSetting === 'friday'
+                      ? 'bg-amber-600 border-amber-600 text-white shadow-sm'
+                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  Khusus Hari Jumat (WFA)
+                </button>
+              </div>
+            </div>
+
+            <hr className="border-slate-100" />
+
             {/* Topbar add */}
             <div className="flex justify-between items-center">
               <h3 className="font-bold text-sm text-slate-800">Daftar Koordinat Absensi Kantor</h3>
