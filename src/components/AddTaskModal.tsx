@@ -360,6 +360,65 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
     }));
   };
 
+  // AI Link management functions
+  const handleAddAiTaskLink = (tempId: string) => {
+    const newLink: TaskLink = {
+      id: `link_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      title: '',
+      url: ''
+    };
+    setAiTasks(prev => prev.map(t => {
+      if (t.tempId === tempId) {
+        return { ...t, links: [...(t.links || []), newLink] };
+      }
+      return t;
+    }));
+  };
+
+  const handleUpdateAiTaskLink = (tempId: string, linkId: string, field: 'title' | 'url', value: string) => {
+    setAiTasks(prev => prev.map(t => {
+      if (t.tempId === tempId) {
+        return {
+          ...t,
+          links: (t.links || []).map(link =>
+            link.id === linkId ? { ...link, [field]: value } : link
+          )
+        };
+      }
+      return t;
+    }));
+  };
+
+  const handleUrlAiBlur = (tempId: string, linkId: string, value: string) => {
+    let processedValue = value.trim();
+    if (processedValue && !processedValue.match(/^https?:\/\//i)) {
+      processedValue = `https://${processedValue}`;
+      setAiTasks(prev => prev.map(t => {
+        if (t.tempId === tempId) {
+          return {
+            ...t,
+            links: (t.links || []).map(link =>
+              link.id === linkId ? { ...link, url: processedValue } : link
+            )
+          };
+        }
+        return t;
+      }));
+    }
+  };
+
+  const handleRemoveAiTaskLink = (tempId: string, linkId: string) => {
+    setAiTasks(prev => prev.map(t => {
+      if (t.tempId === tempId) {
+        return {
+          ...t,
+          links: (t.links || []).filter(link => link.id !== linkId)
+        };
+      }
+      return t;
+    }));
+  };
+
   // AI Task Generation Handlers
   const handleAiTaskChange = (tempId: string, key: string, value: any) => {
     setAiTasks(prev => prev.map(t => {
@@ -401,6 +460,17 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
         }
       }
 
+      if (key === 'projectId') {
+        if (!value) {
+          updated.epicId = '';
+        } else {
+          const currentEpic = epics.find(e => e.id === updated.epicId);
+          if (currentEpic && currentEpic.projectId !== value) {
+            updated.epicId = '';
+          }
+        }
+      }
+
       return updated;
     }));
   };
@@ -420,6 +490,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
       subCategory: '',
       subCategoryId: undefined,
       projectId: defaultAiProjectId || '',
+      epicId: '',
       attachments: [],
       links: [],
       blockedBy: [],
@@ -437,7 +508,8 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
         users: users.map(u => u.name),
         categories: masterCategories.map(c => c.name),
         subCategories: masterSubCategories.map(s => s.name),
-        projects: projects.map(p => ({ id: p.id, name: p.name }))
+        projects: projects.map(p => ({ id: p.id, name: p.name })),
+        epics: epics?.map(e => ({ id: e.id, name: e.name, projectId: e.projectId }))
       });
 
       if (!Array.isArray(extracted)) {
@@ -483,6 +555,23 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
           projectId = '';
         }
 
+        let epicId = t.epicId || '';
+        if (!epicId && (t.epicName || t.epic) && projectId) {
+          const searchName = (t.epicName || t.epic).toLowerCase();
+          const matchedEpic = epics.find(e => e.projectId === projectId && e.name.toLowerCase() === searchName);
+          if (matchedEpic) {
+            epicId = matchedEpic.id;
+          }
+        }
+        if (epicId && !epics.some(e => e.id === epicId)) {
+          epicId = '';
+        }
+
+        let statusVal = Status.ToDo;
+        if (t.status && Object.values(Status).includes(t.status as Status)) {
+          statusVal = t.status as Status;
+        }
+
         const picList = Array.isArray(t.pic) 
           ? t.pic.filter((p: string) => users.some(u => u.name.toLowerCase() === p.toLowerCase()))
               .map((p: string) => {
@@ -491,12 +580,29 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
               })
           : [];
 
+        const checklistItems = Array.isArray(t.checklists)
+          ? t.checklists.map((itemText: any, idx: number) => ({
+              id: `cl_ai_${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 9)}`,
+              text: (typeof itemText === 'string' ? itemText : (itemText.text || '')).trim(),
+              isCompleted: false,
+              createdAt: new Date().toISOString()
+            })).filter((item: any) => item.text)
+          : [];
+
+        const linkItems = Array.isArray(t.links)
+          ? t.links.map((linkObj: any, idx: number) => ({
+              id: `link_ai_${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 9)}`,
+              title: (linkObj.title || linkObj.url || 'Link').trim(),
+              url: (linkObj.url || '').trim()
+            })).filter((link: any) => link.url)
+          : [];
+
         return {
           tempId: `ai_task_${Date.now()}_${index}_${Math.random().toString(36).substr(2, 9)}`,
           title: t.title || '',
           description: t.description || '',
           priority: t.priority || Priority.Medium,
-          status: Status.ToDo,
+          status: statusVal,
           startDate: t.startDate || new Date().toISOString().split('T')[0],
           deadline: t.deadline || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
           pic: picList.length > 0 ? picList : (defaultPic ? [defaultPic] : []),
@@ -505,10 +611,11 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
           subCategory: t.subCategory || '',
           subCategoryId: subCategoryId,
           projectId: projectId,
+          epicId: epicId,
           attachments: [],
-          links: [],
+          links: linkItems,
           blockedBy: [],
-          checklists: []
+          checklists: checklistItems
         };
       });
 
@@ -940,6 +1047,104 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
                               <option value="">-- Tidak Terkait Project --</option>
                               {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                             </select>
+                          </div>
+                        </div>
+
+                        {/* Status and Epic */}
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Status</label>
+                            <select
+                              value={task.status}
+                              onChange={(e) => handleAiTaskChange(task.tempId, 'status', e.target.value as Status)}
+                              className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs text-slate-700 bg-white focus:ring-2 focus:ring-gov-400 outline-none"
+                            >
+                              {Object.values(Status).map(s => <option key={s} value={s}>{translateStatus(s)}</option>)}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Epic (Opsional)</label>
+                            <select
+                              value={task.epicId || ''}
+                              disabled={!task.projectId}
+                              onChange={(e) => handleAiTaskChange(task.tempId, 'epicId', e.target.value)}
+                              className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs text-slate-700 bg-white focus:ring-2 focus:ring-gov-400 outline-none disabled:bg-slate-50 disabled:text-slate-400"
+                            >
+                              <option value="">-- Tidak Terkait Epic --</option>
+                              {epics
+                                .filter(e => e.projectId === task.projectId)
+                                .map(e => <option key={e.id} value={e.id}>{e.name}</option>)
+                              }
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* Task Dependencies */}
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Task yang Harus Selesai Dulu</label>
+                          <TaskDependencySelector
+                            tasks={allTasks}
+                            selectedTaskIds={task.blockedBy || []}
+                            onChange={(ids) => handleAiTaskChange(task.tempId, 'blockedBy', ids)}
+                            placeholder="Cari task..."
+                          />
+                        </div>
+
+                        {/* Checklist */}
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Checklist</label>
+                          <ChecklistEditor
+                            items={task.checklists || []}
+                            onChange={(items) => handleAiTaskChange(task.tempId, 'checklists', items)}
+                          />
+                        </div>
+
+                        {/* Links */}
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center">
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase">Link Terkait</label>
+                            <button
+                              type="button"
+                              onClick={() => handleAddAiTaskLink(task.tempId)}
+                              className="text-[10px] flex items-center gap-1 text-gov-600 font-bold hover:underline"
+                            >
+                              <Plus size={10} /> Tambah Link
+                            </button>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            {task.links && task.links.length > 0 ? (
+                              task.links.map((link: any) => (
+                                <div key={link.id} className="bg-slate-50 border border-slate-200 rounded-lg overflow-hidden p-2.5 space-y-1.5">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <input
+                                      type="text"
+                                      value={link.title}
+                                      onChange={(e) => handleUpdateAiTaskLink(task.tempId, link.id, 'title', e.target.value)}
+                                      placeholder="Judul link..."
+                                      className="flex-1 text-xs font-medium text-slate-700 bg-transparent border-none outline-none placeholder-slate-400"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveAiTaskLink(task.tempId, link.id)}
+                                      className="text-slate-400 hover:text-red-500 p-1 rounded hover:bg-red-50 transition-all shrink-0"
+                                    >
+                                      <X size={12} />
+                                    </button>
+                                  </div>
+                                  <input
+                                    type="url"
+                                    value={link.url}
+                                    onChange={(e) => handleUpdateAiTaskLink(task.tempId, link.id, 'url', e.target.value)}
+                                    onBlur={(e) => handleUrlAiBlur(task.tempId, link.id, e.target.value)}
+                                    placeholder="https://..."
+                                    className="w-full text-[11px] text-slate-500 bg-white rounded px-2 py-1 border border-slate-200 outline-none placeholder-slate-400 font-mono focus:border-gov-300 focus:ring-1 focus:ring-gov-300"
+                                  />
+                                </div>
+                              ))
+                            ) : (
+                              <div className="text-[10px] text-slate-400 italic">Belum ada link</div>
+                            )}
                           </div>
                         </div>
                       </div>

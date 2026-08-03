@@ -408,11 +408,12 @@ ${contextData.users ? `- Daftar PIC (nama pengguna) yang Valid: ${contextData.us
 ${contextData.categories ? `- Daftar Kategori yang Valid: ${contextData.categories.join(', ')}` : ''}
 ${contextData.subCategories ? `- Daftar Sub-Kategori yang Valid: ${contextData.subCategories.join(', ')}` : ''}
 ${contextData.projects ? `- Daftar Project yang Valid (nama dan ID): ${JSON.stringify(contextData.projects.map((p: any) => ({ id: p.id, name: p.name })))}` : ''}
+${contextData.epics ? `- Daftar Epic yang Valid (nama, ID, dan projectId): ${JSON.stringify(contextData.epics.map((e: any) => ({ id: e.id, name: e.name, projectId: e.projectId })))}` : ''}
 `;
   }
 
   const prompt = `
-Anda adalah asisten manajer proyek AI yang cerdas. Tugas Anda adalah menganalisis teks berikut dan memecahnya menjadi daftar task (tugas/pekerjaan) yang terperinci.
+Anda adalah sistem AI pakar Manajemen Proyek dan Ekstraksi Informasi Kerja. Tugas Anda adalah menganalisis teks percakapan, catatan rapat, atau instruksi kerja (informal/formal) berikut, kemudian memecahnya menjadi daftar task (tugas) terstruktur yang cerdas dan terperinci.
 
 Teks input:
 """
@@ -422,35 +423,65 @@ ${inputText}
 ${contextPrompt}
 Tanggal hari ini: ${todayStr}
 
-Ekstrak semua task yang perlu dilakukan dari teks tersebut. Untuk setiap task, buat objek JSON dengan struktur berikut:
+### INSTRUKSI UTAMA EKSTRAKSI & PENGAMBILAN KEPUTUSAN:
+1. **Analisis Pemisahan Task (Task Splitting)**:
+   - Pecah menjadi **beberapa objek task terpisah** jika teks menyebutkan beberapa pekerjaan utama yang berbeda fokusnya, memiliki PIC yang berbeda, atau memiliki rentang waktu penyelesaian yang berbeda secara nyata.
+   - Buat **satu task utama** jika teks menggambarkan satu pekerjaan besar tunggal yang di dalamnya terdapat rincian teknis, tahapan pengerjaan, atau to-do list (misalnya: "Bikin modul login: setup backend, buat UI, sambungkan API, tes manual"). Dalam kasus ini, rincian teknis tersebut **WAJIB** dimasukkan ke dalam array 'checklists'.
+
+2. **Ekstraksi Checklist (Sub-task)**:
+   - Cari pola rincian, instruksi beruntun, bullet-points, daftar bernomor, atau sub-langkah pengerjaan dalam teks input.
+   - Ekstrak setiap butir pengerjaan tersebut secara cerdas menjadi string checklist mandiri dalam array 'checklists'. 
+   - Contoh: "Tolong kerjakan X: pertama buat draf, lalu minta review, baru revisi" -> checklists: ["Buat draf X", "Minta review draf", "Lakukan revisi hasil review"].
+
+3. **Ekstraksi Link & URL Terkait**:
+   - Pindai seluruh teks untuk mencari tautan situs web, Google Drive, Figma, GitHub, Trello, Spreadsheet, dll.
+   - Ekstrak semua tautan tersebut ke dalam array 'links'.
+   - Untuk setiap link, tentukan 'title' secara cerdas (misal: "Dokumen Referensi", "Desain Figma", "Repository Kode") berdasarkan nama domain atau konteks kalimat di sekitarnya. Jangan biarkan url mentah menjadi judul jika ada konteks judul yang jelas.
+
+4. **Pencocokan PIC (Assignee)**:
+   - Pilih nama PIC dari "Daftar PIC yang Valid" yang disediakan jika ada nama panggilan atau kecocokan sebagian (misal: "Budi" cocok dengan "Budi Setiawan"). Jika tidak ada dalam daftar valid, Anda boleh menggunakan nama yang tertulis di teks.
+
+5. **Pencocokan Project & Epic**:
+   - Jika teks menyebutkan nama project atau epic yang cocok dengan daftar valid, gunakan ID-nya. Pastikan Epic yang dipilih berada di bawah project yang sesuai.
+
+### FORMAT OUTPUT JSON:
+Ekstrak semua task ke dalam format JSON Array. Setiap objek task wajib memiliki struktur berikut:
 {
-  "title": "Judul task singkat dan jelas (Bahasa Indonesia)",
-  "description": "Deskripsi lengkap mengenai apa yang harus dikerjakan",
-  "priority": "Low" | "Medium" | "High" (pilih salah satu sesuai tingkat urgensi),
-  "startDate": "YYYY-MM-DD" (tanggal mulai task, default hari ini jika tidak ada info spesifik),
-  "deadline": "YYYY-MM-DD" (tanggal selesai task, perkirakan deadline yang logis berdasarkan konteks teks, atau buat 3-7 hari setelah startDate jika tidak ada info spesifik),
-  "pic": ["Nama PIC 1", "Nama PIC 2"] (array nama PIC yang ditugaskan. WAJIB pilih dari Daftar PIC yang Valid di atas jika ada nama yang mirip/cocok. Jika tidak ada yang cocok, Anda boleh menggunakan nama yang tertulis di teks),
-  "category": "Nama Kategori" (WAJIB pilih dari Daftar Kategori yang Valid di atas yang paling mendekati/cocok. Jika tidak ada yang cocok, gunakan salah satu kategori yang umum),
-  "subCategory": "Nama Sub-Kategori" (WAJIB pilih dari Daftar Sub-Kategori yang Valid di atas yang paling mendekati/cocok),
-  "projectId": "ID project" (jika task ini terkait dengan salah satu project dari Daftar Project yang Valid di atas, isi dengan ID-nya. Jika tidak terkait, kosongkan atau isi null)
+  "title": "Judul task singkat, jelas, dan berorientasi aksi (Bahasa Indonesia)",
+  "description": "Deskripsi lengkap mengenai apa yang harus dikerjakan secara detail",
+  "priority": "Low" | "Medium" | "High" (pilih salah satu berdasarkan urgensi dalam teks),
+  "status": "To Do" | "In Progress" | "Pending" | "Review" | "Done" (menganalisis progres saat ini. Jika teks menyebutkan sedang dikerjakan pilih "In Progress", jika selesai pilih "Done", default "To Do"),
+  "startDate": "YYYY-MM-DD" (tanggal mulai task, gunakan tanggal hari ini jika tidak ada tanggal spesifik),
+  "deadline": "YYYY-MM-DD" (tanggal selesai task, perkirakan secara logis dari konteks teks atau buat 3-7 hari setelah startDate jika tidak ada info spesifik),
+  "pic": ["Nama PIC 1", "Nama PIC 2"] (array PIC yang ditugaskan),
+  "category": "Nama Kategori" (WAJIB cocokkan dengan Daftar Kategori yang Valid),
+  "subCategory": "Nama Sub-Kategori" (WAJIB cocokkan dengan Daftar Sub-Kategori yang Valid),
+  "projectId": "ID project" (isi jika terkait dengan project yang valid, jika tidak isi null),
+  "epicId": "ID epic" (isi jika terkait dengan epic yang valid dan sesuai dengan project, jika tidak isi null),
+  "checklists": ["Daftar checklist item / sub-task 1", "Daftar checklist item / sub-task 2"] (array string berisi rincian sub-task pengerjaan yang berhasil diekstrak. Berikan rincian yang detail dan actionable),
+  "links": [{"title": "Judul Link Terkait", "url": "https://..."}] (array objek berisi link/URL referensi terkait yang disebutkan dalam teks)
 }
 
 Kembalikan HANYA array JSON berisi objek-objek task tersebut, contoh:
 [
   {
-    "title": "...",
-    "description": "...",
-    "priority": "Medium",
+    "title": "Setup database baru",
+    "description": "Melakukan inisialisasi database PostgreSQL di cloud server sesuai instruksi rapat.",
+    "priority": "High",
+    "status": "To Do",
     "startDate": "2026-06-29",
     "deadline": "2026-07-02",
-    "pic": ["Budi"],
+    "pic": ["Budi Setiawan"],
     "category": "Pengembangan Aplikasi",
-    "subCategory": "Frontend",
-    "projectId": "project-uuid-123"
+    "subCategory": "Backend",
+    "projectId": "project-uuid-123",
+    "epicId": "epic-uuid-456",
+    "checklists": ["Inisialisasi server DB", "Migrasi skema database", "Setup user privilege"],
+    "links": [{"title": "Dokumen Skema Database", "url": "https://drive.google.com/..."}]
   }
 ]
 
-PENTING: Kembalikan HANYA JSON. JANGAN sertakan markdown block seperti \`\`\`json, JANGAN berikan teks pengantar, penjelas, atau penutup. Jika tidak ada task yang bisa diekstrak, kembalikan array kosong [].
+PENTING: Kembalikan HANYA JSON asli. JANGAN sertakan markdown block seperti \`\`\`json, JANGAN berikan teks pengantar, penjelas, atau penutup. Jika tidak ada task yang bisa diekstrak, kembalikan array kosong [].
 `;
 
   try {

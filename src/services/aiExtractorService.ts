@@ -86,7 +86,8 @@ export const aiExtractorService = {
       users?: string[]; 
       categories?: string[]; 
       subCategories?: string[]; 
-      projects?: { id: string; name: string }[] 
+      projects?: { id: string; name: string }[];
+      epics?: { id: string; name: string; projectId: string }[];
     }
   ): Promise<any[]> {
     try {
