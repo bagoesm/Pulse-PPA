@@ -157,6 +157,7 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
   // Wizards
   const [isRegisteringFace, setIsRegisteringFace] = useState<boolean>(false);
   const [isMatchingFace, setIsMatchingFace] = useState<boolean>(false);
+  const [activeAttendanceType, setActiveAttendanceType] = useState<'in' | 'out' | null>(null);
   const [attendanceSuccess, setAttendanceSuccess] = useState<{ type: 'in' | 'out'; time: string } | null>(null);
 
   // Refs for video & canvas
@@ -895,177 +896,10 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
     setIsRegisteringFace(true);
     await startCamera();
     
-    // Begin liveness detection loop
     setLivenessStatus('prompting');
     setLivenessProgress(0);
-    // Always use smile liveness action for maximum reliability
-    const action = 'smile' as 'blink' | 'smile';
-    setLivenessAction(action);
-    setLivenessPrompt('Silakan TERSENYUM dengan lebar menghadap kamera.');
-    setVerificationFeedback('Mendeteksi wajah Anda...');
-
-    // Run interval analysis
-    let frameCount = 0;
-    let successCount = 0;
-    let modelWeightsLoaded = false;
-
-    detectionIntervalRef.current = setInterval(async () => {
-      if (!videoRef.current || !canvasRef.current) return;
-      
-      const width = videoRef.current.videoWidth;
-      const height = videoRef.current.videoHeight;
-      if (width === 0 || height === 0) return;
-
-      canvasRef.current.width = width;
-      canvasRef.current.height = height;
-      const ctx = canvasRef.current.getContext('2d');
-      if (!ctx) return;
-
-      // Analyze Face Landmarks using SsdMobilenetv1 for higher stability and accuracy
-      const detection = await faceapi
-        .detectSingleFace(videoRef.current, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
-        .withFaceLandmarks();
-
-      ctx.clearRect(0, 0, width, height);
-
-      if (!detection) {
-        setVerificationFeedback('Wajah tidak terdeteksi. Silakan sejajarkan wajah Anda.');
-        return;
-      }
-
-      // Draw scanning box on canvas
-      const box = detection.detection.box;
-      ctx.strokeStyle = '#2563eb';
-      ctx.lineWidth = 3;
-      ctx.strokeRect(box.x, box.y, box.width, box.height);
-
-      // Laser line scanning animation
-      const scanLineY = box.y + (Math.sin(Date.now() / 200) + 1) / 2 * box.height;
-      ctx.strokeStyle = '#f43f5e';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(box.x, scanLineY);
-      ctx.lineTo(box.x + box.width, scanLineY);
-      ctx.stroke();
-
-      setVerificationFeedback('Wajah terdeteksi. Melakukan Liveness check...');
-
-      const landmarks = detection.landmarks;
-
-      if (action === 'blink') {
-        const leftEye = landmarks.getLeftEye();
-        const rightEye = landmarks.getRightEye();
-        const earLeft = getEAR(leftEye);
-        const earRight = getEAR(rightEye);
-        const avgEAR = (earLeft + earRight) / 2.0;
-
-        // If EAR falls below 0.25, count as closed eye (more tolerant threshold for mobile cameras)
-        if (avgEAR < 0.25) {
-          successCount++;
-          const progress = Math.min(100, Math.round((successCount / 2) * 100));
-          setLivenessProgress(progress);
-          if (successCount >= 2) {
-            clearInterval(detectionIntervalRef.current);
-            setLivenessStatus('success');
-            setVerificationFeedback('Liveness Terverifikasi! Mengambil foto pendaftaran...');
-            captureAndRegisterFace(detection);
-          }
-        }
-      } else if (action === 'smile') {
-        const mouth = landmarks.getMouth();
-        // Measure mouth width (distance corners 48 to 54) relative to nose bridge height
-        const cornerLeft = mouth[0];
-        const cornerRight = mouth[6];
-        const mouthWidth = Math.sqrt(Math.pow(cornerRight.x - cornerLeft.x, 2) + Math.pow(cornerRight.y - cornerLeft.y, 2));
-        
-        const jawLeft = landmarks.getJawOutline()[0];
-        const jawRight = landmarks.getJawOutline()[16];
-        const jawWidth = Math.sqrt(Math.pow(jawRight.x - jawLeft.x, 2) + Math.pow(jawRight.y - jawLeft.y, 2));
-
-        const smileRatio = mouthWidth / jawWidth;
-
-        // A smile usually causes width/jaw-width to increase above 0.42 (lowered from 0.45 for snappy check)
-        if (smileRatio > 0.42) {
-          successCount++;
-          const progress = Math.min(100, Math.round((successCount / 3) * 100));
-          setLivenessProgress(progress);
-          if (successCount >= 3) {
-            clearInterval(detectionIntervalRef.current);
-            setLivenessStatus('success');
-            setVerificationFeedback('Liveness Terverifikasi! Mengambil foto pendaftaran...');
-            captureAndRegisterFace(detection);
-          }
-        }
-      }
-
-      frameCount++;
-      // If 15 seconds pass with no success, fail the check (150 frames at 100ms)
-      if (frameCount > 150) {
-        clearInterval(detectionIntervalRef.current);
-        setLivenessStatus('failed');
-        setVerificationFeedback('Waktu liveness habis. Mohon ulangi gerakan.');
-        stopCamera();
-      }
-
-    }, 100);
-  };
-
-  const captureAndRegisterFace = async (detection: any) => {
-    if (!videoRef.current || !selectedProfile) return;
-
-    try {
-      // 1. Get 128-dimensional embedding
-      const fullDetection = await faceapi
-        .detectSingleFace(videoRef.current, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
-        .withFaceLandmarks()
-        .withFaceDescriptor();
-
-      if (!fullDetection) {
-        setLivenessStatus('failed');
-        setVerificationFeedback('Gagal mengambil embedding wajah berkualitas tinggi. Pastikan cahaya cukup.');
-        stopCamera();
-        return;
-      }
-
-      const embedding = Array.from(fullDetection.descriptor);
-
-      // 2. Capture canvas image to Blob
-      const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = videoRef.current.videoWidth;
-      tempCanvas.height = videoRef.current.videoHeight;
-      const ctx = tempCanvas.getContext('2d');
-      if (ctx) {
-        ctx.drawImage(videoRef.current, 0, 0);
-      }
-
-      tempCanvas.toBlob(async (blob) => {
-        if (!blob) {
-          setLivenessStatus('failed');
-          setVerificationFeedback('Gagal mengolah file foto.');
-          return;
-        }
-
-        const photoFile = new File([blob], `registration_${selectedProfile.id}.jpg`, { type: 'image/jpeg' });
-        
-        // 3. Save via Service
-        const faceReg = await attendanceService.registerEmployeeFacePublic(
-          selectedProfile.id,
-          embedding,
-          photoFile
-        );
-
-        setRegisteredFace(faceReg);
-        stopCamera();
-        setIsRegisteringFace(false);
-        showNotification?.('Registrasi Sukses', `Wajah ${selectedProfile.name} berhasil didaftarkan.`, 'success');
-      }, 'image/jpeg', 0.9);
-
-    } catch (err) {
-      console.error('Registration failed:', err);
-      setLivenessStatus('failed');
-      setVerificationFeedback('Pendaftaran ke database gagal.');
-      stopCamera();
-    }
+    setLivenessPrompt('Posisikan wajah Anda di dalam bingkai kamera, lalu klik tombol "Ambil Foto Profil" di bawah.');
+    setVerificationFeedback('Kamera aktif. Siap mengambil foto profil.');
   };
 
   // --- 5. Attendance Matching Wizard (Check-In / Out) ---
@@ -1083,148 +917,107 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
     if (!ok) return;
 
     setIsMatchingFace(true);
+    setActiveAttendanceType(type);
     await startCamera();
 
-    // Begin liveness detection loop + face matching
     setLivenessStatus('prompting');
     setLivenessProgress(0);
-    
-    // Always use smile liveness action for maximum reliability
-    const action = 'smile' as 'blink' | 'smile';
-    setLivenessAction(action);
-    setLivenessPrompt('Silakan TERSENYUM dengan lebar untuk memverifikasi wajah asli Anda.');
-    setVerificationFeedback('Mencocokkan wajah dan mendeteksi gerakan...');
+    setLivenessPrompt('Posisikan wajah Anda di dalam bingkai kamera, lalu klik tombol "Ambil Foto Absen" di bawah.');
+    setVerificationFeedback('Kamera aktif. Siap mencocokkan wajah.');
+  };
 
-    let frameCount = 0;
-    let successCount = 0;
-    let matchAttempts = 0;
+  const handleCapturePhoto = async () => {
+    if (!videoRef.current || !selectedProfile) return;
 
-    detectionIntervalRef.current = setInterval(async () => {
-      if (!videoRef.current || !canvasRef.current) return;
+    setLivenessStatus('verifying');
+    setVerificationFeedback('Memproses foto...');
 
-      const width = videoRef.current.videoWidth;
-      const height = videoRef.current.videoHeight;
-      if (width === 0 || height === 0) return;
-
-      canvasRef.current.width = width;
-      canvasRef.current.height = height;
-      const ctx = canvasRef.current.getContext('2d');
-      if (!ctx) return;
-
-      // Detect face, landmarks, and descriptor
-      const detection = await faceapi
-        .detectSingleFace(videoRef.current, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
+    try {
+      // 1. Detect face and get descriptor/embedding
+      const fullDetection = await faceapi
+        .detectSingleFace(videoRef.current, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.45 }))
         .withFaceLandmarks()
         .withFaceDescriptor();
 
-      ctx.clearRect(0, 0, width, height);
-
-      if (!detection) {
-        setVerificationFeedback('Sejajarkan wajah Anda dengan kamera...');
-        setLivenessProgress(0);
-        successCount = 0;
+      if (!fullDetection) {
+        setLivenessStatus('prompting');
+        setVerificationFeedback('Wajah tidak terdeteksi. Silakan posisikan wajah Anda kembali.');
+        showNotification?.('Wajah Tidak Terdeteksi', 'Pastikan wajah terlihat jelas tanpa penutup wajah (masker/kacamata) dan cahaya mencukupi.', 'warning');
         return;
       }
 
-      // Draw bounds
-      const box = detection.detection.box;
-      ctx.strokeStyle = '#2563eb';
-      ctx.lineWidth = 3;
-      ctx.strokeRect(box.x, box.y, box.width, box.height);
+      const embedding = Array.from(fullDetection.descriptor);
 
-      // Match face embedding
-      const currentDescriptor = detection.descriptor;
-      const registeredDescriptor = new Float32Array(registeredFace.embedding);
+      // 2. Capture canvas image to Blob
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = videoRef.current.videoWidth;
+      tempCanvas.height = videoRef.current.videoHeight;
+      const ctx = tempCanvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(videoRef.current, 0, 0);
+      }
 
-      // Compute Euclidean Distance
-      const distance = faceapi.euclideanDistance(currentDescriptor, registeredDescriptor);
-      const confidence = Math.max(0, Math.min(100, Math.round((1 - distance) * 100)));
-      setMatchScore(confidence);
-
-      if (confidence < 60) {
-        // Face doesn't match! Reset liveness progress
-        successCount = 0;
-        setLivenessProgress(0);
-        matchAttempts++;
-        setVerificationFeedback(`Mencari kemiripan... (${confidence}%)`);
-        
-        // Timeout after 15 seconds of mismatch (150 frames at 100ms)
-        if (matchAttempts > 150) {
-          clearInterval(detectionIntervalRef.current);
-          setLivenessStatus('failed');
-          setVerificationFeedback('Pencocokan wajah gagal. Wajah tidak sesuai dengan foto terdaftar.');
-          stopCamera();
+      tempCanvas.toBlob(async (blob) => {
+        if (!blob) {
+          setLivenessStatus('prompting');
+          setVerificationFeedback('Gagal mengolah file foto.');
+          return;
         }
-        return;
-      }
 
-      // Wajah Cocok! Lanjutkan Liveness Check
-      setVerificationFeedback('Kemiripan terverifikasi. Melakukan Liveness check...');
-      
-      const landmarks = detection.landmarks;
+        const photoFile = new File([blob], `capture_${selectedProfile.id}_${Date.now()}.jpg`, { type: 'image/jpeg' });
 
-      if (action === 'blink') {
-        const leftEye = landmarks.getLeftEye();
-        const rightEye = landmarks.getRightEye();
-        const earLeft = getEAR(leftEye);
-        const earRight = getEAR(rightEye);
-        const avgEAR = (earLeft + earRight) / 2.0;
+        if (isRegisteringFace) {
+          // 3. Save via Service (Registration Mode)
+          try {
+            setVerificationFeedback('Menyimpan foto ke database...');
+            const faceReg = await attendanceService.registerEmployeeFacePublic(
+              selectedProfile.id,
+              embedding,
+              photoFile
+            );
 
-        // If EAR falls below 0.25, count as closed eye (more tolerant threshold for mobile cameras)
-        if (avgEAR < 0.25) {
-          successCount++;
-          const progress = Math.min(100, Math.round((successCount / 2) * 100));
-          setLivenessProgress(progress);
-          
-          if (successCount >= 2) {
-            // BOTH MATCHED & LIVENESS VERIFIED!
-            clearInterval(detectionIntervalRef.current);
+            setRegisteredFace(faceReg);
+            stopCamera();
+            setIsRegisteringFace(false);
+            setLivenessStatus('success');
+            showNotification?.('Registrasi Sukses', `Wajah ${selectedProfile.name} berhasil didaftarkan.`, 'success');
+          } catch (err) {
+            console.error('Registration failed:', err);
+            setLivenessStatus('prompting');
+            setVerificationFeedback('Gagal menyimpan pendaftaran ke database.');
+          }
+        } else if (isMatchingFace && activeAttendanceType) {
+          // 3. Match Face (Attendance Mode)
+          if (!registeredFace) {
+            setLivenessStatus('prompting');
+            setVerificationFeedback('Data wajah acuan tidak ditemukan.');
+            return;
+          }
+
+          const registeredDescriptor = new Float32Array(registeredFace.embedding);
+          const distance = faceapi.euclideanDistance(fullDetection.descriptor, registeredDescriptor);
+          const confidence = Math.max(0, Math.min(100, Math.round((1 - distance) * 100)));
+          setMatchScore(confidence);
+
+          if (confidence >= 60) {
             setLivenessStatus('success');
             setVerificationFeedback(`Absen Berhasil! Kemiripan: ${confidence}%`);
             stopCamera();
             setIsMatchingFace(false);
-            saveAttendanceRecord(type, confidence);
+            saveAttendanceRecord(activeAttendanceType, confidence);
+          } else {
+            setLivenessStatus('prompting');
+            setVerificationFeedback(`Wajah tidak cocok (kemiripan ${confidence}%).`);
+            showNotification?.('Verifikasi Gagal', `Wajah tidak sesuai dengan foto profil (Kemiripan: ${confidence}%). Silakan posisikan ulang dan coba lagi.`, 'error');
           }
         }
-      } else if (action === 'smile') {
-        const mouth = landmarks.getMouth();
-        const cornerLeft = mouth[0];
-        const cornerRight = mouth[6];
-        const mouthWidth = Math.sqrt(Math.pow(cornerRight.x - cornerLeft.x, 2) + Math.pow(cornerRight.y - cornerLeft.y, 2));
-        
-        const jawLeft = landmarks.getJawOutline()[0];
-        const jawRight = landmarks.getJawOutline()[16];
-        const jawWidth = Math.sqrt(Math.pow(jawRight.x - jawLeft.x, 2) + Math.pow(jawRight.y - jawLeft.y, 2));
+      }, 'image/jpeg', 0.9);
 
-        const smileRatio = mouthWidth / jawWidth;
-
-        if (smileRatio > 0.42) {
-          successCount++;
-          const progress = Math.min(100, Math.round((successCount / 3) * 100));
-          setLivenessProgress(progress);
-          
-          if (successCount >= 3) {
-            // BOTH MATCHED & LIVENESS VERIFIED!
-            clearInterval(detectionIntervalRef.current);
-            setLivenessStatus('success');
-            setVerificationFeedback(`Absen Berhasil! Kemiripan: ${confidence}%`);
-            stopCamera();
-            setIsMatchingFace(false);
-            saveAttendanceRecord(type, confidence);
-          }
-        }
-      }
-
-      frameCount++;
-      // Timeout after 15 seconds of fail liveness (150 frames at 100ms)
-      if (frameCount > 150) {
-        clearInterval(detectionIntervalRef.current);
-        setLivenessStatus('failed');
-        setVerificationFeedback('Waktu liveness habis. Mohon ulangi gerakan.');
-        stopCamera();
-      }
-
-    }, 100);
+    } catch (err) {
+      console.error('Face verification failed:', err);
+      setLivenessStatus('prompting');
+      setVerificationFeedback('Terjadi kesalahan saat memproses deteksi wajah.');
+    }
   };
 
   const saveAttendanceRecord = async (type: 'in' | 'out', confidence: number) => {
@@ -1908,11 +1701,44 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
                   )}
                 </div>
 
-                {/* Subtitle feed */}
+                {/* Subtitle feed & Shutter buttons */}
                 {isCameraActive && (
-                  <div className="mt-3 text-xs sm:text-sm font-semibold text-slate-500 flex items-center gap-1.5 bg-slate-100/80 border border-slate-200 px-3.5 py-1 rounded-full">
-                    <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-ping" />
-                    <span>{verificationFeedback}</span>
+                  <div className="mt-3 w-full flex flex-col items-center gap-3">
+                    <div className="text-xs sm:text-sm font-semibold text-slate-500 flex items-center gap-1.5 bg-slate-100/80 border border-slate-200 px-3.5 py-1 rounded-full">
+                      <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-ping" />
+                      <span>{verificationFeedback}</span>
+                    </div>
+                    
+                    {livenessStatus !== 'verifying' && (() => {
+                      let btnBg = 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/10';
+                      let btnText = 'Ambil Foto Profil';
+                      
+                      if (!isRegisteringFace && activeAttendanceType === 'in') {
+                        btnBg = 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/10';
+                        btnText = 'Ambil Foto Absen Masuk';
+                      } else if (!isRegisteringFace && activeAttendanceType === 'out') {
+                        btnBg = 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/10';
+                        btnText = 'Ambil Foto Absen Pulang';
+                      }
+
+                      return (
+                        <div className="flex gap-2.5 w-full">
+                          <button
+                            onClick={handleCapturePhoto}
+                            className={`flex-1 py-3 ${btnBg} active:scale-[0.98] text-white rounded-xl font-semibold text-xs sm:text-sm transition-all shadow-md flex items-center justify-center gap-1.5`}
+                          >
+                            <Camera size={16} />
+                            <span>{btnText}</span>
+                          </button>
+                          <button
+                            onClick={stopCamera}
+                            className="py-3 px-5 bg-slate-100 hover:bg-slate-200 active:scale-[0.98] text-slate-600 rounded-xl font-semibold text-xs sm:text-sm transition-all flex items-center justify-center"
+                          >
+                            Batal
+                          </button>
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
               </div>
