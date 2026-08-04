@@ -163,6 +163,18 @@ export const SuratOtomatisModal: React.FC<SuratOtomatisModalProps> = ({ isOpen, 
     }
   }, [formData.tanggal_mulai_perjadin, formData.tanggal_selesai_perjadin]);
 
+  // Reset/sync tanda_tangan_sekaligus option based on multi-date length
+  useEffect(() => {
+    if (selectedTemplate?.id === 'daftar-hadir') {
+      const dateVal = formData.tanggal_kegiatan ? String(formData.tanggal_kegiatan) : '';
+      const dateStrings = dateVal.split(',').map(d => d.trim()).filter(Boolean);
+      if (dateStrings.length <= 1 && formData.tanda_tangan_sekaligus !== 'Ya') {
+        setFormData(prev => ({ ...prev, tanda_tangan_sekaligus: 'Ya' }));
+      }
+    }
+  }, [formData.tanggal_kegiatan, selectedTemplate]);
+
+
   const handleFieldChange = (fieldId: string, value: string | number) => {
     setFormData(prev => ({
       ...prev,
@@ -551,118 +563,165 @@ export const SuratOtomatisModal: React.FC<SuratOtomatisModalProps> = ({ isOpen, 
               }}
             >
               {selectedTemplate?.id === 'daftar-hadir' ? (
-                /* CUSTOM PREVIEW FOR DAFTAR HADIR */
-                <div className="p-10" style={{ fontFamily: 'Arial, sans-serif' }}>
-                  {/* Header */}
-                  <div className="relative flex justify-between items-center pb-4 mb-6" style={{ minHeight: '90px' }}>
-                    {/* Left: KPPPA Logo */}
-                    <div className="w-16 h-16 flex items-center justify-start">
-                      <img src="/Logo.svg" alt="Logo KPPPA" className="max-w-full max-h-full object-contain" />
+                (() => {
+                  const dateVal = formData.tanggal_kegiatan ? String(formData.tanggal_kegiatan) : '';
+                const dateStrings = dateVal.split(',').map(d => d.trim()).filter(Boolean);
+                const isMultiDay = dateStrings.length > 1;
+                const useMultiSig = isMultiDay && formData.tanda_tangan_sekaligus === 'Tidak';
+
+                return (
+                  /* CUSTOM PREVIEW FOR DAFTAR HADIR */
+                  <div className="p-10" style={{ fontFamily: 'Arial, sans-serif' }}>
+                    {/* Header */}
+                    <div className="relative flex justify-between items-center pb-4 mb-6" style={{ minHeight: '90px' }}>
+                      {/* Left: KPPPA Logo */}
+                      <div className="w-16 h-16 flex items-center justify-start">
+                        <img src="/Logo.svg" alt="Logo KPPPA" className="max-w-full max-h-full object-contain" />
+                      </div>
+
+                      {/* Center: Title & Details */}
+                      <div className="flex-1 text-center px-4">
+                        <h1 className="font-bold text-sm leading-tight text-black m-0 mb-1">
+                          DAFTAR HADIR {String(formData.tipe_daftar_hadir || 'PESERTA').toUpperCase()}
+                        </h1>
+                        <h2 className="font-bold text-sm leading-tight text-black m-0 mb-1 whitespace-pre-wrap">
+                          {String(formData.nama_kegiatan || 'NAMA KEGIATAN').toUpperCase()}
+                        </h2>
+                        <p className="font-bold text-sm leading-tight text-black m-0">
+                          {formData.tempat_kegiatan ? `${formData.tempat_kegiatan.toString().toUpperCase()}, ` : ''}
+                          {formData.tanggal_kegiatan 
+                            ? SuratOtomatisService.formatMultipleDates(formData.tanggal_kegiatan.toString()).toUpperCase()
+                            : 'TANGGAL KEGIATAN'}
+                        </p>
+                      </div>
+
+                      {/* Right: Partner Logos */}
+                      <div className="w-40 flex justify-end items-center gap-2 h-16">
+                        {logos.map((logo) => (
+                          <img
+                            key={logo.id}
+                            src={logo.base64}
+                            alt="Logo Partner"
+                            className="max-h-full max-w-[35px] object-contain"
+                          />
+                        ))}
+                      </div>
                     </div>
 
-                    {/* Center: Title & Details */}
-                    <div className="flex-1 text-center px-4">
-                      <h1 className="font-bold text-sm leading-tight text-black m-0 mb-1">
-                        DAFTAR HADIR {String(formData.tipe_daftar_hadir || 'PESERTA').toUpperCase()}
-                      </h1>
-                      <h2 className="font-bold text-sm leading-tight text-black m-0 mb-1 whitespace-pre-wrap">
-                        {String(formData.nama_kegiatan || 'NAMA KEGIATAN').toUpperCase()}
-                      </h2>
-                      <p className="font-bold text-sm leading-tight text-black m-0">
-                        {formData.tempat_kegiatan ? `${formData.tempat_kegiatan.toString().toUpperCase()}, ` : ''}
-                        {formData.tanggal_kegiatan 
-                          ? SuratOtomatisService.formatMultipleDates(formData.tanggal_kegiatan.toString()).toUpperCase()
-                          : 'TANGGAL KEGIATAN'}
-                      </p>
-                    </div>
+                    {/* Table */}
+                    {formData.perlu_rekening === 'Ya' ? (
+                      <table className="w-full border-collapse border border-black text-[10px] text-black mb-4">
+                        <thead>
+                          <tr className="bg-gray-100">
+                            <th className="border border-black p-1.5 text-center font-bold" style={{ width: '4%' }}>No.</th>
+                            <th className="border border-black p-1.5 text-center font-bold" style={{ width: '15%' }}>Nama</th>
+                            <th className="border border-black p-1.5 text-center font-bold" style={{ width: '15%' }}>Instansi</th>
+                            <th className="border border-black p-1.5 text-center font-bold" style={{ width: '13%' }}>Jabatan</th>
+                            <th className="border border-black p-1.5 text-center font-bold" style={{ width: '11%' }}>Nomor Telepon</th>
+                            <th className="border border-black p-1.5 text-center font-bold" style={{ width: '11%' }}>Nama Bank</th>
+                            <th className="border border-black p-1.5 text-center font-bold" style={{ width: '11%' }}>Nomor Rekening</th>
+                            <th className="border border-black p-1.5 text-center font-bold" style={{ width: '11%' }}>Nama Pemilik Rekening</th>
+                            {useMultiSig ? (
+                              dateStrings.map((dateStr, idx) => (
+                                <th key={idx} className="border border-black p-1 text-center font-bold text-[8px]" style={{ width: `${9 / dateStrings.length}%` }}>
+                                  Tanda Tangan Hari {idx + 1}
+                                  <div className="text-[7px] font-normal leading-tight">
+                                    ({SuratOtomatisService.formatTanggalIndonesia(dateStr).split(' ').slice(0, 2).join(' ')})
+                                  </div>
+                                </th>
+                              ))
+                            ) : (
+                              <th className="border border-black p-1.5 text-center font-bold" style={{ width: '9%' }}>Tanda Tangan</th>
+                            )}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {Array.from({ length: 10 }).map((_, index) => {
+                            const rowNum = index + 1;
+                            return (
+                              <tr key={index} style={{ height: '42px' }}>
+                                <td className="border border-black p-1 text-center font-semibold">{rowNum}</td>
+                                <td className="border border-black p-1"></td>
+                                <td className="border border-black p-1"></td>
+                                <td className="border border-black p-1"></td>
+                                <td className="border border-black p-1"></td>
+                                <td className="border border-black p-1"></td>
+                                <td className="border border-black p-1"></td>
+                                <td className="border border-black p-1"></td>
+                                {useMultiSig ? (
+                                  dateStrings.map((_, idx) => (
+                                    <td key={idx} className="border border-black p-1 align-middle text-left font-bold text-[8px]">
+                                      <span>{rowNum}.</span>
+                                    </td>
+                                  ))
+                                ) : (
+                                  <td className="border border-black p-1.5 align-middle text-left font-bold">
+                                    <span>{rowNum}.</span>
+                                  </td>
+                                )}
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    ) : (
+                      <table className="w-full border-collapse border border-black text-xs text-black mb-4">
+                        <thead>
+                          <tr className="bg-gray-100">
+                            <th className="border border-black p-2 text-center font-bold" style={{ width: '5%' }}>No.</th>
+                            <th className="border border-black p-2 text-center font-bold" style={{ width: '22%' }}>Nama</th>
+                            <th className="border border-black p-2 text-center font-bold" style={{ width: '22%' }}>Instansi</th>
+                            <th className="border border-black p-2 text-center font-bold" style={{ width: '19%' }}>Jabatan</th>
+                            <th className="border border-black p-2 text-center font-bold" style={{ width: '17%' }}>Nomor Telepon</th>
+                            {useMultiSig ? (
+                              dateStrings.map((dateStr, idx) => (
+                                <th key={idx} className="border border-black p-1.5 text-center font-bold text-[10px]" style={{ width: `${15 / dateStrings.length}%` }}>
+                                  Tanda Tangan Hari {idx + 1}
+                                  <div className="text-[8px] font-normal leading-tight">
+                                    ({SuratOtomatisService.formatTanggalIndonesia(dateStr).split(' ').slice(0, 2).join(' ')})
+                                  </div>
+                                </th>
+                              ))
+                            ) : (
+                              <th className="border border-black p-2 text-center font-bold" style={{ width: '15%' }}>Tanda Tangan</th>
+                            )}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {Array.from({ length: 10 }).map((_, index) => {
+                            const rowNum = index + 1;
+                            return (
+                              <tr key={index} style={{ height: '42px' }}>
+                                <td className="border border-black p-1 text-center font-semibold">{rowNum}</td>
+                                <td className="border border-black p-1"></td>
+                                <td className="border border-black p-1"></td>
+                                <td className="border border-black p-1"></td>
+                                <td className="border border-black p-1"></td>
+                                {useMultiSig ? (
+                                  dateStrings.map((_, idx) => (
+                                    <td key={idx} className="border border-black p-1 align-middle text-left font-bold text-[8px]">
+                                      <span>{rowNum}.</span>
+                                    </td>
+                                  ))
+                                ) : (
+                                  <td className="border border-black p-2 align-middle text-left font-bold">
+                                    <span>{rowNum}.</span>
+                                  </td>
+                                )}
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    )}
 
-                    {/* Right: Partner Logos */}
-                    <div className="w-40 flex justify-end items-center gap-2 h-16">
-                      {logos.map((logo) => (
-                        <img
-                          key={logo.id}
-                          src={logo.base64}
-                          alt="Logo Partner"
-                          className="max-h-full max-w-[35px] object-contain"
-                        />
-                      ))}
+                    {/* Footer */}
+                    <div className="text-right text-[10px] text-gray-500 mt-4">
+                      Halaman 1 dari {Math.ceil(Number(formData.jumlah_baris || 20) / 10)}
                     </div>
                   </div>
-
-                  {/* Table */}
-                  {formData.perlu_rekening === 'Ya' ? (
-                    <table className="w-full border-collapse border border-black text-[10px] text-black mb-4">
-                      <thead>
-                        <tr className="bg-gray-100">
-                          <th className="border border-black p-1.5 text-center font-bold" style={{ width: '4%' }}>No.</th>
-                          <th className="border border-black p-1.5 text-center font-bold" style={{ width: '15%' }}>Nama</th>
-                          <th className="border border-black p-1.5 text-center font-bold" style={{ width: '15%' }}>Instansi</th>
-                          <th className="border border-black p-1.5 text-center font-bold" style={{ width: '13%' }}>Jabatan</th>
-                          <th className="border border-black p-1.5 text-center font-bold" style={{ width: '11%' }}>Nomor Telepon</th>
-                          <th className="border border-black p-1.5 text-center font-bold" style={{ width: '11%' }}>Nama Bank</th>
-                          <th className="border border-black p-1.5 text-center font-bold" style={{ width: '11%' }}>Nomor Rekening</th>
-                          <th className="border border-black p-1.5 text-center font-bold" style={{ width: '11%' }}>Nama Pemilik Rekening</th>
-                          <th className="border border-black p-1.5 text-center font-bold" style={{ width: '9%' }}>Tanda Tangan</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {Array.from({ length: 10 }).map((_, index) => {
-                          const rowNum = index + 1;
-                          return (
-                            <tr key={index} style={{ height: '42px' }}>
-                              <td className="border border-black p-1 text-center font-semibold">{rowNum}</td>
-                              <td className="border border-black p-1"></td>
-                              <td className="border border-black p-1"></td>
-                              <td className="border border-black p-1"></td>
-                              <td className="border border-black p-1"></td>
-                              <td className="border border-black p-1"></td>
-                              <td className="border border-black p-1"></td>
-                              <td className="border border-black p-1"></td>
-                              <td className="border border-black p-1.5 align-middle text-left font-bold">
-                                <span>{rowNum}.</span>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  ) : (
-                    <table className="w-full border-collapse border border-black text-xs text-black mb-4">
-                      <thead>
-                        <tr className="bg-gray-100">
-                          <th className="border border-black p-2 text-center font-bold" style={{ width: '5%' }}>No.</th>
-                          <th className="border border-black p-2 text-center font-bold" style={{ width: '22%' }}>Nama</th>
-                          <th className="border border-black p-2 text-center font-bold" style={{ width: '22%' }}>Instansi</th>
-                          <th className="border border-black p-2 text-center font-bold" style={{ width: '19%' }}>Jabatan</th>
-                          <th className="border border-black p-2 text-center font-bold" style={{ width: '17%' }}>Nomor Telepon</th>
-                          <th className="border border-black p-2 text-center font-bold" style={{ width: '15%' }}>Tanda Tangan</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {Array.from({ length: 10 }).map((_, index) => {
-                          const rowNum = index + 1;
-                          return (
-                            <tr key={index} style={{ height: '42px' }}>
-                              <td className="border border-black p-1 text-center font-semibold">{rowNum}</td>
-                              <td className="border border-black p-1"></td>
-                              <td className="border border-black p-1"></td>
-                              <td className="border border-black p-1"></td>
-                              <td className="border border-black p-1"></td>
-                              <td className="border border-black p-2 align-middle text-left font-bold">
-                                <span>{rowNum}.</span>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  )}
-
-                  {/* Footer */}
-                  <div className="text-right text-[10px] text-gray-500 mt-4">
-                    Halaman 1 dari {Math.ceil(Number(formData.jumlah_baris || 20) / 10)}
-                  </div>
-                </div>
+                );
+              })()
               ) : (
                 /* EXISTING PREVIEW FOR SURAT KETERANGAN */
                 <div className="p-12" style={{ fontFamily: 'Times New Roman, serif' }}>
@@ -929,7 +988,16 @@ export const SuratOtomatisModal: React.FC<SuratOtomatisModalProps> = ({ isOpen, 
                       📋 Informasi Kegiatan & Daftar Hadir
                     </h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {selectedTemplate.fields.map(field => (
+                      {selectedTemplate.fields
+                        .filter(field => {
+                          if (field.id === 'tanda_tangan_sekaligus') {
+                            const dateVal = formData.tanggal_kegiatan ? String(formData.tanggal_kegiatan) : '';
+                            const dateStrings = dateVal.split(',').map(d => d.trim()).filter(Boolean);
+                            return dateStrings.length > 1;
+                          }
+                          return true;
+                        })
+                        .map(field => (
                         <div
                           key={field.id}
                           className={field.id === 'nama_kegiatan' ? 'md:col-span-2' : ''}

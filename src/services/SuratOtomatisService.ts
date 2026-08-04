@@ -54,6 +54,12 @@ export class SuratOtomatisService {
       const tempatKegiatan = String(formData.tempat_kegiatan || '').trim().toUpperCase();
       const perluRekening = String(formData.perlu_rekening || 'Tidak') === 'Ya';
       const jumlahBaris = Number(formData.jumlah_baris || 20);
+      const tandaTanganSekaligus = String(formData.tanda_tangan_sekaligus || 'Ya') === 'Ya';
+
+      const dateStrings = tanggalKegiatan.split(',').map(d => d.trim()).filter(Boolean);
+      const isMultiDay = dateStrings.length > 1;
+      const useMultiSig = isMultiDay && !tandaTanganSekaligus;
+      const sigColumnsCount = useMultiSig ? dateStrings.length : 1;
 
       // Load KPPPA Logo
       let kpppaLogo = { base64: '', aspect: 1 };
@@ -169,71 +175,122 @@ export class SuratOtomatisService {
           const rowNum = startRow + i + 1;
           const sigText = `${rowNum}.`;
           
+          const rowData = [
+            rowNum.toString(),
+            '', // Nama
+            '', // Instansi
+            '', // Jabatan
+            ''  // Nomor Telepon
+          ];
+
           if (perluRekening) {
-            tableData.push([
-              rowNum.toString(),
-              '', // Nama
-              '', // Instansi
-              '', // Jabatan
-              '', // Nomor Telepon
-              '', // Nama Bank
-              '', // Nomor Rekening
-              '', // Nama Pemilik Rekening
-              sigText
-            ]);
-          } else {
-            tableData.push([
-              rowNum.toString(),
-              '', // Nama
-              '', // Instansi
-              '', // Jabatan
-              '', // Nomor Telepon
-              sigText
-            ]);
+            rowData.push('', '', ''); // Bank, Rekening, Pemilik Rekening
           }
+
+          if (useMultiSig) {
+            for (let s = 0; s < dateStrings.length; s++) {
+              rowData.push(sigText);
+            }
+          } else {
+            rowData.push(sigText);
+          }
+
+          tableData.push(rowData);
         }
 
-        const tableHeaders = perluRekening 
-          ? [
-              { content: 'No.', styles: { halign: 'center' as const, valign: 'middle' as const } },
-              { content: 'Nama', styles: { halign: 'center' as const, valign: 'middle' as const } },
-              { content: 'Instansi', styles: { halign: 'center' as const, valign: 'middle' as const } },
-              { content: 'Jabatan', styles: { halign: 'center' as const, valign: 'middle' as const } },
-              { content: 'Nomor Telepon', styles: { halign: 'center' as const, valign: 'middle' as const } },
-              { content: 'Nama Bank', styles: { halign: 'center' as const, valign: 'middle' as const } },
-              { content: 'Nomor Rekening', styles: { halign: 'center' as const, valign: 'middle' as const } },
-              { content: 'Nama Pemilik Rekening', styles: { halign: 'center' as const, valign: 'middle' as const } },
-              { content: 'Tanda Tangan', styles: { halign: 'center' as const, valign: 'middle' as const } }
-            ]
-          : [
-              { content: 'No.', styles: { halign: 'center' as const, valign: 'middle' as const } },
-              { content: 'Nama', styles: { halign: 'center' as const, valign: 'middle' as const } },
-              { content: 'Instansi', styles: { halign: 'center' as const, valign: 'middle' as const } },
-              { content: 'Jabatan', styles: { halign: 'center' as const, valign: 'middle' as const } },
-              { content: 'Nomor Telepon', styles: { halign: 'center' as const, valign: 'middle' as const } },
-              { content: 'Tanda Tangan', styles: { halign: 'center' as const, valign: 'middle' as const } }
-            ];
+        const tableHeaders: any[] = [
+          { content: 'No.', styles: { halign: 'center' as const, valign: 'middle' as const } },
+          { content: 'Nama', styles: { halign: 'center' as const, valign: 'middle' as const } },
+          { content: 'Instansi', styles: { halign: 'center' as const, valign: 'middle' as const } },
+          { content: 'Jabatan', styles: { halign: 'center' as const, valign: 'middle' as const } },
+          { content: 'Nomor Telepon', styles: { halign: 'center' as const, valign: 'middle' as const } }
+        ];
 
-        const columnStyles = perluRekening
-          ? {
-              0: { cellWidth: 10, halign: 'center' as const, valign: 'middle' as const },
-              1: { cellWidth: 40 },
-              2: { cellWidth: 40 },
-              3: { cellWidth: 32 },
-              4: { cellWidth: 30 },
-              5: { cellWidth: 30 },
-              6: { cellWidth: 30 },
-              7: { cellWidth: 30 },
-              8: { cellWidth: 25, valign: 'middle' as const, halign: 'left' as const, fontStyle: 'bold' as const } // Tanda tangan
+        if (perluRekening) {
+          tableHeaders.push(
+            { content: 'Nama Bank', styles: { halign: 'center' as const, valign: 'middle' as const } },
+            { content: 'Nomor Rekening', styles: { halign: 'center' as const, valign: 'middle' as const } },
+            { content: 'Nama Pemilik Rekening', styles: { halign: 'center' as const, valign: 'middle' as const } }
+          );
+        }
+
+        if (useMultiSig) {
+          const months = [
+            'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+            'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+          ];
+          const sortedDates = dateStrings
+            .map(d => {
+              const date = new Date(d);
+              return {
+                day: date.getDate(),
+                monthName: months[date.getMonth()],
+                time: date.getTime(),
+                raw: d
+              };
+            })
+            .filter(p => !isNaN(p.time))
+            .sort((a, b) => a.time - b.time);
+
+          sortedDates.forEach((sd, idx) => {
+            const shortDate = `${sd.day} ${sd.monthName.substring(0, 3)}`;
+            tableHeaders.push({
+              content: `Tanda Tangan\nHari ${idx + 1}\n(${shortDate})`,
+              styles: { halign: 'center' as const, valign: 'middle' as const }
+            });
+          });
+        } else {
+          tableHeaders.push({ content: 'Tanda Tangan', styles: { halign: 'center' as const, valign: 'middle' as const } });
+        }
+
+        const columnStyles: Record<number, any> = {};
+        if (perluRekening) {
+          if (useMultiSig) {
+            const sigWidth = 79 / sigColumnsCount;
+            columnStyles[0] = { cellWidth: 8, halign: 'center' as const, valign: 'middle' as const };
+            columnStyles[1] = { cellWidth: 30 };
+            columnStyles[2] = { cellWidth: 30 };
+            columnStyles[3] = { cellWidth: 24 };
+            columnStyles[4] = { cellWidth: 24 };
+            columnStyles[5] = { cellWidth: 24 };
+            columnStyles[6] = { cellWidth: 24 };
+            columnStyles[7] = { cellWidth: 24 };
+            
+            for (let s = 0; s < sigColumnsCount; s++) {
+              columnStyles[8 + s] = { cellWidth: sigWidth, valign: 'middle' as const, halign: 'left' as const, fontStyle: 'bold' as const };
             }
-          : {
-              0: { cellWidth: 12, halign: 'center' as const, valign: 'middle' as const },
-              1: { cellWidth: 60 },
-              2: { cellWidth: 60 },
-              3: { cellWidth: 50 },
-              4: { cellWidth: 45 },
-              5: { cellWidth: 40, valign: 'middle' as const, halign: 'left' as const, fontStyle: 'bold' as const } // Tanda tangan
-            };
+          } else {
+            columnStyles[0] = { cellWidth: 10, halign: 'center' as const, valign: 'middle' as const };
+            columnStyles[1] = { cellWidth: 40 };
+            columnStyles[2] = { cellWidth: 40 };
+            columnStyles[3] = { cellWidth: 32 };
+            columnStyles[4] = { cellWidth: 30 };
+            columnStyles[5] = { cellWidth: 30 };
+            columnStyles[6] = { cellWidth: 30 };
+            columnStyles[7] = { cellWidth: 30 };
+            columnStyles[8] = { cellWidth: 25, valign: 'middle' as const, halign: 'left' as const, fontStyle: 'bold' as const };
+          }
+        } else {
+          if (useMultiSig) {
+            const sigWidth = 100 / sigColumnsCount;
+            columnStyles[0] = { cellWidth: 10, halign: 'center' as const, valign: 'middle' as const };
+            columnStyles[1] = { cellWidth: 45 };
+            columnStyles[2] = { cellWidth: 45 };
+            columnStyles[3] = { cellWidth: 35 };
+            columnStyles[4] = { cellWidth: 32 };
+            
+            for (let s = 0; s < sigColumnsCount; s++) {
+              columnStyles[5 + s] = { cellWidth: sigWidth, valign: 'middle' as const, halign: 'left' as const, fontStyle: 'bold' as const };
+            }
+          } else {
+            columnStyles[0] = { cellWidth: 12, halign: 'center' as const, valign: 'middle' as const };
+            columnStyles[1] = { cellWidth: 60 };
+            columnStyles[2] = { cellWidth: 60 };
+            columnStyles[3] = { cellWidth: 50 };
+            columnStyles[4] = { cellWidth: 45 };
+            columnStyles[5] = { cellWidth: 40, valign: 'middle' as const, halign: 'left' as const, fontStyle: 'bold' as const };
+          }
+        }
 
         autoTable(doc, {
           startY: headerBottomY + 4,
@@ -242,8 +299,8 @@ export class SuratOtomatisService {
           body: tableData,
           theme: 'grid',
           styles: {
-            fontSize: perluRekening ? 8 : 9,
-            cellPadding: 2.5,
+            fontSize: (perluRekening || sigColumnsCount > 2) ? 8 : 9,
+            cellPadding: sigColumnsCount > 3 ? 1.5 : 2.5,
             lineColor: [0, 0, 0], // Black borders like Excel
             lineWidth: 0.15,
             textColor: [0, 0, 0],

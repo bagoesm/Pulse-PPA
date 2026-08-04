@@ -542,6 +542,15 @@ export const SURAT_TEMPLATES: SuratTemplate[] = [
         helpText: 'Pilih Ya jika ingin menambahkan kolom bank/rekening pada tabel'
       },
       {
+        id: 'tanda_tangan_sekaligus',
+        label: 'Tanda Tangan Sekaligus?',
+        type: 'select',
+        options: ['Ya', 'Tidak'],
+        required: false,
+        defaultValue: 'Ya',
+        helpText: 'Pilih Tidak jika ingin menyediakan kolom tanda tangan terpisah untuk setiap tanggal kegiatan'
+      },
+      {
         id: 'jumlah_baris',
         label: 'Jumlah Baris Daftar Hadir',
         type: 'number',
