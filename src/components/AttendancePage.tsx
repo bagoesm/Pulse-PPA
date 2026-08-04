@@ -677,52 +677,61 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
 
     // Real GPS logic
     if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const lat = pos.coords.latitude;
-          const lon = pos.coords.longitude;
-          const acc = pos.coords.accuracy;
-          setUserLocation({ lat, lon, acc });
-          setGpsLoading(false);
+      const getPosition = (highAccuracy: boolean) => {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const lat = pos.coords.latitude;
+            const lon = pos.coords.longitude;
+            const acc = pos.coords.accuracy;
+            setUserLocation({ lat, lon, acc });
+            setGpsLoading(false);
 
-          if (activeGeos.length > 0) {
-            let nearest: { geo: Geofence; dist: number } | null = null;
-            activeGeos.forEach((geo) => {
-              const dist = getHaversineDistance(lat, lon, geo.latitude, geo.longitude);
-              if (!nearest || dist < nearest.dist) {
-                nearest = { geo, dist };
+            if (activeGeos.length > 0) {
+              let nearest: { geo: Geofence; dist: number } | null = null;
+              activeGeos.forEach((geo) => {
+                const dist = getHaversineDistance(lat, lon, geo.latitude, geo.longitude);
+                if (!nearest || dist < nearest.dist) {
+                  nearest = { geo, dist };
+                }
+              });
+              setNearestGeofence(nearest);
+              if (nearest) {
+                setIsInGeofenceRange(nearest.dist <= nearest.geo.radius);
               }
-            });
-            setNearestGeofence(nearest);
-            if (nearest) {
-              setIsInGeofenceRange(nearest.dist <= nearest.geo.radius);
             }
-          }
-        },
-        (err) => {
-          console.error('GPS error:', err);
-          setGpsLoading(false);
-          
-          // Local testing fallback if real GPS fails
-          const hostname = window.location.hostname;
-          const isLocal = hostname === 'localhost' || 
-                          hostname === '127.0.0.1' || 
-                          hostname.startsWith('192.168.') || 
-                          hostname.startsWith('10.') ||
-                          hostname.endsWith('.loca.lt') ||
-                          hostname.endsWith('.ngrok-free.app');
-          if (isLocal && activeGeos.length > 0) {
-            const testGeo = activeGeos[0];
-            setUserLocation({ lat: testGeo.latitude, lon: testGeo.longitude, acc: 10 });
-            setNearestGeofence({ geo: testGeo, dist: 0 });
-            setIsInGeofenceRange(true);
-            showNotification?.('GPS Simu-Aktif', 'Menggunakan lokasi simulasi karena GPS browser gagal.', 'info');
-          } else {
-            showNotification?.('GPS Gagal', 'Gagal mendeteksi lokasi GPS. Pastikan izin lokasi diaktifkan.', 'error');
-          }
-        },
-        { enableHighAccuracy: true, timeout: 10000 }
-      );
+          },
+          (err) => {
+            if (highAccuracy) {
+              console.warn('High accuracy GPS failed (kCLErrorLocationUnknown/timeout), retrying with low accuracy...', err);
+              getPosition(false);
+            } else {
+              console.error('GPS error:', err);
+              setGpsLoading(false);
+              
+              // Local testing fallback if real GPS fails
+              const hostname = window.location.hostname;
+              const isLocal = hostname === 'localhost' || 
+                              hostname === '127.0.0.1' || 
+                              hostname.startsWith('192.168.') || 
+                              hostname.startsWith('10.') ||
+                              hostname.endsWith('.loca.lt') ||
+                              hostname.endsWith('.ngrok-free.app');
+              if (isLocal && activeGeos.length > 0) {
+                const testGeo = activeGeos[0];
+                setUserLocation({ lat: testGeo.latitude, lon: testGeo.longitude, acc: 10 });
+                setNearestGeofence({ geo: testGeo, dist: 0 });
+                setIsInGeofenceRange(true);
+                showNotification?.('GPS Simu-Aktif', 'Menggunakan lokasi simulasi karena GPS browser gagal.', 'info');
+              } else {
+                showNotification?.('GPS Gagal', 'Gagal mendeteksi lokasi GPS. Pastikan izin lokasi diaktifkan.', 'error');
+              }
+            }
+          },
+          { enableHighAccuracy: highAccuracy, timeout: highAccuracy ? 8000 : 12000, maximumAge: highAccuracy ? 0 : 5000 }
+        );
+      };
+
+      getPosition(true);
     } else {
       setGpsLoading(false);
       // Local testing fallback if geolocation not supported
