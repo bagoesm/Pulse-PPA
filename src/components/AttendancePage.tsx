@@ -1141,7 +1141,7 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
       const confidence = Math.max(0, Math.min(100, Math.round((1 - distance) * 100)));
       setMatchScore(confidence);
 
-      if (distance >= 0.58) {
+      if (confidence < 60) {
         // Face doesn't match! Reset liveness progress
         successCount = 0;
         setLivenessProgress(0);
