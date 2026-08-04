@@ -72,3 +72,6 @@ public/version.json
 # Excel spreadsheets & lock files
 *.xlsx
 ~$*.xlsx
+
+# Native app folder
+pulse-attendance-native/
