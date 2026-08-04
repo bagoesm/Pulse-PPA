@@ -15,6 +15,8 @@ dist-ssr
 # Environment variables
 .env
 .env.local
+.env.development
+.env.production
 .env.development.local
 .env.test.local
 .env.production.local
@@ -43,6 +45,9 @@ vitest.config.ts
 
 # Database (migrations and queries)
 database/
+supabase/migrations/
+supabase/migrations_backup/
+supabase/seed.sql
 
 # Development documentation (temporary)
 *_IMPLEMENTATION.md
