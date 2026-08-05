@@ -65,6 +65,8 @@ TROUBLESHOOTING_*.md
 HOTFIX_*.md
 QUICK_START_*.md
 MANUAL_*.md
+*_audit_report.md
+scripts/audit-rls.js
 
 # Kiro specs (development)
 .kiro/specs/

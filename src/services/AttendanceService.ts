@@ -201,6 +201,27 @@ export class AttendanceService {
    */
   async getEmployeeFacePublic(employeeId: string): Promise<EmployeeFace | null> {
     try {
+      // 1. Try secure RPC function (only returns AI vector embedding, hides profile_photo_url)
+      const { data: rpcData, error: rpcError } = await this.supabase
+        .rpc('get_face_embeddings_public');
+
+      if (!rpcError && rpcData && Array.isArray(rpcData)) {
+        const found = rpcData.find((item: any) => item.employee_id === employeeId);
+        if (found) {
+          const emb = typeof found.embedding === 'string' ? JSON.parse(found.embedding) : found.embedding;
+          return {
+            id: found.id || '',
+            employeeId: found.employee_id,
+            embedding: Array.isArray(emb) ? emb : [],
+            profilePhotoUrl: '',
+            status: found.status || 'Aktif',
+            registeredAt: '',
+            updatedAt: ''
+          };
+        }
+      }
+
+      // 2. Direct query fallback for authenticated users
       const { data, error } = await this.supabase
         .from('employee_faces')
         .select('*')
@@ -217,15 +238,36 @@ export class AttendanceService {
       return face || null;
     }
   }
+
   /**
    * Get all employee face registrations in a single batch query
    */
   async getAllEmployeeFaces(): Promise<EmployeeFace[]> {
     try {
+      // 1. Try secure RPC function (hides profile_photo_url from public)
+      const { data: rpcData, error: rpcError } = await this.supabase
+        .rpc('get_face_embeddings_public');
+
+      if (!rpcError && rpcData && Array.isArray(rpcData)) {
+        return rpcData.map((row: any) => {
+          const emb = typeof row.embedding === 'string' ? JSON.parse(row.embedding) : row.embedding;
+          return {
+            id: row.id || '',
+            employeeId: row.employee_id,
+            embedding: Array.isArray(emb) ? emb : [],
+            profilePhotoUrl: '',
+            status: row.status || 'Aktif',
+            registeredAt: '',
+            updatedAt: ''
+          };
+        });
+      }
+
+      // 2. Direct query fallback for authenticated users
       const { data, error } = await this.supabase
         .from('employee_faces')
         .select('*');
-        
+
       if (error) throw error;
       return (data || []).map((row: any) => this.mapFromFaceDB(row));
     } catch (error) {
