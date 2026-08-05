@@ -202,7 +202,7 @@ export const useUserHandlers = ({
         }
     }, [allUsers, currentUser, setAllUsers, setCurrentUser, showNotification]);
 
-    // Delete user
+    // Delete user (Soft Delete to preserve historical records like surats, meetings, & feedbacks)
     const handleDeleteUser = useCallback(async (userId: string) => {
         try {
             const userToDelete = allUsers.find(u => u.id === userId);
@@ -213,15 +213,24 @@ export const useUserHandlers = ({
                 return;
             }
 
-            const { error: profileError } = await supabase.from('profiles').delete().eq('id', userId);
+            const updatedName = userName.includes('(Dihapus)') ? userName : `${userName} (Dihapus)`;
+
+            // Soft delete: update name with '(Dihapus)' suffix and change role to 'Nonaktif'
+            const { error: profileError } = await supabase
+                .from('profiles')
+                .update({ 
+                    name: updatedName,
+                    role: 'Nonaktif'
+                })
+                .eq('id', userId);
 
             if (profileError) {
-                showNotification('Gagal Menghapus', `Gagal menghapus user: ${profileError.message}`, 'error');
+                showNotification('Gagal Menghapus', `Gagal merubah status user: ${profileError.message}`, 'error');
                 return;
             }
 
             setAllUsers(prev => prev.filter(u => u.id !== userId));
-            showNotification('User Dihapus', `Profil user ${userName} berhasil dihapus.`, 'success');
+            showNotification('User Dinonaktifkan', `Profil user ${userName} berhasil dinonaktifkan (Nama disimpan sebagai '${updatedName}').`, 'success');
         } catch (error: any) {
             showNotification('Kesalahan', `Terjadi kesalahan: ${error.message}`, 'error');
         }
