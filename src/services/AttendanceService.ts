@@ -1291,14 +1291,21 @@ export class AttendanceService {
           .delete()
           .eq('id', id);
 
-        if (error) throw error;
+        if (error) {
+          console.error('Delete attendance DB returned error:', error);
+        }
       } catch (err) {
         console.warn('Delete attendance DB failed, removing locally:', err);
       }
     }
 
-    // 4. Remove from local storage cache
-    const local = this.getLocalAttendances().filter((a) => a.id !== id);
+    // 4. Remove from local storage cache (by ID or matching date)
+    const targetDate = recordToDelete?.checkIn ? recordToDelete.checkIn.substring(0, 10) : '';
+    const local = this.getLocalAttendances().filter((a) => {
+      if (a.id === id) return false;
+      if (targetDate && a.checkIn && a.checkIn.substring(0, 10) === targetDate) return false;
+      return true;
+    });
     this.saveLocalAttendances(local);
   }
 }

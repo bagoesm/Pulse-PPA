@@ -468,8 +468,8 @@ export const UserAttendancePage: React.FC<UserAttendancePageProps> = ({
 
       if (editingAttendance) {
         // --- Edit Mode ---
-        const checkInIso = `${startDate}T${checkInTime}:00.000Z`;
-        const checkOutIso = checkOutTime ? `${startDate}T${checkOutTime}:00.000Z` : undefined;
+        const checkInIso = `${startDate}T${checkInTime}:00`;
+        const checkOutIso = checkOutTime ? `${startDate}T${checkOutTime}:00` : undefined;
 
         await attendanceService.updateManualAttendance(editingAttendance.id, {
           checkIn: checkInIso,
@@ -493,8 +493,8 @@ export const UserAttendancePage: React.FC<UserAttendancePageProps> = ({
         let createdCount = 0;
         for (let d = new Date(s); d <= eDate; d.setDate(d.getDate() + 1)) {
           const dateStr = d.toISOString().substring(0, 10);
-          const checkInIso = `${dateStr}T${checkInTime}:00.000Z`;
-          const checkOutIso = checkOutTime ? `${dateStr}T${checkOutTime}:00.000Z` : undefined;
+          const checkInIso = `${dateStr}T${checkInTime}:00`;
+          const checkOutIso = checkOutTime ? `${dateStr}T${checkOutTime}:00` : undefined;
 
           await attendanceService.createManualAttendance({
             employeeId: currentUser.id,
@@ -538,10 +538,16 @@ export const UserAttendancePage: React.FC<UserAttendancePageProps> = ({
     try {
       setDeleting(true);
       const targetId = deletingAttendance.id;
+      const targetDate = deletingAttendance.checkIn ? deletingAttendance.checkIn.substring(0, 10) : '';
+
       await attendanceService.deleteAttendance(targetId);
       
-      // Update local state immediately for instant UI feedback
-      setAttendances((prev) => prev.filter((a) => a.id !== targetId));
+      // Update local state immediately for instant UI feedback (by ID & Date)
+      setAttendances((prev) => prev.filter((a) => {
+        if (a.id === targetId) return false;
+        if (targetDate && a.checkIn && a.checkIn.substring(0, 10) === targetDate) return false;
+        return true;
+      }));
       
       showNotification('Berhasil', 'Data absensi manual & file lampiran berhasil dihapus', 'success');
       setDeletingAttendance(null);

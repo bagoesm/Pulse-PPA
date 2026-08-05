@@ -54,13 +54,19 @@ export class AttendanceExportService {
   }
 
   /**
-   * Format ISO date/time string to "HH.mm WIB"
+   * Format ISO date/time string to "HH.mm WIB" preserving exact input time
    */
   private formatTimeWib(isoStr?: string): string {
     if (!isoStr) return '-';
     try {
       if (isoStr.length === 5 && isoStr.includes(':')) {
         return `${isoStr.replace(':', '.')} WIB`;
+      }
+      if (isoStr.includes('T')) {
+        const timePart = isoStr.substring(11, 16);
+        if (timePart && timePart.includes(':')) {
+          return `${timePart.replace(':', '.')} WIB`;
+        }
       }
       const d = new Date(isoStr);
       if (isNaN(d.getTime())) return isoStr;
