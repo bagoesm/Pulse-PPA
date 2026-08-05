@@ -185,7 +185,6 @@ export const SuratDisposisiDashboard: React.FC<SuratDisposisiDashboardProps> = (
     return disposisi.filter(d => {
       if (d.createdBy && (sameDivisiUserIds.has(d.createdBy) || sameDivisiUserNames.has(d.createdBy.toLowerCase().trim()))) return true;
       if (d.assignedTo && (sameDivisiUserIds.has(d.assignedTo) || sameDivisiUserNames.has(d.assignedTo.toLowerCase().trim()))) return true;
-      if (d.unitKerja && d.unitKerja.toLowerCase().includes(userDivisiLower)) return true;
       return false;
     });
   }, [disposisi, currentUser, allUsers]);
