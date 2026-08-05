@@ -209,6 +209,41 @@ export class WfaService {
   }
 
   /**
+   * Create multiple WFA Laporan entries in a batch (Multiple activities)
+   */
+  async createBatchWfaLaporan(laporanList: Omit<WfaLaporan, 'id'>[]): Promise<WfaLaporan[]> {
+    if (!laporanList || laporanList.length === 0) return [];
+    try {
+      return await handleDatabaseOperation(async () => {
+        const rows = laporanList.map((item) => this.mapToDB(item));
+        const { data, error } = await this.supabase
+          .from('wfa_laporan')
+          .insert(rows)
+          .select();
+
+        if (error) throw error;
+        return (data || []).map((r: any) => this.mapFromDB(r));
+      }, 'createBatchWfaLaporan');
+    } catch (error) {
+      console.warn('WFA Service fallback to local storage for createBatchWfaLaporan:', error);
+      const local = this.getLocalReports();
+      const created: WfaLaporan[] = [];
+      laporanList.forEach((laporan, idx) => {
+        const newLaporan: WfaLaporan = {
+          ...laporan,
+          id: 'wfa-' + Date.now() + '-' + idx + '-' + Math.random().toString(36).substr(2, 4),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        local.unshift(newLaporan);
+        created.push(newLaporan);
+      });
+      this.saveLocalReports(local);
+      return created;
+    }
+  }
+
+  /**
    * Update an existing WFA Laporan
    */
   async updateWfaLaporan(id: string, updates: Partial<WfaLaporan>): Promise<WfaLaporan> {

@@ -169,13 +169,29 @@ export const WfaLaporanPage: React.FC<WfaLaporanPageProps> = ({ currentUser, sho
 
   // Combine submitted reports and unsubmitted profiles for Atasan & Super Admin
   const displayList = useMemo(() => {
+    // For Staff: show all their reports (including their own Drafts)
     if (currentUser.role === 'Staff' || unitProfiles.length === 0) {
-      return laporanList.map((item) => ({ ...item, hasSubmitted: true }));
+      return laporanList.map((item) => ({ 
+        ...item, 
+        hasSubmitted: item.statusPelaksanaan !== 'Draft' 
+      }));
     }
 
-    const reportUserIds = new Set(laporanList.map((item) => item.userId));
+    // For Atasan / Super Admin:
+    // Exclude Drafts written by other users (leaders only see submitted reports)
+    const submittedOrOwnReports = laporanList.filter((item) => {
+      if (item.statusPelaksanaan === 'Draft' && item.userId !== currentUser.id) {
+        return false; // Hide other staff's drafts from leaders
+      }
+      return true;
+    });
+
+    const reportUserIds = new Set(submittedOrOwnReports.filter((item) => item.statusPelaksanaan !== 'Draft').map((item) => item.userId));
     const merged: (WfaLaporan & { hasSubmitted: boolean })[] = [
-      ...laporanList.map((item) => ({ ...item, hasSubmitted: true })),
+      ...submittedOrOwnReports.map((item) => ({ 
+        ...item, 
+        hasSubmitted: item.statusPelaksanaan !== 'Draft' 
+      })),
     ];
 
     unitProfiles.forEach((profile) => {
@@ -201,7 +217,7 @@ export const WfaLaporanPage: React.FC<WfaLaporanPageProps> = ({ currentUser, sho
     });
 
     return merged;
-  }, [laporanList, unitProfiles, currentUser.role, selectedUnit, startDate, currentWeek.startDate]);
+  }, [laporanList, unitProfiles, currentUser.role, currentUser.id, selectedUnit, startDate, currentWeek.startDate]);
 
   // Filtered List based on search, status, and submission status
   const filteredList = useMemo(() => {
@@ -886,6 +902,8 @@ export const WfaLaporanPage: React.FC<WfaLaporanPageProps> = ({ currentUser, sho
                           className={`inline-block px-2.5 py-1 text-[11px] font-bold rounded-full whitespace-nowrap ${
                             !item.hasSubmitted
                               ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                              : item.statusPelaksanaan === 'Draft'
+                              ? 'bg-amber-100 text-amber-900 border border-amber-300 font-extrabold shadow-2xs'
                               : item.statusPelaksanaan === 'Selesai'
                               ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                               : item.statusPelaksanaan === 'Dalam Proses'

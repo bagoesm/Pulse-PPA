@@ -14,6 +14,10 @@ import {
   AlertCircle,
   Clock,
   AlertTriangle,
+  Plus,
+  Trash2,
+  Save,
+  Layers,
 } from 'lucide-react';
 import { User, WfaLaporan } from '../../types';
 import { wfaService } from '../services/WfaService';
@@ -25,6 +29,15 @@ interface WfaFormModalProps {
   onSuccess: () => void;
   currentUser: User;
   editingLaporan?: WfaLaporan | null;
+}
+
+interface KegiatanItem {
+  id?: string;
+  rencanaHasilKinerja: string;
+  rencanaKinerja: string;
+  outputKinerja: string;
+  linkDataDukung: string;
+  statusPelaksanaan: string;
 }
 
 export const WfaFormModal: React.FC<WfaFormModalProps> = ({
@@ -50,11 +63,17 @@ export const WfaFormModal: React.FC<WfaFormModalProps> = ({
 
   // Form states
   const [tanggalWfa, setTanggalWfa] = useState<string>('');
-  const [rencanaHasilKinerja, setRencanaHasilKinerja] = useState<string>('');
-  const [rencanaKinerja, setRencanaKinerja] = useState<string>('');
-  const [outputKinerja, setOutputKinerja] = useState<string>('');
-  const [linkDataDukung, setLinkDataDukung] = useState<string>('');
-  const [statusPelaksanaan, setStatusPelaksanaan] = useState<string>('Selesai');
+  
+  // List of Kegiatan (Multiple Activities Support)
+  const [kegiatanList, setKegiatanList] = useState<KegiatanItem[]>([
+    {
+      rencanaHasilKinerja: '',
+      rencanaKinerja: '',
+      outputKinerja: '',
+      linkDataDukung: '',
+      statusPelaksanaan: 'Selesai',
+    },
+  ]);
 
   // Interval timer for second-by-second countdown
   useEffect(() => {
@@ -91,18 +110,27 @@ export const WfaFormModal: React.FC<WfaFormModalProps> = ({
 
       if (editingLaporan) {
         setTanggalWfa(editingLaporan.tanggalWfa);
-        setRencanaHasilKinerja(editingLaporan.rencanaHasilKinerja);
-        setRencanaKinerja(editingLaporan.rencanaKinerja);
-        setOutputKinerja(editingLaporan.outputKinerja);
-        setLinkDataDukung(editingLaporan.linkDataDukung || '');
-        setStatusPelaksanaan(editingLaporan.statusPelaksanaan || 'Selesai');
+        setKegiatanList([
+          {
+            id: editingLaporan.id,
+            rencanaHasilKinerja: editingLaporan.rencanaHasilKinerja || '',
+            rencanaKinerja: editingLaporan.rencanaKinerja || '',
+            outputKinerja: editingLaporan.outputKinerja || '',
+            linkDataDukung: editingLaporan.linkDataDukung || '',
+            statusPelaksanaan: editingLaporan.statusPelaksanaan || 'Selesai',
+          },
+        ]);
       } else {
-        // Reset form
-        setRencanaHasilKinerja('');
-        setRencanaKinerja('');
-        setOutputKinerja('');
-        setLinkDataDukung('');
-        setStatusPelaksanaan('Selesai');
+        // Reset form to default 1 empty activity
+        setKegiatanList([
+          {
+            rencanaHasilKinerja: '',
+            rencanaKinerja: '',
+            outputKinerja: '',
+            linkDataDukung: '',
+            statusPelaksanaan: 'Selesai',
+          },
+        ]);
       }
     }
   }, [isOpen, editingLaporan]);
@@ -110,11 +138,9 @@ export const WfaFormModal: React.FC<WfaFormModalProps> = ({
   const loadDates = async () => {
     try {
       setLoadingDates(true);
-      // For Staff creating new report, restrict ONLY to active WFA date for current week schedule
       const restrictToActiveWindow = currentUser.role === 'Staff' && !editingLaporan;
       const dates = await wfaService.getAllowedWfaDates(restrictToActiveWindow);
 
-      // If editing an existing report and its date isn't in active dates, include it
       if (editingLaporan && !dates.some((d) => d.date === editingLaporan.tanggalWfa)) {
         dates.unshift({
           date: editingLaporan.tanggalWfa,
@@ -145,8 +171,34 @@ export const WfaFormModal: React.FC<WfaFormModalProps> = ({
 
   const selectedDateObj = allowedDates.find((d) => d.date === tanggalWfa);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Handlers for dynamic kegiatan items
+  const handleAddKegiatan = () => {
+    setKegiatanList((prev) => [
+      ...prev,
+      {
+        rencanaHasilKinerja: '',
+        rencanaKinerja: '',
+        outputKinerja: '',
+        linkDataDukung: '',
+        statusPelaksanaan: 'Selesai',
+      },
+    ]);
+  };
+
+  const handleRemoveKegiatan = (index: number) => {
+    if (kegiatanList.length <= 1) return;
+    setKegiatanList((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleKegiatanChange = (index: number, field: keyof KegiatanItem, value: string) => {
+    setKegiatanList((prev) => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      return updated;
+    });
+  };
+
+  const handleSave = async (isDraft: boolean) => {
     setErrorMessage('');
 
     if (!tanggalWfa) {
@@ -162,48 +214,61 @@ export const WfaFormModal: React.FC<WfaFormModalProps> = ({
       return;
     }
 
-    if (!rencanaHasilKinerja.trim()) {
-      setErrorMessage('Silakan isi Rencana Hasil Kinerja.');
-      return;
-    }
-    if (!rencanaKinerja.trim()) {
-      setErrorMessage('Silakan isi Rencana Kinerja.');
-      return;
-    }
-    if (!outputKinerja.trim()) {
-      setErrorMessage('Silakan isi Output Kinerja.');
-      return;
+    // Validate fields for each kegiatan
+    for (let i = 0; i < kegiatanList.length; i++) {
+      const item = kegiatanList[i];
+      const numLabel = kegiatanList.length > 1 ? ` (Kegiatan #${i + 1})` : '';
+
+      if (!item.rencanaHasilKinerja.trim()) {
+        setErrorMessage(`Silakan isi Rencana Hasil Kinerja${numLabel}.`);
+        return;
+      }
+      if (!item.rencanaKinerja.trim()) {
+        setErrorMessage(`Silakan isi Rencana Kinerja${numLabel}.`);
+        return;
+      }
+      if (!item.outputKinerja.trim()) {
+        setErrorMessage(`Silakan isi Output Kinerja${numLabel}.`);
+        return;
+      }
     }
 
     try {
       setSubmitting(true);
-      const formattedLink = ensureHttps(linkDataDukung.trim());
+
       if (editingLaporan) {
+        // Editing single existing report entry
+        const singleItem = kegiatanList[0];
+        const formattedLink = ensureHttps(singleItem.linkDataDukung.trim());
         await wfaService.updateWfaLaporan(editingLaporan.id, {
           tanggalWfa,
-          rencanaHasilKinerja: rencanaHasilKinerja.trim(),
-          rencanaKinerja: rencanaKinerja.trim(),
-          outputKinerja: outputKinerja.trim(),
+          rencanaHasilKinerja: singleItem.rencanaHasilKinerja.trim(),
+          rencanaKinerja: singleItem.rencanaKinerja.trim(),
+          outputKinerja: singleItem.outputKinerja.trim(),
           linkDataDukung: formattedLink,
-          statusPelaksanaan,
+          statusPelaksanaan: isDraft ? 'Draft' : singleItem.statusPelaksanaan,
         });
       } else {
-        await wfaService.createWfaLaporan({
+        // Creating new report (supports batch insertion for multiple activities)
+        const batchPayload = kegiatanList.map((item) => ({
           userId: currentUser.id,
           nama: currentUser.name,
           nip: currentUser.nip || '-',
           unitKerja: currentUser.divisi || 'Biro Data dan Informasi',
           jabatan: currentUser.jabatan || 'Pegawai',
           tanggalWfa,
-          rencanaHasilKinerja: rencanaHasilKinerja.trim(),
-          rencanaKinerja: rencanaKinerja.trim(),
-          outputKinerja: outputKinerja.trim(),
-          linkDataDukung: formattedLink,
-          statusPelaksanaan,
+          rencanaHasilKinerja: item.rencanaHasilKinerja.trim(),
+          rencanaKinerja: item.rencanaKinerja.trim(),
+          outputKinerja: item.outputKinerja.trim(),
+          linkDataDukung: ensureHttps(item.linkDataDukung.trim()),
+          statusPelaksanaan: isDraft ? 'Draft' : item.statusPelaksanaan,
           penilaian: null,
           createdAt: new Date().toISOString(),
-        });
+        }));
+
+        await wfaService.createBatchWfaLaporan(batchPayload);
       }
+
       onSuccess();
       onClose();
     } catch (err: any) {
@@ -216,133 +281,113 @@ export const WfaFormModal: React.FC<WfaFormModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto animate-fadeIn">
-      <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 max-w-2xl w-full my-8 overflow-hidden transform transition-all">
+      <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 max-w-3xl w-full my-8 overflow-hidden transform transition-all">
         {/* Header */}
-        <div className="px-6 py-5 bg-gradient-to-r from-gov-600 to-gov-700 text-white flex justify-between items-center relative overflow-hidden">
+        <div className="px-6 py-5 bg-gradient-to-r from-gov-800 via-gov-700 to-gov-900 text-white flex items-center justify-between relative overflow-hidden">
+          <div className="absolute right-0 top-0 opacity-10 translate-x-4 -translate-y-4">
+            <Sparkles size={120} />
+          </div>
           <div className="relative z-10 flex items-center gap-3">
-            <div className="p-2.5 bg-white/10 backdrop-blur-md rounded-xl">
-              <FileText className="w-6 h-6 text-white" />
+            <div className="p-2.5 bg-white/10 backdrop-blur-md rounded-xl text-amber-300 border border-white/10 shadow-inner">
+              <Calendar size={22} />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-white">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
                 {editingLaporan ? 'Edit Laporan WFA' : 'Input Laporan WFA'}
+                <span className="px-2 py-0.5 text-[10px] font-extrabold uppercase bg-amber-400/20 border border-amber-300/40 text-amber-200 rounded-full tracking-wider">
+                  {kegiatanList.length} Kegiatan
+                </span>
               </h3>
               <p className="text-xs text-gov-100 font-medium">
-                {editingLaporan ? 'Perbarui rincian laporan WFA Anda' : 'Isi formulir laporan kerja WFA pegawai'}
+                {editingLaporan ? 'Perbarui rincian laporan WFA Anda' : 'Tambah satu atau beberapa kegiatan rencana kerja WFA'}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="text-white/80 hover:text-white hover:bg-white/20 p-2 rounded-xl transition-all"
+            className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-xl transition-all relative z-10"
           >
             <X size={20} />
           </button>
         </div>
 
-        {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-5 max-h-[75vh] overflow-y-auto">
+        <div className="p-6 space-y-6 max-h-[75vh] overflow-y-auto">
+          {/* Error Banner */}
           {errorMessage && (
-            <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-xl flex items-center gap-2">
-              <AlertCircle size={16} className="flex-shrink-0" />
-              <span><strong className="font-semibold">Perhatian:</strong> {errorMessage}</span>
+            <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-xs font-semibold flex items-center gap-2 animate-shake">
+              <AlertCircle size={16} className="text-rose-600 flex-shrink-0" />
+              <span>{errorMessage}</span>
             </div>
           )}
 
-          {/* User Meta Info Badge */}
-          <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl grid grid-cols-2 md:grid-cols-3 gap-3 text-xs text-slate-600">
-            <div>
-              <span className="text-slate-400 block font-medium">Nama Pegawai</span>
-              <span className="font-semibold text-slate-800">{currentUser.name}</span>
-            </div>
-            <div>
-              <span className="text-slate-400 block font-medium">NIP</span>
-              <span className="font-semibold text-slate-800">{currentUser.nip || '-'}</span>
-            </div>
-            <div>
-              <span className="text-slate-400 block font-medium">Unit Kerja</span>
-              <span className="font-semibold text-gov-700">{currentUser.divisi || 'Biro Data dan Informasi'}</span>
-            </div>
-          </div>
-
           {/* Tanggal WFH / WFA Custom Elegant Selector */}
-          <div className="relative" ref={dropdownRef}>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center justify-between">
-              <span className="flex items-center gap-1.5">
-                <Calendar size={14} className="text-gov-600" />
-                Tanggal WFH / WFA <span className="text-rose-500">*</span>
-              </span>
-              {(currentUser.role === 'Super Admin' || editingLaporan) && (
-                <button
-                  type="button"
-                  onClick={() => setUseCustomPicker(!useCustomPicker)}
-                  className="text-[11px] text-gov-700 hover:text-gov-800 font-semibold underline"
-                >
-                  {useCustomPicker ? 'Pilih dari Jadwal Resmi' : 'Input Tanggal Lain'}
-                </button>
-              )}
+          <div className="relative">
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+              <Calendar size={14} className="text-gov-600" />
+              Tanggal WFH / WFA <span className="text-rose-500">*</span>
             </label>
 
-            {loadingDates ? (
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-500 animate-pulse">
-                Memuat daftar tanggal WFA...
+            {useCustomPicker ? (
+              <div className="space-y-2">
+                <input
+                  type="date"
+                  value={tanggalWfa}
+                  onChange={(e) => setTanggalWfa(e.target.value)}
+                  className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-gov-500/20 focus:border-gov-600 transition-all font-medium text-slate-800"
+                />
+                <button
+                  type="button"
+                  onClick={() => setUseCustomPicker(false)}
+                  className="text-xs text-gov-600 font-semibold hover:underline flex items-center gap-1"
+                >
+                  ← Kembali ke pilihan tanggal WFA yang tersedia
+                </button>
               </div>
-            ) : useCustomPicker ? (
-              <input
-                type="date"
-                value={tanggalWfa}
-                onChange={(e) => setTanggalWfa(e.target.value)}
-                className="w-full px-4 py-3 text-sm bg-white border-2 border-gov-500/40 rounded-xl focus:ring-2 focus:ring-gov-500/20 focus:border-gov-600 transition-all font-semibold text-slate-800 shadow-sm"
-              />
             ) : (
-              <div>
-                {/* Trigger Button */}
+              <div className="relative" ref={dropdownRef}>
                 <button
                   type="button"
                   onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                  className="w-full p-3.5 bg-gradient-to-r from-slate-50 to-gov-50/30 border border-slate-200 hover:border-gov-400 rounded-xl transition-all flex items-center justify-between shadow-xs group text-left"
+                  disabled={loadingDates}
+                  className={`w-full px-4 py-3 bg-slate-50 hover:bg-slate-100/80 border rounded-xl flex items-center justify-between transition-all text-left group ${
+                    isDropdownOpen ? 'border-gov-600 ring-2 ring-gov-500/20 bg-white' : 'border-slate-200'
+                  }`}
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-gov-600 text-white flex flex-col items-center justify-center font-bold shadow-sm group-hover:scale-105 transition-transform">
-                      <span className="text-[10px] uppercase font-medium leading-none opacity-80">
-                        {tanggalWfa ? new Date(tanggalWfa).toLocaleDateString('id-ID', { month: 'short' }) : 'WFA'}
-                      </span>
-                      <span className="text-sm font-black leading-tight">
-                        {tanggalWfa ? tanggalWfa.split('-')[2] : '--'}
-                      </span>
-                    </div>
-
-                    <div>
-                      <div className="font-bold text-slate-800 text-sm">
-                        {tanggalWfa ? formatIndonesianDateWithDay(tanggalWfa) : 'Pilih Tanggal WFA'}
+                  {loadingDates ? (
+                    <span className="text-xs text-slate-400 animate-pulse">Memuat daftar tanggal WFA...</span>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-gov-600 text-white flex flex-col items-center justify-center font-bold text-xs shadow-xs">
+                        <span className="text-[9px] uppercase font-medium leading-none opacity-80">
+                          {tanggalWfa ? new Date(tanggalWfa).toLocaleDateString('id-ID', { month: 'short' }) : 'WFA'}
+                        </span>
+                        <span className="text-xs font-black">
+                          {tanggalWfa ? tanggalWfa.split('-')[2] : '--'}
+                        </span>
                       </div>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-xs text-slate-500 font-mono">{tanggalWfa}</span>
+                      <div>
+                        <div className="text-sm font-bold text-slate-900 group-hover:text-gov-700 transition-colors">
+                          {tanggalWfa ? formatIndonesianDateWithDay(tanggalWfa) : 'Pilih Tanggal WFA'}
+                        </div>
                         {selectedDateObj && (
-                          <span
-                            className={`px-2 py-0.5 text-[10px] font-bold rounded-md ${
-                              selectedDateObj.isCustom
-                                ? 'bg-amber-100 text-amber-800'
-                                : 'bg-gov-100 text-gov-800'
-                            }`}
-                          >
-                            {selectedDateObj.keterangan || 'Jumat Regular'}
-                          </span>
+                          <div className="text-[10px] text-slate-500 font-medium">
+                            {selectedDateObj.keterangan || 'Tanggal WFA Sesuai Ketentuan'}
+                          </div>
                         )}
                       </div>
                     </div>
-                  </div>
-
-                  <div className="p-2 text-slate-400 group-hover:text-gov-600 rounded-lg transition-all">
-                    <ChevronDown size={18} className={`transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} />
-                  </div>
+                  )}
+                  <ChevronDown
+                    size={18}
+                    className={`text-slate-400 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180 text-gov-600' : ''}`}
+                  />
                 </button>
 
-                {/* Dropdown Popover */}
+                {/* Dropdown Menu */}
                 {isDropdownOpen && (
-                  <div className="absolute left-0 right-0 top-full mt-2 z-30 bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden animate-fadeIn max-h-80 flex flex-col">
-                    {/* Search inside dropdown */}
-                    <div className="p-3 bg-slate-50 border-b border-slate-100">
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-slate-100 z-50 overflow-hidden animate-fadeIn">
+                    {/* Search bar inside dropdown */}
+                    <div className="p-3 border-b border-slate-100 bg-slate-50/50">
                       <div className="relative">
                         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                         <input
@@ -356,7 +401,7 @@ export const WfaFormModal: React.FC<WfaFormModalProps> = ({
                     </div>
 
                     {/* Options list */}
-                    <div className="overflow-y-auto p-2 space-y-1 divide-y divide-slate-50">
+                    <div className="max-h-60 overflow-y-auto p-2 space-y-1 divide-y divide-slate-50">
                       {filteredDates.length === 0 ? (
                         <div className="text-center py-6 text-xs text-slate-400">
                           Tidak ditemukan tanggal WFA yang cocok.
@@ -499,85 +544,147 @@ export const WfaFormModal: React.FC<WfaFormModalProps> = ({
             </div>
           )}
 
-          {/* Rencana Hasil Kinerja */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-              <Sparkles size={14} className="text-gov-600" />
-              Rencana Hasil Kinerja <span className="text-rose-500">*</span>
-            </label>
-            <textarea
-              rows={2}
-              value={rencanaHasilKinerja}
-              onChange={(e) => setRencanaHasilKinerja(e.target.value)}
-              placeholder="Contoh: Tersusunnya draft standar operasional prosedur penanganan data..."
-              className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-gov-500/20 focus:border-gov-600 transition-all text-slate-800"
-            />
-          </div>
-
-          {/* Rencana Kinerja */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-              <FileText size={14} className="text-gov-600" />
-              Rencana Kinerja <span className="text-rose-500">*</span>
-            </label>
-            <textarea
-              rows={2}
-              value={rencanaKinerja}
-              onChange={(e) => setRencanaKinerja(e.target.value)}
-              placeholder="Contoh: Mengolah dan melakukan verifikasi data laporan bulanan unit kerja..."
-              className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-gov-500/20 focus:border-gov-600 transition-all text-slate-800"
-            />
-          </div>
-
-          {/* Output Kinerja */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-              <CheckCircle size={14} className="text-gov-600" />
-              Output Kinerja <span className="text-rose-500">*</span>
-            </label>
-            <textarea
-              rows={2}
-              value={outputKinerja}
-              onChange={(e) => setOutputKinerja(e.target.value)}
-              placeholder="Contoh: 1 Dokumen Ringkasan Laporan Verifikasi Data (100% selesai)..."
-              className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-gov-500/20 focus:border-gov-600 transition-all text-slate-800"
-            />
-          </div>
-
-          {/* Link Data Dukung & Status Pelaksanaan */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                <LinkIcon size={14} className="text-gov-600" />
-                Link Data Dukung
-              </label>
-              <input
-                type="text"
-                value={linkDataDukung}
-                onChange={(e) => setLinkDataDukung(e.target.value)}
-                placeholder="drive.google.com/..."
-                className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-gov-500/20 focus:border-gov-600 transition-all text-slate-800"
-              />
+          {/* Dynamic Kegiatan List Section */}
+          <div className="space-y-6">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h4 className="text-sm font-extrabold text-slate-800 flex items-center gap-2">
+                <Layers size={16} className="text-gov-600" />
+                Rincian Kegiatan WFA ({kegiatanList.length})
+              </h4>
+              {!editingLaporan && (
+                <button
+                  type="button"
+                  onClick={handleAddKegiatan}
+                  className="px-3 py-1.5 text-xs font-bold text-gov-700 bg-gov-50 hover:bg-gov-100 border border-gov-200 rounded-xl transition-all flex items-center gap-1.5 shadow-2xs"
+                >
+                  <Plus size={14} />
+                  Tambah Kegiatan Lain
+                </button>
+              )}
             </div>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-                Status Pelaksanaan <span className="text-rose-500">*</span>
-              </label>
-              <select
-                value={statusPelaksanaan}
-                onChange={(e) => setStatusPelaksanaan(e.target.value)}
-                className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-gov-500/20 focus:border-gov-600 transition-all font-medium text-slate-800"
+            {kegiatanList.map((kegiatan, index) => (
+              <div
+                key={index}
+                className="p-5 bg-slate-50/60 border border-slate-200/80 rounded-2xl space-y-4 relative transition-all hover:border-slate-300"
               >
-                <option value="Selesai">Selesai</option>
-                <option value="Dalam Proses">Dalam Proses</option>
-                <option value="Belum Selesai">Belum Selesai</option>
-              </select>
-            </div>
+                {/* Kegiatan Header */}
+                <div className="flex items-center justify-between border-b border-slate-200/60 pb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-lg bg-gov-600 text-white font-black text-xs flex items-center justify-center shadow-2xs">
+                      {index + 1}
+                    </span>
+                    <span className="text-xs font-extrabold text-slate-800">
+                      Kegiatan {kegiatanList.length > 1 ? `#${index + 1}` : ''}
+                    </span>
+                  </div>
+
+                  {kegiatanList.length > 1 && !editingLaporan && (
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveKegiatan(index)}
+                      className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-all flex items-center gap-1 text-xs font-semibold"
+                      title="Hapus kegiatan ini"
+                    >
+                      <Trash2 size={14} />
+                      <span className="hidden sm:inline">Hapus</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* Rencana Hasil Kinerja */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                    <Sparkles size={14} className="text-gov-600" />
+                    Rencana Hasil Kinerja <span className="text-rose-500">*</span>
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={kegiatan.rencanaHasilKinerja}
+                    onChange={(e) => handleKegiatanChange(index, 'rencanaHasilKinerja', e.target.value)}
+                    placeholder="Contoh: Tersusunnya draft standar operasional prosedur penanganan data..."
+                    className="w-full px-3.5 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-gov-500/20 focus:border-gov-600 transition-all text-slate-800"
+                  />
+                </div>
+
+                {/* Rencana Kinerja */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                    <FileText size={14} className="text-gov-600" />
+                    Rencana Kinerja (Detail Kegiatan) <span className="text-rose-500">*</span>
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={kegiatan.rencanaKinerja}
+                    onChange={(e) => handleKegiatanChange(index, 'rencanaKinerja', e.target.value)}
+                    placeholder="Contoh: Mengolah dan melakukan verifikasi data laporan bulanan unit kerja..."
+                    className="w-full px-3.5 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-gov-500/20 focus:border-gov-600 transition-all text-slate-800"
+                  />
+                </div>
+
+                {/* Output Kinerja */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                    <CheckCircle size={14} className="text-gov-600" />
+                    Output Kinerja <span className="text-rose-500">*</span>
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={kegiatan.outputKinerja}
+                    onChange={(e) => handleKegiatanChange(index, 'outputKinerja', e.target.value)}
+                    placeholder="Contoh: 1 Dokumen Ringkasan Laporan Verifikasi Data (100% selesai)..."
+                    className="w-full px-3.5 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-gov-500/20 focus:border-gov-600 transition-all text-slate-800"
+                  />
+                </div>
+
+                {/* Link Data Dukung & Status Pelaksanaan */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                      <LinkIcon size={14} className="text-gov-600" />
+                      Link Data Dukung
+                    </label>
+                    <input
+                      type="text"
+                      value={kegiatan.linkDataDukung}
+                      onChange={(e) => handleKegiatanChange(index, 'linkDataDukung', e.target.value)}
+                      placeholder="drive.google.com/..."
+                      className="w-full px-3.5 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-gov-500/20 focus:border-gov-600 transition-all text-slate-800"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                      Status Pelaksanaan <span className="text-rose-500">*</span>
+                    </label>
+                    <select
+                      value={kegiatan.statusPelaksanaan}
+                      onChange={(e) => handleKegiatanChange(index, 'statusPelaksanaan', e.target.value)}
+                      className="w-full px-3.5 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-gov-500/20 focus:border-gov-600 transition-all font-medium text-slate-800"
+                    >
+                      <option value="Selesai">Selesai</option>
+                      <option value="Dalam Proses">Dalam Proses</option>
+                      <option value="Belum Selesai">Belum Selesai</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            {!editingLaporan && kegiatanList.length > 1 && (
+              <button
+                type="button"
+                onClick={handleAddKegiatan}
+                className="w-full py-3 text-xs font-bold text-gov-700 bg-gov-50 hover:bg-gov-100 border border-dashed border-gov-300 rounded-xl transition-all flex items-center justify-center gap-2 shadow-2xs"
+              >
+                <Plus size={16} />
+                Tambah Kegiatan Lainnya (Total: {kegiatanList.length})
+              </button>
+            )}
           </div>
 
-          {/* Footer Buttons */}
-          <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
+          {/* Footer Actions: Draft vs Submit */}
+          <div className="pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
             <button
               type="button"
               onClick={onClose}
@@ -585,16 +692,32 @@ export const WfaFormModal: React.FC<WfaFormModalProps> = ({
             >
               Batal
             </button>
-            <button
-              type="submit"
-              disabled={submitting || (deadlineInfo?.isExpired && currentUser.role === 'Staff' && !editingLaporan)}
-              className="px-5 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-gov-600 to-gov-700 hover:from-gov-700 hover:to-gov-800 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Send size={16} />
-              {submitting ? 'Menyimpan...' : editingLaporan ? 'Simpan Perubahan' : 'Kirim Laporan WFA'}
-            </button>
+
+            <div className="flex items-center gap-2 sm:gap-3">
+              {/* Save as Draft Button */}
+              <button
+                type="button"
+                onClick={() => handleSave(true)}
+                disabled={submitting || (deadlineInfo?.isExpired && currentUser.role === 'Staff' && !editingLaporan)}
+                className="px-4 py-2.5 text-sm font-semibold text-amber-800 bg-amber-100 hover:bg-amber-200 border border-amber-300 rounded-xl shadow-xs transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Save size={16} />
+                <span>Simpan Draft</span>
+              </button>
+
+              {/* Submit Final Button */}
+              <button
+                type="button"
+                onClick={() => handleSave(false)}
+                disabled={submitting || (deadlineInfo?.isExpired && currentUser.role === 'Staff' && !editingLaporan)}
+                className="px-5 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-gov-600 to-gov-700 hover:from-gov-700 hover:to-gov-800 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Send size={16} />
+                <span>{submitting ? 'Menyimpan...' : editingLaporan ? 'Simpan Perubahan' : 'Kirim Laporan WFA'}</span>
+              </button>
+            </div>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );
