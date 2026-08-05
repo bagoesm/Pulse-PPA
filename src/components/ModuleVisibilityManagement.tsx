@@ -18,7 +18,8 @@ const ModuleVisibilityManagement: React.FC = () => {
     'Pelayanan Zoom',
     'Penilaian Arsip',
     'Laporan WFA',
-    'Absensi Wajah'
+    'Laporan Absensi',
+    'Absensi Saya'
   ];
 
   // States

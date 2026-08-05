@@ -396,8 +396,9 @@ export const SIDEBAR_ITEMS = [
     name: 'Informasi Lainnya',
     icon: 'MoreHorizontal',
     submenu: [
+      { name: 'Absensi Saya', icon: 'UserCheck' },
       { name: 'Laporan WFA', icon: 'ClipboardCheck' },
-      { name: 'Absensi Wajah', icon: 'Camera' },
+      { name: 'Laporan Absensi', icon: 'Camera' },
       { name: 'Inventori BMN', icon: 'Package' },
       { name: 'Inventori Data', icon: 'Database' },
       { name: 'Pelayanan Zoom', icon: 'Video' },
@@ -1130,8 +1131,9 @@ export interface Attendance {
   employeeDivisi?: string;
   checkIn: string;
   checkOut?: string;
-  status: 'Hadir' | 'Terlambat' | 'Absen' | 'WFA';
+  status: 'Hadir' | 'Terlambat' | 'Absen' | 'WFA' | 'Cuti' | 'Sakit' | 'Izin' | 'Penugasan';
   locationId?: string;
+  locationName?: string;
   latitude: number;
   longitude: number;
   accuracy: number;
@@ -1140,6 +1142,10 @@ export interface Attendance {
   browser?: string;
   device?: string;
   ipAddress?: string;
+  isManual?: boolean;
+  suratKeteranganUrl?: string;
+  checkInPhotoUrl?: string;
+  checkOutPhotoUrl?: string;
   createdAt: string;
 }
 

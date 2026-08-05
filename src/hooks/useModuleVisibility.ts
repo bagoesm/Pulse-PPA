@@ -29,7 +29,8 @@ export function useModuleVisibility(currentUser: User | null) {
         'Pelayanan Zoom',
         'Penilaian Arsip',
         'Laporan WFA',
-        'Absensi Wajah',
+        'Laporan Absensi',
+        'Absensi Saya',
         'Manajemen Modul'
       ]);
       setLoading(false);
@@ -43,16 +44,19 @@ export function useModuleVisibility(currentUser: User | null) {
         attendanceService.checkIsAttendanceEditor(currentUser.id, currentUser.divisi || '')
       ]);
       
-      const finalModules = [...modules];
-      if (isAttendanceEditor && !finalModules.includes('Absensi Wajah')) {
-        finalModules.push('Absensi Wajah');
+      let finalModules = [...modules];
+      // Filter out 'Laporan Absensi' for regular staff by default unless designated editor
+      finalModules = finalModules.filter((m) => m !== 'Laporan Absensi');
+      
+      if (isAttendanceEditor && !finalModules.includes('Laporan Absensi')) {
+        finalModules.push('Laporan Absensi');
       }
 
       // 'Dashboard' is always visible to everyone
       setVisibleModules(['Dashboard', ...finalModules]);
     } catch (error) {
       console.error('Failed to load module visibility:', error);
-      // Fallback in case of error: show standard modules, hide Pelayanan Zoom
+      // Fallback in case of error: show standard modules, hide Laporan Absensi & Pelayanan Zoom
       setVisibleModules([
         'Dashboard',
         'Semua Task',
@@ -63,7 +67,7 @@ export function useModuleVisibility(currentUser: User | null) {
         'Inventori BMN',
         'Penilaian Arsip',
         'Laporan WFA',
-        'Absensi Wajah'
+        'Absensi Saya'
       ]);
     } finally {
       setLoading(false);
@@ -79,7 +83,7 @@ export function useModuleVisibility(currentUser: User | null) {
       if (moduleName === 'Diskusi & Chat') return true;
       if (loading) {
         // During loading, show standard items to prevent flashing, but hide restricted ones
-        if (moduleName === 'Pelayanan Zoom' || moduleName === 'Manajemen Modul') {
+        if (moduleName === 'Pelayanan Zoom' || moduleName === 'Manajemen Modul' || moduleName === 'Laporan Absensi') {
           return false;
         }
         return true;

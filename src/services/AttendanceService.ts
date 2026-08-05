@@ -39,6 +39,7 @@ export class AttendanceService {
       checkOut: row.check_out || undefined,
       status: row.status || 'Hadir',
       locationId: row.location_id || undefined,
+      locationName: row.location_name || undefined,
       latitude: row.latitude || 0,
       longitude: row.longitude || 0,
       accuracy: row.accuracy || 0,
@@ -47,6 +48,10 @@ export class AttendanceService {
       browser: row.browser || undefined,
       device: row.device || undefined,
       ipAddress: row.ip_address || undefined,
+      isManual: Boolean(row.is_manual),
+      suratKeteranganUrl: row.surat_keterangan_url || undefined,
+      checkInPhotoUrl: row.check_in_photo_url || undefined,
+      checkOutPhotoUrl: row.check_out_photo_url || undefined,
       createdAt: row.created_at || new Date().toISOString(),
     };
   }
@@ -908,6 +913,353 @@ export class AttendanceService {
       console.warn('AttendanceService updateBypassLocationSetting fallback to local:', error);
       localStorage.setItem('pulse_attendance_bypass_location', val);
     }
+  }
+
+  /**
+   * Check if manual attendance entry is allowed by Admin
+   */
+  async getAllowManualAttendanceSetting(): Promise<boolean> {
+    try {
+      const { data, error } = await this.supabase
+        .from('attendance_settings')
+        .select('value')
+        .eq('key', 'allow_manual_attendance')
+        .maybeSingle();
+
+      if (error) throw error;
+      if (data && data.value) {
+        return data.value === 'enabled';
+      }
+      return true;
+    } catch (error) {
+      const localVal = localStorage.getItem('pulse_allow_manual_attendance');
+      return localVal ? localVal === 'enabled' : true;
+    }
+  }
+
+  /**
+   * Toggle manual attendance entry setting
+   */
+  async setAllowManualAttendanceSetting(enabled: boolean): Promise<void> {
+    const val = enabled ? 'enabled' : 'disabled';
+    try {
+      const { error } = await this.supabase
+        .from('attendance_settings')
+        .upsert({ key: 'allow_manual_attendance', value: val, updated_at: new Date().toISOString() });
+
+      if (error) throw error;
+      localStorage.setItem('pulse_allow_manual_attendance', val);
+    } catch (error) {
+      localStorage.setItem('pulse_allow_manual_attendance', val);
+    }
+  }
+
+  /**
+   * Client-side canvas compression to ensure image file size < maxKb (default 200KB)
+   */
+  async compressImage(file: File, maxKb: number = 50): Promise<File> {
+    if (!file.type.startsWith('image/')) return file;
+    const maxBytes = maxKb * 1024;
+    if (file.size <= maxBytes) return file;
+
+    return new Promise((resolve) => {
+      const img = new Image();
+      const reader = new FileReader();
+
+      reader.onload = (e) => {
+        img.src = e.target?.result as string;
+      };
+
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        // Resize maximum dimension to 1200px
+        const MAX_DIM = 1200;
+        if (width > MAX_DIM || height > MAX_DIM) {
+          if (width > height) {
+            height = Math.round((height * MAX_DIM) / width);
+            width = MAX_DIM;
+          } else {
+            width = Math.round((width * MAX_DIM) / height);
+            height = MAX_DIM;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(file);
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+
+        let quality = 0.85;
+        const attemptCompress = () => {
+          canvas.toBlob(
+            (blob) => {
+              if (!blob) {
+                resolve(file);
+                return;
+              }
+
+              if (blob.size <= maxBytes || quality <= 0.2) {
+                const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, '.jpg'), {
+                  type: 'image/jpeg',
+                  lastModified: Date.now(),
+                });
+                resolve(compressedFile);
+              } else {
+                quality -= 0.15;
+                attemptCompress();
+              }
+            },
+            'image/jpeg',
+            quality
+          );
+        };
+
+        attemptCompress();
+      };
+
+      img.onerror = () => resolve(file);
+      reader.readAsDataURL(file);
+    });
+  }
+
+  /**
+   * Upload attachment file to storage bucket 'attendance-attachments' or fallback to base64 Data URL
+   */
+  async uploadAttendanceAttachment(file: File, pathFolder: string): Promise<string> {
+    try {
+      const ext = file.name.split('.').pop() || 'bin';
+      const fileName = `${pathFolder}/${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
+
+      const { data, error } = await this.supabase.storage
+        .from('attendance-attachments')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: true,
+        });
+
+      if (error) throw error;
+
+      const { data: publicData } = this.supabase.storage
+        .from('attendance-attachments')
+        .getPublicUrl(data.path);
+
+      return publicData.publicUrl;
+    } catch (err) {
+      console.warn('Storage upload error, converting file to Data URL fallback:', err);
+      return new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+  }
+
+  /**
+   * Fetch all attendances for a specific user (both face and manual)
+   */
+  async fetchUserAttendances(userId: string): Promise<Attendance[]> {
+    try {
+      const { data, error } = await this.supabase
+        .from('attendances')
+        .select(`
+          *,
+          profiles:employee_id (
+            name,
+            nip,
+            divisi
+          )
+        `)
+        .eq('employee_id', userId)
+        .order('check_in', { ascending: false });
+
+      if (error) throw error;
+      return (data || []).map((row: any) => this.mapFromAttendanceDB(row));
+    } catch (err) {
+      console.warn('Fallback to local attendances for user:', userId, err);
+      const local = this.getLocalAttendances();
+      return local
+        .filter((a) => a.employeeId === userId)
+        .sort((a, b) => new Date(b.checkIn).getTime() - new Date(a.checkIn).getTime());
+    }
+  }
+
+  /**
+   * Create a manual attendance entry
+   */
+  async createManualAttendance(attendanceData: {
+    employeeId: string;
+    checkIn: string;
+    checkOut?: string;
+    status: 'Hadir' | 'Cuti' | 'Sakit' | 'Izin' | 'Penugasan';
+    locationName?: string;
+    locationId?: string;
+    latitude?: number;
+    longitude?: number;
+    suratKeteranganUrl?: string;
+    checkInPhotoUrl?: string;
+    checkOutPhotoUrl?: string;
+  }): Promise<Attendance> {
+    const payload = {
+      employee_id: attendanceData.employeeId,
+      check_in: attendanceData.checkIn,
+      check_out: attendanceData.checkOut || null,
+      status: attendanceData.status,
+      location_id: attendanceData.locationId || null,
+      location_name: attendanceData.locationName || null,
+      latitude: attendanceData.latitude || 0,
+      longitude: attendanceData.longitude || 0,
+      accuracy: 10,
+      face_confidence: 1.0,
+      is_manual: true,
+      surat_keterangan_url: attendanceData.suratKeteranganUrl || null,
+      check_in_photo_url: attendanceData.checkInPhotoUrl || null,
+      check_out_photo_url: attendanceData.checkOutPhotoUrl || null,
+    };
+
+    try {
+      const { data, error } = await this.supabase
+        .from('attendances')
+        .insert(payload)
+        .select(`
+          *,
+          profiles:employee_id (
+            name,
+            nip,
+            divisi
+          )
+        `)
+        .single();
+
+      if (error) throw error;
+      const created = this.mapFromAttendanceDB(data);
+
+      // Sync local storage cache
+      const local = this.getLocalAttendances();
+      local.unshift(created);
+      this.saveLocalAttendances(local);
+
+      return created;
+    } catch (err) {
+      console.warn('Save manual attendance database failed, saving locally:', err);
+      const newLocal: Attendance = {
+        id: `manual-${Date.now()}`,
+        employeeId: attendanceData.employeeId,
+        checkIn: attendanceData.checkIn,
+        checkOut: attendanceData.checkOut,
+        status: attendanceData.status,
+        locationId: attendanceData.locationId,
+        locationName: attendanceData.locationName,
+        latitude: attendanceData.latitude || 0,
+        longitude: attendanceData.longitude || 0,
+        accuracy: 10,
+        faceConfidence: 1.0,
+        isManual: true,
+        suratKeteranganUrl: attendanceData.suratKeteranganUrl,
+        checkInPhotoUrl: attendanceData.checkInPhotoUrl,
+        checkOutPhotoUrl: attendanceData.checkOutPhotoUrl,
+        createdAt: new Date().toISOString(),
+      };
+      const local = this.getLocalAttendances();
+      local.unshift(newLocal);
+      this.saveLocalAttendances(local);
+      return newLocal;
+    }
+  }
+
+  /**
+   * Update an existing manual attendance entry
+   */
+  async updateManualAttendance(id: string, attendanceData: {
+    checkIn: string;
+    checkOut?: string;
+    status: 'Hadir' | 'Cuti' | 'Sakit' | 'Izin' | 'Penugasan';
+    locationName?: string;
+    locationId?: string;
+    latitude?: number;
+    longitude?: number;
+    suratKeteranganUrl?: string;
+    checkInPhotoUrl?: string;
+    checkOutPhotoUrl?: string;
+  }): Promise<void> {
+    const payload: any = {
+      check_in: attendanceData.checkIn,
+      check_out: attendanceData.checkOut || null,
+      status: attendanceData.status,
+      location_id: attendanceData.locationId || null,
+      location_name: attendanceData.locationName || null,
+      latitude: attendanceData.latitude || 0,
+      longitude: attendanceData.longitude || 0,
+    };
+
+    if (attendanceData.suratKeteranganUrl !== undefined) {
+      payload.surat_keterangan_url = attendanceData.suratKeteranganUrl;
+    }
+    if (attendanceData.checkInPhotoUrl !== undefined) {
+      payload.check_in_photo_url = attendanceData.checkInPhotoUrl;
+    }
+    if (attendanceData.checkOutPhotoUrl !== undefined) {
+      payload.check_out_photo_url = attendanceData.checkOutPhotoUrl;
+    }
+
+    try {
+      const { error } = await this.supabase
+        .from('attendances')
+        .update(payload)
+        .eq('id', id);
+
+      if (error) throw error;
+    } catch (err) {
+      console.warn('Update attendance DB failed, updating locally:', err);
+    }
+
+    // Update local storage cache
+    const local = this.getLocalAttendances();
+    const idx = local.findIndex((a) => a.id === id);
+    if (idx !== -1) {
+      local[idx] = {
+        ...local[idx],
+        checkIn: attendanceData.checkIn,
+        checkOut: attendanceData.checkOut,
+        status: attendanceData.status,
+        locationId: attendanceData.locationId,
+        locationName: attendanceData.locationName,
+        latitude: attendanceData.latitude || local[idx].latitude,
+        longitude: attendanceData.longitude || local[idx].longitude,
+        ...(attendanceData.suratKeteranganUrl !== undefined && { suratKeteranganUrl: attendanceData.suratKeteranganUrl }),
+        ...(attendanceData.checkInPhotoUrl !== undefined && { checkInPhotoUrl: attendanceData.checkInPhotoUrl }),
+        ...(attendanceData.checkOutPhotoUrl !== undefined && { checkOutPhotoUrl: attendanceData.checkOutPhotoUrl }),
+      };
+      this.saveLocalAttendances(local);
+    }
+  }
+
+  /**
+   * Delete an attendance entry
+   */
+  async deleteAttendance(id: string): Promise<void> {
+    try {
+      const { error } = await this.supabase
+        .from('attendances')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+    } catch (err) {
+      console.warn('Delete attendance DB failed, removing locally:', err);
+    }
+
+    // Remove from local storage cache
+    const local = this.getLocalAttendances().filter((a) => a.id !== id);
+    this.saveLocalAttendances(local);
   }
 }
 

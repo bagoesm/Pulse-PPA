@@ -109,7 +109,19 @@ export class ModuleVisibilityService {
    * Get visible modules for a specific division name
    */
   async getVisibleModulesForDivisi(divisiName: string | undefined): Promise<string[]> {
-    if (!divisiName) return [];
+    const defaultModules = [
+      'Semua Task',
+      'Project',
+      'Surat & Kegiatan',
+      'Realisasi Anggaran',
+      'Inventori Data',
+      'Inventori BMN',
+      'Penilaian Arsip',
+      'Laporan WFA',
+      'Absensi Saya'
+    ];
+
+    if (!divisiName) return defaultModules;
 
     try {
       // 1. Find division by name
@@ -121,7 +133,7 @@ export class ModuleVisibilityService {
 
       if (divError || !division) {
         // Fallback: If division not found in database, return all default modules
-        return [];
+        return defaultModules;
       }
 
       // 2. Find explicit settings for this division
@@ -148,7 +160,9 @@ export class ModuleVisibilityService {
         'Inventori BMN',
         'Pelayanan Zoom',
         'Penilaian Arsip',
-        'Laporan WFA'
+        'Laporan WFA',
+        'Laporan Absensi',
+        'Absensi Saya'
       ];
 
       // Filter visible modules
@@ -162,21 +176,15 @@ export class ModuleVisibilityService {
         if (modName === 'Pelayanan Zoom') {
           return divisiName === 'Biro Data dan Informasi';
         }
+        if (modName === 'Laporan Absensi') {
+          return false; // Hidden by default for regular staff unless Admin / Designated Editor
+        }
         return true; // All other modules are visible by default
       });
     } catch (error) {
       console.error('Error fetching visible modules for division:', error);
       // Fallback: return default modules in case of DB errors
-      return [
-        'Semua Task',
-        'Project',
-        'Surat & Kegiatan',
-        'Realisasi Anggaran',
-        'Inventori Data',
-        'Inventori BMN',
-        'Penilaian Arsip',
-        'Laporan WFA'
-      ];
+      return defaultModules;
     }
   }
 }

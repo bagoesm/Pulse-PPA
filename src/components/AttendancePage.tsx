@@ -227,13 +227,18 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
     return (localStorage.getItem('pulse_attendance_bypass_location') as any) || 'strict';
   });
 
-  // Load global bypass location setting from database on mount
+  // Admin Manual Attendance setting toggle
+  const [allowManualSetting, setAllowManualSetting] = useState<boolean>(true);
+
+  // Load global settings from database on mount
   useEffect(() => {
-    const fetchBypassSetting = async () => {
+    const fetchSettings = async () => {
       const setting = await attendanceService.getBypassLocationSetting();
       setBypassLocationSetting(setting);
+      const allowManual = await attendanceService.getAllowManualAttendanceSetting();
+      setAllowManualSetting(allowManual);
     };
-    fetchBypassSetting();
+    fetchSettings();
   }, []);
 
   const checkIsLocationBypassed = useCallback((): boolean => {
@@ -255,6 +260,16 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
       }`, 'success');
     } catch (e) {
       showNotification('Error', 'Gagal memperbarui kebijakan lokasi di database.', 'error');
+    }
+  };
+
+  const handleToggleAllowManual = async (val: boolean) => {
+    setAllowManualSetting(val);
+    try {
+      await attendanceService.setAllowManualAttendanceSetting(val);
+      showNotification('Sukses', `Izin pembuatan list absen manual oleh pegawai ${val ? 'Diaktifkan (ON)' : 'Dinonaktifkan (OFF)'}`, 'success');
+    } catch (e) {
+      showNotification('Error', 'Gagal mengubah pengaturan list absen manual', 'error');
     }
   };
 
@@ -1820,7 +1835,7 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
         <div>
           <h2 className="text-xl sm:text-2xl font-bold text-slate-800 flex items-center gap-2 sm:gap-3">
             <Camera className="text-gov-600" size={24} />
-            Pemantauan Absensi Wajah & Geofence
+            Laporan Absensi & Geofence
           </h2>
           <p className="text-xs sm:text-sm text-slate-500">
             Kelola koordinat lokasi geofence kantor, penugasan editor, dan pantau log kehadiran harian pegawai.
@@ -2462,6 +2477,36 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
                 >
                   Khusus Hari Jumat (WFA)
                 </button>
+              </div>
+
+              {/* Admin Toggle Manual Attendance */}
+              <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+                <div>
+                  <h4 className="font-bold text-xs text-slate-800">Izin List Absen Manual oleh Pegawai</h4>
+                  <p className="text-[10px] text-slate-400 font-semibold">Mengizinkan pegawai membuat entri list absen manual di menu "Absensi Saya".</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleToggleAllowManual(true)}
+                    className={`px-3 py-1.5 rounded-lg border text-xs font-bold transition-all ${
+                      allowManualSetting
+                        ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm'
+                        : 'bg-slate-100 text-slate-600 border-slate-200'
+                    }`}
+                  >
+                    ON (Diizinkan)
+                  </button>
+                  <button
+                    onClick={() => handleToggleAllowManual(false)}
+                    className={`px-3 py-1.5 rounded-lg border text-xs font-bold transition-all ${
+                      !allowManualSetting
+                        ? 'bg-rose-600 border-rose-600 text-white shadow-sm'
+                        : 'bg-slate-100 text-slate-600 border-slate-200'
+                    }`}
+                  >
+                    OFF (Matikan)
+                  </button>
+                </div>
               </div>
             </div>
 

@@ -32,7 +32,8 @@ import {
   Video,
   Layers,
   Presentation,
-  Camera
+  Camera,
+  UserCheck
 } from 'lucide-react';
 import { SIDEBAR_ITEMS, User } from '../../types';
 import { useSidebar } from '../contexts/SidebarContext';
@@ -77,7 +78,8 @@ const IconMap: Record<string, React.ElementType> = {
   'Video': Video,
   'Layers': Layers,
   'Presentation': Presentation,
-  'Camera': Camera
+  'Camera': Camera,
+  'UserCheck': UserCheck
 };
 
 const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser, users, onSwitchUser, onLogout }) => {
