@@ -114,45 +114,8 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
   // Validates: Requirements 4.1, 4.3
   // Note: Super Admin gets all divisi IDs, so we need to check role explicitly
   const satkerFilteredSurats = useMemo(() => {
-    // If still loading, return empty array to avoid showing wrong data
-    if (satkerLoading) {
-      return [];
-    }
-
-    // Check if user is Super Admin - they see all data
-    if (currentUser?.role === 'Super Admin') {
-      return surats;
-    }
-
-    // For non-admin users, filter based on accessible satkers
-    // If accessibleSatkerIds is empty, user has no access
-    if (accessibleSatkerIds.length === 0) {
-      return [];
-    }
-
-    // Get the current user's divisi
-    const currentUserDivisi = currentUser?.divisi;
-    if (!currentUserDivisi) {
-      // User without divisi cannot see any data (unless Super Admin, handled above)
-      return [];
-    }
-
-    // Get accessible divisi names from the map
-    const accessibleDivisiNames = Object.values(satkerIdToNameMap);
-
-    // Get all users from accessible divisi
-    const usersInAccessibleDivisi = allUsers
-      .filter(u => u.divisi && accessibleDivisiNames.includes(u.divisi));
-    
-    // Get both user IDs and names for matching
-    const accessibleUserIds = usersInAccessibleDivisi.map(u => u.id);
-    const accessibleUserNames = usersInAccessibleDivisi.map(u => u.name);
-
-    // Filter by both user ID and user name to support legacy data
-    return surats.filter(surat => 
-      accessibleUserIds.includes(surat.createdBy) || accessibleUserNames.includes(surat.createdBy)
-    );
-  }, [surats, accessibleSatkerIds, satkerIdToNameMap, allUsers, currentUser, satkerLoading]);
+    return surats;
+  }, [surats]);
 
   // Apply filters and sort
   const filteredSurats = useMemo(() => {
@@ -160,9 +123,21 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
     const satkerFiltered = satkerFilteredSurats;
 
     // Then apply division filter
-    // After migration, createdBy is now UUID, so use isUserIdInSelectedDivisi
-    // No more "All" option - always filter by selected divisi
-    const divisionFiltered = satkerFiltered.filter(surat => isUserIdInSelectedDivisi(surat.createdBy));
+    const divisionFiltered = satkerFiltered.filter(surat => {
+      if (!selectedDivisi || selectedDivisi === 'Semua Divisi' || selectedDivisi === 'All') {
+        return true;
+      }
+      if (isUserIdInSelectedDivisi(surat.createdBy)) {
+        return true;
+      }
+      if (surat.tujuanSurat?.toLowerCase().includes(selectedDivisi.toLowerCase())) {
+        return true;
+      }
+      if (surat.asalSurat?.toLowerCase().includes(selectedDivisi.toLowerCase())) {
+        return true;
+      }
+      return false;
+    });
 
     const filtered = divisionFiltered.filter(surat => {
       // Search filter
