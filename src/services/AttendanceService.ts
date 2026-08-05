@@ -201,7 +201,18 @@ export class AttendanceService {
    */
   async getEmployeeFacePublic(employeeId: string): Promise<EmployeeFace | null> {
     try {
-      // 1. Try secure RPC function (only returns AI vector embedding, hides profile_photo_url)
+      // 1. Direct query (works for authenticated users & RLS allowed SELECT)
+      const { data, error } = await this.supabase
+        .from('employee_faces')
+        .select('*')
+        .eq('employee_id', employeeId)
+        .maybeSingle();
+
+      if (!error && data) {
+        return this.mapFromFaceDB(data);
+      }
+
+      // 2. Fallback to RPC function for unauthenticated public check-in
       const { data: rpcData, error: rpcError } = await this.supabase
         .rpc('get_face_embeddings_public');
 
@@ -221,16 +232,7 @@ export class AttendanceService {
         }
       }
 
-      // 2. Direct query fallback for authenticated users
-      const { data, error } = await this.supabase
-        .from('employee_faces')
-        .select('*')
-        .eq('employee_id', employeeId)
-        .maybeSingle();
-
-      if (error) throw error;
-      if (!data) return null;
-      return this.mapFromFaceDB(data);
+      return null;
     } catch (error) {
       console.warn('AttendanceService getEmployeeFacePublic fallback to local:', error);
       const local = this.getLocalFaces();
@@ -240,30 +242,11 @@ export class AttendanceService {
   }
 
   /**
-   * Get all employee face registrations in a single batch query
+   * Get all employee face registrations in a single batch query (Admin Dashboard)
    */
   async getAllEmployeeFaces(): Promise<EmployeeFace[]> {
     try {
-      // 1. Try secure RPC function (hides profile_photo_url from public)
-      const { data: rpcData, error: rpcError } = await this.supabase
-        .rpc('get_face_embeddings_public');
-
-      if (!rpcError && rpcData && Array.isArray(rpcData)) {
-        return rpcData.map((row: any) => {
-          const emb = typeof row.embedding === 'string' ? JSON.parse(row.embedding) : row.embedding;
-          return {
-            id: row.id || '',
-            employeeId: row.employee_id,
-            embedding: Array.isArray(emb) ? emb : [],
-            profilePhotoUrl: '',
-            status: row.status || 'Aktif',
-            registeredAt: '',
-            updatedAt: ''
-          };
-        });
-      }
-
-      // 2. Direct query fallback for authenticated users
+      // Direct query for authenticated admins to load complete profile_photo_url & data
       const { data, error } = await this.supabase
         .from('employee_faces')
         .select('*');
