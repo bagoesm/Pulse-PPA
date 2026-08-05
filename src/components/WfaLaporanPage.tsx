@@ -173,7 +173,7 @@ export const WfaLaporanPage: React.FC<WfaLaporanPageProps> = ({ currentUser, sho
     if (currentUser.role === 'Staff' || unitProfiles.length === 0) {
       return laporanList.map((item) => ({ 
         ...item, 
-        hasSubmitted: item.statusPelaksanaan !== 'Draft' 
+        hasSubmitted: true // Real report entry from DB
       }));
     }
 
@@ -186,14 +186,16 @@ export const WfaLaporanPage: React.FC<WfaLaporanPageProps> = ({ currentUser, sho
       return true;
     });
 
-    const reportUserIds = new Set(submittedOrOwnReports.filter((item) => item.statusPelaksanaan !== 'Draft').map((item) => item.userId));
+    // Track all users who have created any report (draft or submitted)
+    const reportUserIds = new Set(laporanList.map((item) => item.userId));
     const merged: (WfaLaporan & { hasSubmitted: boolean })[] = [
       ...submittedOrOwnReports.map((item) => ({ 
         ...item, 
-        hasSubmitted: item.statusPelaksanaan !== 'Draft' 
+        hasSubmitted: true // Real report entry from DB
       })),
     ];
 
+    // Only add unsubmitted placeholder for employees who have ZERO reports for this period
     unitProfiles.forEach((profile) => {
       if (!reportUserIds.has(profile.id)) {
         merged.push({
@@ -211,7 +213,7 @@ export const WfaLaporanPage: React.FC<WfaLaporanPageProps> = ({ currentUser, sho
           statusPelaksanaan: 'Belum Mengirim',
           penilaian: null,
           createdAt: '',
-          hasSubmitted: false,
+          hasSubmitted: false, // Dummy unsubmitted placeholder
         });
       }
     });
@@ -277,6 +279,20 @@ export const WfaLaporanPage: React.FC<WfaLaporanPageProps> = ({ currentUser, sho
     } catch (err) {
       console.error('Failed to update evaluation', err);
       showToast('Gagal memperbarui penilaian', 'error');
+    }
+  };
+
+  // Publish draft handler
+  const handlePublishDraft = async (laporan: WfaLaporan) => {
+    try {
+      await wfaService.updateWfaLaporan(laporan.id, {
+        statusPelaksanaan: 'Selesai',
+      });
+      showToast(`Laporan WFA (${formatIndonesianDateWithDay(laporan.tanggalWfa)}) berhasil dikirim!`, 'success');
+      loadData();
+    } catch (err) {
+      console.error('Failed to publish draft report', err);
+      showToast('Gagal mengirim laporan WFA', 'error');
     }
   };
 
@@ -899,7 +915,7 @@ export const WfaLaporanPage: React.FC<WfaLaporanPageProps> = ({ currentUser, sho
                       {/* Status Pelaksanaan */}
                       <td className="py-3.5 px-4 whitespace-nowrap">
                         <span
-                          className={`inline-block px-2.5 py-1 text-[11px] font-bold rounded-full whitespace-nowrap ${
+                          className={`inline-flex items-center justify-center px-3 py-1 text-[11px] font-bold rounded-full whitespace-nowrap max-w-none ${
                             !item.hasSubmitted
                               ? 'bg-rose-50 text-rose-700 border border-rose-200'
                               : item.statusPelaksanaan === 'Draft'
@@ -955,39 +971,75 @@ export const WfaLaporanPage: React.FC<WfaLaporanPageProps> = ({ currentUser, sho
                       <td className="py-3.5 px-4 text-center" onClick={(e) => e.stopPropagation()}>
                         {item.hasSubmitted ? (
                           <div className="flex items-center justify-center gap-1">
-                            <button
-                              onClick={() => setViewingLaporan(item)}
-                              className="p-1.5 text-slate-500 hover:text-gov-700 hover:bg-gov-50 rounded-lg transition-all"
-                              title="Lihat Detail Laporan"
-                            >
-                              <Eye size={15} />
-                            </button>
-                            {canEdit && (
-                              <button
-                                onClick={() => {
-                                  setEditingLaporan(item);
-                                  setIsFormOpen(true);
-                                }}
-                                className="p-1.5 text-slate-500 hover:text-gov-700 hover:bg-gov-50 rounded-lg transition-all"
-                                title="Edit Laporan"
-                              >
-                                <Edit2 size={15} />
-                              </button>
-                            )}
-                            {canEdit && (
-                              <button
-                                onClick={() => handleDeleteRequest(item.id)}
-                                className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
-                                title="Hapus Laporan"
-                              >
-                                <Trash2 size={15} />
-                              </button>
+                            {/* If Draft, show Kirim & Edit Draft action buttons */}
+                            {item.statusPelaksanaan === 'Draft' ? (
+                              <>
+                                <button
+                                  onClick={() => handlePublishDraft(item)}
+                                  className="px-2.5 py-1 text-xs font-bold text-white bg-gradient-to-r from-gov-600 to-gov-700 hover:from-gov-700 hover:to-gov-800 rounded-lg shadow-2xs transition-all flex items-center gap-1"
+                                  title="Kirim Laporan Resmi Sekarang"
+                                >
+                                  <Send size={12} />
+                                  <span>Kirim</span>
+                                </button>
+                                {canEdit && (
+                                  <button
+                                    onClick={() => {
+                                      setEditingLaporan(item);
+                                      setIsFormOpen(true);
+                                    }}
+                                    className="p-1.5 text-amber-700 hover:bg-amber-100 bg-amber-50 border border-amber-200 rounded-lg transition-all"
+                                    title="Lanjutkan / Edit Draft"
+                                  >
+                                    <Edit2 size={14} />
+                                  </button>
+                                )}
+                                {canEdit && (
+                                  <button
+                                    onClick={() => handleDeleteRequest(item.id)}
+                                    className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                                    title="Hapus Draft"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                )}
+                              </>
+                            ) : (
+                              /* Submitted Report Actions */
+                              <>
+                                <button
+                                  onClick={() => setViewingLaporan(item)}
+                                  className="p-1.5 text-slate-500 hover:text-gov-700 hover:bg-gov-50 rounded-lg transition-all"
+                                  title="Lihat Detail Laporan"
+                                >
+                                  <Eye size={15} />
+                                </button>
+                                {canEdit && (
+                                  <button
+                                    onClick={() => {
+                                      setEditingLaporan(item);
+                                      setIsFormOpen(true);
+                                    }}
+                                    className="p-1.5 text-slate-500 hover:text-gov-700 hover:bg-gov-50 rounded-lg transition-all"
+                                    title="Edit Laporan"
+                                  >
+                                    <Edit2 size={15} />
+                                  </button>
+                                )}
+                                {canEdit && (
+                                  <button
+                                    onClick={() => handleDeleteRequest(item.id)}
+                                    className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                                    title="Hapus Laporan"
+                                  >
+                                    <Trash2 size={15} />
+                                  </button>
+                                )}
+                              </>
                             )}
                           </div>
                         ) : (
-                          <span className="px-2 py-0.5 bg-rose-50 text-rose-600 text-[10px] font-bold rounded-md">
-                            Belum Input
-                          </span>
+                          <span className="text-slate-400 italic text-[11px]">-</span>
                         )}
                       </td>
                     </tr>
