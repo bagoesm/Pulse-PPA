@@ -42,20 +42,28 @@ export function useVisibilityFilter(userId: string | null | undefined): UseVisib
 
       const ids = await visibilityMiddleware.getAccessibleSatkerIds(userId);
       
-      // Also fetch the satker names for mapping
-      const { supabase } = await import('../lib/supabaseClient');
-      const { data: satkers, error: satkerError } = await supabase
-        .from('master_divisi')
-        .select('id, name')
-        .in('id', ids);
-      
+      // Filter only valid UUID strings to prevent invalid UUID syntax 22P02 errors
+      const validIds = (ids || []).filter((id: any) =>
+        typeof id === 'string' && id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)
+      );
+
       const map: Record<string, string> = {};
-      if (satkerError) {
-        console.error('Error fetching satker names in hook:', satkerError);
-      } else if (satkers) {
-        satkers.forEach((satker: any) => {
-          map[satker.id] = satker.name;
-        });
+
+      if (validIds.length > 0) {
+        // Also fetch the satker names for mapping
+        const { supabase } = await import('../lib/supabaseClient');
+        const { data: satkers, error: satkerError } = await supabase
+          .from('master_divisi')
+          .select('id, name')
+          .in('id', validIds);
+
+        if (satkerError) {
+          console.error('Error fetching satker names in hook:', satkerError);
+        } else if (satkers) {
+          satkers.forEach((satker: any) => {
+            map[satker.id] = satker.name;
+          });
+        }
       }
 
       return {
