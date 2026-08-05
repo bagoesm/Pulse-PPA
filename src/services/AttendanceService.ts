@@ -176,27 +176,23 @@ export class AttendanceService {
     try {
       if (!queryStr || queryStr.trim().length === 0) return [];
       const cleanQuery = queryStr.trim();
-      const { data, error } = await this.supabase
-        .from('profiles')
-        .select('*')
-        .or(`name.ilike.%${cleanQuery}%,nip.ilike.%${cleanQuery}%`)
-        .order('name', { ascending: true })
-        .limit(15);
+      const { data, error } = await this.supabase.rpc('search_profiles_for_attendance', {
+        search_query: cleanQuery,
+      });
 
       if (error) throw error;
       return (data || []).map((row: any) => ({
         id: row.id,
         name: row.name,
-        email: row.email || '',
-        role: row.role || 'Staff',
+        email: '',
+        role: 'Staff',
         divisi: row.divisi || '',
         jabatan: row.jabatan || 'Pegawai',
         nip: row.nip || '',
-        profilePhoto: row.profilePhoto || '',
+        profilePhoto: '',
       }));
     } catch (error) {
-      console.warn('AttendanceService searchProfiles fallback to local search:', error);
-      // Fallback search using mock profiles or empty array
+      console.warn('AttendanceService searchProfiles fallback:', error);
       return [];
     }
   }
@@ -856,7 +852,7 @@ export class AttendanceService {
     try {
       const { data, error } = await this.supabase
         .from('profiles')
-        .select('*')
+        .select('id, name, nip, divisi, jabatan, role, email, profile_photo')
         .order('name', { ascending: true });
 
       if (error) throw error;
