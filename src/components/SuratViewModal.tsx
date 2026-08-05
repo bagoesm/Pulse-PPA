@@ -1399,13 +1399,17 @@ const SuratViewModal: React.FC<SuratViewModalProps> = ({
 
         {/* Footer */}
         <div className="border-t border-slate-200 bg-slate-50 px-6 py-4 flex justify-between items-center">
-          <button
-            onClick={handleDelete}
-            className="flex items-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors font-medium"
-          >
-            <Trash2 size={16} />
-            Hapus
-          </button>
+          { (currentUser?.role === 'Super Admin' || currentUser?.role === 'Atasan' || (surat?.createdBy && (surat.createdBy === currentUser?.id || surat.createdBy === currentUser?.name || surat.createdBy === currentUserName))) ? (
+            <button
+              onClick={handleDelete}
+              className="flex items-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors font-medium"
+            >
+              <Trash2 size={16} />
+              Hapus
+            </button>
+          ) : (
+            <div />
+          )}
 
           <div className="flex gap-3">
             {isEditing ? (

@@ -114,8 +114,49 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
   // Validates: Requirements 4.1, 4.3
   // Note: Super Admin gets all divisi IDs, so we need to check role explicitly
   const satkerFilteredSurats = useMemo(() => {
-    return surats;
-  }, [surats]);
+    // Super Admin sees all letters
+    if (currentUser?.role === 'Super Admin') {
+      return surats;
+    }
+
+    const userDivisi = currentUser?.divisi;
+    if (!userDivisi) {
+      return [];
+    }
+
+    const userDivisiLower = userDivisi.toLowerCase().trim();
+
+    // Get all users belonging to the current user's division
+    const sameDivisiUsers = allUsers.filter(u => u.divisi && u.divisi.toLowerCase().trim() === userDivisiLower);
+    const sameDivisiUserIds = new Set(sameDivisiUsers.map(u => u.id));
+    const sameDivisiUserNames = new Set(sameDivisiUsers.map(u => u.name?.toLowerCase().trim()).filter(Boolean));
+
+    // Filter surats: ONLY letters belonging to or involving the user's division
+    return surats.filter(surat => {
+      // 1. Created by someone in the user's division (ID or Name match)
+      if (surat.createdBy) {
+        if (sameDivisiUserIds.has(surat.createdBy)) return true;
+        if (sameDivisiUserNames.has(surat.createdBy.toLowerCase().trim())) return true;
+      }
+
+      // 2. Sent to user's division (tujuanSurat)
+      if (surat.tujuanSurat && surat.tujuanSurat.toLowerCase().includes(userDivisiLower)) {
+        return true;
+      }
+
+      // 3. Sent from user's division (asalSurat)
+      if (surat.asalSurat && surat.asalSurat.toLowerCase().includes(userDivisiLower)) {
+        return true;
+      }
+
+      // 4. Disposisi / Bidang tugas matches user's division
+      if (surat.bidangTugas && surat.bidangTugas.toLowerCase().includes(userDivisiLower)) {
+        return true;
+      }
+
+      return false;
+    });
+  }, [surats, currentUser, allUsers]);
 
   // Apply filters and sort
   const filteredSurats = useMemo(() => {

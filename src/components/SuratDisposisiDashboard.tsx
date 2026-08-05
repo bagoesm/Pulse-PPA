@@ -146,55 +146,75 @@ export const SuratDisposisiDashboard: React.FC<SuratDisposisiDashboardProps> = (
     await Promise.all([fetchSurats(), fetchDisposisi(), fetchMeetings()]);
   };
 
-  // 1. Filter Surat by Satker Visibility
+  // 1. Filter Surat by Satker / Division Visibility
   const satkerFilteredSurats = useMemo(() => {
-    if (satkerLoading) return [];
     if (currentUser?.role === 'Super Admin') return surats;
-    if (accessibleSatkerIds.length === 0) return [];
-    
-    const currentUserDivisi = currentUser?.divisi;
-    if (!currentUserDivisi) return [];
-    
-    const accessibleDivisiNames = Object.values(satkerIdToNameMap);
-    const usersInAccessibleDivisi = allUsers.filter(u => u.divisi && accessibleDivisiNames.includes(u.divisi));
-    const accessibleUserIds = usersInAccessibleDivisi.map(u => u.id);
-    const accessibleUserNames = usersInAccessibleDivisi.map(u => u.name);
 
-    return surats.filter(surat =>
-      accessibleUserIds.includes(surat.createdBy) || accessibleUserNames.includes(surat.createdBy)
-    );
-  }, [surats, accessibleSatkerIds, satkerIdToNameMap, allUsers, currentUser, satkerLoading]);
+    const userDivisi = currentUser?.divisi;
+    if (!userDivisi) return surats;
 
-  // 2. Filter Disposisi by Satker Visibility
+    const userDivisiLower = userDivisi.toLowerCase().trim();
+    const sameDivisiUsers = allUsers.filter(u => u.divisi && u.divisi.toLowerCase().trim() === userDivisiLower);
+    const sameDivisiUserIds = new Set(sameDivisiUsers.map(u => u.id));
+    const sameDivisiUserNames = new Set(sameDivisiUsers.map(u => u.name?.toLowerCase().trim()).filter(Boolean));
+
+    return surats.filter(surat => {
+      if (surat.createdBy) {
+        if (sameDivisiUserIds.has(surat.createdBy)) return true;
+        if (sameDivisiUserNames.has(surat.createdBy.toLowerCase().trim())) return true;
+      }
+      if (surat.tujuanSurat && surat.tujuanSurat.toLowerCase().includes(userDivisiLower)) return true;
+      if (surat.asalSurat && surat.asalSurat.toLowerCase().includes(userDivisiLower)) return true;
+      if (surat.bidangTugas && surat.bidangTugas.toLowerCase().includes(userDivisiLower)) return true;
+      return false;
+    });
+  }, [surats, currentUser, allUsers]);
+
+  // 2. Filter Disposisi by Satker / Division Visibility
   const satkerFilteredDisposisi = useMemo(() => {
-    if (accessibleSatkerIds.length === 0) return disposisi;
-    const currentUserDivisi = currentUser?.divisi;
-    if (!currentUserDivisi) return [];
-    
-    const usersInSameSatker = allUsers
-      .filter(u => u.divisi === currentUserDivisi)
-      .map(u => u.id);
+    if (currentUser?.role === 'Super Admin') return disposisi;
 
-    return disposisi.filter(d =>
-      usersInSameSatker.includes(d.createdBy) || usersInSameSatker.includes(d.assignedTo)
-    );
-  }, [disposisi, accessibleSatkerIds, allUsers, currentUser]);
+    const userDivisi = currentUser?.divisi;
+    if (!userDivisi) return disposisi;
+
+    const userDivisiLower = userDivisi.toLowerCase().trim();
+    const sameDivisiUsers = allUsers.filter(u => u.divisi && u.divisi.toLowerCase().trim() === userDivisiLower);
+    const sameDivisiUserIds = new Set(sameDivisiUsers.map(u => u.id));
+    const sameDivisiUserNames = new Set(sameDivisiUsers.map(u => u.name?.toLowerCase().trim()).filter(Boolean));
+
+    return disposisi.filter(d => {
+      if (d.createdBy && (sameDivisiUserIds.has(d.createdBy) || sameDivisiUserNames.has(d.createdBy.toLowerCase().trim()))) return true;
+      if (d.assignedTo && (sameDivisiUserIds.has(d.assignedTo) || sameDivisiUserNames.has(d.assignedTo.toLowerCase().trim()))) return true;
+      if (d.unitKerja && d.unitKerja.toLowerCase().includes(userDivisiLower)) return true;
+      return false;
+    });
+  }, [disposisi, currentUser, allUsers]);
 
   // 3. Filter by Selected Divisi (Global Dropdown)
   const divisionFilteredSurats = useMemo(() => {
-    return satkerFilteredSurats.filter(surat => isUserIdInSelectedDivisi(surat.createdBy));
-  }, [satkerFilteredSurats, isUserIdInSelectedDivisi]);
+    if (!selectedDivisi || selectedDivisi === 'Semua Divisi' || selectedDivisi === 'All') {
+      return satkerFilteredSurats;
+    }
+    return satkerFilteredSurats.filter(surat => {
+      if (isUserIdInSelectedDivisi(surat.createdBy)) return true;
+      if (surat.tujuanSurat?.toLowerCase().includes(selectedDivisi.toLowerCase())) return true;
+      if (surat.asalSurat?.toLowerCase().includes(selectedDivisi.toLowerCase())) return true;
+      return false;
+    });
+  }, [satkerFilteredSurats, selectedDivisi, isUserIdInSelectedDivisi]);
 
   const divisionFilteredDisposisi = useMemo(() => {
-    return selectedDivisi === 'All'
-      ? satkerFilteredDisposisi
-      : satkerFilteredDisposisi.filter(d => isUserIdInSelectedDivisi(d.assignedTo) || isUserIdInSelectedDivisi(d.createdBy));
+    if (!selectedDivisi || selectedDivisi === 'Semua Divisi' || selectedDivisi === 'All') {
+      return satkerFilteredDisposisi;
+    }
+    return satkerFilteredDisposisi.filter(d => isUserIdInSelectedDivisi(d.assignedTo) || isUserIdInSelectedDivisi(d.createdBy));
   }, [satkerFilteredDisposisi, selectedDivisi, isUserIdInSelectedDivisi]);
 
   const divisionFilteredMeetings = useMemo(() => {
-    return selectedDivisi === 'All'
-      ? meetings
-      : meetings.filter(m => shouldShowByDivisi(m.createdBy, m.pic || []));
+    if (!selectedDivisi || selectedDivisi === 'Semua Divisi' || selectedDivisi === 'All') {
+      return meetings;
+    }
+    return meetings.filter(m => shouldShowByDivisi(m.createdBy, m.pic || []));
   }, [meetings, selectedDivisi, shouldShowByDivisi]);
 
   // 4. Filter by local Date Range
