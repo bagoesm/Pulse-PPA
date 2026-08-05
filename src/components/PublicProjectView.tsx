@@ -126,10 +126,11 @@ export const PublicProjectView: React.FC<PublicProjectViewProps> = ({ shareToken
         const p = projectData as ProjectDefinition;
         setProject(p);
 
-        // Fetch user profiles for avatars
-        const { data: profilesData } = await supabase
-          .from('profiles')
-          .select('id, name, profile_photo');
+        // Fetch public profiles summary (id, name, profile_photo only via secure RPC)
+        const { data: profilesData, error: rpcError } = await supabase.rpc('get_public_profiles_summary');
+        if (rpcError) {
+          console.warn('get_public_profiles_summary RPC error:', rpcError);
+        }
         
         if (profilesData) {
           const profileMap: Record<string, { name: string; profilePhoto?: string }> = {};
@@ -151,30 +152,39 @@ export const PublicProjectView: React.FC<PublicProjectViewProps> = ({ shareToken
         const fetchedTasks = (tasksRes.data || []) as any[];
         const fetchedEpics = (epicsRes.data || []) as any[];
 
+        const isUUID = (val: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+
+        const resolveName = (val: any): string => {
+          if (!val) return 'Unknown';
+          if (typeof val !== 'string') return String(val);
+          const clean = val.trim();
+          if (!clean) return 'Unknown';
+
+          const cleanLower = clean.toLowerCase();
+          if (Array.isArray(profilesData) && profilesData.length > 0) {
+            const found = profilesData.find(
+              (u: any) => (u.id && String(u.id).toLowerCase() === cleanLower) || (u.name && String(u.name).toLowerCase() === cleanLower)
+            );
+            if (found && found.name) return found.name;
+          }
+
+          if (isUUID(clean)) {
+            return 'Unknown';
+          }
+          return clean;
+        };
+
         // Map database tasks (snake_case) to frontend Task type (camelCase)
         const mappedTasks = fetchedTasks.map((t: any) => {
-          let picNames: string[] = [];
           const rawPic = Array.isArray(t.pic) ? t.pic : t.pic ? [t.pic] : [];
-          
-          picNames = rawPic.map((picItem: any) => {
-            // If picItem is already a name (string without UUID format), use it
-            if (typeof picItem === 'string' && !picItem.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
-              return picItem;
-            }
-            // If picItem is a UUID, map it to name
-            if (profilesData) {
-              const user = profilesData.find((u: any) => u.id === picItem);
-              if (user) return user.name;
-            }
-            return picItem; // Fallback to original value
-          });
+          const picNames = rawPic.map((picItem: any) => resolveName(picItem));
 
-          const createdByUserId = t.created_by_id || t.created_by || t.createdBy;
-          let createdByName = 'Unknown';
-          if (createdByUserId && profilesData) {
-            const creator = profilesData.find((u: any) => u.id === createdByUserId);
-            if (creator) createdByName = creator.name;
-          }
+          const rawCreator = (t.created_by && !isUUID(String(t.created_by))) 
+            ? t.created_by 
+            : (t.created_by_original && !isUUID(String(t.created_by_original)))
+            ? t.created_by_original
+            : (t.created_by_id || t.created_by || t.createdBy);
+          const createdByName = resolveName(rawCreator);
 
           return {
             ...t,
@@ -194,15 +204,22 @@ export const PublicProjectView: React.FC<PublicProjectViewProps> = ({ shareToken
         }) as Task[];
 
         // Map database epics (snake_case) to Epic type
-        const mappedEpics = fetchedEpics.map((e: any) => ({
-          ...e,
-          projectId: e.project_id || e.projectId || '',
-          startDate: e.start_date || e.startDate || '',
-          targetDate: e.target_date || e.targetDate || '',
-          createdBy: e.created_by || e.createdBy || '',
-          createdAt: e.created_at || e.createdAt || '',
-          updatedAt: e.updated_at || e.updatedAt || ''
-        })) as Epic[];
+        const mappedEpics = fetchedEpics.map((e: any) => {
+          const rawPic = Array.isArray(e.pic) ? e.pic : e.pic ? [e.pic] : [];
+          const picNames = rawPic.map((picItem: any) => resolveName(picItem));
+          const createdByName = resolveName(e.created_by_id || e.created_by);
+
+          return {
+            ...e,
+            projectId: e.project_id || e.projectId || '',
+            startDate: e.start_date || e.startDate || '',
+            targetDate: e.target_date || e.targetDate || '',
+            pic: picNames,
+            createdBy: createdByName,
+            createdAt: e.created_at || e.createdAt || '',
+            updatedAt: e.updated_at || e.updatedAt || ''
+          };
+        }) as Epic[];
 
         setTasks(mappedTasks);
         setEpics(mappedEpics);
