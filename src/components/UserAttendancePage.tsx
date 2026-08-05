@@ -131,16 +131,14 @@ export const UserAttendancePage: React.FC<UserAttendancePageProps> = ({
 
   const showNotification = useCallback(
     (title: string, message: string, type: 'success' | 'warning' | 'error' | 'info') => {
+      const fullMessage = title ? `${title} - ${message}` : message;
       setToastState({
         isOpen: true,
-        message,
+        message: fullMessage,
         type,
       });
-      if (parentShowNotification) {
-        parentShowNotification(title, message, type);
-      }
     },
-    [parentShowNotification]
+    []
   );
 
   // --- Add/Edit Manual Form State ---
