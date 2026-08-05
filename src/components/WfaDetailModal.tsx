@@ -166,30 +166,31 @@ export const WfaDetailModal: React.FC<WfaDetailModalProps> = ({
                   {laporan.outputKinerja}
                 </div>
               </div>
+
+              {laporan.linkDataDukung && (
+                <div className="space-y-1.5">
+                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                    <LinkIcon size={14} className="text-gov-600" />
+                    Link Data Dukung
+                  </h4>
+                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
+                    <a
+                      href={ensureHttps(laporan.linkDataDukung)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gov-700 bg-white hover:bg-gov-50 rounded-lg transition-all border border-slate-200"
+                    >
+                      <ExternalLink size={13} />
+                      Buka Link Data Dukung
+                    </a>
+                  </div>
+                </div>
+              )}
             </>
           )}
 
-          {/* Grid Info: Data Dukung, Status, Penilaian */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-slate-100">
-            {/* Link Data Dukung */}
-            <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                Link Data Dukung
-              </span>
-              {laporan.linkDataDukung ? (
-                <a
-                  href={ensureHttps(laporan.linkDataDukung)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gov-700 bg-gov-50 hover:bg-gov-100 rounded-lg transition-all border border-gov-200"
-                >
-                  <ExternalLink size={13} />
-                  Buka Link Dukung
-                </a>
-              ) : (
-                <span className="text-xs text-slate-400 italic">Tidak ada link</span>
-              )}
-            </div>
+          {/* Grid Info: Status & Penilaian */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-100">
 
             {/* Status Pelaksanaan */}
             <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl">

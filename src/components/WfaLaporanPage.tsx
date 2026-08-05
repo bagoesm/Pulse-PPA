@@ -20,6 +20,7 @@ import {
   Eye,
   Users,
   Send,
+  Layers,
 } from 'lucide-react';
 import { User, WfaLaporan } from '../../types';
 import { wfaService } from '../services/WfaService';
@@ -882,10 +883,8 @@ export const WfaLaporanPage: React.FC<WfaLaporanPageProps> = ({ currentUser, sho
                   <th className="py-3.5 px-4 w-[50px] min-w-[50px] text-center sticky top-0 left-0 z-50 bg-slate-100">NO.</th>
                   <th className="py-3.5 px-4 min-w-[180px] sticky top-0 left-[50px] z-50 bg-slate-100 border-r border-slate-200 shadow-xs">NAMA</th>
                   <th className="py-3.5 px-4 min-w-[160px] sticky top-0 z-40 bg-slate-100">UNIT KERJA</th>
-                  <th className="py-3.5 px-4 min-w-[200px] sticky top-0 z-40 bg-slate-100">RENCANA HASIL KINERJA</th>
-                  <th className="py-3.5 px-4 min-w-[200px] sticky top-0 z-40 bg-slate-100">RENCANA KINERJA</th>
-                  <th className="py-3.5 px-4 min-w-[180px] sticky top-0 z-40 bg-slate-100">OUTPUT KINERJA</th>
-                  <th className="py-3.5 px-4 min-w-[140px] sticky top-0 z-40 bg-slate-100">DATA DUKUNG</th>
+                  <th className="py-3.5 px-4 min-w-[140px] text-center sticky top-0 z-40 bg-slate-100">KEGIATAN</th>
+                  <th className="py-3.5 px-4 min-w-[150px] sticky top-0 z-40 bg-slate-100">DATA DUKUNG</th>
                   <th className="py-3.5 px-4 min-w-[120px] sticky top-0 z-40 bg-slate-100">STATUS</th>
                   <th className="py-3.5 px-4 min-w-[120px] sticky top-0 z-40 bg-slate-100">TANGGAL WFH</th>
                   <th className="py-3.5 px-4 min-w-[120px] text-center sticky top-0 z-40 bg-slate-100">PENILAIAN</th>
@@ -923,47 +922,57 @@ export const WfaLaporanPage: React.FC<WfaLaporanPageProps> = ({ currentUser, sho
                         {item.unitKerja || '-'}
                       </td>
 
-                      {/* Rencana Hasil Kinerja */}
-                      <td className="py-3.5 px-4 text-slate-700 max-w-[220px]" title={item.rencanaHasilKinerja}>
-                        <div className="line-clamp-2 break-words leading-relaxed">
-                          {item.rencanaHasilKinerja}
-                        </div>
-                        {item.subItems && item.subItems.length > 1 && (
-                          <span className="inline-block mt-1 px-2 py-0.5 text-[10px] font-extrabold bg-gov-100 text-gov-800 border border-gov-200/80 rounded-md">
-                            +{item.subItems.length - 1} kegiatan lain
+                      {/* Kegiatan Column */}
+                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                        {item.hasSubmitted ? (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-bold text-gov-800 bg-gov-50 border border-gov-200 rounded-full shadow-2xs">
+                            <Layers size={13} className="text-gov-600" />
+                            {item.subItems ? item.subItems.length : 1} Kegiatan
                           </span>
-                        )}
-                      </td>
-
-                      {/* Rencana Kinerja */}
-                      <td className="py-3.5 px-4 text-slate-700 max-w-[220px]" title={item.rencanaKinerja}>
-                        <div className="line-clamp-2 break-words leading-relaxed">
-                          {item.rencanaKinerja}
-                        </div>
-                      </td>
-
-                      {/* Output Kinerja */}
-                      <td className="py-3.5 px-4 text-slate-700 max-w-[200px]" title={item.outputKinerja}>
-                        <div className="line-clamp-2 break-words leading-relaxed">
-                          {item.outputKinerja}
-                        </div>
-                      </td>
-
-                      {/* Link Data Dukung */}
-                      <td className="py-3.5 px-4" onClick={(e) => e.stopPropagation()}>
-                        {item.linkDataDukung ? (
-                          <a
-                            href={ensureHttps(item.linkDataDukung)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-gov-700 bg-gov-50 hover:bg-gov-100 rounded-lg transition-all"
-                          >
-                            <ExternalLink size={12} />
-                            Buka Link
-                          </a>
                         ) : (
                           <span className="text-slate-400 italic text-[11px]">-</span>
                         )}
+                      </td>
+
+                      {/* Link Data Dukung */}
+                      <td className="py-3.5 px-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                        {(() => {
+                          const allLinks = item.subItems
+                            ? item.subItems.map((sub) => sub.linkDataDukung).filter((l): l is string => Boolean(l && l.trim()))
+                            : item.linkDataDukung && item.linkDataDukung.trim()
+                            ? [item.linkDataDukung.trim()]
+                            : [];
+
+                          if (allLinks.length === 0) {
+                            return <span className="text-slate-400 italic text-[11px]">-</span>;
+                          }
+
+                          if (allLinks.length === 1) {
+                            return (
+                              <a
+                                href={ensureHttps(allLinks[0])}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-gov-700 bg-gov-50 hover:bg-gov-100 border border-gov-200 rounded-lg transition-all"
+                              >
+                                <ExternalLink size={12} />
+                                Buka Link
+                              </a>
+                            );
+                          }
+
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => setViewingLaporan(item)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg transition-all shadow-2xs"
+                              title="Klik untuk melihat detail seluruh data dukung"
+                            >
+                              <ExternalLink size={12} />
+                              {allLinks.length} Link (Lihat Detail)
+                            </button>
+                          );
+                        })()}
                       </td>
 
                       {/* Status Pelaksanaan */}
