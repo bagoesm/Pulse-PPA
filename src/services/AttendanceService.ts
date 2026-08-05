@@ -1031,36 +1031,15 @@ export class AttendanceService {
   }
 
   /**
-   * Upload attachment file to storage bucket 'attendance-attachments' or fallback to base64 Data URL
+   * Convert image file (< 50KB) directly to Base64 Data URL representation
    */
-  async uploadAttendanceAttachment(file: File, pathFolder: string): Promise<string> {
-    try {
-      const ext = file.name.split('.').pop() || 'bin';
-      const fileName = `${pathFolder}/${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
-
-      const { data, error } = await this.supabase.storage
-        .from('attendance-attachments')
-        .upload(fileName, file, {
-          cacheControl: '3600',
-          upsert: true,
-        });
-
-      if (error) throw error;
-
-      const { data: publicData } = this.supabase.storage
-        .from('attendance-attachments')
-        .getPublicUrl(data.path);
-
-      return publicData.publicUrl;
-    } catch (err) {
-      console.warn('Storage upload error, converting file to Data URL fallback:', err);
-      return new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-    }
+  async uploadAttendanceAttachment(file: File, _pathFolder?: string): Promise<string> {
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
   }
 
   /**

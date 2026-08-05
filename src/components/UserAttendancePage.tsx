@@ -4,7 +4,7 @@ import {
   UserCheck, Calendar, Clock, Plus, Download, FileText, FileSpreadsheet, 
   MapPin, CheckCircle, AlertTriangle, FileUp, Image as ImageIcon, X, 
   Search, ShieldAlert, Sparkles, Filter, Info, Eye, Check,
-  Pencil, Trash2, Clipboard
+  Pencil, Trash2, Clipboard, Link as LinkIcon
 } from 'lucide-react';
 import { User, Attendance, Geofence } from '../../types';
 import { attendanceService } from '../services/AttendanceService';
@@ -153,13 +153,12 @@ export const UserAttendancePage: React.FC<UserAttendancePageProps> = ({
   const [selectedGeofenceId, setSelectedGeofenceId] = useState<string>('');
   const [customLocationName, setCustomLocationName] = useState<string>('KemenPPPA');
 
-  // Files & Previews
+  // Photos & Surat Keterangan URL Link State
   const [checkInPhotoFile, setCheckInPhotoFile] = useState<File | null>(null);
   const [checkInPhotoPreview, setCheckInPhotoPreview] = useState<string>('');
   const [checkOutPhotoFile, setCheckOutPhotoFile] = useState<File | null>(null);
   const [checkOutPhotoPreview, setCheckOutPhotoPreview] = useState<string>('');
-  const [suratKeteranganFile, setSuratKeteranganFile] = useState<File | null>(null);
-  const [suratKeteranganFileName, setSuratKeteranganFileName] = useState<string>('');
+  const [suratKeteranganUrlInput, setSuratKeteranganUrlInput] = useState<string>('');
 
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [deleting, setDeleting] = useState<boolean>(false);
@@ -209,16 +208,16 @@ export const UserAttendancePage: React.FC<UserAttendancePageProps> = ({
   const processImageBlob = useCallback(async (blob: Blob, type: 'in' | 'out') => {
     const file = new File([blob], `clipboard_${type}_${Date.now()}.png`, { type: blob.type || 'image/png' });
     try {
-      const compressed = await attendanceService.compressImage(file, 200);
+      const compressed = await attendanceService.compressImage(file, 50);
       const previewUrl = URL.createObjectURL(compressed);
       if (type === 'in') {
         setCheckInPhotoFile(compressed);
         setCheckInPhotoPreview(previewUrl);
-        showNotification('Berhasil', 'Foto Check-In dari Clipboard berhasil ditempel (< 200KB)', 'success');
+        showNotification('Berhasil', 'Foto Check-In dari Clipboard berhasil ditempel (< 50KB)', 'success');
       } else {
         setCheckOutPhotoFile(compressed);
         setCheckOutPhotoPreview(previewUrl);
-        showNotification('Berhasil', 'Foto Check-Out dari Clipboard berhasil ditempel (< 200KB)', 'success');
+        showNotification('Berhasil', 'Foto Check-Out dari Clipboard berhasil ditempel (< 50KB)', 'success');
       }
     } catch (err) {
       console.error('Failed to process pasted image:', err);
@@ -336,7 +335,7 @@ export const UserAttendancePage: React.FC<UserAttendancePageProps> = ({
     setCustomLocationName(item.locationName || 'KemenPPPA');
     setCheckInPhotoPreview(item.checkInPhotoUrl || '');
     setCheckOutPhotoPreview(item.checkOutPhotoUrl || '');
-    setSuratKeteranganFileName(item.suratKeteranganUrl ? 'File Surat Keterangan Terlampir' : '');
+    setSuratKeteranganUrlInput(item.suratKeteranganUrl || '');
     setIsAddModalOpen(true);
   };
 
@@ -354,12 +353,11 @@ export const UserAttendancePage: React.FC<UserAttendancePageProps> = ({
     setCheckInPhotoPreview('');
     setCheckOutPhotoFile(null);
     setCheckOutPhotoPreview('');
-    setSuratKeteranganFile(null);
-    setSuratKeteranganFileName('');
+    setSuratKeteranganUrlInput('');
     setIsAddModalOpen(true);
   };
 
-  // Image Upload Handler with Canvas Compression (< 200KB)
+  // Image Upload Handler with Canvas Compression (< 50KB)
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'in' | 'out') => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -370,7 +368,7 @@ export const UserAttendancePage: React.FC<UserAttendancePageProps> = ({
     }
 
     try {
-      const compressed = await attendanceService.compressImage(file, 200);
+      const compressed = await attendanceService.compressImage(file, 50);
       const previewUrl = URL.createObjectURL(compressed);
 
       if (type === 'in') {
@@ -380,19 +378,11 @@ export const UserAttendancePage: React.FC<UserAttendancePageProps> = ({
         setCheckOutPhotoFile(compressed);
         setCheckOutPhotoPreview(previewUrl);
       }
-      showNotification('Foto Berhasil Diunggah', `Ukuran file: ${(compressed.size / 1024).toFixed(1)} KB (Dibawah 200KB)`, 'success');
+      showNotification('Foto Berhasil Diunggah', `Ukuran file: ${(compressed.size / 1024).toFixed(1)} KB (Dibawah 50KB)`, 'success');
     } catch (err) {
       console.error('Image compression failed:', err);
       showNotification('Error', 'Gagal memproses foto', 'error');
     }
-  };
-
-  // Surat Keterangan Document Upload Handler
-  const handleSuratUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setSuratKeteranganFile(file);
-    setSuratKeteranganFileName(file.name);
   };
 
   // Validate Date Range Collision against Face Attendances
@@ -452,21 +442,16 @@ export const UserAttendancePage: React.FC<UserAttendancePageProps> = ({
       return;
     }
 
-    if (status !== 'Hadir' && !suratKeteranganFile && !editingAttendance?.suratKeteranganUrl) {
-      showNotification('Surat Keterangan Wajib', `Status ${status} wajib melampirkan Surat Keterangan`, 'warning');
+    if (status !== 'Hadir' && !suratKeteranganUrlInput.trim()) {
+      showNotification('Link Surat Wajib', `Status ${status} wajib mengisi Link Surat Keterangan / Penugasan`, 'warning');
       return;
     }
 
     try {
       setSubmitting(true);
 
-      let suratUrl = editingAttendance?.suratKeteranganUrl || '';
       let checkInPhotoUrl = editingAttendance?.checkInPhotoUrl || '';
       let checkOutPhotoUrl = editingAttendance?.checkOutPhotoUrl || '';
-
-      if (suratKeteranganFile) {
-        suratUrl = await attendanceService.uploadAttendanceAttachment(suratKeteranganFile, `surat/${currentUser.id}`);
-      }
 
       if (checkInPhotoFile) {
         checkInPhotoUrl = await attendanceService.uploadAttendanceAttachment(checkInPhotoFile, `photos/${currentUser.id}`);
@@ -479,6 +464,7 @@ export const UserAttendancePage: React.FC<UserAttendancePageProps> = ({
       const targetGeo = geofences.find((g) => g.id === selectedGeofenceId);
       const lat = targetGeo ? targetGeo.latitude : -6.175392;
       const lng = targetGeo ? targetGeo.longitude : 106.827153;
+      const finalSuratUrl = suratKeteranganUrlInput.trim() || undefined;
 
       if (editingAttendance) {
         // --- Edit Mode ---
@@ -493,7 +479,7 @@ export const UserAttendancePage: React.FC<UserAttendancePageProps> = ({
           locationName: customLocationName,
           latitude: lat,
           longitude: lng,
-          suratKeteranganUrl: suratUrl || undefined,
+          suratKeteranganUrl: finalSuratUrl,
           checkInPhotoUrl: checkInPhotoUrl || undefined,
           checkOutPhotoUrl: checkOutPhotoUrl || undefined,
         });
@@ -519,7 +505,7 @@ export const UserAttendancePage: React.FC<UserAttendancePageProps> = ({
             locationName: customLocationName,
             latitude: lat,
             longitude: lng,
-            suratKeteranganUrl: suratUrl || undefined,
+            suratKeteranganUrl: finalSuratUrl,
             checkInPhotoUrl: checkInPhotoUrl || undefined,
             checkOutPhotoUrl: checkOutPhotoUrl || undefined,
           });
@@ -535,8 +521,7 @@ export const UserAttendancePage: React.FC<UserAttendancePageProps> = ({
       setCheckInPhotoPreview('');
       setCheckOutPhotoFile(null);
       setCheckOutPhotoPreview('');
-      setSuratKeteranganFile(null);
-      setSuratKeteranganFileName('');
+      setSuratKeteranganUrlInput('');
 
       loadData();
     } catch (err) {
@@ -978,8 +963,8 @@ export const UserAttendancePage: React.FC<UserAttendancePageProps> = ({
                                 rel="noreferrer"
                                 className="inline-flex items-center gap-1 text-[11px] font-bold text-purple-600 hover:text-purple-800 bg-purple-50 px-2 py-1 rounded-lg border border-purple-200"
                               >
-                                <FileText size={12} />
-                                Surat Ket.
+                                <LinkIcon size={12} />
+                                Link Surat
                               </a>
                             )}
 
@@ -1034,7 +1019,7 @@ export const UserAttendancePage: React.FC<UserAttendancePageProps> = ({
                   <h3 className="text-lg font-bold text-white">
                     {editingAttendance ? 'Edit List Absen Manual' : 'Buat List Absen Manual'}
                   </h3>
-                  <p className="text-xs text-gov-100 font-medium">Input absensi resmi pegawai (Bisa Paste Ctrl+V, Foto &lt; 200KB)</p>
+                  <p className="text-xs text-gov-100 font-medium">Input absensi resmi pegawai (Bisa Paste Ctrl+V, Foto &lt; 50KB)</p>
                 </div>
               </div>
               <button
@@ -1116,19 +1101,21 @@ export const UserAttendancePage: React.FC<UserAttendancePageProps> = ({
               {status !== 'Hadir' && (
                 <div className="p-3.5 bg-purple-50/70 border border-purple-200 rounded-xl space-y-2">
                   <label className="block text-xs font-bold text-purple-900 uppercase tracking-wider flex items-center justify-between">
-                    <span>Upload Surat Keterangan ({status}) *</span>
+                    <span>Link Surat Keterangan / Penugasan ({status}) *</span>
                     <span className="text-[10px] text-purple-600 font-normal">Wajib Diisi</span>
                   </label>
-                  <input
-                    type="file"
-                    required={!editingAttendance?.suratKeteranganUrl}
-                    accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                    onChange={handleSuratUpload}
-                    className="w-full text-xs text-slate-600 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-purple-600 file:text-white hover:file:bg-purple-700 cursor-pointer"
-                  />
-                  {suratKeteranganFileName && (
-                    <p className="text-[11px] font-semibold text-purple-700">✓ File: {suratKeteranganFileName}</p>
-                  )}
+                  <div className="relative">
+                    <LinkIcon size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-purple-500" />
+                    <input
+                      type="url"
+                      required
+                      placeholder="https://drive.google.com/... atau link Surat / Penugasan"
+                      value={suratKeteranganUrlInput}
+                      onChange={(e) => setSuratKeteranganUrlInput(e.target.value)}
+                      className="w-full pl-9 pr-3.5 py-2.5 text-xs bg-white border border-purple-200 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 font-medium text-slate-800"
+                    />
+                  </div>
+                  <p className="text-[10px] text-purple-700 font-medium">Masukkan URL link dokumen resmi (Google Drive, Srikandi, atau cloud storage)</p>
                 </div>
               )}
 
