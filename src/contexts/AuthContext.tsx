@@ -62,6 +62,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children, onShowNoti
                 }
                 setCurrentUser(null);
             } else if (data) {
+                // Check if account is disabled/soft-deleted
+                if (data.role === 'Nonaktif' || (data.name && data.name.includes('(Dihapus)'))) {
+                    console.warn('Account is disabled:', userId);
+                    await supabase.auth.signOut();
+                    setCurrentUser(null);
+                    setSession(null);
+                    localStorage.clear();
+                    sessionStorage.clear();
+                    setAuthError('Akun ini telah dinonaktifkan dan tidak dapat mengakses sistem.');
+                    showNotification('Akun Dinonaktifkan', 'Akun Anda telah dinonaktifkan oleh administrator.', 'error');
+                    return;
+                }
+
                 const mappedUser = {
                     ...data,
                     sakuraAnimationEnabled: data.sakura_animation_enabled || false,
