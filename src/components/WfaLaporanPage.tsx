@@ -143,6 +143,7 @@ export const WfaLaporanPage: React.FC<WfaLaporanPageProps> = ({ currentUser, sho
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
+      const targetUnit = selectedUnit !== 'Semua' ? selectedUnit : currentUser.divisi || undefined;
       const [data, profiles] = await Promise.all([
         wfaService.getWfaLaporan(
           currentUser,
@@ -150,9 +151,7 @@ export const WfaLaporanPage: React.FC<WfaLaporanPageProps> = ({ currentUser, sho
           endDate || undefined,
           selectedUnit !== 'Semua' ? selectedUnit : undefined
         ),
-        currentUser.role !== 'Staff'
-          ? wfaService.getUnitProfiles(selectedUnit !== 'Semua' ? selectedUnit : undefined)
-          : Promise.resolve([]),
+        wfaService.getUnitProfiles(targetUnit),
       ]);
       setLaporanList(data);
       setUnitProfiles(profiles);
@@ -168,58 +167,94 @@ export const WfaLaporanPage: React.FC<WfaLaporanPageProps> = ({ currentUser, sho
     loadData();
   }, [loadData]);
 
-  // Combine submitted reports and unsubmitted profiles for Atasan & Super Admin
+  // Combine submitted reports and unsubmitted profiles with Grouping by (userId + tanggalWfa)
   const displayList = useMemo(() => {
-    // For Staff: show all their reports (including their own Drafts)
-    if (currentUser.role === 'Staff' || unitProfiles.length === 0) {
-      return laporanList.map((item) => ({ 
-        ...item, 
-        hasSubmitted: true // Real report entry from DB
-      }));
-    }
-
-    // For Atasan / Super Admin:
-    // Exclude Drafts written by other users (leaders only see submitted reports)
-    const submittedOrOwnReports = laporanList.filter((item) => {
+    // 1. Filter reports visible to current user (Draft is ONLY visible to its author)
+    const visibleReports = laporanList.filter((item) => {
       if (item.statusPelaksanaan === 'Draft' && item.userId !== currentUser.id) {
-        return false; // Hide other staff's drafts from leaders
+        return false; // Hide other staff's drafts from leaders/colleagues
       }
       return true;
     });
 
-    // Track all users who have created any report (draft or submitted)
-    const reportUserIds = new Set(laporanList.map((item) => item.userId));
-    const merged: (WfaLaporan & { hasSubmitted: boolean })[] = [
-      ...submittedOrOwnReports.map((item) => ({ 
-        ...item, 
-        hasSubmitted: true // Real report entry from DB
-      })),
-    ];
+    // 2. Group visible reports by (userId + "_" + tanggalWfa)
+    const groupedMap = new Map<string, WfaLaporan[]>();
+    visibleReports.forEach((item) => {
+      const key = `${item.userId}_${item.tanggalWfa}`;
+      if (!groupedMap.has(key)) {
+        groupedMap.set(key, []);
+      }
+      groupedMap.get(key)!.push(item);
+    });
 
-    // Only add unsubmitted placeholder for employees who have ZERO reports for this period
-    unitProfiles.forEach((profile) => {
-      if (!reportUserIds.has(profile.id)) {
-        merged.push({
-          id: `unsubmitted-${profile.id}`,
-          userId: profile.id,
-          nama: profile.name,
-          nip: profile.nip || '-',
-          unitKerja: profile.divisi || selectedUnit,
-          jabatan: profile.jabatan || 'Pegawai',
-          tanggalWfa: startDate || currentWeek.startDate,
-          rencanaHasilKinerja: '-',
-          rencanaKinerja: '-',
-          outputKinerja: '-',
-          linkDataDukung: '',
-          statusPelaksanaan: 'Belum Mengirim',
-          penilaian: null,
-          createdAt: '',
-          hasSubmitted: false, // Dummy unsubmitted placeholder
+    // 3. Transform grouped entries into single display rows
+    const groupedRows: (WfaLaporan & { hasSubmitted: boolean })[] = [];
+    groupedMap.forEach((items) => {
+      if (items.length === 1) {
+        groupedRows.push({ ...items[0], hasSubmitted: true, subItems: items });
+      } else {
+        // Combine multiple activities into 1 display row
+        const first = items[0];
+        const combinedRencanaHasil = items.map((it, idx) => `${idx + 1}. ${it.rencanaHasilKinerja}`).join('\n');
+        const combinedRencana = items.map((it, idx) => `${idx + 1}. ${it.rencanaKinerja}`).join('\n');
+        const combinedOutput = items.map((it, idx) => `${idx + 1}. ${it.outputKinerja}`).join('\n');
+        const sharedLink = items.map((it) => it.linkDataDukung).filter(Boolean).join(', ') || first.linkDataDukung;
+
+        // Use evaluation from any item that has been evaluated, or null
+        const sharedPenilaian = items.find((it) => !!it.penilaian)?.penilaian || null;
+
+        // Overall status: if all 'Selesai', 'Selesai'; if any 'Draft', 'Draft'
+        const hasDraft = items.some((it) => it.statusPelaksanaan === 'Draft');
+        const overallStatus = hasDraft ? 'Draft' : first.statusPelaksanaan || 'Selesai';
+
+        groupedRows.push({
+          ...first,
+          rencanaHasilKinerja: combinedRencanaHasil,
+          rencanaKinerja: combinedRencana,
+          outputKinerja: combinedOutput,
+          linkDataDukung: sharedLink,
+          statusPelaksanaan: overallStatus,
+          penilaian: sharedPenilaian,
+          hasSubmitted: true,
+          subItems: items,
         });
       }
     });
 
-    return merged;
+    // 4. Track user IDs who have officially submitted a report (status !== 'Draft')
+    const officiallySubmittedUserIds = new Set(
+      laporanList.filter((item) => item.statusPelaksanaan !== 'Draft').map((item) => item.userId)
+    );
+
+    // Track user IDs already present in groupedRows
+    const userIdsInMerged = new Set(groupedRows.map((item) => item.userId));
+
+    // 5. Add unsubmitted placeholder for unit employees who haven't submitted yet
+    if (unitProfiles.length > 0) {
+      unitProfiles.forEach((profile) => {
+        if (!officiallySubmittedUserIds.has(profile.id) && !userIdsInMerged.has(profile.id)) {
+          groupedRows.push({
+            id: `unsubmitted-${profile.id}`,
+            userId: profile.id,
+            nama: profile.name,
+            nip: profile.nip || '-',
+            unitKerja: profile.divisi || selectedUnit,
+            jabatan: profile.jabatan || 'Pegawai',
+            tanggalWfa: startDate || currentWeek.startDate,
+            rencanaHasilKinerja: '-',
+            rencanaKinerja: '-',
+            outputKinerja: '-',
+            linkDataDukung: '',
+            statusPelaksanaan: 'Belum Mengirim',
+            penilaian: null,
+            createdAt: '',
+            hasSubmitted: false,
+          });
+        }
+      });
+    }
+
+    return groupedRows;
   }, [laporanList, unitProfiles, currentUser.role, currentUser.id, selectedUnit, startDate, currentWeek.startDate]);
 
   // Filtered List based on search, status, and submission status
@@ -260,7 +295,7 @@ export const WfaLaporanPage: React.FC<WfaLaporanPageProps> = ({ currentUser, sho
     return { total: totalSubmitted, totalSubmitted, totalUnsubmitted, totalUnitEmployees, selesai, dalamProses, disetujui, belumDinilai };
   }, [displayList]);
 
-  // Handle Penilaian Thumbs Up Toggle
+  // Handle Penilaian Thumbs Up Toggle (Evaluates all subItems at once)
   const handleTogglePenilaian = async (laporan: WfaLaporan) => {
     if (currentUser.role === 'Staff') {
       showToast('Penilaian hanya dapat diberikan oleh Atasan atau Super Admin', 'warning');
@@ -271,7 +306,14 @@ export const WfaLaporanPage: React.FC<WfaLaporanPageProps> = ({ currentUser, sho
     const newRating = currentRating && currentRating.includes('👍') ? null : '👍';
 
     try {
-      await wfaService.evaluateWfaLaporan(laporan.id, newRating, currentUser);
+      if (laporan.subItems && laporan.subItems.length > 0) {
+        await Promise.all(
+          laporan.subItems.map((sub) => wfaService.evaluateWfaLaporan(sub.id, newRating, currentUser))
+        );
+      } else {
+        await wfaService.evaluateWfaLaporan(laporan.id, newRating, currentUser);
+      }
+
       showToast(
         newRating ? `Penilaian 👍 diberikan untuk ${laporan.nama}` : `Penilaian untuk ${laporan.nama} dibatalkan`,
         'success'
@@ -283,12 +325,19 @@ export const WfaLaporanPage: React.FC<WfaLaporanPageProps> = ({ currentUser, sho
     }
   };
 
-  // Publish draft handler
+  // Publish draft handler (Publishes all subItems at once)
   const handlePublishDraft = async (laporan: WfaLaporan) => {
     try {
-      await wfaService.updateWfaLaporan(laporan.id, {
-        statusPelaksanaan: 'Selesai',
-      });
+      if (laporan.subItems && laporan.subItems.length > 0) {
+        await Promise.all(
+          laporan.subItems.map((sub) =>
+            wfaService.updateWfaLaporan(sub.id, { statusPelaksanaan: 'Selesai' })
+          )
+        );
+      } else {
+        await wfaService.updateWfaLaporan(laporan.id, { statusPelaksanaan: 'Selesai' });
+      }
+
       showToast(`Laporan WFA (${formatIndonesianDateWithDay(laporan.tanggalWfa)}) berhasil dikirim!`, 'success');
       loadData();
     } catch (err) {
@@ -305,7 +354,12 @@ export const WfaLaporanPage: React.FC<WfaLaporanPageProps> = ({ currentUser, sho
   const confirmDelete = async () => {
     if (!deleteTargetId) return;
     try {
-      await wfaService.deleteWfaLaporan(deleteTargetId);
+      const target = displayList.find((i) => i.id === deleteTargetId);
+      if (target && target.subItems && target.subItems.length > 0) {
+        await Promise.all(target.subItems.map((sub) => wfaService.deleteWfaLaporan(sub.id)));
+      } else {
+        await wfaService.deleteWfaLaporan(deleteTargetId);
+      }
       showToast('Laporan WFA berhasil dihapus', 'success');
       loadData();
     } catch (err) {

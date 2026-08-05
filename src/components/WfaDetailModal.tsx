@@ -88,38 +88,86 @@ export const WfaDetailModal: React.FC<WfaDetailModalProps> = ({
             </div>
           </div>
 
-          {/* Rencana Hasil Kinerja */}
-          <div className="space-y-1.5">
-            <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-              <Sparkles size={14} className="text-gov-600" />
-              Rencana Hasil Kinerja
-            </h4>
-            <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 leading-relaxed whitespace-pre-wrap break-words max-w-full">
-              {laporan.rencanaHasilKinerja}
-            </div>
-          </div>
+          {/* Activities List */}
+          {laporan.subItems && laporan.subItems.length > 1 ? (
+            <div className="space-y-4">
+              <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">
+                Daftar Kegiatan ({laporan.subItems.length})
+              </h4>
+              {laporan.subItems.map((sub, idx) => (
+                <div key={sub.id || idx} className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-3">
+                  <div className="flex items-center gap-2 border-b border-slate-200/60 pb-2">
+                    <span className="w-5 h-5 rounded-md bg-gov-600 text-white font-bold text-xs flex items-center justify-center">
+                      {idx + 1}
+                    </span>
+                    <span className="text-xs font-bold text-slate-800">Kegiatan #{idx + 1}</span>
+                  </div>
 
-          {/* Rencana Kinerja */}
-          <div className="space-y-1.5">
-            <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-              <FileText size={14} className="text-gov-600" />
-              Rencana Kinerja
-            </h4>
-            <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 leading-relaxed whitespace-pre-wrap break-words max-w-full">
-              {laporan.rencanaKinerja}
-            </div>
-          </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Rencana Hasil Kinerja</span>
+                    <p className="text-xs text-slate-800 leading-relaxed font-medium">{sub.rencanaHasilKinerja}</p>
+                  </div>
 
-          {/* Output Kinerja */}
-          <div className="space-y-1.5">
-            <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-              <CheckCircle size={14} className="text-gov-600" />
-              Output Kinerja
-            </h4>
-            <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 leading-relaxed whitespace-pre-wrap break-words max-w-full">
-              {laporan.outputKinerja}
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Rencana Kinerja</span>
+                    <p className="text-xs text-slate-800 leading-relaxed">{sub.rencanaKinerja}</p>
+                  </div>
+
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Output Kinerja</span>
+                    <p className="text-xs text-slate-800 leading-relaxed font-semibold">{sub.outputKinerja}</p>
+                  </div>
+
+                  {sub.linkDataDukung && (
+                    <div className="pt-1">
+                      <a
+                        href={ensureHttps(sub.linkDataDukung)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-gov-700 bg-white hover:bg-gov-50 rounded-lg border border-slate-200 transition-all"
+                      >
+                        <ExternalLink size={12} />
+                        Link Data Dukung Kegiatan #{idx + 1}
+                      </a>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
-          </div>
+          ) : (
+            <>
+              {/* Single Activity Render */}
+              <div className="space-y-1.5">
+                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                  <Sparkles size={14} className="text-gov-600" />
+                  Rencana Hasil Kinerja
+                </h4>
+                <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 leading-relaxed whitespace-pre-wrap break-words max-w-full">
+                  {laporan.rencanaHasilKinerja}
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                  <FileText size={14} className="text-gov-600" />
+                  Rencana Kinerja
+                </h4>
+                <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 leading-relaxed whitespace-pre-wrap break-words max-w-full">
+                  {laporan.rencanaKinerja}
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                  <CheckCircle size={14} className="text-gov-600" />
+                  Output Kinerja
+                </h4>
+                <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 leading-relaxed whitespace-pre-wrap break-words max-w-full">
+                  {laporan.outputKinerja}
+                </div>
+              </div>
+            </>
+          )}
 
           {/* Grid Info: Data Dukung, Status, Penilaian */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-slate-100">

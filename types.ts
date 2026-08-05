@@ -1090,6 +1090,7 @@ export interface WfaLaporan {
   evaluatedAt?: string | null;
   createdAt: string;
   updatedAt?: string;
+  subItems?: WfaLaporan[];
 }
 
 export interface WfaSchedule {
