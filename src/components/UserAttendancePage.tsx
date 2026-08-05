@@ -467,8 +467,8 @@ export const UserAttendancePage: React.FC<UserAttendancePageProps> = ({
 
       if (editingAttendance) {
         // --- Edit Mode ---
-        const checkInIso = status === 'Hadir' ? `${startDate}T${checkInTime}:00+07:00` : `${startDate}T00:00:00+07:00`;
-        const checkOutIso = status === 'Hadir' && checkOutTime ? `${startDate}T${checkOutTime}:00+07:00` : undefined;
+        const checkInIso = status === 'Hadir' ? `${startDate}T${checkInTime}:00` : `${startDate}T00:00:00`;
+        const checkOutIso = status === 'Hadir' && checkOutTime ? `${startDate}T${checkOutTime}:00` : undefined;
 
         await attendanceService.updateManualAttendance(editingAttendance.id, {
           checkIn: checkInIso,
@@ -492,8 +492,8 @@ export const UserAttendancePage: React.FC<UserAttendancePageProps> = ({
         let createdCount = 0;
         for (let d = new Date(s); d <= eDate; d.setDate(d.getDate() + 1)) {
           const dateStr = d.toISOString().substring(0, 10);
-          const checkInIso = status === 'Hadir' ? `${dateStr}T${checkInTime}:00+07:00` : `${dateStr}T00:00:00+07:00`;
-          const checkOutIso = status === 'Hadir' && checkOutTime ? `${dateStr}T${checkOutTime}:00+07:00` : undefined;
+          const checkInIso = status === 'Hadir' ? `${dateStr}T${checkInTime}:00` : `${dateStr}T00:00:00`;
+          const checkOutIso = status === 'Hadir' && checkOutTime ? `${dateStr}T${checkOutTime}:00` : undefined;
 
           await attendanceService.createManualAttendance({
             employeeId: currentUser.id,

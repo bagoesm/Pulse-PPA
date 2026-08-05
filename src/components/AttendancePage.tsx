@@ -1194,8 +1194,8 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
               employeeNip: emp.nip || '-',
               employeeDivisi: emp.divisi || '-',
               date: dateStr,
-              checkIn: empLog.checkIn ? new Date(empLog.checkIn).toLocaleString('id-ID') : '-',
-              checkOut: empLog.checkOut ? new Date(empLog.checkOut).toLocaleString('id-ID') : 'Belum Pulang',
+              checkIn: empLog.checkIn ? empLog.checkIn.substring(11, 16) : '-',
+              checkOut: empLog.checkOut ? empLog.checkOut.substring(11, 16) : 'Belum Pulang',
               status: empLog.status || 'Hadir'
             });
           } else {
@@ -1542,7 +1542,7 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
                         <div className="space-y-0.5">
                           <div className="text-slate-400 text-[10px] sm:text-xs uppercase tracking-wider font-semibold">Jam Masuk (In)</div>
                           <div className="font-bold text-emerald-600 text-sm">
-                            {new Date(todayAttendance.checkIn).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                            {todayAttendance.checkIn.substring(11, 16)}
                           </div>
                           <div className="text-[10px] sm:text-xs text-slate-400">
                             Status: <span className={todayAttendance.status === 'Terlambat' ? 'text-amber-600 font-bold' : 'text-emerald-600 font-bold'}>{todayAttendance.status}</span>
@@ -2290,11 +2290,11 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
                             {new Date(l.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
                           </td>
                           <td className="px-6 py-3.5 font-semibold text-slate-850">
-                            {l.checkIn ? new Date(l.checkIn).toLocaleTimeString('id-ID') : '-'}
+                            {l.checkIn ? l.checkIn.substring(11, 16) : '-'}
                           </td>
                           <td className="px-6 py-3.5 font-semibold">
                             {l.status === 'Tidak Hadir' ? '-' : (
-                              l.checkOut ? new Date(l.checkOut).toLocaleTimeString('id-ID') : (
+                              l.checkOut ? l.checkOut.substring(11, 16) : (
                                 <span className="text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full text-[10px] font-bold">Belum Pulang</span>
                               )
                             )}
