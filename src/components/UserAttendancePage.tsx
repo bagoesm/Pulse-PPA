@@ -460,26 +460,27 @@ export const UserAttendancePage: React.FC<UserAttendancePageProps> = ({
       }
 
       const targetGeo = geofences.find((g) => g.id === selectedGeofenceId);
-      const lat = targetGeo ? targetGeo.latitude : -6.175392;
-      const lng = targetGeo ? targetGeo.longitude : 106.827153;
-      const finalSuratUrl = suratKeteranganUrlInput.trim() || undefined;
+      const lat = status === 'Hadir' ? (targetGeo ? targetGeo.latitude : -6.175392) : 0;
+      const lng = status === 'Hadir' ? (targetGeo ? targetGeo.longitude : 106.827153) : 0;
+      const finalSuratUrl = status !== 'Hadir' ? (suratKeteranganUrlInput.trim() || undefined) : undefined;
+      const finalLocName = status === 'Hadir' ? customLocationName : status;
 
       if (editingAttendance) {
         // --- Edit Mode ---
-        const checkInIso = `${startDate}T${checkInTime}:00`;
-        const checkOutIso = checkOutTime ? `${startDate}T${checkOutTime}:00` : undefined;
+        const checkInIso = status === 'Hadir' ? `${startDate}T${checkInTime}:00` : `${startDate}T00:00:00`;
+        const checkOutIso = status === 'Hadir' && checkOutTime ? `${startDate}T${checkOutTime}:00` : undefined;
 
         await attendanceService.updateManualAttendance(editingAttendance.id, {
           checkIn: checkInIso,
           checkOut: checkOutIso,
           status,
-          locationId: selectedGeofenceId,
-          locationName: customLocationName,
+          locationId: status === 'Hadir' ? selectedGeofenceId : undefined,
+          locationName: finalLocName,
           latitude: lat,
           longitude: lng,
           suratKeteranganUrl: finalSuratUrl,
-          checkInPhotoUrl: checkInPhotoUrl || undefined,
-          checkOutPhotoUrl: checkOutPhotoUrl || undefined,
+          checkInPhotoUrl: status === 'Hadir' ? (checkInPhotoUrl || undefined) : undefined,
+          checkOutPhotoUrl: status === 'Hadir' ? (checkOutPhotoUrl || undefined) : undefined,
         });
 
         showNotification('Berhasil', 'Data absensi manual berhasil diperbarui', 'success');
@@ -491,21 +492,21 @@ export const UserAttendancePage: React.FC<UserAttendancePageProps> = ({
         let createdCount = 0;
         for (let d = new Date(s); d <= eDate; d.setDate(d.getDate() + 1)) {
           const dateStr = d.toISOString().substring(0, 10);
-          const checkInIso = `${dateStr}T${checkInTime}:00`;
-          const checkOutIso = checkOutTime ? `${dateStr}T${checkOutTime}:00` : undefined;
+          const checkInIso = status === 'Hadir' ? `${dateStr}T${checkInTime}:00` : `${dateStr}T00:00:00`;
+          const checkOutIso = status === 'Hadir' && checkOutTime ? `${dateStr}T${checkOutTime}:00` : undefined;
 
           await attendanceService.createManualAttendance({
             employeeId: currentUser.id,
             checkIn: checkInIso,
             checkOut: checkOutIso,
             status,
-            locationId: selectedGeofenceId,
-            locationName: customLocationName,
+            locationId: status === 'Hadir' ? selectedGeofenceId : undefined,
+            locationName: finalLocName,
             latitude: lat,
             longitude: lng,
             suratKeteranganUrl: finalSuratUrl,
-            checkInPhotoUrl: checkInPhotoUrl || undefined,
-            checkOutPhotoUrl: checkOutPhotoUrl || undefined,
+            checkInPhotoUrl: status === 'Hadir' ? (checkInPhotoUrl || undefined) : undefined,
+            checkOutPhotoUrl: status === 'Hadir' ? (checkOutPhotoUrl || undefined) : undefined,
           });
           createdCount++;
         }
@@ -887,6 +888,7 @@ export const UserAttendancePage: React.FC<UserAttendancePageProps> = ({
 
                     const checkInTimeStr = item.checkIn ? item.checkIn.substring(11, 16) : '-';
                     const checkOutTimeStr = item.checkOut ? item.checkOut.substring(11, 16) : '-';
+                    const isHadirStatus = item.status === 'Hadir' || item.status === 'Terlambat' || item.status === 'WFA';
 
                     return (
                       <tr key={item.id || rowItem.dateKey} className="hover:bg-slate-50/80 transition-all">
@@ -919,24 +921,36 @@ export const UserAttendancePage: React.FC<UserAttendancePageProps> = ({
                         </td>
 
                         <td className="py-3.5 px-4 font-semibold text-slate-700">
-                          <div className="flex items-center gap-1">
-                            <Clock size={13} className="text-emerald-600" />
-                            {checkInTimeStr} WIB
-                          </div>
+                          {isHadirStatus ? (
+                            <div className="flex items-center gap-1">
+                              <Clock size={13} className="text-emerald-600" />
+                              {checkInTimeStr} WIB
+                            </div>
+                          ) : (
+                            <span className="text-slate-400 font-mono text-[11px]">-</span>
+                          )}
                         </td>
 
                         <td className="py-3.5 px-4 font-semibold text-slate-700">
-                          <div className="flex items-center gap-1">
-                            <Clock size={13} className="text-amber-600" />
-                            {checkOutTimeStr} {checkOutTimeStr !== '-' ? 'WIB' : ''}
-                          </div>
+                          {isHadirStatus ? (
+                            <div className="flex items-center gap-1">
+                              <Clock size={13} className="text-amber-600" />
+                              {checkOutTimeStr} {checkOutTimeStr !== '-' ? 'WIB' : ''}
+                            </div>
+                          ) : (
+                            <span className="text-slate-400 font-mono text-[11px]">-</span>
+                          )}
                         </td>
 
                         <td className="py-3.5 px-4 text-slate-700">
-                          <div className="flex items-center gap-1 font-semibold">
-                            <MapPin size={13} className="text-slate-400 flex-shrink-0" />
-                            <span>{item.locationName || 'Kantor Pusat KPPPA'}</span>
-                          </div>
+                          {isHadirStatus ? (
+                            <div className="flex items-center gap-1 font-semibold">
+                              <MapPin size={13} className="text-slate-400 flex-shrink-0" />
+                              <span>{item.locationName || 'Kantor Pusat KPPPA'}</span>
+                            </div>
+                          ) : (
+                            <span className="text-slate-400 text-[11px]">-</span>
+                          )}
                         </td>
 
                         <td className="py-3.5 px-4">
@@ -1107,7 +1121,7 @@ export const UserAttendancePage: React.FC<UserAttendancePageProps> = ({
                 />
               </div>
 
-              {status !== 'Hadir' && (
+              {status !== 'Hadir' ? (
                 <div className="p-3.5 bg-purple-50/70 border border-purple-200 rounded-xl space-y-2">
                   <label className="block text-xs font-bold text-purple-900 uppercase tracking-wider flex items-center justify-between">
                     <span>Link Surat Keterangan / Penugasan ({status}) *</span>
@@ -1126,136 +1140,138 @@ export const UserAttendancePage: React.FC<UserAttendancePageProps> = ({
                   </div>
                   <p className="text-[10px] text-purple-700 font-medium">Masukkan URL link dokumen resmi (Google Drive, Srikandi, atau cloud storage)</p>
                 </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Jam Check-In
-                  </label>
-                  <input
-                    type="time"
-                    required
-                    value={checkInTime}
-                    onChange={(e) => setCheckInTime(e.target.value)}
-                    className="w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-gov-500/20 focus:border-gov-600 font-semibold text-slate-800"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Jam Check-Out
-                  </label>
-                  <input
-                    type="time"
-                    value={checkOutTime}
-                    onChange={(e) => setCheckOutTime(e.target.value)}
-                    className="w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-gov-500/20 focus:border-gov-600 font-semibold text-slate-800"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <CustomDropdown
-                  label="Lokasi / Geofence"
-                  options={geofenceDropdownOptions}
-                  value={selectedGeofenceId}
-                  onChange={handleGeofenceChange}
-                />
-              </div>
-
-              {selectedGeofenceId === 'custom' && (
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Nama Lokasi Kustom</label>
-                  <input
-                    type="text"
-                    required
-                    value={customLocationName}
-                    onChange={(e) => setCustomLocationName(e.target.value)}
-                    placeholder="Contoh: Perumahan Wahana Babelan"
-                    className="w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-gov-500/20 focus:border-gov-600 font-semibold text-slate-800"
-                  />
-                </div>
-              )}
-
-              <div className="space-y-3 pt-2 border-t border-slate-100">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Foto Bukti Presensi</span>
-                  <span className="text-[10px] text-gov-600 font-bold bg-gov-50 px-2 py-0.5 rounded-full border border-gov-200">Bisa Ctrl+V / Paste Clipboard</span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-center flex flex-col justify-between">
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-[11px] font-bold text-slate-700 mb-1.5">Foto Check-In</label>
-                      {checkInPhotoPreview ? (
-                        <div className="relative mb-2">
-                          <img src={checkInPhotoPreview} alt="Preview CheckIn" className="w-full h-24 object-cover rounded-lg border border-slate-300" />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setCheckInPhotoFile(null);
-                              setCheckInPhotoPreview('');
-                            }}
-                            className="absolute top-1 right-1 p-1 bg-rose-600 text-white rounded-full hover:bg-rose-700 shadow-md"
-                          >
-                            <X size={12} />
-                          </button>
-                        </div>
-                      ) : null}
+                      <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                        Jam Check-In
+                      </label>
                       <input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => handleImageUpload(e, 'in')}
-                        className="w-full text-[10px] text-slate-500 file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-[10px] file:font-bold file:bg-gov-600 file:text-white hover:file:bg-gov-700 cursor-pointer"
+                        type="time"
+                        required
+                        value={checkInTime}
+                        onChange={(e) => setCheckInTime(e.target.value)}
+                        className="w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-gov-500/20 focus:border-gov-600 font-semibold text-slate-800"
                       />
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => handlePasteFromClipboardButton('in')}
-                      className="w-full mt-2.5 py-1.5 px-3 bg-gov-50 hover:bg-gov-100 text-gov-700 font-bold text-[11px] rounded-xl border border-gov-200 flex items-center justify-center gap-1.5 transition-all shadow-sm"
-                    >
-                      <Clipboard size={13} />
-                      Paste Gambar (Ctrl+V)
-                    </button>
-                  </div>
 
-                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-center flex flex-col justify-between">
                     <div>
-                      <label className="block text-[11px] font-bold text-slate-700 mb-1.5">Foto Check-Out</label>
-                      {checkOutPhotoPreview ? (
-                        <div className="relative mb-2">
-                          <img src={checkOutPhotoPreview} alt="Preview CheckOut" className="w-full h-24 object-cover rounded-lg border border-slate-300" />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setCheckOutPhotoFile(null);
-                              setCheckOutPhotoPreview('');
-                            }}
-                            className="absolute top-1 right-1 p-1 bg-rose-600 text-white rounded-full hover:bg-rose-700 shadow-md"
-                          >
-                            <X size={12} />
-                          </button>
-                        </div>
-                      ) : null}
+                      <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                        Jam Check-Out
+                      </label>
                       <input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => handleImageUpload(e, 'out')}
-                        className="w-full text-[10px] text-slate-500 file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-[10px] file:font-bold file:bg-gov-600 file:text-white hover:file:bg-gov-700 cursor-pointer"
+                        type="time"
+                        value={checkOutTime}
+                        onChange={(e) => setCheckOutTime(e.target.value)}
+                        className="w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-gov-500/20 focus:border-gov-600 font-semibold text-slate-800"
                       />
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => handlePasteFromClipboardButton('out')}
-                      className="w-full mt-2.5 py-1.5 px-3 bg-gov-50 hover:bg-gov-100 text-gov-700 font-bold text-[11px] rounded-xl border border-gov-200 flex items-center justify-center gap-1.5 transition-all shadow-sm"
-                    >
-                      <Clipboard size={13} />
-                      Paste Gambar (Ctrl+V)
-                    </button>
                   </div>
-                </div>
-              </div>
+
+                  <div>
+                    <CustomDropdown
+                      label="Lokasi / Geofence"
+                      options={geofenceDropdownOptions}
+                      value={selectedGeofenceId}
+                      onChange={handleGeofenceChange}
+                    />
+                  </div>
+
+                  {selectedGeofenceId === 'custom' && (
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 mb-1">Nama Lokasi Kustom</label>
+                      <input
+                        type="text"
+                        required
+                        value={customLocationName}
+                        onChange={(e) => setCustomLocationName(e.target.value)}
+                        placeholder="Contoh: Perumahan Wahana Babelan"
+                        className="w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-gov-500/20 focus:border-gov-600 font-semibold text-slate-800"
+                      />
+                    </div>
+                  )}
+
+                  <div className="space-y-3 pt-2 border-t border-slate-100">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Foto Bukti Presensi</span>
+                      <span className="text-[10px] text-gov-600 font-bold bg-gov-50 px-2 py-0.5 rounded-full border border-gov-200">Bisa Ctrl+V / Paste Clipboard</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-center flex flex-col justify-between">
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-700 mb-1.5">Foto Check-In</label>
+                          {checkInPhotoPreview ? (
+                            <div className="relative mb-2">
+                              <img src={checkInPhotoPreview} alt="Preview CheckIn" className="w-full h-24 object-cover rounded-lg border border-slate-300" />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setCheckInPhotoFile(null);
+                                  setCheckInPhotoPreview('');
+                                }}
+                                className="absolute top-1 right-1 p-1 bg-rose-600 text-white rounded-full hover:bg-rose-700 shadow-md"
+                              >
+                                <X size={12} />
+                              </button>
+                            </div>
+                          ) : null}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => handleImageUpload(e, 'in')}
+                            className="w-full text-[10px] text-slate-500 file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-[10px] file:font-bold file:bg-gov-600 file:text-white hover:file:bg-gov-700 cursor-pointer"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handlePasteFromClipboardButton('in')}
+                          className="w-full mt-2.5 py-1.5 px-3 bg-gov-50 hover:bg-gov-100 text-gov-700 font-bold text-[11px] rounded-xl border border-gov-200 flex items-center justify-center gap-1.5 transition-all shadow-sm"
+                        >
+                          <Clipboard size={13} />
+                          Paste Gambar (Ctrl+V)
+                        </button>
+                      </div>
+
+                      <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-center flex flex-col justify-between">
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-700 mb-1.5">Foto Check-Out</label>
+                          {checkOutPhotoPreview ? (
+                            <div className="relative mb-2">
+                              <img src={checkOutPhotoPreview} alt="Preview CheckOut" className="w-full h-24 object-cover rounded-lg border border-slate-300" />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setCheckOutPhotoFile(null);
+                                  setCheckOutPhotoPreview('');
+                                }}
+                                className="absolute top-1 right-1 p-1 bg-rose-600 text-white rounded-full hover:bg-rose-700 shadow-md"
+                              >
+                                <X size={12} />
+                              </button>
+                            </div>
+                          ) : null}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => handleImageUpload(e, 'out')}
+                            className="w-full text-[10px] text-slate-500 file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-[10px] file:font-bold file:bg-gov-600 file:text-white hover:file:bg-gov-700 cursor-pointer"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handlePasteFromClipboardButton('out')}
+                          className="w-full mt-2.5 py-1.5 px-3 bg-gov-50 hover:bg-gov-100 text-gov-700 font-bold text-[11px] rounded-xl border border-gov-200 flex items-center justify-center gap-1.5 transition-all shadow-sm"
+                        >
+                          <Clipboard size={13} />
+                          Paste Gambar (Ctrl+V)
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
 
               <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
                 <button
