@@ -363,9 +363,10 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
 
     logsList.forEach(log => {
       if (!log.checkIn) return;
-      const time = new Date(log.checkIn);
-      const hour = time.getHours();
-      const min = time.getMinutes();
+      const time = log.checkIn.substring(11, 16); // "HH:MM"
+      const [hStr, mStr] = time.split(':');
+      const hour = parseInt(hStr, 10);
+      const min = parseInt(mStr, 10);
       const totalMinutes = hour * 60 + min;
 
       if (totalMinutes < 7 * 60 + 30) {
@@ -419,9 +420,10 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
     
     logsList.forEach(log => {
       if (!log.checkIn) return;
-      const time = new Date(log.checkIn);
-      const hour = time.getHours();
-      const min = time.getMinutes();
+      const timeStr = log.checkIn.substring(11, 16); // "HH:MM"
+      const [hStr, mStr] = timeStr.split(':');
+      const hour = parseInt(hStr, 10);
+      const min = parseInt(mStr, 10);
       const minutes = hour * 60 + min;
 
       const id = log.employeeId;
@@ -1552,7 +1554,7 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
                           <div className="text-slate-400 text-[10px] sm:text-xs uppercase tracking-wider font-semibold">Jam Pulang (Out)</div>
                           {todayAttendance.checkOut ? (
                             <div className="font-bold text-rose-600 text-sm">
-                              {new Date(todayAttendance.checkOut).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                              {todayAttendance.checkOut.substring(11, 16)}
                             </div>
                           ) : (
                             <div className="text-slate-400 text-xs italic mt-1">Belum Pulang</div>
