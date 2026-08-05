@@ -73,8 +73,8 @@ export const WfaLaporanPage: React.FC<WfaLaporanPageProps> = ({ currentUser, sho
   }, []);
 
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [startDate, setStartDate] = useState<string>(currentWeek.startDate);
-  const [endDate, setEndDate] = useState<string>(currentWeek.endDate);
+  const [startDate, setStartDate] = useState<string>(currentUser.role === 'Staff' ? '' : currentWeek.startDate);
+  const [endDate, setEndDate] = useState<string>(currentUser.role === 'Staff' ? '' : currentWeek.endDate);
   const [selectedUnit, setSelectedUnit] = useState<string>(
     currentUser.role === 'Atasan' ? currentUser.divisi || 'Semua' : 'Semua'
   );
@@ -193,28 +193,22 @@ export const WfaLaporanPage: React.FC<WfaLaporanPageProps> = ({ currentUser, sho
       if (items.length === 1) {
         groupedRows.push({ ...items[0], hasSubmitted: true, subItems: items });
       } else {
-        // Combine multiple activities into 1 display row
+        // Keep main row clean; full activities shown in detail modal when clicked
         const first = items[0];
-        const combinedRencanaHasil = items.map((it, idx) => `${idx + 1}. ${it.rencanaHasilKinerja}`).join('\n');
-        const combinedRencana = items.map((it, idx) => `${idx + 1}. ${it.rencanaKinerja}`).join('\n');
-        const combinedOutput = items.map((it, idx) => `${idx + 1}. ${it.outputKinerja}`).join('\n');
         const sharedLink = items.map((it) => it.linkDataDukung).filter(Boolean).join(', ') || first.linkDataDukung;
 
         // Use evaluation from any item that has been evaluated, or null
         const sharedPenilaian = items.find((it) => !!it.penilaian)?.penilaian || null;
 
-        // Overall status: if all 'Selesai', 'Selesai'; if any 'Draft', 'Draft'
+        // Overall status: if any 'Draft', 'Draft'; else first status
         const hasDraft = items.some((it) => it.statusPelaksanaan === 'Draft');
         const overallStatus = hasDraft ? 'Draft' : first.statusPelaksanaan || 'Selesai';
 
         groupedRows.push({
           ...first,
-          rencanaHasilKinerja: combinedRencanaHasil,
-          rencanaKinerja: combinedRencana,
-          outputKinerja: combinedOutput,
-          linkDataDukung: sharedLink,
           statusPelaksanaan: overallStatus,
           penilaian: sharedPenilaian,
+          linkDataDukung: sharedLink,
           hasSubmitted: true,
           subItems: items,
         });
@@ -229,8 +223,8 @@ export const WfaLaporanPage: React.FC<WfaLaporanPageProps> = ({ currentUser, sho
     // Track user IDs already present in groupedRows
     const userIdsInMerged = new Set(groupedRows.map((item) => item.userId));
 
-    // 5. Add unsubmitted placeholder for unit employees who haven't submitted yet
-    if (unitProfiles.length > 0) {
+    // 5. Add unsubmitted placeholder for unit employees who haven't submitted yet (Atasan & Super Admin only)
+    if (currentUser.role !== 'Staff' && unitProfiles.length > 0) {
       unitProfiles.forEach((profile) => {
         if (!officiallySubmittedUserIds.has(profile.id) && !userIdsInMerged.has(profile.id)) {
           groupedRows.push({
@@ -934,6 +928,11 @@ export const WfaLaporanPage: React.FC<WfaLaporanPageProps> = ({ currentUser, sho
                         <div className="line-clamp-2 break-words leading-relaxed">
                           {item.rencanaHasilKinerja}
                         </div>
+                        {item.subItems && item.subItems.length > 1 && (
+                          <span className="inline-block mt-1 px-2 py-0.5 text-[10px] font-extrabold bg-gov-100 text-gov-800 border border-gov-200/80 rounded-md">
+                            +{item.subItems.length - 1} kegiatan lain
+                          </span>
+                        )}
                       </td>
 
                       {/* Rencana Kinerja */}
