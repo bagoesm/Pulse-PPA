@@ -1222,21 +1222,82 @@ export class AttendanceService {
   }
 
   /**
-   * Delete an attendance entry
+   * Helper to delete a file from Supabase Storage bucket 'attendance-attachments' if URL belongs to storage
+   */
+  private async deleteStorageFileByUrl(url?: string): Promise<void> {
+    if (!url) return;
+    try {
+      const bucketMarker = '/attendance-attachments/';
+      const markerIndex = url.indexOf(bucketMarker);
+      if (markerIndex !== -1) {
+        const filePath = url.substring(markerIndex + bucketMarker.length);
+        if (filePath) {
+          const { error } = await this.supabase.storage
+            .from('attendance-attachments')
+            .remove([filePath]);
+          if (error) {
+            console.warn('Failed to delete storage file:', filePath, error);
+          } else {
+            console.log('Successfully deleted storage file:', filePath);
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Error deleting storage file from URL:', url, err);
+    }
+  }
+
+  /**
+   * Delete an attendance entry and clean up associated files from Storage bucket
    */
   async deleteAttendance(id: string): Promise<void> {
-    try {
-      const { error } = await this.supabase
-        .from('attendances')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-    } catch (err) {
-      console.warn('Delete attendance DB failed, removing locally:', err);
+    // 1. Find existing record to get file URLs for storage cleanup
+    let recordToDelete: Attendance | undefined;
+    
+    if (!id.startsWith('manual-')) {
+      try {
+        const { data } = await this.supabase
+          .from('attendances')
+          .select('*')
+          .eq('id', id)
+          .maybeSingle();
+        if (data) {
+          recordToDelete = this.mapFromAttendanceDB(data);
+        }
+      } catch (e) {
+        console.warn('Could not fetch record before delete:', e);
+      }
     }
 
-    // Remove from local storage cache
+    if (!recordToDelete) {
+      const local = this.getLocalAttendances();
+      recordToDelete = local.find((a) => a.id === id);
+    }
+
+    // 2. Delete storage files if present
+    if (recordToDelete) {
+      await Promise.all([
+        this.deleteStorageFileByUrl(recordToDelete.checkInPhotoUrl),
+        this.deleteStorageFileByUrl(recordToDelete.checkOutPhotoUrl),
+        this.deleteStorageFileByUrl(recordToDelete.suratKeteranganUrl),
+      ]);
+    }
+
+    // 3. Delete from DB if not a temporary local ID
+    if (!id.startsWith('manual-')) {
+      try {
+        const { error } = await this.supabase
+          .from('attendances')
+          .delete()
+          .eq('id', id);
+
+        if (error) throw error;
+      } catch (err) {
+        console.warn('Delete attendance DB failed, removing locally:', err);
+      }
+    }
+
+    // 4. Remove from local storage cache
     const local = this.getLocalAttendances().filter((a) => a.id !== id);
     this.saveLocalAttendances(local);
   }

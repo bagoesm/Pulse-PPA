@@ -537,10 +537,15 @@ export const UserAttendancePage: React.FC<UserAttendancePageProps> = ({
     if (!deletingAttendance) return;
     try {
       setDeleting(true);
-      await attendanceService.deleteAttendance(deletingAttendance.id);
-      showNotification('Berhasil', 'Data absensi manual berhasil dihapus', 'success');
+      const targetId = deletingAttendance.id;
+      await attendanceService.deleteAttendance(targetId);
+      
+      // Update local state immediately for instant UI feedback
+      setAttendances((prev) => prev.filter((a) => a.id !== targetId));
+      
+      showNotification('Berhasil', 'Data absensi manual & file lampiran berhasil dihapus', 'success');
       setDeletingAttendance(null);
-      loadData();
+      await loadData();
     } catch (err) {
       console.error('Failed to delete manual attendance:', err);
       showNotification('Error', 'Gagal menghapus absensi manual', 'error');
