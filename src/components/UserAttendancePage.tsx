@@ -15,7 +15,7 @@ import SimpleToast from './SimpleToast';
 // Helper: Convert ISO date string (UTC) to WIB (UTC+7) time "HH:MM"
 function toWIBTime(isoString: string): string {
   const d = new Date(isoString);
-  return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Jakarta' });
+  return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Jakarta' });
 }
 
 // Helper: Convert ISO date string (UTC) or Date object to WIB (UTC+7) date "YYYY-MM-DD"
