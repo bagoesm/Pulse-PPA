@@ -40,6 +40,12 @@ function getEAR(eyeLandmarks: faceapi.Point[]): number {
   return (distY1 + distY2) / (2.0 * distX);
 }
 
+// Helper: Convert ISO date string (UTC) to WIB (UTC+7) time "HH:MM"
+function toWIBTime(isoString: string): string {
+  const d = new Date(isoString);
+  return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Jakarta' });
+}
+
 // Haversine formula to compute distance in meters between coords
 function getHaversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371e3; // metres
@@ -363,7 +369,7 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
 
     logsList.forEach(log => {
       if (!log.checkIn) return;
-      const time = log.checkIn.substring(11, 16); // "HH:MM"
+      const time = toWIBTime(log.checkIn); // "HH:MM" in WIB
       const [hStr, mStr] = time.split(':');
       const hour = parseInt(hStr, 10);
       const min = parseInt(mStr, 10);
@@ -420,7 +426,7 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
     
     logsList.forEach(log => {
       if (!log.checkIn) return;
-      const timeStr = log.checkIn.substring(11, 16); // "HH:MM"
+      const timeStr = toWIBTime(log.checkIn); // "HH:MM" in WIB
       const [hStr, mStr] = timeStr.split(':');
       const hour = parseInt(hStr, 10);
       const min = parseInt(mStr, 10);
@@ -1196,8 +1202,8 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
               employeeNip: emp.nip || '-',
               employeeDivisi: emp.divisi || '-',
               date: dateStr,
-              checkIn: empLog.checkIn ? empLog.checkIn.substring(11, 16) : '-',
-              checkOut: empLog.checkOut ? empLog.checkOut.substring(11, 16) : 'Belum Pulang',
+              checkIn: empLog.checkIn ? toWIBTime(empLog.checkIn) : '-',
+              checkOut: empLog.checkOut ? toWIBTime(empLog.checkOut) : 'Belum Pulang',
               status: empLog.status || 'Hadir'
             });
           } else {
@@ -1544,7 +1550,7 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
                         <div className="space-y-0.5">
                           <div className="text-slate-400 text-[10px] sm:text-xs uppercase tracking-wider font-semibold">Jam Masuk (In)</div>
                           <div className="font-bold text-emerald-600 text-sm">
-                            {todayAttendance.checkIn.substring(11, 16)}
+                            {toWIBTime(todayAttendance.checkIn)}
                           </div>
                           <div className="text-[10px] sm:text-xs text-slate-400">
                             Status: <span className={todayAttendance.status === 'Terlambat' ? 'text-amber-600 font-bold' : 'text-emerald-600 font-bold'}>{todayAttendance.status}</span>
@@ -1554,7 +1560,7 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
                           <div className="text-slate-400 text-[10px] sm:text-xs uppercase tracking-wider font-semibold">Jam Pulang (Out)</div>
                           {todayAttendance.checkOut ? (
                             <div className="font-bold text-rose-600 text-sm">
-                              {todayAttendance.checkOut.substring(11, 16)}
+                              {toWIBTime(todayAttendance.checkOut)}
                             </div>
                           ) : (
                             <div className="text-slate-400 text-xs italic mt-1">Belum Pulang</div>
@@ -2292,11 +2298,11 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
                             {new Date(l.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
                           </td>
                           <td className="px-6 py-3.5 font-semibold text-slate-850">
-                            {l.checkIn ? l.checkIn.substring(11, 16) : '-'}
+                            {l.checkIn ? toWIBTime(l.checkIn) : '-'}
                           </td>
                           <td className="px-6 py-3.5 font-semibold">
                             {l.status === 'Tidak Hadir' ? '-' : (
-                              l.checkOut ? l.checkOut.substring(11, 16) : (
+                              l.checkOut ? toWIBTime(l.checkOut) : (
                                 <span className="text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full text-[10px] font-bold">Belum Pulang</span>
                               )
                             )}

@@ -12,6 +12,12 @@ import { attendanceExportService } from '../services/AttendanceExportService';
 import { CustomDropdown } from './CustomDropdown';
 import SimpleToast from './SimpleToast';
 
+// Helper: Convert ISO date string (UTC) to WIB (UTC+7) time "HH:MM"
+function toWIBTime(isoString: string): string {
+  const d = new Date(isoString);
+  return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Jakarta' });
+}
+
 interface UserAttendancePageProps {
   currentUser: User;
   showNotification?: (title: string, message: string, type: 'success' | 'warning' | 'error' | 'info') => void;
@@ -322,8 +328,8 @@ export const UserAttendancePage: React.FC<UserAttendancePageProps> = ({
     setEndDate(dStr);
     setIsMultiDate(false);
     setStatus(item.status as any || 'Hadir');
-    setCheckInTime(item.checkIn ? item.checkIn.substring(11, 16) : '07:30');
-    setCheckOutTime(item.checkOut ? item.checkOut.substring(11, 16) : '16:00');
+    setCheckInTime(item.checkIn ? toWIBTime(item.checkIn) : '07:30');
+    setCheckOutTime(item.checkOut ? toWIBTime(item.checkOut) : '16:00');
     
     if (item.locationId) {
       setSelectedGeofenceId(item.locationId);
@@ -886,8 +892,8 @@ export const UserAttendancePage: React.FC<UserAttendancePageProps> = ({
                       );
                     }
 
-                    const checkInTimeStr = item.checkIn ? item.checkIn.substring(11, 16) : '-';
-                    const checkOutTimeStr = item.checkOut ? item.checkOut.substring(11, 16) : '-';
+                    const checkInTimeStr = item.checkIn ? toWIBTime(item.checkIn) : '-';
+                    const checkOutTimeStr = item.checkOut ? toWIBTime(item.checkOut) : '-';
                     const isHadirStatus = item.status === 'Hadir' || item.status === 'Terlambat' || item.status === 'WFA';
 
                     return (

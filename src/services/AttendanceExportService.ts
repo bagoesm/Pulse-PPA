@@ -62,17 +62,19 @@ export class AttendanceExportService {
       if (isoStr.length === 5 && isoStr.includes(':')) {
         return `${isoStr.replace(':', '.')} WIB`;
       }
-      if (isoStr.includes('T')) {
-        const timePart = isoStr.substring(11, 16);
-        if (timePart && timePart.includes(':')) {
-          return `${timePart.replace(':', '.')} WIB`;
-        }
-      }
       const d = new Date(isoStr);
-      if (isNaN(d.getTime())) return isoStr;
-      const h = String(d.getHours()).padStart(2, '0');
-      const m = String(d.getMinutes()).padStart(2, '0');
-      return `${h}.${m} WIB`;
+      if (isNaN(d.getTime())) {
+        // Fallback: if it looks like "HH:MM" inside a 'T' string, just use it
+        if (isoStr.includes('T')) {
+          const timePart = isoStr.substring(11, 16);
+          if (timePart && timePart.includes(':')) {
+            return `${timePart.replace(':', '.')} WIB`;
+          }
+        }
+        return isoStr;
+      }
+      const wibTime = d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Jakarta' });
+      return `${wibTime.replace(':', '.')} WIB`;
     } catch {
       return isoStr;
     }
