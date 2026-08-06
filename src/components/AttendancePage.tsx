@@ -189,24 +189,6 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
                      window.location.hostname.endsWith('.ngrok-free.app');
 
   // --- Admin/Editor States ---
-  const [adminStats, setAdminStats] = useState<{
-    totalEmployees: number;
-    registeredFaces: number;
-    unregisteredFaces: number;
-    presentToday: number;
-    lateToday: number;
-    absentToday: number;
-    checkedOutToday: number;
-  }>({
-    totalEmployees: 0,
-    registeredFaces: 0,
-    unregisteredFaces: 0,
-    presentToday: 0,
-    lateToday: 0,
-    absentToday: 0,
-    checkedOutToday: 0,
-  });
-
   const [logsList, setLogsList] = useState<Attendance[]>([]);
   const [allProfiles, setAllProfiles] = useState<User[]>([]);
   const [facesList, setFacesList] = useState<EmployeeFace[]>([]);
@@ -214,18 +196,86 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
   const [geofencesList, setGeofencesList] = useState<Geofence[]>([]);
 
   // Helper to get local date string YYYY-MM-DD
-  const getLocalDateString = () => {
-    const d = new Date();
+  const formatLocalDate = (d: Date) => {
     const year = d.getFullYear();
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   };
 
+  const getLocalDateString = () => formatLocalDate(new Date());
+
   // Admin filter states
   const [adminStartDate, setAdminStartDate] = useState<string>(getLocalDateString());
   const [adminEndDate, setAdminEndDate] = useState<string>(getLocalDateString());
   const [adminSelectedDivisi, setAdminSelectedDivisi] = useState<string>('Semua');
+
+  // Reactively compute admin statistics based on selected filters/data
+  const adminStats = useMemo(() => {
+    const filteredProfiles = adminSelectedDivisi === 'Semua'
+      ? allProfiles
+      : allProfiles.filter(p => p.divisi === adminSelectedDivisi);
+
+    const registeredInDivisi = facesList.filter(f => {
+      const emp = allProfiles.find(p => p.id === f.employeeId);
+      return emp && (adminSelectedDivisi === 'Semua' || emp.divisi === adminSelectedDivisi);
+    }).length;
+
+    const totalEmployees = filteredProfiles.length;
+    const registeredFaces = registeredInDivisi;
+    const unregisteredFaces = Math.max(0, totalEmployees - registeredFaces);
+
+    // Calculate unique active days that have logs in the range
+    const activeDates = new Set(logsList.map(l => toWIBDate(l.createdAt)));
+    const totalActiveDays = activeDates.size || 1;
+
+    const formatAvg = (val: number) => {
+      const avg = val / totalActiveDays;
+      return Number(avg.toFixed(1));
+    };
+
+    const presentToday = formatAvg(logsList.length);
+    const lateToday = formatAvg(logsList.filter(l => l.status === 'Terlambat').length);
+    const checkedOutToday = formatAvg(logsList.filter(l => l.checkOut).length);
+
+    const absentToday = Math.max(0, totalEmployees - presentToday);
+
+    return {
+      totalEmployees,
+      registeredFaces,
+      unregisteredFaces,
+      presentToday,
+      lateToday,
+      absentToday,
+      checkedOutToday,
+      totalActiveDays
+    };
+  }, [allProfiles, facesList, logsList, adminSelectedDivisi]);
+
+  const setDatePreset = (preset: 'today' | 'yesterday' | 'last7' | 'thisMonth') => {
+    const today = new Date();
+    if (preset === 'today') {
+      const dateStr = formatLocalDate(today);
+      setAdminStartDate(dateStr);
+      setAdminEndDate(dateStr);
+    } else if (preset === 'yesterday') {
+      const yesterday = new Date();
+      yesterday.setDate(today.getDate() - 1);
+      const dateStr = formatLocalDate(yesterday);
+      setAdminStartDate(dateStr);
+      setAdminEndDate(dateStr);
+    } else if (preset === 'last7') {
+      const past = new Date();
+      past.setDate(today.getDate() - 6);
+      setAdminStartDate(formatLocalDate(past));
+      setAdminEndDate(formatLocalDate(today));
+    } else if (preset === 'thisMonth') {
+      const start = new Date(today.getFullYear(), today.getMonth(), 1);
+      setAdminStartDate(formatLocalDate(start));
+      setAdminEndDate(formatLocalDate(today));
+    }
+  };
+
   const [adminSearchUser, setAdminSearchUser] = useState<string>('');
   const [facesSelectedDivisi, setFacesSelectedDivisi] = useState<string>('Semua');
   const [facesFilterStatus, setFacesFilterStatus] = useState<string>('Semua');
@@ -293,6 +343,8 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
   const [exportEndDate, setExportEndDate] = useState<string>(getLocalDateString());
   const [exportDivisi, setExportDivisi] = useState<string>('Semua');
   const [isExportLoading, setIsExportLoading] = useState<boolean>(false);
+  const [exportPeriod, setExportPeriod] = useState<string>('custom');
+  const [exportType, setExportType] = useState<'all' | 'uang_makan'>('all');
 
   // Editors panel search & select
   const [newEditorUser, setNewEditorUser] = useState<string>('');
@@ -612,27 +664,6 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
       setFacesList(mockFaces);
       setEditorsList(editors);
 
-      // Compute statistics
-      const totalEmployees = profiles.length;
-      const registeredFaces = mockFaces.length;
-      const unregisteredFaces = totalEmployees - registeredFaces;
-
-      const todayStr = toWIBDate(new Date());
-      const todayLogs = logs.filter(l => toWIBDate(l.createdAt) === todayStr);
-      const presentToday = todayLogs.length;
-      const lateToday = todayLogs.filter(l => l.status === 'Terlambat').length;
-      const checkedOutToday = todayLogs.filter(l => l.checkOut).length;
-      const absentToday = Math.max(0, totalEmployees - presentToday);
-
-      setAdminStats({
-        totalEmployees,
-        registeredFaces,
-        unregisteredFaces,
-        presentToday,
-        lateToday,
-        absentToday,
-        checkedOutToday
-      });
 
     } catch (err) {
       console.error('Failed to load admin attendance data', err);
@@ -1161,6 +1192,44 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
     return `${day}/${month}/${year}`;
   };
 
+  const getPeriodOptions = () => {
+    const options: Array<{ label: string; value: string }> = [];
+    const now = new Date();
+    
+    // Generate 6 months in the past to 2 months in the future
+    for (let i = -6; i <= 2; i++) {
+      const date = new Date(now.getFullYear(), now.getMonth() + i, 1);
+      const monthStart = new Date(date.getFullYear(), date.getMonth(), 16);
+      const nextMonth = new Date(date.getFullYear(), date.getMonth() + 1, 15);
+      
+      const startStr = formatLocalDate(monthStart);
+      const endStr = formatLocalDate(nextMonth);
+      
+      const monthsIndo = [
+        'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+        'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+      ];
+      
+      const label = `Periode ${monthsIndo[monthStart.getMonth()]} - ${monthsIndo[nextMonth.getMonth()]} (${monthStart.getDate()} ${monthsIndo[monthStart.getMonth()].slice(0, 3)} - ${nextMonth.getDate()} ${monthsIndo[nextMonth.getMonth()].slice(0, 3)} ${nextMonth.getFullYear()})`;
+      
+      options.push({
+        label,
+        value: `${startStr}|${endStr}`
+      });
+    }
+    
+    options.reverse();
+    options.push({ label: 'Kustom Tanggal...', value: 'custom' });
+    return options;
+  };
+
+  // Helper to check if a log is a valid presence (present)
+  const isPresentLog = (l: Attendance) => {
+    if (!l.checkIn) return false;
+    const statusLower = (l.status || '').toLowerCase();
+    return !['sakit', 'izin', 'cuti', 'tidak hadir', 'alpa'].includes(statusLower);
+  };
+
   // Execute custom export (Excel or PDF) from the export modal
   const handleExecuteExport = async (format: 'excel' | 'pdf') => {
     setIsExportLoading(true);
@@ -1171,6 +1240,90 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
         divisi: exportDivisi
       });
 
+      // Filter employees by export division
+      const filteredEmployees = allProfiles.filter(p => {
+        return exportDivisi === 'Semua' || p.divisi === exportDivisi;
+      });
+
+      // Handle Uang Makan Export
+      if (exportType === 'uang_makan') {
+        const mealRows: Array<{
+          employeeName: string;
+          employeeNip: string;
+          date: string;
+        }> = [];
+
+        filteredEmployees.forEach(emp => {
+          const empLogs = logs.filter(l => {
+            const logDate = l.checkIn ? toWIBDate(l.checkIn) : toWIBDate(l.createdAt);
+            const isInRange = logDate >= exportStartDate && logDate <= exportEndDate;
+            return l.employeeId === emp.id && isInRange && isPresentLog(l);
+          });
+
+          empLogs.sort((a, b) => {
+            const dateA = a.checkIn || a.createdAt;
+            const dateB = b.checkIn || b.createdAt;
+            return dateA.localeCompare(dateB);
+          });
+
+          empLogs.forEach(log => {
+            const logDate = log.checkIn ? toWIBDate(log.checkIn) : toWIBDate(log.createdAt);
+            mealRows.push({
+              employeeName: emp.name,
+              employeeNip: emp.nip || '-',
+              date: formatAttendanceDate(logDate)
+            });
+          });
+        });
+
+        mealRows.sort((a, b) => {
+          if (a.employeeName !== b.employeeName) {
+            return a.employeeName.localeCompare(b.employeeName);
+          }
+          return a.date.localeCompare(b.date);
+        });
+
+        if (format === 'excel') {
+          const dataToExport = mealRows.map(row => ({
+            'Nama Pegawai': row.employeeName,
+            'NIP': row.employeeNip,
+            'Tanggal Kehadiran': row.date
+          }));
+
+          const ws = XLSX.utils.json_to_sheet(dataToExport);
+          const wb = XLSX.utils.book_new();
+          XLSX.utils.book_append_sheet(wb, ws, 'Data Uang Makan');
+          XLSX.writeFile(wb, `Laporan_Uang_Makan_Pulse_${exportStartDate}_s.d._${exportEndDate}.xlsx`);
+          showNotification?.('Sukses', 'Data Uang Makan berhasil diexport ke Excel.', 'success');
+        } else {
+          const doc = new jsPDF();
+          doc.text('Laporan Kehadiran Uang Makan - Pulse', 14, 15);
+          doc.setFontSize(10);
+          doc.text(`Periode: ${exportStartDate} s.d. ${exportEndDate} | Divisi: ${exportDivisi}`, 14, 22);
+
+          const tableData = mealRows.map(row => [
+            row.employeeName,
+            row.employeeNip,
+            row.date
+          ]);
+
+          autoTable(doc, {
+            head: [['NAMA PEGAWAI', 'NIP', 'TANGGAL KEHADIRAN']],
+            body: tableData,
+            startY: 28,
+            theme: 'grid',
+            headStyles: { fillColor: [16, 185, 129] }
+          });
+
+          doc.save(`Laporan_Uang_Makan_Pulse_${exportStartDate}_s.d._${exportEndDate}.pdf`);
+          showNotification?.('Sukses', 'Data Uang Makan berhasil dicetak ke PDF.', 'success');
+        }
+
+        setShowExportModal(false);
+        setIsExportLoading(false);
+        return;
+      }
+
       // Generate dates list for export range
       const dates: string[] = [];
       let current = new Date(exportStartDate);
@@ -1180,10 +1333,6 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
         current.setDate(current.getDate() + 1);
       }
 
-      // Filter employees by export division
-      const filteredEmployees = allProfiles.filter(p => {
-        return exportDivisi === 'Semua' || p.divisi === exportDivisi;
-      });
 
       const exportRows: Array<{
         employeeName: string;
@@ -1916,49 +2065,128 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 min-h-0 relative space-y-6">
 
         {/* TAB: DASHBOARD */}
-        {activeAdminTab === 'dashboard' && (
-          <div className="space-y-6">
-            
-            {/* Statistics Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        {activeAdminTab === 'dashboard' && (() => {
+          const isToday = adminStartDate === getLocalDateString() && adminEndDate === getLocalDateString();
+          const dateLabel = isToday ? 'Hari Ini' : (adminStartDate === adminEndDate ? adminStartDate : `${adminStartDate} s.d ${adminEndDate}`);
+          return (
+            <div className="space-y-6">
               
-              {/* Card 1: Total Pegawai */}
-              <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm flex flex-col justify-between h-[108px]">
-                <div className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Total Pegawai</div>
-                <div className="mt-1">
-                  <div className="text-3xl font-black text-slate-800">{adminStats.totalEmployees}</div>
-                  <div className="text-[10px] text-slate-400 font-bold mt-0.5">dari data master</div>
-                </div>
-              </div>
-
-              {/* Card 2: Wajah Terdaftar */}
-              <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm flex flex-col justify-between h-[108px]">
-                <div className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Wajah Terdaftar</div>
-                <div className="mt-1">
-                  <div className="text-3xl font-black text-emerald-600">{adminStats.registeredFaces}</div>
-                  <div className="text-[10px] text-slate-400 font-bold mt-0.5">({Math.round((adminStats.registeredFaces / (adminStats.totalEmployees || 1)) * 100)}% terdaftar)</div>
-                </div>
-              </div>
-
-              {/* Card 3: Hadir Hari Ini */}
-              <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm flex flex-col justify-between h-[108px]">
-                <div className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Hadir Hari Ini</div>
-                <div className="mt-1">
-                  <div className="text-3xl font-black text-gov-600">{adminStats.presentToday}</div>
-                  <div className="text-[10px] text-slate-400 font-bold mt-0.5">kehadiran masuk</div>
-                </div>
-              </div>
-
-              {/* Card 4: Terlambat / Pulang */}
-              <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm flex flex-col justify-between h-[108px]">
-                <div className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Terlambat / Pulang</div>
-                <div className="mt-1">
-                  <div className="text-3xl font-black text-amber-500">
-                    {adminStats.lateToday} <span className="text-xs text-slate-400 font-bold">/ {adminStats.checkedOutToday}</span>
+              {/* Filters panel */}
+              <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm flex flex-wrap items-center justify-between gap-4">
+                <div className="flex items-center gap-4 flex-wrap">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Mulai Tanggal</label>
+                    <input
+                      type="date"
+                      value={adminStartDate}
+                      onChange={(e) => setAdminStartDate(e.target.value)}
+                      className="block bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm focus:outline-none focus:ring-1 focus:ring-gov-400 bg-transparent"
+                    />
                   </div>
-                  <div className="text-[10px] text-slate-400 font-bold mt-0.5">terlambat / pulang</div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Sampai Tanggal</label>
+                    <input
+                      type="date"
+                      value={adminEndDate}
+                      onChange={(e) => setAdminEndDate(e.target.value)}
+                      className="block bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm focus:outline-none focus:ring-1 focus:ring-gov-400 bg-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Filter Divisi / Satker</label>
+                    <SearchableSelect
+                      options={divisions.map((div) => ({ value: div, label: div }))}
+                      value={adminSelectedDivisi}
+                      onChange={(val) => setAdminSelectedDivisi(val)}
+                      placeholder="Pilih Divisi"
+                      emptyOption="Semua Divisi"
+                      className="min-w-[180px] text-xs font-semibold text-slate-700 shadow-sm"
+                    />
+                  </div>
+                </div>
+                <div className="flex items-end gap-1.5 self-end h-[34px]">
+                  <button
+                    onClick={() => setDatePreset('today')}
+                    className={`px-2.5 py-1.5 text-[10px] font-bold rounded-lg transition-all ${
+                      adminStartDate === getLocalDateString() && adminEndDate === getLocalDateString()
+                        ? 'bg-gov-600 text-white'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    Hari Ini
+                  </button>
+                  <button
+                    onClick={() => setDatePreset('yesterday')}
+                    className="px-2.5 py-1.5 text-[10px] font-bold rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all"
+                  >
+                    Kemarin
+                  </button>
+                  <button
+                    onClick={() => setDatePreset('last7')}
+                    className="px-2.5 py-1.5 text-[10px] font-bold rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all"
+                  >
+                    7 Hari Terakhir
+                  </button>
+                  <button
+                    onClick={() => setDatePreset('thisMonth')}
+                    className="px-2.5 py-1.5 text-[10px] font-bold rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all"
+                  >
+                    Bulan Ini
+                  </button>
                 </div>
               </div>
+
+              {/* Statistics Grid */}
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                
+                {/* Card 1: Total Pegawai */}
+                <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm flex flex-col justify-between h-[108px]">
+                  <div className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Total Pegawai</div>
+                  <div className="mt-1">
+                    <div className="text-3xl font-black text-slate-800">{adminStats.totalEmployees}</div>
+                    <div className="text-[10px] text-slate-400 font-bold mt-0.5">dari data master</div>
+                  </div>
+                </div>
+
+                {/* Card 2: Wajah Terdaftar */}
+                <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm flex flex-col justify-between h-[108px]">
+                  <div className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Wajah Terdaftar</div>
+                  <div className="mt-1">
+                    <div className="text-3xl font-black text-emerald-600">{adminStats.registeredFaces}</div>
+                    <div className="text-[10px] text-slate-400 font-bold mt-0.5">({Math.round((adminStats.registeredFaces / (adminStats.totalEmployees || 1)) * 100)}% terdaftar)</div>
+                  </div>
+                </div>
+
+                {/* Card 3: Hadir */}
+                <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm flex flex-col justify-between h-[108px]">
+                  <div className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">
+                    {isToday ? 'Hadir Hari Ini' : 'Rata-rata Hadir'}
+                  </div>
+                  <div className="mt-1">
+                    <div className="text-3xl font-black text-gov-600">
+                      {adminStats.presentToday}
+                      {!isToday && <span className="text-xs text-slate-400 font-bold"> / hari</span>}
+                    </div>
+                    <div className="text-[10px] text-slate-400 font-bold mt-0.5">
+                      {isToday ? 'kehadiran masuk' : `Total: ${logsList.length} hadir (${adminStats.totalActiveDays} hari)`}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Card 4: Terlambat / Pulang */}
+                <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm flex flex-col justify-between h-[108px]">
+                  <div className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">
+                    {isToday ? 'Terlambat / Pulang' : 'Rerata Terlambat / Pulang'}
+                  </div>
+                  <div className="mt-1">
+                    <div className="text-3xl font-black text-amber-500">
+                      {adminStats.lateToday} <span className="text-xs text-slate-400 font-bold">/ {adminStats.checkedOutToday}</span>
+                    </div>
+                    <div className="text-[10px] text-slate-400 font-bold mt-0.5">
+                      {isToday ? 'terlambat / pulang' : `Total: ${logsList.filter(l => l.status === 'Terlambat').length} / ${logsList.filter(l => l.checkOut).length}`}
+                    </div>
+                  </div>
+                </div>
 
               {/* Card 5: Akurasi Deteksi */}
               <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm flex flex-col justify-between h-[108px]">
@@ -2165,7 +2393,8 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
             </div>
 
           </div>
-        )}
+        );
+        })()}
 
         {/* TAB: HISTORY LOGS */}
         {activeAdminTab === 'history' && (
@@ -2787,6 +3016,34 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
 
             <div className="p-6 space-y-4 text-xs font-semibold text-slate-600">
               <div>
+                <label className="text-[10px] text-slate-400 uppercase block mb-1.5">Tipe Laporan</label>
+                <div className="grid grid-cols-2 gap-2 bg-slate-100 p-1 rounded-xl">
+                  <button
+                    type="button"
+                    onClick={() => setExportType('all')}
+                    className={`py-2 text-center rounded-lg font-bold transition-all text-xs ${
+                      exportType === 'all'
+                        ? 'bg-white text-slate-800 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    Seluruh Data Log
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setExportType('uang_makan')}
+                    className={`py-2 text-center rounded-lg font-bold transition-all text-xs ${
+                      exportType === 'uang_makan'
+                        ? 'bg-white text-slate-800 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    Data Uang Makan
+                  </button>
+                </div>
+              </div>
+
+              <div>
                 <label className="text-[10px] text-slate-400 uppercase block mb-1">Unit Kerja / Divisi</label>
                 <SearchableSelect
                   options={divisions.map((div) => ({ value: div, label: div }))}
@@ -2797,26 +3054,57 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
                   className="w-full text-xs font-semibold text-slate-700 shadow-sm"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-[10px] text-slate-400 uppercase">Mulai Tanggal</label>
-                  <input
-                    type="date"
-                    value={exportStartDate}
-                    onChange={(e) => setExportStartDate(e.target.value)}
-                    className="w-full mt-1 bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 font-bold focus:outline-none text-slate-700"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] text-slate-400 uppercase">Sampai Tanggal</label>
-                  <input
-                    type="date"
-                    value={exportEndDate}
-                    onChange={(e) => setExportEndDate(e.target.value)}
-                    className="w-full mt-1 bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 font-bold focus:outline-none text-slate-700"
-                  />
-                </div>
+
+              <div>
+                <label className="text-[10px] text-slate-400 uppercase block mb-1">Periode Laporan</label>
+                <select
+                  value={exportPeriod}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setExportPeriod(val);
+                    if (val !== 'custom') {
+                      const [start, end] = val.split('|');
+                      setExportStartDate(start);
+                      setExportEndDate(end);
+                    }
+                  }}
+                  className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 font-bold focus:outline-none text-slate-700 text-xs shadow-sm focus:ring-1 focus:ring-gov-400"
+                >
+                  {getPeriodOptions().map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
               </div>
+
+              {exportPeriod === 'custom' ? (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[10px] text-slate-400 uppercase">Mulai Tanggal</label>
+                    <input
+                      type="date"
+                      value={exportStartDate}
+                      onChange={(e) => setExportStartDate(e.target.value)}
+                      className="w-full mt-1 bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 font-bold focus:outline-none text-slate-700 text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-slate-400 uppercase">Sampai Tanggal</label>
+                    <input
+                      type="date"
+                      value={exportEndDate}
+                      onChange={(e) => setExportEndDate(e.target.value)}
+                      className="w-full mt-1 bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 font-bold focus:outline-none text-slate-700 text-xs"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-slate-50 border border-slate-150 p-3 rounded-xl flex items-center justify-between text-[11px] text-slate-500 font-bold">
+                  <span>Rentang Tanggal Aktif:</span>
+                  <span className="text-slate-700">{formatAttendanceDate(exportStartDate)} s.d {formatAttendanceDate(exportEndDate)}</span>
+                </div>
+              )}
             </div>
 
             <div className="p-6 border-t border-slate-150 bg-slate-50 flex justify-end gap-3">

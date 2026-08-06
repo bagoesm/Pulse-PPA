@@ -89,13 +89,14 @@ export const EpicsProvider: React.FC<EpicsProviderProps> = ({ children, session 
         return Math.round((completedTasks.length / epicTasks.length) * 100);
     }, []);
 
+    const userId = session?.user?.id;
     useEffect(() => {
-        if (session) {
+        if (userId) {
             fetchEpics();
         } else {
             clearEpics();
         }
-    }, [session, fetchEpics, clearEpics]);
+    }, [userId, fetchEpics, clearEpics]);
 
     const value: EpicsContextType = {
         epics,

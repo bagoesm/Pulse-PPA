@@ -120,13 +120,14 @@ export const SubtasksProvider: React.FC<SubtasksProviderProps> = ({ children, se
         return { total, done, percentage };
     }, [subtasks]);
 
+    const userId = session?.user?.id;
     useEffect(() => {
-        if (session) {
+        if (userId) {
             fetchAllSubtasks();
         } else {
             clearSubtasks();
         }
-    }, [session, fetchAllSubtasks, clearSubtasks]);
+    }, [userId, fetchAllSubtasks, clearSubtasks]);
 
     const value: SubtasksContextType = {
         subtasks,

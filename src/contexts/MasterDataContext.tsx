@@ -121,13 +121,14 @@ export const MasterDataProvider: React.FC<MasterDataProviderProps> = ({ children
         setBidangTugasList([]);
     }, []);
 
+    const userId = session?.user?.id;
     useEffect(() => {
-        if (session) {
+        if (userId) {
             fetchMasterData();
         } else {
             clearMasterData();
         }
-    }, [session, fetchMasterData, clearMasterData]);
+    }, [userId, fetchMasterData, clearMasterData]);
 
     const value: MasterDataContextType = {
         jabatanList,
