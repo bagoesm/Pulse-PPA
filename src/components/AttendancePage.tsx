@@ -553,6 +553,7 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
       faceConfidence?: number;
       device?: string;
       ipAddress?: string;
+      suratKeteranganUrl?: string;
     }> = [];
 
     const filteredEmployees = allProfiles.filter(p => {
@@ -587,7 +588,8 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
             status: empLog.status as any,
             faceConfidence: empLog.faceConfidence,
             device: empLog.device,
-            ipAddress: empLog.ipAddress
+            ipAddress: empLog.ipAddress,
+            suratKeteranganUrl: empLog.suratKeteranganUrl
           });
         } else {
           if (filterBelumPulang) return;
@@ -2526,41 +2528,57 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
                         <td colSpan={9} className="px-6 py-8 text-center text-slate-400 font-semibold">Tidak ditemukan data absensi untuk filter terpilih.</td>
                       </tr>
                     ) : (
-                      generatedLogsReport.map((l) => (
-                        <tr key={l.id} className="hover:bg-slate-50/50">
-                          <td className="px-6 py-3.5 font-bold text-slate-800">{l.employeeName}</td>
-                          <td className="px-6 py-3.5">{l.employeeNip || '-'}</td>
-                          <td className="px-6 py-3.5">{l.employeeDivisi}</td>
-                          <td className="px-6 py-3.5 font-semibold text-slate-600">
-                            {new Date(l.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
-                          </td>
-                          <td className="px-6 py-3.5 font-semibold text-slate-850">
-                            {l.checkIn ? toWIBTime(l.checkIn) : '-'}
-                          </td>
-                          <td className="px-6 py-3.5 font-semibold">
-                            {l.status === 'Tidak Hadir' ? '-' : (
-                              l.checkOut ? toWIBTime(l.checkOut) : (
-                                <span className="text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full text-[10px] font-bold">Belum Pulang</span>
-                              )
-                            )}
-                          </td>
-                          <td className="px-6 py-3.5">
-                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                              l.status === 'Hadir' ? 'bg-emerald-50 text-emerald-600' :
-                              l.status === 'Terlambat' ? 'bg-amber-50 text-amber-600' : 
-                              l.status === 'Tidak Hadir' ? 'bg-rose-50 text-rose-600' : 'bg-slate-50 text-slate-600'
-                            }`}>
-                              {l.status}
-                            </span>
-                          </td>
-                          <td className="px-6 py-3.5 font-bold">
-                            {l.faceConfidence !== undefined ? `${Math.round(l.faceConfidence * 100)}%` : '-'}
-                          </td>
-                          <td className="px-6 py-3.5 text-slate-400">
-                            {l.device || l.ipAddress ? `${l.device || '-'} • ${l.ipAddress || '-'}` : '-'}
-                          </td>
-                        </tr>
-                      ))
+                      generatedLogsReport.map((l) => {
+                        const isActivePresence = ['hadir', 'terlambat', 'wfa', 'wfh'].includes((l.status || '').toLowerCase());
+                        return (
+                          <tr key={l.id} className="hover:bg-slate-50/50">
+                            <td className="px-6 py-3.5 font-bold text-slate-800">{l.employeeName}</td>
+                            <td className="px-6 py-3.5">{l.employeeNip || '-'}</td>
+                            <td className="px-6 py-3.5">{l.employeeDivisi}</td>
+                            <td className="px-6 py-3.5 font-semibold text-slate-600">
+                              {new Date(l.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                            </td>
+                            <td className="px-6 py-3.5 font-semibold text-slate-850">
+                              {isActivePresence && l.checkIn ? toWIBTime(l.checkIn) : '-'}
+                            </td>
+                            <td className="px-6 py-3.5 font-semibold">
+                              {!isActivePresence ? '-' : (
+                                l.checkOut ? toWIBTime(l.checkOut) : (
+                                  <span className="text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full text-[10px] font-bold">Belum Pulang</span>
+                                )
+                              )}
+                            </td>
+                            <td className="px-6 py-3.5">
+                              <div className="flex flex-col gap-1 items-start">
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                  l.status === 'Hadir' ? 'bg-emerald-50 text-emerald-600' :
+                                  l.status === 'Terlambat' ? 'bg-amber-50 text-amber-600' : 
+                                  l.status === 'Tidak Hadir' ? 'bg-rose-50 text-rose-600' : 'bg-slate-50 text-slate-600'
+                                }`}>
+                                  {l.status}
+                                </span>
+                                {l.suratKeteranganUrl && (
+                                  <a 
+                                    href={l.suratKeteranganUrl} 
+                                    target="_blank" 
+                                    rel="noreferrer"
+                                    className="text-[9px] font-bold text-gov-600 hover:text-gov-800 flex items-center gap-0.5 mt-0.5 bg-gov-50 px-1.5 py-0.5 rounded border border-gov-150 transition-colors"
+                                  >
+                                    <FileText size={10} />
+                                    Lihat Surat
+                                  </a>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-6 py-3.5 font-bold">
+                              {l.faceConfidence !== undefined ? `${Math.round(l.faceConfidence * 100)}%` : '-'}
+                            </td>
+                            <td className="px-6 py-3.5 text-slate-400">
+                              {l.device || l.ipAddress ? `${l.device || '-'} • ${l.ipAddress || '-'}` : '-'}
+                            </td>
+                          </tr>
+                        );
+                      })
                     )}
                   </tbody>
                 </table>
