@@ -46,6 +46,14 @@ function toWIBTime(isoString: string): string {
   return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Jakarta' });
 }
 
+// Helper: Convert ISO date string (UTC) or Date object to WIB (UTC+7) date "YYYY-MM-DD"
+function toWIBDate(dateInput: string | Date): string {
+  const d = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
+  if (isNaN(d.getTime())) return '';
+  const formatter = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'Asia/Jakarta' });
+  return formatter.format(d);
+}
+
 // Haversine formula to compute distance in meters between coords
 function getHaversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371e3; // metres
@@ -297,7 +305,7 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
     let current = new Date(adminStartDate);
     const end = new Date(adminEndDate);
     while (current <= end) {
-      const dateStr = current.toISOString().slice(0, 10);
+      const dateStr = toWIBDate(current);
       const dayName = current.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
       dateMap[dateStr] = { date: dayName, Masuk: 0, Terlambat: 0, Pulang: 0 };
       current.setDate(current.getDate() + 1);
@@ -305,7 +313,7 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
 
     logsList.forEach(log => {
       if (!log.checkIn) return;
-      const dateStr = log.checkIn.slice(0, 10);
+      const dateStr = toWIBDate(log.checkIn);
       if (dateMap[dateStr]) {
         dateMap[dateStr].Masuk += 1;
         if (log.status === 'Terlambat') {
@@ -503,7 +511,7 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
 
     dates.forEach(dateStr => {
       const dateLogs = logsList.filter(l => {
-        const logDate = l.checkIn ? l.checkIn.slice(0, 10) : l.createdAt.slice(0, 10);
+        const logDate = l.checkIn ? toWIBDate(l.checkIn) : toWIBDate(l.createdAt);
         return logDate === dateStr;
       });
 
@@ -609,8 +617,8 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
       const registeredFaces = mockFaces.length;
       const unregisteredFaces = totalEmployees - registeredFaces;
 
-      const todayStr = new Date().toISOString().slice(0, 10);
-      const todayLogs = logs.filter(l => l.createdAt.startsWith(todayStr));
+      const todayStr = toWIBDate(new Date());
+      const todayLogs = logs.filter(l => toWIBDate(l.createdAt) === todayStr);
       const presentToday = todayLogs.length;
       const lateToday = todayLogs.filter(l => l.status === 'Terlambat').length;
       const checkedOutToday = todayLogs.filter(l => l.checkOut).length;
@@ -1189,7 +1197,7 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
 
       dates.forEach(dateStr => {
         const dateLogs = logs.filter(l => {
-          const logDate = l.checkIn ? l.checkIn.slice(0, 10) : l.createdAt.slice(0, 10);
+          const logDate = l.checkIn ? toWIBDate(l.checkIn) : toWIBDate(l.createdAt);
           return logDate === dateStr;
         });
 

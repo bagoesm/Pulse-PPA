@@ -18,6 +18,14 @@ function toWIBTime(isoString: string): string {
   return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Jakarta' });
 }
 
+// Helper: Convert ISO date string (UTC) or Date object to WIB (UTC+7) date "YYYY-MM-DD"
+function toWIBDate(dateInput: string | Date): string {
+  const d = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
+  if (isNaN(d.getTime())) return '';
+  const formatter = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'Asia/Jakarta' });
+  return formatter.format(d);
+}
+
 interface UserAttendancePageProps {
   currentUser: User;
   showNotification?: (title: string, message: string, type: 'success' | 'warning' | 'error' | 'info') => void;
@@ -148,8 +156,8 @@ export const UserAttendancePage: React.FC<UserAttendancePageProps> = ({
   );
 
   // --- Add/Edit Manual Form State ---
-  const [startDate, setStartDate] = useState<string>(new Date().toISOString().substring(0, 10));
-  const [endDate, setEndDate] = useState<string>(new Date().toISOString().substring(0, 10));
+  const [startDate, setStartDate] = useState<string>(toWIBDate(new Date()));
+  const [endDate, setEndDate] = useState<string>(toWIBDate(new Date()));
   const [isMultiDate, setIsMultiDate] = useState<boolean>(false);
   const [status, setStatus] = useState<'Hadir' | 'Cuti' | 'Sakit' | 'Izin' | 'Penugasan'>('Hadir');
   const [checkInTime, setCheckInTime] = useState<string>('07:30');
@@ -323,7 +331,7 @@ export const UserAttendancePage: React.FC<UserAttendancePageProps> = ({
   // Open Edit Modal
   const handleEditClick = (item: Attendance) => {
     setEditingAttendance(item);
-    const dStr = item.checkIn ? item.checkIn.substring(0, 10) : new Date().toISOString().substring(0, 10);
+    const dStr = item.checkIn ? toWIBDate(item.checkIn) : toWIBDate(new Date());
     setStartDate(dStr);
     setEndDate(dStr);
     setIsMultiDate(false);
@@ -346,9 +354,8 @@ export const UserAttendancePage: React.FC<UserAttendancePageProps> = ({
   // Open Add Modal
   const handleOpenAddModal = () => {
     setEditingAttendance(null);
-    const today = new Date().toISOString().substring(0, 10);
-    setStartDate(today);
-    setEndDate(today);
+    setStartDate(toWIBDate(new Date()));
+    setEndDate(toWIBDate(new Date()));
     setIsMultiDate(false);
     setStatus('Hadir');
     setCheckInTime('07:30');
@@ -397,13 +404,13 @@ export const UserAttendancePage: React.FC<UserAttendancePageProps> = ({
       const e = new Date(isMultiDate ? end : start);
 
       for (let d = new Date(s); d <= e; d.setDate(d.getDate() + 1)) {
-        datesToTest.push(d.toISOString().substring(0, 10));
+        datesToTest.push(toWIBDate(d));
       }
 
       const collidedDates: string[] = [];
       attendances.forEach((att) => {
         if (!att.isManual && att.checkIn) {
-          const attDate = att.checkIn.substring(0, 10);
+          const attDate = toWIBDate(att.checkIn);
           if (datesToTest.includes(attDate)) {
             collidedDates.push(attDate);
           }
@@ -473,8 +480,8 @@ export const UserAttendancePage: React.FC<UserAttendancePageProps> = ({
 
       if (editingAttendance) {
         // --- Edit Mode ---
-        const checkInIso = status === 'Hadir' ? `${startDate}T${checkInTime}:00` : `${startDate}T00:00:00`;
-        const checkOutIso = status === 'Hadir' && checkOutTime ? `${startDate}T${checkOutTime}:00` : undefined;
+        const checkInIso = status === 'Hadir' ? `${startDate}T${checkInTime}:00+07:00` : `${startDate}T00:00:00+07:00`;
+        const checkOutIso = status === 'Hadir' && checkOutTime ? `${startDate}T${checkOutTime}:00+07:00` : undefined;
 
         await attendanceService.updateManualAttendance(editingAttendance.id, {
           checkIn: checkInIso,
@@ -497,9 +504,9 @@ export const UserAttendancePage: React.FC<UserAttendancePageProps> = ({
 
         let createdCount = 0;
         for (let d = new Date(s); d <= eDate; d.setDate(d.getDate() + 1)) {
-          const dateStr = d.toISOString().substring(0, 10);
-          const checkInIso = status === 'Hadir' ? `${dateStr}T${checkInTime}:00` : `${dateStr}T00:00:00`;
-          const checkOutIso = status === 'Hadir' && checkOutTime ? `${dateStr}T${checkOutTime}:00` : undefined;
+          const dateStr = toWIBDate(d);
+          const checkInIso = status === 'Hadir' ? `${dateStr}T${checkInTime}:00+07:00` : `${dateStr}T00:00:00+07:00`;
+          const checkOutIso = status === 'Hadir' && checkOutTime ? `${dateStr}T${checkOutTime}:00+07:00` : undefined;
 
           await attendanceService.createManualAttendance({
             employeeId: currentUser.id,
@@ -543,14 +550,14 @@ export const UserAttendancePage: React.FC<UserAttendancePageProps> = ({
     try {
       setDeleting(true);
       const targetId = deletingAttendance.id;
-      const targetDate = deletingAttendance.checkIn ? deletingAttendance.checkIn.substring(0, 10) : '';
+      const targetDate = deletingAttendance.checkIn ? toWIBDate(deletingAttendance.checkIn) : '';
 
       await attendanceService.deleteAttendance(targetId);
       
       // Update local state immediately for instant UI feedback (by ID & Date)
       setAttendances((prev) => prev.filter((a) => {
         if (a.id === targetId) return false;
-        if (targetDate && a.checkIn && a.checkIn.substring(0, 10) === targetDate) return false;
+        if (targetDate && a.checkIn && toWIBDate(a.checkIn) === targetDate) return false;
         return true;
       }));
       
@@ -570,7 +577,7 @@ export const UserAttendancePage: React.FC<UserAttendancePageProps> = ({
     const map = new Map<string, Attendance>();
     attendances.forEach((item) => {
       if (item.checkIn) {
-        const dateKey = item.checkIn.substring(0, 10);
+        const dateKey = toWIBDate(item.checkIn);
         map.set(dateKey, item);
       }
     });
@@ -586,7 +593,7 @@ export const UserAttendancePage: React.FC<UserAttendancePageProps> = ({
     const end = new Date(activePeriod.endDate + 'T00:00:00Z');
 
     while (cur <= end) {
-      const dStr = cur.toISOString().substring(0, 10);
+      const dStr = toWIBDate(cur);
       const att = attendanceMapByDate.get(dStr);
       list.push({ dateKey: dStr, attendance: att });
       cur.setDate(cur.getDate() + 1);
@@ -665,7 +672,7 @@ export const UserAttendancePage: React.FC<UserAttendancePageProps> = ({
       // Filter attendances that fall within export date range
       const exportFilteredData = attendances.filter((item) => {
         if (!item.checkIn) return false;
-        const d = item.checkIn.substring(0, 10);
+        const d = toWIBDate(item.checkIn);
         return d >= sDate && d <= eDate;
       });
 
@@ -1324,7 +1331,7 @@ export const UserAttendancePage: React.FC<UserAttendancePageProps> = ({
               <p className="text-xs text-slate-500 mt-1">
                 Apakah Anda yakin ingin menghapus data absensi manual tanggal{' '}
                 <span className="font-bold text-slate-800">
-                  {deletingAttendance.checkIn ? deletingAttendance.checkIn.substring(0, 10) : ''}
+                  {deletingAttendance.checkIn ? toWIBDate(deletingAttendance.checkIn) : ''}
                 </span>
                 ? Tindakan ini tidak dapat dibatalkan.
               </p>
