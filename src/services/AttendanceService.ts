@@ -895,20 +895,20 @@ export class AttendanceService {
   }
 
   /**
-   * Update the global bypass location setting
+   * Update the global bypass location setting.
+   * Throws on DB failure so the caller can show a proper error to the admin.
    */
   async updateBypassLocationSetting(val: 'strict' | 'always' | 'friday'): Promise<void> {
-    try {
-      const { error } = await this.supabase
-        .from('attendance_settings')
-        .upsert({ key: 'bypass_location', value: val, updated_at: new Date().toISOString() });
+    const { error } = await this.supabase
+      .from('attendance_settings')
+      .upsert({ key: 'bypass_location', value: val, updated_at: new Date().toISOString() });
 
-      if (error) throw error;
-      localStorage.setItem('pulse_attendance_bypass_location', val);
-    } catch (error) {
-      console.warn('AttendanceService updateBypassLocationSetting fallback to local:', error);
-      localStorage.setItem('pulse_attendance_bypass_location', val);
+    if (error) {
+      console.error('AttendanceService updateBypassLocationSetting DB error:', error);
+      throw error;
     }
+    // Sync localStorage as cache only after confirmed DB write
+    localStorage.setItem('pulse_attendance_bypass_location', val);
   }
 
   /**

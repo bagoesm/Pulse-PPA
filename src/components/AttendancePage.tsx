@@ -286,21 +286,21 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
   const [editingGeofence, setEditingGeofence] = useState<Partial<Geofence> | null>(null);
   const [showGeofenceModal, setShowGeofenceModal] = useState<boolean>(false);
 
-  // Geofence Bypass Location settings
-  const [bypassLocationSetting, setBypassLocationSetting] = useState<'strict' | 'always' | 'friday'>(() => {
-    return (localStorage.getItem('pulse_attendance_bypass_location') as any) || 'strict';
-  });
+  // Geofence Bypass Location settings — DB is the single source of truth, NOT localStorage
+  const [bypassLocationSetting, setBypassLocationSetting] = useState<'strict' | 'always' | 'friday' | null>(null);
+  const [settingsLoaded, setSettingsLoaded] = useState<boolean>(false);
 
   // Admin Manual Attendance setting toggle
   const [allowManualSetting, setAllowManualSetting] = useState<boolean>(true);
 
-  // Load global settings from database on mount
+  // Load global settings from database on mount — this is the ONLY place we read the setting
   useEffect(() => {
     const fetchSettings = async () => {
       const setting = await attendanceService.getBypassLocationSetting();
       setBypassLocationSetting(setting);
       const allowManual = await attendanceService.getAllowManualAttendanceSetting();
       setAllowManualSetting(allowManual);
+      setSettingsLoaded(true);
     };
     fetchSettings();
   }, []);
@@ -315,7 +315,8 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
   }, [bypassLocationSetting]);
 
   const handleUpdateBypassSetting = async (val: 'strict' | 'always' | 'friday') => {
-    setBypassLocationSetting(val);
+    const previousVal = bypassLocationSetting;
+    setBypassLocationSetting(val); // optimistic update
     try {
       await attendanceService.updateBypassLocationSetting(val);
       showNotification('Sukses', `Kebijakan lokasi absensi diubah menjadi: ${
@@ -323,7 +324,8 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
         val === 'always' ? 'Bebas Setiap Hari' : 'Khusus Hari Jumat (WFA)'
       }`, 'success');
     } catch (e) {
-      showNotification('Error', 'Gagal memperbarui kebijakan lokasi di database.', 'error');
+      setBypassLocationSetting(previousVal); // revert on failure
+      showNotification('Error', 'Gagal memperbarui kebijakan lokasi di database. Perubahan dibatalkan.', 'error');
     }
   };
 
@@ -969,6 +971,12 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
   // --- 5. Attendance Matching Wizard (Check-In / Out) ---
   const startAttendanceVerification = async (type: 'in' | 'out') => {
     if (!selectedProfile || !registeredFace) return;
+
+    // 0. Ensure settings are loaded from DB before validating
+    if (!settingsLoaded) {
+      showNotification?.('Mohon Tunggu', 'Pengaturan absensi sedang dimuat dari server...', 'info');
+      return;
+    }
 
     // 1. Validate Geofence
     const isLocationBypassed = checkIsLocationBypassed();
