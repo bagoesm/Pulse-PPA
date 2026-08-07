@@ -1662,7 +1662,13 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
                       <div className="space-y-1">
                         <div className="flex items-center justify-between text-xs sm:text-sm font-bold text-slate-700">
                           <span>{nearestGeofence.geo.name}</span>
-                          <span className={isInGeofenceRange ? 'text-emerald-600 font-extrabold' : 'text-rose-600 font-extrabold'}>
+                          <span className={
+                            isInGeofenceRange 
+                              ? 'text-emerald-600 font-extrabold' 
+                              : checkIsLocationBypassed() 
+                                ? 'text-indigo-600 font-bold' 
+                                : 'text-rose-600 font-extrabold'
+                          }>
                             {Math.round(nearestGeofence.dist)}m
                           </span>
                         </div>
