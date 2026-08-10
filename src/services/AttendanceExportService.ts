@@ -54,6 +54,21 @@ export class AttendanceExportService {
   }
 
   /**
+   * Convert UTC date string or Date object to WIB (UTC+7) date "YYYY-MM-DD"
+   */
+  private toWIBDate(dateInput?: string | Date): string {
+    if (!dateInput) return '';
+    try {
+      const d = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
+      if (isNaN(d.getTime())) return '';
+      const formatter = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'Asia/Jakarta' });
+      return formatter.format(d);
+    } catch {
+      return '';
+    }
+  }
+
+  /**
    * Format ISO date/time string to "HH.mm WIB" preserving exact input time
    */
   private formatTimeWib(isoStr?: string): string {
@@ -121,7 +136,8 @@ export class AttendanceExportService {
   private groupAttendancesByDate(records: Attendance[]): Map<string, Attendance[]> {
     const map = new Map<string, Attendance[]>();
     records.forEach((item) => {
-      const dateKey = item.checkIn ? item.checkIn.substring(0, 10) : new Date().toISOString().substring(0, 10);
+      const dateKey = item.checkIn ? this.toWIBDate(item.checkIn) : this.toWIBDate(new Date());
+      if (!dateKey) return;
       if (!map.has(dateKey)) {
         map.set(dateKey, []);
       }
