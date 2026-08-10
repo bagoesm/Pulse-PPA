@@ -88,6 +88,50 @@ serve(async (req) => {
     } else if (action === 'extractAttendanceFromText') {
       const { inputText, contextData } = payload
       result = await handleExtractAttendanceFromText(inputText, contextData, geminiApiKey, openAiApiKey)
+    } else if (action === 'deleteWfaLaporan') {
+      const { id } = payload
+      if (!id) throw new Error('Missing ID parameter')
+
+      const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      const supabaseService = createClient(supabaseUrl, serviceRoleKey)
+
+      const { data: report, error: fetchError } = await supabaseService
+        .from('wfa_laporan')
+        .select('user_id, status_pelaksanaan, penilaian')
+        .eq('id', id)
+        .single()
+
+      if (fetchError || !report) {
+        throw new Error('Laporan WFA tidak ditemukan')
+      }
+
+      const { data: profile, error: profileError } = await supabaseService
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single()
+
+      if (profileError || !profile) {
+        throw new Error('Gagal mengambil data profil user')
+      }
+
+      const isAdminOrAtasan = profile.role === 'Super Admin' || profile.role === 'Atasan'
+      const isOwner = report.user_id === user.id
+
+      if (!isAdminOrAtasan && !isOwner) {
+        throw new Error('Anda tidak memiliki hak akses untuk menghapus laporan ini')
+      }
+
+      const { error: deleteError } = await supabaseService
+        .from('wfa_laporan')
+        .delete()
+        .eq('id', id)
+
+      if (deleteError) {
+        throw deleteError
+      }
+
+      result = { success: true, message: 'Laporan WFA berhasil dihapus' }
     } else {
       return new Response(
         JSON.stringify({ error: `Unknown action: ${action}` }),

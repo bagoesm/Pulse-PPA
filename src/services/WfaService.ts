@@ -2,6 +2,7 @@
 import { supabase as defaultSupabase } from '../lib/supabaseClient';
 import { User, WfaLaporan, WfaSchedule } from '../../types';
 import { handleDatabaseOperation } from '../utils/errorHandling';
+import { aiExtractorService } from './aiExtractorService';
 
 // Fallback in-memory / localStorage storage key
 const STORAGE_KEY_REPORTS = 'pulse_wfa_laporan_data';
@@ -282,14 +283,7 @@ export class WfaService {
    */
   async deleteWfaLaporan(id: string): Promise<void> {
     try {
-      await handleDatabaseOperation(async () => {
-        const { error } = await this.supabase
-          .from('wfa_laporan')
-          .delete()
-          .eq('id', id);
-
-        if (error) throw error;
-      }, 'deleteWfaLaporan');
+      await aiExtractorService.deleteWfaLaporan(id);
     } catch (error) {
       console.error('WFA Service deleteWfaLaporan failed:', error);
       throw error;

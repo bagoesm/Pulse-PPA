@@ -129,6 +129,15 @@ export const aiExtractorService = {
       console.error('Failed to extract attendance from text via Edge Function:', e);
       throw new Error('Gagal mengekstrak kehadiran dengan AI: ' + formatError(e));
     }
+  },
+
+  async deleteWfaLaporan(id: string): Promise<any> {
+    try {
+      return await callAiEdgeFunction('deleteWfaLaporan', { id });
+    } catch (e: any) {
+      console.error('Failed to delete WFA report via Edge Function:', e);
+      throw new Error(formatError(e));
+    }
   }
 };
 
