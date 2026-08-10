@@ -1281,17 +1281,13 @@ export class AttendanceService {
 
     // 3. Delete from DB if not a temporary local ID
     if (!id.startsWith('manual-')) {
-      try {
-        const { error } = await this.supabase
-          .from('attendances')
-          .delete()
-          .eq('id', id);
+      const { error } = await this.supabase
+        .from('attendances')
+        .delete()
+        .eq('id', id);
 
-        if (error) {
-          console.error('Delete attendance DB returned error:', error);
-        }
-      } catch (err) {
-        console.warn('Delete attendance DB failed, removing locally:', err);
+      if (error) {
+        throw new Error(error.message || 'Database error occurred during deletion');
       }
     }
 

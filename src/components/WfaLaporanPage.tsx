@@ -357,9 +357,9 @@ export const WfaLaporanPage: React.FC<WfaLaporanPageProps> = ({ currentUser, sho
       }
       showToast('Laporan WFA berhasil dihapus', 'success');
       loadData();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to delete report', err);
-      showToast('Gagal menghapus laporan WFA', 'error');
+      showToast(`Gagal menghapus laporan WFA: ${err.message || ''}`, 'error');
     } finally {
       setDeleteTargetId(null);
     }

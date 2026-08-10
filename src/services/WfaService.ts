@@ -291,10 +291,8 @@ export class WfaService {
         if (error) throw error;
       }, 'deleteWfaLaporan');
     } catch (error) {
-      console.warn('WFA Service fallback to local storage for deleteWfaLaporan:', error);
-      let local = this.getLocalReports();
-      local = local.filter((r) => r.id !== id);
-      this.saveLocalReports(local);
+      console.error('WFA Service deleteWfaLaporan failed:', error);
+      throw error;
     }
   }
 

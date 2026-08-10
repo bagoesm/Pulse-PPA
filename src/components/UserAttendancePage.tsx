@@ -712,12 +712,12 @@ export const UserAttendancePage: React.FC<UserAttendancePageProps> = ({
         return true;
       }));
       
-      showNotification('Berhasil', 'Data absensi manual & file lampiran berhasil dihapus', 'success');
+      showNotification('Berhasil', 'Data absensi & file lampiran berhasil dihapus', 'success');
       setDeletingAttendance(null);
       await loadData();
-    } catch (err) {
-      console.error('Failed to delete manual attendance:', err);
-      showNotification('Error', 'Gagal menghapus absensi manual', 'error');
+    } catch (err: any) {
+      console.error('Failed to delete attendance:', err);
+      showNotification('Error', `Gagal menghapus absensi: ${err.message || ''}`, 'error');
     } finally {
       setDeleting(false);
     }
@@ -1162,8 +1162,8 @@ export const UserAttendancePage: React.FC<UserAttendancePageProps> = ({
                         </td>
 
                         <td className="py-3.5 px-4 text-center">
-                          {item.isManual ? (
-                            <div className="flex items-center justify-center gap-1.5">
+                          <div className="flex items-center justify-center gap-1.5">
+                            {item.isManual && (
                               <button
                                 onClick={() => handleEditClick(item)}
                                 className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-all border border-blue-200 shadow-sm"
@@ -1171,17 +1171,15 @@ export const UserAttendancePage: React.FC<UserAttendancePageProps> = ({
                               >
                                 <Pencil size={13} />
                               </button>
-                              <button
-                                onClick={() => setDeletingAttendance(item)}
-                                className="p-1.5 text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded-lg transition-all border border-rose-200 shadow-sm"
-                                title="Hapus Absensi Manual"
-                              >
-                                <Trash2 size={13} />
-                              </button>
-                            </div>
-                          ) : (
-                            <span className="text-slate-300 text-[10px]">-</span>
-                          )}
+                            )}
+                            <button
+                              onClick={() => setDeletingAttendance(item)}
+                              className="p-1.5 text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded-lg transition-all border border-rose-200 shadow-sm"
+                              title={item.isManual ? "Hapus Absensi Manual" : "Hapus Absensi Otomatis"}
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -1740,9 +1738,11 @@ export const UserAttendancePage: React.FC<UserAttendancePageProps> = ({
               <Trash2 size={24} />
             </div>
             <div>
-              <h3 className="text-base font-bold text-slate-900">Hapus Absensi Manual?</h3>
+              <h3 className="text-base font-bold text-slate-900">
+                Hapus Absensi {deletingAttendance.isManual ? 'Manual' : 'Otomatis'}?
+              </h3>
               <p className="text-xs text-slate-500 mt-1">
-                Apakah Anda yakin ingin menghapus data absensi manual tanggal{' '}
+                Apakah Anda yakin ingin menghapus data absensi tanggal{' '}
                 <span className="font-bold text-slate-800">
                   {deletingAttendance.checkIn ? toWIBDate(deletingAttendance.checkIn) : ''}
                 </span>
@@ -1846,6 +1846,12 @@ export const UserAttendancePage: React.FC<UserAttendancePageProps> = ({
                     />
                   </div>
                 </div>
+              </div>
+
+              {/* Petunjuk Penggunaan Word */}
+              <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-3 text-[10px] text-slate-500 space-y-1 leading-normal animate-fadeIn">
+                <span className="font-bold text-slate-600 block">💡 Petunjuk Penyimpanan MS Word:</span>
+                <p>Dokumen Word (.doc) diexport menggunakan format halaman web (HTML). Agar dapat diedit dan disimpan kembali tanpa error di MS Word, harap gunakan menu <strong>File &gt; Save As (Simpan Sebagai)</strong> dan pilih format <strong>Word Document (.docx)</strong>.</p>
               </div>
 
               {/* Action Buttons */}
