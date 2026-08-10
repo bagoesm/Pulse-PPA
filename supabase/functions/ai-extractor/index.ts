@@ -85,6 +85,9 @@ serve(async (req) => {
     } else if (action === 'extractBudgetTransaction') {
       const { inputText, masters } = payload
       result = await handleExtractBudgetTransaction(inputText, masters, geminiApiKey, openAiApiKey)
+    } else if (action === 'extractAttendanceFromText') {
+      const { inputText, contextData } = payload
+      result = await handleExtractAttendanceFromText(inputText, contextData, geminiApiKey, openAiApiKey)
     } else {
       return new Response(
         JSON.stringify({ error: `Unknown action: ${action}` }),
@@ -897,5 +900,82 @@ function parseDateTimeString(str: string): { date: string; startTime: string; en
   } catch (e) {
     console.error('Error parsing date time string:', e);
     return null;
+  }
+}
+
+async function handleExtractAttendanceFromText(inputText: string, contextData: any, geminiApiKey?: string, openAiApiKey?: string) {
+  const todayStr = new Date().toISOString().split('T')[0];
+  const dateRangeContext = contextData ? `Rentang Tanggal Periode Aktif: ${contextData.startDate} s.d. ${contextData.endDate}` : `Hari ini: ${todayStr}`;
+  const geofencesContext = contextData?.geofences ? `Daftar Geofence/Lokasi Kantor yang Valid: ${JSON.stringify(contextData.geofences)}` : "";
+
+  const prompt = `
+Anda adalah AI asisten pengolah data kehadiran (absensi) pegawai.
+Tugas Anda adalah menganalisis narasi kehadiran pegawai berikut dan memecahnya menjadi daftar entri kehadiran harian yang terstruktur.
+
+Teks input narasi:
+"""
+${inputText}
+"""
+
+Informasi Konteks:
+- ${dateRangeContext}
+${geofencesContext ? `- ${geofencesContext}` : ''}
+
+### INSTRUKSI UTAMA:
+1. Analisis teks narasi secara hati-hati untuk mengidentifikasi tanggal-tanggal yang disebutkan beserta status kehadiran pegawai pada tanggal tersebut.
+2. Tentukan rentang tanggal dengan benar. Jika narasi menyebutkan "tanggal 1-5 Agustus", buatlah entri terpisah untuk tanggal 2026-08-01, 2026-08-02, 2026-08-03, 2026-08-04, dan 2026-08-05.
+3. Gunakan Tahun, Bulan, dan Hari yang tepat berdasarkan rentang tanggal periode aktif (${contextData?.startDate || ''} s.d. ${contextData?.endDate || ''}). Jika user menyebut "tanggal 2" dan periode aktif adalah Agustus-September, tentukan apakah itu Agustus atau September berdasarkan alur kalimat atau tanggal terdekat.
+4. Petakan status kehadiran menjadi salah satu dari status valid ini: "Hadir", "Cuti", "Sakit", "Izin", "Penugasan".
+5. Jika statusnya adalah "Hadir":
+   - Tentukan jam check-in (dalam format HH:MM) dan jam check-out (dalam format HH:MM). Jika tidak disebutkan secara spesifik di narasi, gunakan default "07:30" untuk check-in dan "16:00" untuk check-out.
+   - Cocokkan lokasi/geofence dari daftar geofence yang valid. Jika tidak ada yang cocok atau tidak disebutkan, default-kan ke geofence pertama atau gunakan "KemenPPPA" (dengan locationId = id geofence tersebut). Jika lokasi adalah kustom/di luar geofence kantor, petakan locationId = "custom" dan isi locationName dengan lokasi kustom tersebut.
+6. Jika statusnya bukan "Hadir" (yaitu "Cuti", "Sakit", "Izin", "Penugasan"):
+   - Jam check-in dan check-out tidak perlu diisi (set null).
+   - Lokasi tidak perlu diisi (set null).
+   - User wajib melampirkan link surat keterangan di sistem nanti, tapi jika ada link Google Drive/surat disebutkan dalam narasi, ekstrak ke kolom "suratKeteranganUrl".
+
+### FORMAT OUTPUT JSON:
+Kembalikan HANYA JSON array berisi objek-objek kehadiran harian tersebut dengan struktur persis seperti berikut:
+[
+  {
+    "date": "YYYY-MM-DD",
+    "status": "Hadir" | "Cuti" | "Sakit" | "Izin" | "Penugasan",
+    "checkInTime": "HH:MM" (hanya jika status Hadir, format 24 jam, atau null jika tidak hadir),
+    "checkOutTime": "HH:MM" (hanya jika status Hadir, format 24 jam, atau null jika tidak hadir),
+    "locationId": "ID geofence yang cocok atau 'custom' jika kustom atau null jika bukan Hadir",
+    "locationName": "Nama geofence yang cocok atau nama lokasi kustom atau null jika bukan Hadir",
+    "suratKeteranganUrl": "Tautan link surat keterangan jika disebutkan dalam narasi, jika tidak isi null"
+  }
+]
+
+PENTING: Kembalikan HANYA JSON asli. JANGAN sertakan markdown block seperti \`\`\`json, JANGAN berikan teks pengantar, penjelas, atau penutup. Jika tidak ada entri kehadiran yang bisa diekstrak, kembalikan array kosong [].
+`;
+
+  try {
+    if (geminiApiKey) {
+      const text = await callGeminiRest(prompt, [], geminiApiKey);
+      return cleanAndParseJson(text);
+    } else if (openAiApiKey) {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${openAiApiKey}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          response_format: { type: 'json_object' },
+          messages: [{ role: "user", content: prompt }]
+        })
+      });
+      if (!response.ok) throw new Error('OpenAI Error');
+      const data = await response.json();
+      return cleanAndParseJson(data.choices[0].message.content);
+    } else {
+      throw new Error('Tidak ada API Key yang dikonfigurasi');
+    }
+  } catch (e: any) {
+    console.error('Failed to extract attendance from text:', e);
+    throw new Error('Gagal mengekstrak kehadiran dengan AI: ' + e.message);
   }
 }

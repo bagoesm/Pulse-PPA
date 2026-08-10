@@ -11,6 +11,7 @@ import { attendanceService } from '../services/AttendanceService';
 import { attendanceExportService } from '../services/AttendanceExportService';
 import { CustomDropdown } from './CustomDropdown';
 import SimpleToast from './SimpleToast';
+import { aiExtractorService } from '../services/aiExtractorService';
 
 // Helper: Convert ISO date string (UTC) to WIB (UTC+7) time "HH:MM"
 function toWIBTime(isoString: string): string {
@@ -175,6 +176,20 @@ export const UserAttendancePage: React.FC<UserAttendancePageProps> = ({
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [deleting, setDeleting] = useState<boolean>(false);
   const [collisionError, setCollisionError] = useState<string>('');
+
+  // AI Narration Input States
+  const [activeModalTab, setActiveModalTab] = useState<'manual' | 'ai'>('manual');
+  const [aiNarration, setAiNarration] = useState<string>('');
+  const [isParsing, setIsParsing] = useState<boolean>(false);
+  const [extractedEntries, setExtractedEntries] = useState<Array<{
+    date: string;
+    status: 'Hadir' | 'Cuti' | 'Sakit' | 'Izin' | 'Penugasan';
+    checkInTime: string | null;
+    checkOutTime: string | null;
+    locationId: string | null;
+    locationName: string | null;
+    suratKeteranganUrl: string | null;
+  }>>([]);
 
   // Mapped options for Geofence CustomDropdown
   const geofenceDropdownOptions = useMemo(() => {
@@ -348,6 +363,13 @@ export const UserAttendancePage: React.FC<UserAttendancePageProps> = ({
     setCheckInPhotoPreview(item.checkInPhotoUrl || '');
     setCheckOutPhotoPreview(item.checkOutPhotoUrl || '');
     setSuratKeteranganUrlInput(item.suratKeteranganUrl || '');
+    
+    // Reset AI states
+    setActiveModalTab('manual');
+    setAiNarration('');
+    setExtractedEntries([]);
+    setIsParsing(false);
+    
     setIsAddModalOpen(true);
   };
 
@@ -365,7 +387,136 @@ export const UserAttendancePage: React.FC<UserAttendancePageProps> = ({
     setCheckOutPhotoFile(null);
     setCheckOutPhotoPreview('');
     setSuratKeteranganUrlInput('');
+    
+    // Reset AI states
+    setActiveModalTab('manual');
+    setAiNarration('');
+    setExtractedEntries([]);
+    setIsParsing(false);
+    
     setIsAddModalOpen(true);
+  };
+
+  // --- AI Narration Parse Handler ---
+  const handleParseNarration = async () => {
+    if (!aiNarration.trim()) {
+      showNotification('Peringatan', 'Mohon isi teks narasi kehadiran terlebih dahulu.', 'warning');
+      return;
+    }
+
+    try {
+      setIsParsing(true);
+      const parsed = await aiExtractorService.extractAttendanceFromText(aiNarration, {
+        startDate: activePeriod.startDate,
+        endDate: activePeriod.endDate,
+        geofences: geofences.map(g => ({ id: g.id, name: g.name, latitude: g.latitude, longitude: g.longitude, radius: g.radius }))
+      });
+
+      if (!parsed || parsed.length === 0) {
+        showNotification('Hasil AI Kosong', 'Tidak ada data kehadiran yang terdeteksi dari narasi Anda.', 'warning');
+      } else {
+        setExtractedEntries(parsed.map((item: any) => ({
+          date: item.date || toWIBDate(new Date()),
+          status: item.status || 'Hadir',
+          checkInTime: item.checkInTime || '07:30',
+          checkOutTime: item.checkOutTime || '16:00',
+          locationId: item.locationId || (geofences.length > 0 ? geofences[0].id : 'custom'),
+          locationName: item.locationName || (geofences.length > 0 ? geofences[0].name : 'KemenPPPA'),
+          suratKeteranganUrl: item.suratKeteranganUrl || ''
+        })));
+        showNotification('Sukses', `Berhasil mengekstrak ${parsed.length} entri kehadiran dari narasi.`, 'success');
+      }
+    } catch (err: any) {
+      console.error('Failed to parse narration:', err);
+      showNotification('Error', err.message || 'Gagal menganalisis narasi.', 'error');
+    } finally {
+      setIsParsing(false);
+    }
+  };
+
+  // --- Submit AI-extracted Attendances ---
+  const handleSubmitAIAttendance = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (extractedEntries.length === 0) {
+      showNotification('Peringatan', 'Tidak ada data kehadiran untuk disimpan.', 'warning');
+      return;
+    }
+
+    // Validation: check for missing suratKeteranganUrl if status is not Hadir
+    const missingSurat = extractedEntries.some(
+      (entry) => entry.status !== 'Hadir' && !entry.suratKeteranganUrl?.trim()
+    );
+
+    if (missingSurat) {
+      showNotification(
+        'Link Surat Wajib',
+        'Status selain Hadir wajib mengisi Link Surat Keterangan / Penugasan.',
+        'warning'
+      );
+      return;
+    }
+
+    // Validation: check for duplicate check-in (collision)
+    const allCollidedDates: string[] = [];
+    extractedEntries.forEach((entry) => {
+      const collisions = checkDateCollision(entry.date, entry.date);
+      if (collisions.length > 0) {
+        allCollidedDates.push(entry.date);
+      }
+    });
+
+    if (allCollidedDates.length > 0) {
+      const formatted = allCollidedDates.map((d) => {
+        const [y, m, day] = d.split('-');
+        return `${day}/${m}/${y}`;
+      }).join(', ');
+      showNotification(
+        'Tanggal Bentrok',
+        `Beberapa tanggal sudah memiliki absensi wajah otomatis: ${formatted}. Harap hapus baris bentrok sebelum menyimpan.`,
+        'error'
+      );
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      let successCount = 0;
+
+      for (const entry of extractedEntries) {
+        const targetGeo = geofences.find((g) => g.id === entry.locationId);
+        const lat = entry.status === 'Hadir' ? (targetGeo ? targetGeo.latitude : -6.175392) : 0;
+        const lng = entry.status === 'Hadir' ? (targetGeo ? targetGeo.longitude : 106.827153) : 0;
+        const checkInIso = entry.status === 'Hadir' ? `${entry.date}T${entry.checkInTime || '07:30'}:00+07:00` : `${entry.date}T00:00:00+07:00`;
+        const checkOutIso = entry.status === 'Hadir' && entry.checkOutTime ? `${entry.date}T${entry.checkOutTime}:00+07:00` : undefined;
+        const finalSuratUrl = entry.status !== 'Hadir' ? (entry.suratKeteranganUrl?.trim() || undefined) : undefined;
+        const finalLocName = entry.status === 'Hadir' ? (entry.locationName || 'KemenPPPA') : entry.status;
+
+        await attendanceService.createManualAttendance({
+          employeeId: currentUser.id,
+          checkIn: checkInIso,
+          checkOut: checkOutIso,
+          status: entry.status,
+          locationId: entry.status === 'Hadir' ? (entry.locationId || undefined) : undefined,
+          locationName: finalLocName,
+          latitude: lat,
+          longitude: lng,
+          suratKeteranganUrl: finalSuratUrl,
+        });
+        successCount++;
+      }
+
+      showNotification('Berhasil', `${successCount} data absensi manual berhasil ditambahkan via AI`, 'success');
+      setIsAddModalOpen(false);
+      setExtractedEntries([]);
+      setAiNarration('');
+      loadData();
+    } catch (err) {
+      console.error('Failed to save AI attendance:', err);
+      showNotification('Error', 'Gagal menyimpan beberapa data absensi', 'error');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   // Image Upload Handler with Canvas Compression (< 50KB)
@@ -1045,7 +1196,7 @@ export const UserAttendancePage: React.FC<UserAttendancePageProps> = ({
       {/* MODAL EDIT / BUAT LIST ABSEN MANUAL */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto animate-fadeIn">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 max-w-lg w-full overflow-hidden transform transition-all my-8">
+          <div className={`bg-white rounded-2xl shadow-2xl border border-slate-100 w-full overflow-hidden transform transition-all my-8 ${activeModalTab === 'ai' && !editingAttendance ? 'max-w-4xl' : 'max-w-lg'}`}>
             <div className="px-6 py-5 bg-gradient-to-r from-gov-700 to-gov-800 text-white flex justify-between items-center">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 bg-white/10 backdrop-blur-md rounded-xl">
@@ -1069,7 +1220,268 @@ export const UserAttendancePage: React.FC<UserAttendancePageProps> = ({
               </button>
             </div>
 
-            <form onSubmit={handleSubmitManual} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto custom-scrollbar">
+            {!editingAttendance && (
+              <div className="flex border-b border-slate-100 bg-slate-50/50">
+                <button
+                  type="button"
+                  onClick={() => setActiveModalTab('manual')}
+                  className={`flex-1 py-3 text-xs font-bold transition-all border-b-2 text-center ${
+                    activeModalTab === 'manual'
+                      ? 'border-gov-600 text-gov-700 bg-white'
+                      : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  Input Manual
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveModalTab('ai')}
+                  className={`flex-1 py-3 text-xs font-bold transition-all border-b-2 text-center flex items-center justify-center gap-1.5 ${
+                    activeModalTab === 'ai'
+                      ? 'border-gov-600 text-gov-700 bg-white'
+                      : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <Sparkles size={13} className={activeModalTab === 'ai' ? 'text-gov-600' : 'text-slate-400'} />
+                  Input via AI (Narasi)
+                </button>
+              </div>
+            )}
+
+            {activeModalTab === 'ai' && !editingAttendance ? (
+              <div className="p-6 space-y-4 max-h-[80vh] overflow-y-auto custom-scrollbar">
+                <div className="bg-gov-50 border border-gov-100 rounded-xl p-3.5 text-xs text-gov-800 space-y-1.5 animate-fadeIn">
+                  <div className="flex items-center gap-1.5 font-bold">
+                    <Sparkles size={14} className="text-gov-600" />
+                    <span>Gunakan AI untuk Menulis Narasi Kehadiran</span>
+                  </div>
+                  <p className="text-gov-700">Tuliskan tanggal dan status kehadiran Anda secara natural. AI akan memecahkannya menjadi daftar kehadiran harian.</p>
+                  <div className="text-[10px] text-gov-600 bg-white/70 p-2 rounded-lg font-mono leading-relaxed mt-2 border border-gov-100">
+                    <strong>Contoh Narasi:</strong><br />
+                    "Saya hadir tanggal 3 sampai 5 Agustus masuk jam 8 pagi pulang jam 5 sore. Tanggal 6 Agustus saya izin keperluan keluarga. Tanggal 7 saya sakit melampirkan surat dokter link https://drive.google.com/file/d/123"
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                    Narasi Kehadiran
+                  </label>
+                  <textarea
+                    rows={4}
+                    value={aiNarration}
+                    onChange={(e) => setAiNarration(e.target.value)}
+                    placeholder="Ketik narasi kehadiran Anda di sini..."
+                    className="w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-gov-500/20 focus:border-gov-600 font-medium text-slate-800 focus:outline-none transition-all placeholder:text-slate-400"
+                  />
+                </div>
+
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    disabled={isParsing || !aiNarration.trim()}
+                    onClick={handleParseNarration}
+                    className="px-4 py-2.5 text-xs font-bold text-white bg-gov-600 hover:bg-gov-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl shadow-md transition-all flex items-center gap-1.5"
+                  >
+                    {isParsing ? (
+                      <>
+                        <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        Menganalisis dengan AI...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles size={14} />
+                        Proses Narasi dengan AI
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {extractedEntries.length > 0 && (
+                  <div className="space-y-3 pt-4 border-t border-slate-100 animate-fadeIn">
+                    <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center justify-between">
+                      <span>Review Hasil Ekstraksi AI ({extractedEntries.length} entri)</span>
+                      <span className="text-[10px] text-gov-600 bg-gov-50 border border-gov-100 px-2 py-0.5 rounded-full font-bold">Harap Periksa Kembali</span>
+                    </h4>
+
+                    <div className="border border-slate-150 rounded-xl overflow-hidden shadow-sm">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left text-[11px] text-slate-600">
+                          <thead className="bg-slate-50 border-b border-slate-100 text-slate-500 font-bold uppercase tracking-wider">
+                            <tr>
+                              <th className="py-2.5 px-3">Tanggal</th>
+                              <th className="py-2.5 px-3">Status</th>
+                              <th className="py-2.5 px-3">Masuk - Pulang</th>
+                              <th className="py-2.5 px-3">Lokasi</th>
+                              <th className="py-2.5 px-3">Link Surat (Wajib selain Hadir)</th>
+                              <th className="py-2.5 px-3 text-center">Hapus</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 font-medium">
+                            {extractedEntries.map((entry, index) => {
+                              const isHadir = entry.status === 'Hadir';
+                              const d = new Date(entry.date + 'T00:00:00Z');
+                              const formattedDate = isNaN(d.getTime()) ? entry.date : d.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short' });
+
+                              return (
+                                <tr key={index} className="hover:bg-slate-50/50 transition-all">
+                                  <td className="py-2 px-3 font-bold text-slate-800 whitespace-nowrap">{formattedDate}</td>
+                                  <td className="py-2 px-3">
+                                    <select
+                                      value={entry.status}
+                                      onChange={(e) => {
+                                        const newStatus = e.target.value as any;
+                                        const updated = [...extractedEntries];
+                                        updated[index].status = newStatus;
+                                        if (newStatus !== 'Hadir') {
+                                          updated[index].checkInTime = null;
+                                          updated[index].checkOutTime = null;
+                                          updated[index].locationId = null;
+                                          updated[index].locationName = null;
+                                        } else {
+                                          updated[index].checkInTime = '07:30';
+                                          updated[index].checkOutTime = '16:00';
+                                          updated[index].locationId = geofences.length > 0 ? geofences[0].id : 'custom';
+                                          updated[index].locationName = geofences.length > 0 ? geofences[0].name : 'KemenPPPA';
+                                        }
+                                        setExtractedEntries(updated);
+                                      }}
+                                      className="px-1.5 py-1 bg-white border border-slate-200 rounded-md text-[10px] focus:ring-1 focus:ring-gov-500 font-bold"
+                                    >
+                                      <option value="Hadir">Hadir</option>
+                                      <option value="Cuti">Cuti</option>
+                                      <option value="Sakit">Sakit</option>
+                                      <option value="Izin">Izin</option>
+                                      <option value="Penugasan">Penugasan</option>
+                                    </select>
+                                  </td>
+                                  <td className="py-2 px-3 whitespace-nowrap">
+                                    {isHadir ? (
+                                      <div className="flex items-center gap-1">
+                                        <input
+                                          type="time"
+                                          value={entry.checkInTime || '07:30'}
+                                          onChange={(e) => {
+                                            const updated = [...extractedEntries];
+                                            updated[index].checkInTime = e.target.value;
+                                            setExtractedEntries(updated);
+                                          }}
+                                          className="px-1 py-0.5 border border-slate-200 rounded text-[10px] w-14 font-mono focus:outline-none"
+                                        />
+                                        <span>-</span>
+                                        <input
+                                          type="time"
+                                          value={entry.checkOutTime || '16:00'}
+                                          onChange={(e) => {
+                                            const updated = [...extractedEntries];
+                                            updated[index].checkOutTime = e.target.value;
+                                            setExtractedEntries(updated);
+                                          }}
+                                          className="px-1 py-0.5 border border-slate-200 rounded text-[10px] w-14 font-mono focus:outline-none"
+                                        />
+                                      </div>
+                                    ) : (
+                                      <span className="text-slate-400 font-mono">-</span>
+                                    )}
+                                  </td>
+                                  <td className="py-2 px-3">
+                                    {isHadir ? (
+                                      <select
+                                        value={entry.locationId || 'custom'}
+                                        onChange={(e) => {
+                                          const geoId = e.target.value;
+                                          const updated = [...extractedEntries];
+                                          updated[index].locationId = geoId;
+                                          if (geoId === 'custom') {
+                                            updated[index].locationName = 'KemenPPPA';
+                                          } else {
+                                            const foundGeo = geofences.find(g => g.id === geoId);
+                                            updated[index].locationName = foundGeo ? foundGeo.name : 'Kantor';
+                                          }
+                                          setExtractedEntries(updated);
+                                        }}
+                                        className="max-w-[100px] px-1 py-0.5 bg-white border border-slate-200 rounded text-[10px]"
+                                      >
+                                        {geofences.map(g => (
+                                          <option key={g.id} value={g.id}>{g.name}</option>
+                                        ))}
+                                        <option value="custom">Kustom</option>
+                                      </select>
+                                    ) : (
+                                      <span className="text-slate-400">-</span>
+                                    )}
+                                  </td>
+                                  <td className="py-2 px-3">
+                                    {entry.status !== 'Hadir' ? (
+                                      <input
+                                        type="url"
+                                        required
+                                        placeholder="https://link-surat-keterangan.com"
+                                        value={entry.suratKeteranganUrl || ''}
+                                        onChange={(e) => {
+                                          const updated = [...extractedEntries];
+                                          updated[index].suratKeteranganUrl = e.target.value;
+                                          setExtractedEntries(updated);
+                                        }}
+                                        className={`w-full px-2 py-1 text-[10px] border rounded-md focus:outline-none ${
+                                          !entry.suratKeteranganUrl?.trim() ? 'border-amber-300 bg-amber-50/30 placeholder:text-amber-500' : 'border-slate-200'
+                                        }`}
+                                      />
+                                    ) : (
+                                      <span className="text-slate-400 italic">Tidak Perlu</span>
+                                    )}
+                                  </td>
+                                  <td className="py-2 px-3 text-center">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setExtractedEntries(extractedEntries.filter((_, i) => i !== index));
+                                      }}
+                                      className="p-1 text-rose-500 hover:bg-rose-50 rounded"
+                                    >
+                                      <Trash2 size={13} />
+                                    </button>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsAddModalOpen(false);
+                          setExtractedEntries([]);
+                          setAiNarration('');
+                        }}
+                        className="px-4 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition-all"
+                      >
+                        Batal
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleSubmitAIAttendance}
+                        disabled={submitting}
+                        className="px-5 py-2.5 text-xs font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 rounded-xl shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+                      >
+                        {submitting ? (
+                          <>
+                            <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            Menyimpan Kehadiran...
+                          </>
+                        ) : (
+                          'Simpan Semua List Absen'
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <form onSubmit={handleSubmitManual} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto custom-scrollbar">
               {collisionError && (
                 <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-2.5 text-rose-800 text-xs font-semibold animate-shake">
                   <ShieldAlert size={18} className="text-rose-600 flex-shrink-0 mt-0.5" />
@@ -1315,6 +1727,7 @@ export const UserAttendancePage: React.FC<UserAttendancePageProps> = ({
                 </button>
               </div>
             </form>
+          )}
           </div>
         </div>
       )}

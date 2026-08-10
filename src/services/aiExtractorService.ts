@@ -117,6 +117,18 @@ export const aiExtractorService = {
       console.error('Failed to extract budget transaction via Edge Function:', e);
       throw new Error('Gagal mengekstrak transaksi dengan AI: ' + formatError(e));
     }
+  },
+
+  async extractAttendanceFromText(
+    inputText: string,
+    contextData: { startDate: string; endDate: string; geofences: any[] }
+  ): Promise<any[]> {
+    try {
+      return await callAiEdgeFunction('extractAttendanceFromText', { inputText, contextData });
+    } catch (e: any) {
+      console.error('Failed to extract attendance from text via Edge Function:', e);
+      throw new Error('Gagal mengekstrak kehadiran dengan AI: ' + formatError(e));
+    }
   }
 };
 
