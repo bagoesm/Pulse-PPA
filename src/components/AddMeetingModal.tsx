@@ -194,7 +194,11 @@ const AddMeetingModal: React.FC<AddMeetingModalProps> = ({
     const query = suratSearchQuery.toLowerCase();
     return (
       s.nomorSurat?.toLowerCase().includes(query) ||
-      s.hal?.toLowerCase().includes(query)
+      s.hal?.toLowerCase().includes(query) ||
+      s.asalSurat?.toLowerCase().includes(query) ||
+      s.tujuanSurat?.toLowerCase().includes(query) ||
+      s.jenisNaskah?.toLowerCase().includes(query) ||
+      s.bidangTugas?.toLowerCase().includes(query)
     );
   });
 

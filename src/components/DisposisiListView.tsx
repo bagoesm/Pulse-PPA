@@ -136,11 +136,17 @@ const DisposisiListView: React.FC<DisposisiListViewProps> = ({ currentUser, show
       const suratNumber = getSuratNumber(d.suratId).toLowerCase();
       const kegiatanTitle = getKegiatanTitle(d.kegiatanId).toLowerCase();
       const disposisiText = d.disposisiText.toLowerCase();
+      const notes = (d.notes || '').toLowerCase();
+      
+      const assignee = allUsers.find(u => u.id === d.assignedTo);
+      const assigneeName = (assignee?.name || '').toLowerCase();
       
       const matchesSearch = !searchQuery || 
         suratNumber.includes(searchLower) ||
         kegiatanTitle.includes(searchLower) ||
-        disposisiText.includes(searchLower);
+        disposisiText.includes(searchLower) ||
+        notes.includes(searchLower) ||
+        assigneeName.includes(searchLower);
 
       // Status filter
       const matchesStatus = filterStatus === 'All' || d.status === filterStatus;

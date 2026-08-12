@@ -183,11 +183,34 @@ const SuratListView: React.FC<SuratListViewProps> = ({ currentUser, showNotifica
     const filtered = divisionFiltered.filter(surat => {
       // Search filter
       const searchLower = searchQuery.toLowerCase();
+      
+      // Check related disposisi details (assignee name, text, and notes)
+      const suratDisposisi = disposisi.filter(d => d.suratId === surat.id);
+      const matchesDisposisi = suratDisposisi.some(d => {
+        const assignee = allUsers.find(u => u.id === d.assignedTo);
+        return (
+          d.disposisiText?.toLowerCase().includes(searchLower) ||
+          d.notes?.toLowerCase().includes(searchLower) ||
+          assignee?.name?.toLowerCase().includes(searchLower)
+        );
+      });
+
+      const kegiatanTitle = getKegiatanTitle(surat);
+
       const matchesSearch = !searchQuery ||
         surat.nomorSurat.toLowerCase().includes(searchLower) ||
         surat.hal?.toLowerCase().includes(searchLower) ||
         surat.asalSurat?.toLowerCase().includes(searchLower) ||
-        surat.tujuanSurat?.toLowerCase().includes(searchLower);
+        surat.tujuanSurat?.toLowerCase().includes(searchLower) ||
+        surat.jenisNaskah?.toLowerCase().includes(searchLower) ||
+        surat.klasifikasiSurat?.toLowerCase().includes(searchLower) ||
+        surat.sifatSurat?.toLowerCase().includes(searchLower) ||
+        surat.bidangTugas?.toLowerCase().includes(searchLower) ||
+        surat.catatan?.toLowerCase().includes(searchLower) ||
+        surat.hasilTindakLanjut?.toLowerCase().includes(searchLower) ||
+        surat.disposisi?.toLowerCase().includes(searchLower) ||
+        (kegiatanTitle && kegiatanTitle.toLowerCase().includes(searchLower)) ||
+        matchesDisposisi;
 
       // Jenis Surat filter
       const matchesJenisSurat = filterJenisSurat === 'All' || surat.jenisSurat === filterJenisSurat;
