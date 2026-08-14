@@ -11,6 +11,7 @@ const ModuleVisibilityManagement: React.FC = () => {
   const modules = [
     'Semua Task',
     'Project',
+    'Scrum Board',
     'Surat & Kegiatan',
     'Realisasi Anggaran',
     'Inventori Data',

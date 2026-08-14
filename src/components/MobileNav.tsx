@@ -64,6 +64,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
     { name: 'Pengumuman', icon: Megaphone, color: 'text-blue-600', bg: 'bg-blue-50' },
     { name: 'Inventori Data', icon: Database, color: 'text-purple-600', bg: 'bg-purple-50' },
     { name: 'Inventori BMN', icon: Database, color: 'text-sky-600', bg: 'bg-sky-50' },
+    { name: 'Scrum Board', icon: Layers, color: 'text-indigo-600', bg: 'bg-indigo-50' },
     { name: 'Pelayanan Zoom', icon: Video, color: 'text-gov-600', bg: 'bg-gov-50' },
     // Master Data and Satker Visibility only for Super Admin
     ...(currentUser.role === 'Super Admin' ? [

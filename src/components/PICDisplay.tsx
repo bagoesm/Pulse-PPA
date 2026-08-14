@@ -38,8 +38,12 @@ const PICDisplay: React.FC<PICDisplayProps> = ({
   const visiblePics = picArray.slice(0, maxVisible);
   const hiddenCount = picArray.length - visiblePics.length;
 
-  // Helper to get user by name
-  const getUserByName = (name: string) => users.find(u => u.name === name);
+  // Helper to get user by name (case-insensitive and trimmed)
+  const getUserByName = (name: string) => {
+    if (!name) return undefined;
+    const cleanName = name.trim().toLowerCase();
+    return users.find(u => u.name && u.name.trim().toLowerCase() === cleanName);
+  };
 
   return (
     <div className={`flex items-center gap-1 ${className}`}>

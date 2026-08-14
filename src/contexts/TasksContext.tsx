@@ -132,6 +132,8 @@ export const TasksProvider: React.FC<TasksProviderProps> = ({ children, session 
                     startDate: t.start_date || t.startDate || new Date().toISOString().split('T')[0],
                     projectId: t.project_id || t.projectId || null,
                     epicId: t.epic_id || t.epicId || null,
+                    sprintId: t.sprint_id || null,
+                    storyPoints: t.story_points || null,
                     createdBy: createdByName,
                     pic: picNames,
                     deadline: t.deadline || (t.deadline_at || null),

@@ -1,14 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
-dotenv.config();
+dotenv.config({ path: '.env.local' });
 
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+  process.env.VITE_SUPABASE_ANON_KEY || ''
 );
 
 async function main() {
-  const { data: profiles, error } = await supabase.from('profiles').select('id, name, role, divisi');
+  const { data: profiles, error } = await supabase.from('profiles').select('id, name, profile_photo, profile_photo_path');
   if (error) {
     console.error('Error fetching profiles:', error);
     return;

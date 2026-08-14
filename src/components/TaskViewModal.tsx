@@ -1,6 +1,6 @@
 // src/components/TaskViewModal.tsx
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Edit, Calendar, Layers, Paperclip, Download, User, Clock, Flag, FileText, Info, MessageSquare, Eye, Share2, MoreHorizontal, ArrowRight, Send, ExternalLink, Trash2, Activity, ChevronDown, Link2, CheckCircle2, Circle } from 'lucide-react';
+import { X, Edit, Calendar, Layers, Paperclip, Download, User, Clock, Flag, FileText, Info, MessageSquare, Eye, Share2, MoreHorizontal, ArrowRight, Send, ExternalLink, Trash2, Activity, ChevronDown, Link2, CheckCircle2, Circle, Target } from 'lucide-react';
 import { Task, User as UserType, ProjectDefinition, Attachment, Priority, Status, Comment, TaskLink, TaskActivity } from '../../types';
 import { supabase } from '../lib/supabaseClient';
 import PICDisplay from './PICDisplay';
@@ -715,6 +715,21 @@ const TaskViewModal: React.FC<TaskViewModalProps> = ({
                   </span>
                 </div>
               </div>
+
+              {/* Story Points */}
+              {task.storyPoints !== undefined && task.storyPoints !== null && (
+                <div className="flex items-center gap-4 animate-fadeIn">
+                  <div className="flex items-center gap-3 w-28 text-gray-500">
+                    <Target size={16} />
+                    <span className="text-sm">Story Points</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="px-3.5 py-1 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-3xs">
+                      {task.storyPoints} SP
+                    </span>
+                  </div>
+                </div>
+              )}
 
               {/* Description */}
               {task.description && (

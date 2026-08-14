@@ -22,6 +22,7 @@ export function useModuleVisibility(currentUser: User | null) {
         'Dashboard',
         'Semua Task',
         'Project',
+        'Scrum Board',
         'Surat & Kegiatan',
         'Realisasi Anggaran',
         'Inventori Data',
@@ -57,7 +58,7 @@ export function useModuleVisibility(currentUser: User | null) {
     } catch (error) {
       console.error('Failed to load module visibility:', error);
       // Fallback in case of error: show standard modules, hide Laporan Absensi & Pelayanan Zoom
-      setVisibleModules([
+      const fallbackModules = [
         'Dashboard',
         'Semua Task',
         'Project',
@@ -68,7 +69,11 @@ export function useModuleVisibility(currentUser: User | null) {
         'Penilaian Arsip',
         'Laporan WFA',
         'Absensi Saya'
-      ]);
+      ];
+      if (currentUser?.divisi === 'Biro Data dan Informasi') {
+        fallbackModules.push('Scrum Board');
+      }
+      setVisibleModules(fallbackModules);
     } finally {
       setLoading(false);
     }

@@ -105,6 +105,8 @@ export const translateTabName = (tabName: string): string => {
       return 'Semua Tugas';
     case 'Project':
       return 'Proyek';
+    case 'Scrum Board':
+      return 'Papan Scrum';
     case 'Diskusi & Chat':
       return 'Diskusi & Obrolan';
     case 'Dashboard Statistik':

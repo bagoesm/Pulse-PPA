@@ -114,6 +114,22 @@ export interface ProjectDefinition {
   share_token?: string | null; // Token untuk berbagi ke publik
 }
 
+export type SprintStatus = 'Planned' | 'Active' | 'Completed';
+
+export interface Sprint {
+  id: string;
+  name: string;
+  goal?: string;
+  description?: string;
+  projectId: string;          // Parent project
+  status: SprintStatus;
+  startDate?: string;         // ISO Date string
+  endDate?: string;           // ISO Date string
+  createdBy: string;          // User name yang membuat
+  createdAt: string;          // ISO Date string
+  updatedAt?: string;         // ISO Date string
+}
+
 // Epic - Middle layer between Project and Task
 export type EpicStatus = 'Not Started' | 'In Progress' | 'Completed';
 
@@ -204,6 +220,8 @@ export interface Task {
   createdAt?: string;
   updatedAt?: string;
   updated_status_at?: string;
+  sprintId?: string;          // OPSIONAL - Task boleh tanpa sprint
+  storyPoints?: number;       // OPSIONAL - Estimasi bobot tugas
 }
 
 // Subtask - Mini-task di bawah Task (1 level saja, tidak bisa nested)
@@ -381,6 +399,7 @@ export const SIDEBAR_ITEMS = [
   { name: 'Dashboard', icon: 'LayoutDashboard' },
   { name: 'Semua Task', icon: 'ListTodo' },
   { name: 'Project', icon: 'Briefcase' },
+  { name: 'Scrum Board', icon: 'Layers' },
   { name: 'Diskusi & Chat', icon: 'MessageSquarePlus' },
   {
     name: 'Surat & Kegiatan',

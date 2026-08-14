@@ -93,6 +93,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
     status: Status.ToDo,
     description: '',
     projectId: '', // Opsional - boleh kosong
+    storyPoints: null,
     epicId: '', // Opsional - boleh kosong
     attachments: [],
     links: [],
@@ -169,7 +170,8 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
         links: initialData.links || [],
         blockedBy: initialData.blockedBy || [],
         checklists: initialData.checklists || [],
-        pic: Array.isArray(initialData.pic) ? initialData.pic : (initialData.pic ? [initialData.pic as any] : [])
+        pic: Array.isArray(initialData.pic) ? initialData.pic : (initialData.pic ? [initialData.pic as any] : []),
+        storyPoints: initialData.storyPoints !== undefined ? initialData.storyPoints : null
       });
     } else {
       setFormData({
@@ -186,7 +188,8 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
         attachments: [],
         links: [],
         checklists: [],
-        createdBy: currentUser?.name ?? ''
+        createdBy: currentUser?.name ?? '',
+        storyPoints: null
       });
     }
 
@@ -1411,7 +1414,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
               {/* Priority */}
               <div>
                 <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Prioritas</label>
@@ -1438,6 +1441,23 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
                   <option value="" disabled hidden>-- Pilih Status --</option>
                   {Object.values(Status).map(s => <option key={s} value={s}>{translateStatus(s)}</option>)}
                 </select>
+              </div>
+
+              {/* Story Points (Opsional) */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Story Points (Opsional)</label>
+                <input
+                  type="number"
+                  min="0"
+                  disabled={isReadOnly}
+                  value={formData.storyPoints !== undefined && formData.storyPoints !== null ? formData.storyPoints : ''}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    handleChange('storyPoints', val === '' ? null : parseInt(val, 10));
+                  }}
+                  placeholder="Contoh: 3, 5, 8..."
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm text-slate-700 placeholder-slate-400 disabled:bg-slate-50 disabled:text-slate-500"
+                />
               </div>
             </div>
 

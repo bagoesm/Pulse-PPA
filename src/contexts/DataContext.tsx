@@ -30,6 +30,7 @@ import { MasterDataProvider } from './MasterDataContext';
 import { AppContentProvider } from './AppContentContext';
 import { SubtasksProvider } from './SubtasksContext';
 import { DivisionProvider } from './DivisionContext';
+import { SprintsProvider, useSprints } from './SprintsContext';
 
 interface DataProviderProps {
     children: ReactNode;
@@ -46,8 +47,9 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, session })
             <DivisionProvider session={session}>
                 <MasterDataProvider session={session}>
                     <ProjectsProvider session={session}>
-                        <EpicsProvider session={session}>
-                            <MeetingsProvider session={session}>
+                        <SprintsProvider session={session}>
+                            <EpicsProvider session={session}>
+                                <MeetingsProvider session={session}>
                                 <SuratsProvider session={session}>
                                     <DisposisiProvider session={session}>
                                         <BMNProvider session={session}>
@@ -63,6 +65,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children, session })
                                 </SuratsProvider>
                             </MeetingsProvider>
                         </EpicsProvider>
+                        </SprintsProvider>
                     </ProjectsProvider>
                 </MasterDataProvider>
             </DivisionProvider>
@@ -84,6 +87,7 @@ export const useData = () => {
     const users = useUsers();
     const tasks = useTasks();
     const projects = useProjects();
+    const sprintsContext = useSprints();
     const epicsContext = useEpics();
     const meetings = useMeetings();
     const masterData = useMasterData();
@@ -124,6 +128,7 @@ export const useData = () => {
     const isDataLoading = users.isUsersLoading ||
         tasks.isTasksLoading ||
         projects.isProjectsLoading ||
+        sprintsContext.isSprintsLoading ||
         epicsContext.isEpicsLoading ||
         meetings.isMeetingsLoading ||
         masterData.isMasterDataLoading ||
@@ -138,6 +143,7 @@ export const useData = () => {
             tasks.fetchComments(),
             tasks.fetchTaskActivities(),
             projects.fetchProjects(),
+            sprintsContext.fetchSprints(),
             meetings.fetchMeetings(),
             masterData.fetchMasterData(),
             appContent.fetchFeedbacks(),
@@ -146,7 +152,7 @@ export const useData = () => {
             appContent.fetchDataInventory(),
             appContent.fetchChristmasSettings()
         ]);
-    }, [users, tasks, projects, meetings, masterData, appContent]);
+    }, [users, tasks, projects, sprintsContext, meetings, masterData, appContent]);
 
     // Clear all data
     const clearAllData = useCallback(() => {

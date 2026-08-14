@@ -56,7 +56,7 @@ export class ModuleVisibilityService {
           if (divVis[modName] !== undefined) {
             visibility[modName] = divVis[modName];
           } else {
-            if (modName === 'Pelayanan Zoom') {
+            if (modName === 'Pelayanan Zoom' || modName === 'Scrum Board') {
               visibility[modName] = div.name === 'Biro Data dan Informasi';
             } else {
               visibility[modName] = true; // Other modules visible by default
@@ -154,6 +154,7 @@ export class ModuleVisibilityService {
       const allModules = [
         'Semua Task',
         'Project',
+        'Scrum Board',
         'Surat & Kegiatan',
         'Realisasi Anggaran',
         'Inventori Data',
@@ -173,7 +174,7 @@ export class ModuleVisibilityService {
         }
         
         // Default behavior
-        if (modName === 'Pelayanan Zoom') {
+        if (modName === 'Pelayanan Zoom' || modName === 'Scrum Board') {
           return divisiName === 'Biro Data dan Informasi';
         }
         if (modName === 'Laporan Absensi') {
