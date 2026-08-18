@@ -81,6 +81,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
   const [aiTasks, setAiTasks] = useState<any[]>([]);
   const [reviewMode, setReviewMode] = useState(false);
   const [defaultAiProjectId, setDefaultAiProjectId] = useState('');
+  const [shouldGenerateChecklists, setShouldGenerateChecklists] = useState(false);
 
   const [formData, setFormData] = useState<Partial<Task>>({
     title: '',
@@ -507,7 +508,8 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
 
     setIsAiProcessing(true);
     try {
-      const extracted = await aiExtractorService.extractTasksFromText(aiInputText, {
+      const promptText = aiInputText + (!shouldGenerateChecklists ? "\n(Catatan: JANGAN membuat rincian sub-task/checklist untuk tugas-tugas ini, kosongkan array checklists)" : "");
+      const extracted = await aiExtractorService.extractTasksFromText(promptText, {
         users: users.map(u => u.name),
         categories: masterCategories.map(c => c.name),
         subCategories: masterSubCategories.map(s => s.name),
@@ -583,7 +585,7 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
               })
           : [];
 
-        const checklistItems = Array.isArray(t.checklists)
+        const checklistItems = shouldGenerateChecklists && Array.isArray(t.checklists)
           ? t.checklists.map((itemText: any, idx: number) => ({
               id: `cl_ai_${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 9)}`,
               text: (typeof itemText === 'string' ? itemText : (itemText.text || '')).trim(),
@@ -857,40 +859,51 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
                 }`}
               />
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center pt-2">
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
-                    Project Default (Opsional)
-                  </label>
-                  <SearchableSelect
-                    options={projects.map(p => ({ value: p.id, label: p.name }))}
-                    value={defaultAiProjectId}
-                    onChange={(val) => setDefaultAiProjectId(val)}
-                    placeholder="Pilih project..."
-                    emptyOption="-- Tidak terkait project --"
-                  />
-                </div>
-                <div className="flex justify-end pt-4">
-                  <button
-                    type="button"
-                    disabled={isAiProcessing || !aiInputText.trim()}
-                    onClick={handleProcessAi}
-                    className="w-full sm:w-auto px-4 py-2.5 rounded-lg text-xs font-bold text-white bg-gov-600 hover:bg-gov-700 shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
-                  >
-                    {isAiProcessing ? (
-                      <>
-                        <Loader2 size={14} className="animate-spin" />
-                        <span>Menganalisis...</span>
-                      </>
-                    ) : (
-                      <>
-                        <span>{aiTasks.length > 0 ? 'Proses Ulang dengan AI' : 'Proses dengan AI'}</span>
-                        <span className="text-xs">🪄</span>
-                      </>
-                    )}
-                  </button>
-                </div>
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pt-2">
+              <div className="w-full sm:max-w-xs">
+                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                  Project Default (Opsional)
+                </label>
+                <SearchableSelect
+                  options={projects.map(p => ({ value: p.id, label: p.name }))}
+                  value={defaultAiProjectId}
+                  onChange={(val) => setDefaultAiProjectId(val)}
+                  placeholder="Pilih project..."
+                  emptyOption="-- Tidak terkait project --"
+                />
               </div>
+
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full sm:w-auto justify-end">
+                <label className="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-xl transition-all cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={shouldGenerateChecklists}
+                    onChange={(e) => setShouldGenerateChecklists(e.target.checked)}
+                    className="w-4.5 h-4.5 text-gov-600 focus:ring-gov-500 border-slate-350 rounded cursor-pointer transition-all"
+                  />
+                  <span className="text-xs font-semibold text-slate-650">Hasilkan Checklist dengan AI</span>
+                </label>
+
+                <button
+                  type="button"
+                  disabled={isAiProcessing || !aiInputText.trim()}
+                  onClick={handleProcessAi}
+                  className="w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-gov-600 hover:bg-gov-700 shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  {isAiProcessing ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" />
+                      <span>Menganalisis...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>{aiTasks.length > 0 ? 'Proses Ulang dengan AI' : 'Proses dengan AI'}</span>
+                      <span className="text-xs">🪄</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
             </div>
 
             {/* AI Review Section */}
