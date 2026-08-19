@@ -138,6 +138,62 @@ export const aiExtractorService = {
       console.error('Failed to delete WFA report via Edge Function:', e);
       throw new Error(formatError(e));
     }
+  },
+
+  async generateText(prompt: string): Promise<string> {
+    try {
+      return await callAiEdgeFunction('generateText', { prompt });
+    } catch (edgeError: any) {
+      console.warn('Edge Function generateText failed, trying client-side Gemini fallback...', edgeError);
+
+      const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      if (geminiKey) {
+        try {
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key=${geminiKey}`;
+          const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }]
+            })
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (text) return text.trim();
+          }
+        } catch (geminiError) {
+          console.error('Client-side Gemini call failed:', geminiError);
+        }
+      }
+
+      const openAiKey = import.meta.env.VITE_OPENAI_API_KEY;
+      if (openAiKey) {
+        try {
+          const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${openAiKey}`
+            },
+            body: JSON.stringify({
+              model: 'gpt-4o-mini',
+              messages: [{ role: 'user', content: prompt }]
+            })
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            return data.choices?.[0]?.message?.content?.trim() || '';
+          }
+        } catch (openAiError) {
+          console.error('Client-side OpenAI call failed:', openAiError);
+        }
+      }
+
+      throw new Error('Gagal memproses AI: ' + formatError(edgeError));
+    }
   }
 };
 

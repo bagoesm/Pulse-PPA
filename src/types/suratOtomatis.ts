@@ -1,6 +1,6 @@
 // Types untuk fitur pembuatan surat otomatis
 
-export type SuratTemplateType = 'surat-keterangan-umum' | 'daftar-hadir' | 'simperjadin';
+export type SuratTemplateType = 'surat-keterangan-umum' | 'daftar-hadir' | 'simperjadin' | 'surat-undangan';
 
 export interface SuratTemplate {
   id: SuratTemplateType;
@@ -568,5 +568,152 @@ export const SURAT_TEMPLATES: SuratTemplate[] = [
     fileName: 'simperjadin-kwitansi.docx',
     previewInstructions: 'Pilih jenis dokumen SIMPERJADIN yang ingin diunduh (Kwitansi, Rincian Biaya, Pengeluaran Riil, atau Cetak 3 File Sekalisyang)',
     fields: SIMPERJADIN_COMMON_FIELDS
+  },
+  {
+    id: 'surat-undangan',
+    name: 'Surat Undangan',
+    description: 'Pembuatan Surat Undangan Resmi dengan Lampiran Daftar Peserta dan Jadwal Kegiatan format Word (.docx)',
+    fileName: 'surat-undangan.docx',
+    previewInstructions: 'Preview menampilkan isi surat undangan dengan data yang Anda isi. Nomor naskah dan tanggal naskah resmi akan dikosongkan untuk diproses oleh sistem persuratan resmi.',
+    fields: [
+      // === BAGIAN 1: INFORMASI SURAT (PENERIMA & PERIHAL) ===
+      {
+        id: 'yth',
+        label: 'Tujuan Surat (Yth.)',
+        type: 'text',
+        placeholder: 'Contoh: Daftar Terlampir',
+        required: true,
+        helpText: 'Pihak yang dituju dalam surat undangan'
+      },
+      {
+        id: 'tempat_tujuan',
+        label: 'Tempat Tujuan Penerima',
+        type: 'text',
+        placeholder: 'Contoh: Jakarta',
+        required: true,
+        helpText: 'Kota/tempat penerima surat'
+      },
+      {
+        id: 'hal',
+        label: 'Hal Undangan',
+        type: 'text',
+        placeholder: 'Contoh: Rapat Koordinasi dan Integrasi...',
+        required: true,
+        helpText: 'Perihal undangan'
+      },
+      {
+        id: 'lampiran',
+        label: 'Jumlah Lampiran (Angka saja)',
+        type: 'number',
+        placeholder: 'Contoh: 1',
+        required: true,
+        helpText: 'Masukkan angka saja (e.g. 1 untuk otomatis diformat menjadi 1 (satu) berkas)'
+      },
+
+      // === BAGIAN 2: DETAIL KEGIATAN ===
+      {
+        id: 'nama_kegiatan',
+        label: 'Nama Kegiatan (Isi Surat)',
+        type: 'text',
+        placeholder: 'Contoh: Rapat Koordinasi dan Integrasi...',
+        required: true,
+        helpText: 'Nama kegiatan yang dimasukkan di paragraf isi surat'
+      },
+      {
+        id: 'maksud_kegiatan',
+        label: 'Maksud / Latar Belakang Kegiatan',
+        type: 'textarea',
+        placeholder: 'Maksud diadakannya rapat koordinasi...',
+        required: true,
+        helpText: 'Paragraf latar belakang/maksud kegiatan'
+      },
+      {
+        id: 'hari_tanggal_kegiatan',
+        label: 'Tanggal Pelaksanaan Rapat/Kegiatan',
+        type: 'date',
+        required: true,
+        helpText: 'Pilih tanggal rapat. Hari dan tanggal terformat (e.g., Rabu, 5 Agustus 2026) akan otomatis dihasilkan.'
+      },
+      {
+        id: 'waktu_mulai',
+        label: 'Waktu Mulai Rapat/Kegiatan',
+        type: 'time',
+        required: true,
+        helpText: 'Pilih jam mulai rapat'
+      },
+      {
+        id: 'waktu_selesai',
+        label: 'Waktu Selesai Rapat/Kegiatan (Kosongkan jika selesai)',
+        type: 'time',
+        required: false,
+        helpText: 'Pilih jam selesai, atau kosongkan untuk otomatis menghasilkan "selesai"'
+      },
+      {
+        id: 'waktu_kegiatan',
+        label: 'Format Waktu Kegiatan (Otomatis)',
+        type: 'text',
+        required: true,
+        readOnly: true,
+        helpText: 'Format waktu akhir yang dihasilkan otomatis dari waktu mulai & selesai'
+      },
+      {
+        id: 'tempat_kegiatan',
+        label: 'Tempat Kegiatan',
+        type: 'textarea',
+        placeholder: 'Masukkan nama ruang rapat dan alamat...',
+        required: true,
+        helpText: 'Tempat/lokasi pelaksanaan rapat'
+      },
+      {
+        id: 'contact_user_id',
+        label: 'Pilih Narahubung dari Daftar User (Opsional)',
+        type: 'user-select',
+        placeholder: 'Cari nama narahubung...',
+        required: false,
+        helpText: 'Pilih dari user jika ingin mengisi kolom Narahubung di bawah secara otomatis'
+      },
+      {
+        id: 'contact_person',
+        label: 'Nama & No Telepon Narahubung (Input Manual)',
+        type: 'text',
+        placeholder: 'Contoh: Sdr. Tri Ako Nugroho (0821 1461 5056)',
+        required: true,
+        autoFillFrom: 'contact_user_id.name',
+        helpText: 'Narahubung konfirmasi kehadiran'
+      },
+
+      // === BAGIAN 3: PESERTA & TEMBUSAN ===
+      {
+        id: 'tanggal_surat',
+        label: 'Tanggal Penandatanganan Surat',
+        type: 'date',
+        required: true,
+        helpText: 'Tanggal penandatanganan surat (e.g. Jakarta, 19 Agustus 2026)'
+      },
+      {
+        id: 'tembusan',
+        label: 'Tembusan',
+        type: 'textarea',
+        placeholder: 'Masukkan tembusan surat...',
+        required: true,
+        helpText: 'Tembusan surat undangan'
+      },
+      {
+        id: 'daftar_peserta',
+        label: 'Daftar Peserta (Seksi Lampiran 1)',
+        type: 'textarea',
+        placeholder: 'Masukkan daftar peserta (satu baris per peserta)...',
+        required: true,
+        helpText: 'Daftar peserta yang diundang di Lampiran 1 (tulis satu peserta per baris)'
+      },
+      {
+        id: 'jadwal_kegiatan',
+        label: 'Jadwal Rapat (Seksi Lampiran 2)',
+        type: 'textarea',
+        placeholder: 'Format: Waktu | Kegiatan | Keterangan',
+        required: true,
+        helpText: 'Tuliskan rundown rapat di Lampiran 2 dengan format: WAKTU | NAMA KEGIATAN | KETERANGAN (pisahkan dengan karakter pipa |)'
+      }
+    ]
   }
 ];

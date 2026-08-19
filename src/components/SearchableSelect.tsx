@@ -180,7 +180,7 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
             >
                 <div className="flex-1 truncate text-left min-w-0">
                     <span className={`block truncate ${selectedLabel ? 'text-slate-700' : 'text-slate-400'}`}>
-                        {selectedLabel || emptyOption}
+                        {selectedLabel || placeholder || emptyOption}
                     </span>
                 </div>
 

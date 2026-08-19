@@ -88,6 +88,28 @@ serve(async (req) => {
     } else if (action === 'extractAttendanceFromText') {
       const { inputText, contextData } = payload
       result = await handleExtractAttendanceFromText(inputText, contextData, geminiApiKey, openAiApiKey)
+    } else if (action === 'generateText') {
+      const { prompt } = payload
+      if (geminiApiKey) {
+        result = await callGeminiRest(prompt, [], geminiApiKey);
+      } else if (openAiApiKey) {
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${openAiApiKey}`
+          },
+          body: JSON.stringify({
+            model: 'gpt-4o-mini',
+            messages: [{ role: 'user', content: prompt }]
+          })
+        });
+        if (!response.ok) throw new Error('OpenAI Error');
+        const data = await response.json();
+        result = data.choices[0].message.content.trim();
+      } else {
+        throw new Error('AI API keys not configured');
+      }
     } else if (action === 'deleteWfaLaporan') {
       const { id } = payload
       if (!id) throw new Error('Missing ID parameter')

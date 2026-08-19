@@ -355,6 +355,8 @@ export class SuratOtomatisService {
     }
 
     switch (templateType) {
+      case 'surat-undangan':
+        return 'surat-undangan.docx';
       case 'surat-keterangan-umum':
       default:
         return 'surat-keterangan.docx';
@@ -385,6 +387,30 @@ export class SuratOtomatisService {
     };
 
     return count(n) + ' Rupiah';
+  }
+
+  /**
+   * Helper function to convert number to Indonesian words without currency suffix (Terbilang)
+   */
+  static terbilangTanpaRupiah(n: number): string {
+    const units = ['', 'satu', 'dua', 'tiga', 'empat', 'lima', 'enam', 'tujuh', 'delapan', 'sembilan', 'sepuluh', 'sebelas'];
+
+    if (n < 0) return 'minus ' + this.terbilangTanpaRupiah(-n);
+    if (n === 0) return 'nol';
+
+    const count = (val: number): string => {
+      val = Math.floor(val);
+      if (val < 12) return units[val];
+      if (val < 20) return count(val - 10) + ' belas';
+      if (val < 100) return count(Math.floor(val / 10)) + ' puluh' + (val % 10 !== 0 ? ' ' + count(val % 10) : '');
+      if (val < 200) return 'seratus' + (val - 100 !== 0 ? ' ' + count(val - 100) : '');
+      if (val < 1000) return count(Math.floor(val / 100)) + ' ratus' + (val % 100 !== 0 ? ' ' + count(val % 100) : '');
+      if (val < 2000) return 'seribu' + (val - 1000 !== 0 ? ' ' + count(val - 1000) : '');
+      if (val < 1000000) return count(Math.floor(val / 1000)) + ' ribu' + (val % 1000 !== 0 ? ' ' + count(val % 1000) : '');
+      return val.toString();
+    };
+
+    return count(n);
   }
 
   /**
@@ -1069,8 +1095,8 @@ export class SuratOtomatisService {
    * Format data untuk template docx
    * Konversi format tanggal, format teks, perhitungan biaya & terbilang
    */
-  private static formatDataForTemplate(formData: Record<string, string | number>): Record<string, string> {
-    const formatted: Record<string, string> = {};
+  private static formatDataForTemplate(formData: Record<string, string | number>): Record<string, any> {
+    const formatted: Record<string, any> = {};
 
     // First copy all raw keys
     for (const [key, value] of Object.entries(formData)) {
@@ -1156,6 +1182,68 @@ export class SuratOtomatisService {
 
     const riil_total = riil_transport_taksi + riil_transport_lokasi + riil_transport_kota;
     formatted['riil_total_format'] = this.formatRupiah(riil_total);
+
+    // SURAT UNDANGAN Custom formatting
+    if (formData.nama_kegiatan) {
+      formatted['nama_kegiatan_kapital'] = String(formData.nama_kegiatan).toUpperCase();
+    }
+    if (formData.tempat_tujuan && formatted['tanggal_surat']) {
+      formatted['tempat_tanggal_kegiatan'] = `${formData.tempat_tujuan}, ${formatted['tanggal_surat']}`;
+    } else if (formData.tempat_tujuan) {
+      formatted['tempat_tanggal_kegiatan'] = String(formData.tempat_tujuan);
+    }
+
+    if (formData.lampiran) {
+      const num = parseInt(String(formData.lampiran), 10);
+      if (!isNaN(num)) {
+        const terbilangStr = this.terbilangTanpaRupiah(num);
+        formatted['lampiran'] = `${num} (${terbilangStr}) berkas`;
+      } else {
+        formatted['lampiran'] = String(formData.lampiran);
+      }
+    }
+
+    if (formData.hari_tanggal_kegiatan) {
+      const value = String(formData.hari_tanggal_kegiatan);
+      if (value.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        const date = new Date(value);
+        const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+        const dayName = days[date.getDay()];
+        const formattedDate = this.formatTanggalIndonesia(value);
+        formatted['hari_tanggal_kegiatan'] = `${dayName}, ${formattedDate}`;
+      } else {
+        formatted['hari_tanggal_kegiatan'] = value;
+      }
+    }
+
+    if (formData.jadwal_kegiatan) {
+      const lines = String(formData.jadwal_kegiatan).split('\n');
+      formatted['jadwal'] = lines.map(line => {
+        const parts = line.split('|');
+        return {
+          waktu: parts[0]?.trim() || '',
+          kegiatan: parts[1]?.trim() || '',
+          keterangan: parts[2]?.trim() || ''
+        };
+      }).filter(item => item.waktu || item.kegiatan || item.keterangan);
+    } else {
+      formatted['jadwal'] = [];
+    }
+
+    if (formData.daftar_peserta) {
+      const lines = String(formData.daftar_peserta)
+        .split('\n')
+        .map(line => line.trim())
+        .filter(Boolean);
+      
+      const numberedLines = lines.map((line, idx) => {
+        if (line.match(/^\d+[\.\s]/)) {
+          return line;
+        }
+        return `${idx + 1}. ${line}`;
+      });
+      formatted['daftar_peserta'] = numberedLines.join('\n');
+    }
 
     return formatted;
   }
@@ -1258,7 +1346,8 @@ export class SuratOtomatisService {
     formData: Record<string, string | number>
   ): string {
     const timestamp = new Date().toISOString().split('T')[0];
-    const nama = (formData.nama_pegawai || formData.nama_lengkap || 'draft').toString().replace(/\s+/g, '_');
+    const rawNama = formData.nama_pegawai || formData.nama_lengkap || formData.nama_kegiatan || 'draft';
+    const nama = rawNama.toString().replace(/\s+/g, '_').substring(0, 30);
 
     if (templateType === 'simperjadin') {
       const jenis = String(formData.jenis_dokumen_simperjadin || '');
