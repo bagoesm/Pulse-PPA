@@ -23,6 +23,7 @@ import { useUsers } from '../contexts/UsersContext';
 import SearchableSelect from './SearchableSelect';
 import CompactPICSelector from './CompactPICSelector';
 import PICDisplay from './PICDisplay';
+import ScrumFilterBar from './ScrumFilterBar';
 import { Task, Sprint, Subtask, Status, SprintStatus, User as UserType } from '../../types';
 
 // Typing animation component for the welcome landing page
@@ -114,6 +115,13 @@ const ScrumBoard: React.FC = () => {
   const [backlogSearch, setBacklogSearch] = useState('');
   const [backlogCategory, setBacklogCategory] = useState('All');
   const [backlogPriority, setBacklogPriority] = useState('All');
+  const [backlogPic, setBacklogPic] = useState('All');
+
+  // Active Sprint Board Filter states
+  const [boardSearch, setBoardSearch] = useState('');
+  const [boardCategory, setBoardCategory] = useState('All');
+  const [boardPriority, setBoardPriority] = useState('All');
+  const [boardPic, setBoardPic] = useState('All');
 
   // Accordion toggle states for Sprints and Backlog in Jira-style list
   const [expandedSprintIds, setExpandedSprintIds] = useState<Record<string, boolean>>({
@@ -206,16 +214,18 @@ const ScrumBoard: React.FC = () => {
   // Project Tasks (all tasks belonging to this project)
   const projectTasks = useMemo(() => {
     if (!selectedProjectId) return [];
-    return tasks.filter(t => t.projectId === selectedProjectId);
+    return tasks
+      .filter(t => t.projectId === selectedProjectId)
+      .sort((a, b) => new Date(a.createdAt || a.created_at || 0).getTime() - new Date(b.createdAt || b.created_at || 0).getTime());
   }, [tasks, selectedProjectId]);
 
-  // Backlog tasks (project tasks with no sprint assigned, excluding completed ones, applying local search, filters & sorting)
-  const backlogTasks = useMemo(() => {
-    let filtered = projectTasks.filter(t => !t.sprintId && t.status !== Status.Done);
+  // Filtered tasks for the Planning tab (applies to active sprint tasks, planned sprint tasks, and backlog tasks)
+  const filteredPlanningTasks = useMemo(() => {
+    let filtered = projectTasks;
     
     if (backlogSearch.trim() !== '') {
       const q = backlogSearch.toLowerCase();
-      filtered = filtered.filter(t => t.title.toLowerCase().includes(q));
+      filtered = filtered.filter(t => t.title.toLowerCase().includes(q) || t.id.toLowerCase().includes(q));
     }
     
     if (backlogCategory !== 'All') {
@@ -225,6 +235,17 @@ const ScrumBoard: React.FC = () => {
     if (backlogPriority !== 'All') {
       filtered = filtered.filter(t => t.priority === backlogPriority);
     }
+    
+    if (backlogPic !== 'All') {
+      filtered = filtered.filter(t => (t.pic || []).includes(backlogPic));
+    }
+    
+    return filtered;
+  }, [projectTasks, backlogSearch, backlogCategory, backlogPriority, backlogPic]);
+
+  // Backlog tasks (project tasks with no sprint assigned, excluding completed ones, applying local search, filters & sorting)
+  const backlogTasks = useMemo(() => {
+    let filtered = filteredPlanningTasks.filter(t => !t.sprintId && t.status !== Status.Done);
     
     // Apply sorting
     filtered.sort((a, b) => {
@@ -256,7 +277,7 @@ const ScrumBoard: React.FC = () => {
     });
     
     return filtered;
-  }, [projectTasks, backlogSearch, backlogCategory, backlogPriority, backlogSortBy]);
+  }, [filteredPlanningTasks, backlogSortBy]);
 
   // Unique categories in project tasks for backlog filtering
   const uniqueCategories = useMemo(() => {
@@ -268,6 +289,32 @@ const ScrumBoard: React.FC = () => {
   const activeSprint = useMemo(() => {
     return projectSprints.find(s => s.status === 'Active');
   }, [projectSprints]);
+
+  // Filtered tasks for the Active Sprint Board (tab 2)
+  const filteredBoardTasks = useMemo(() => {
+    if (!activeSprint) return [];
+    
+    let filtered = projectTasks.filter(t => t.sprintId === activeSprint.id);
+    
+    if (boardSearch.trim() !== '') {
+      const q = boardSearch.toLowerCase();
+      filtered = filtered.filter(t => t.title.toLowerCase().includes(q) || t.id.toLowerCase().includes(q));
+    }
+    
+    if (boardCategory !== 'All') {
+      filtered = filtered.filter(t => t.category === boardCategory);
+    }
+    
+    if (boardPriority !== 'All') {
+      filtered = filtered.filter(t => t.priority === boardPriority);
+    }
+    
+    if (boardPic !== 'All') {
+      filtered = filtered.filter(t => (t.pic || []).includes(boardPic));
+    }
+    
+    return filtered;
+  }, [projectTasks, activeSprint, boardSearch, boardCategory, boardPriority, boardPic]);
 
   // Expand / collapse section helper
   const toggleSprintAccordion = (sprintId: string) => {
@@ -1163,6 +1210,25 @@ const ScrumBoard: React.FC = () => {
                 {/* TAB 1: BACKLOG & PLANNING (JIRA VERTICAL LAYOUT) */}
                 {activeTab === 'planning' && (
                   <div className="h-full overflow-y-auto p-6 sm:p-8 space-y-6 scrollbar-thin scrollbar-thumb-slate-300">
+                    <ScrumFilterBar
+                      searchVal={backlogSearch}
+                      onSearchChange={setBacklogSearch}
+                      categoryVal={backlogCategory}
+                      onCategoryChange={setBacklogCategory}
+                      priorityVal={backlogPriority}
+                      onPriorityChange={setBacklogPriority}
+                      picVal={backlogPic}
+                      onPicChange={setBacklogPic}
+                      uniqueCategories={uniqueCategories}
+                      allUsers={allUsers}
+                      onReset={() => {
+                        setBacklogSearch('');
+                        setBacklogCategory('All');
+                        setBacklogPriority('All');
+                        setBacklogPic('All');
+                      }}
+                      searchPlaceholder="Cari tugas di backlog & sprint..."
+                    />
                     
                     {/* JIRA STYLE SECTION 1: ACTIVE SPRINT */}
                     <div className="bg-white border border-slate-200 rounded-2xl shadow-2xs overflow-hidden">
@@ -1203,7 +1269,7 @@ const ScrumBoard: React.FC = () => {
                           onDrop={(e) => handleDropToSprint(e, activeSprint)}
                           className="p-4"
                         >
-                          {renderTaskList(projectTasks.filter(t => t.sprintId === activeSprint.id), activeSprint.id)}
+                          {renderTaskList(filteredPlanningTasks.filter(t => t.sprintId === activeSprint.id), activeSprint.id)}
                         </div>
                       ) : (
                         <div className="p-8 text-center text-slate-400 text-xs border-t border-slate-100">
@@ -1231,7 +1297,7 @@ const ScrumBoard: React.FC = () => {
                         </div>
                       ) : (
                         projectSprints.filter(s => s.status === 'Planned').map(sprint => {
-                          const sprintTasks = projectTasks.filter(t => t.sprintId === sprint.id);
+                          const sprintTasks = filteredPlanningTasks.filter(t => t.sprintId === sprint.id);
                           const totalSp = getSprintStoryPoints(sprint.id);
                           const isExpanded = expandedSprintIds[sprint.id] ?? true;
 
@@ -1335,62 +1401,17 @@ const ScrumBoard: React.FC = () => {
                       {/* Backlog Tasks List */}
                       {expandedSprintIds['backlog'] && (
                         <div className="p-4">
-                          {/* Backlog Filter Bar */}
-                          <div className="flex flex-col sm:flex-row gap-2 mb-4 p-3 bg-slate-50 border border-slate-200/80 rounded-xl">
-                            <div className="relative flex-1">
-                              <input
-                                type="text"
-                                placeholder="Cari backlog..."
-                                value={backlogSearch}
-                                onChange={(e) => setBacklogSearch(e.target.value)}
-                                className="w-full bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-gov-500"
+                          {/* Backlog Sort Selector */}
+                          <div className="flex justify-end mb-4">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-slate-500 font-semibold">Urutkan:</span>
+                              <SearchableSelect
+                                options={sortOptions}
+                                value={backlogSortBy}
+                                onChange={setBacklogSortBy}
+                                className="w-48"
                               />
                             </div>
-                            
-                            <SearchableSelect
-                              options={[
-                                { value: 'All', label: 'Semua Kategori' },
-                                ...uniqueCategories.map(cat => ({ value: cat, label: cat }))
-                              ]}
-                              value={backlogCategory}
-                              onChange={setBacklogCategory}
-                              className="w-full sm:w-44"
-                            />
-
-                            <SearchableSelect
-                              options={[
-                                { value: 'All', label: 'Semua Prioritas' },
-                                { value: 'Low', label: 'Low' },
-                                { value: 'Medium', label: 'Medium' },
-                                { value: 'High', label: 'High' },
-                                { value: 'Urgent', label: 'Urgent' }
-                              ]}
-                              value={backlogPriority}
-                              onChange={setBacklogPriority}
-                              className="w-full sm:w-44"
-                            />
-
-                            <SearchableSelect
-                              options={sortOptions}
-                              value={backlogSortBy}
-                              onChange={setBacklogSortBy}
-                              className="w-full sm:w-48"
-                            />
-
-                            {(backlogSearch || backlogCategory !== 'All' || backlogPriority !== 'All' || backlogSortBy !== 'created_desc') && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setBacklogSearch('');
-                                  setBacklogCategory('All');
-                                  setBacklogPriority('All');
-                                  setBacklogSortBy('created_desc');
-                                }}
-                                className="text-xs text-rose-600 hover:text-rose-700 font-bold px-2 py-1.5 rounded transition-all hover:bg-rose-50 cursor-pointer flex-shrink-0"
-                              >
-                                Reset
-                              </button>
-                            )}
                           </div>
 
                           {renderTaskList(backlogTasks, null)}
@@ -1462,6 +1483,25 @@ const ScrumBoard: React.FC = () => {
                       </div>
                     ) : (
                       <div className="flex-1 flex flex-col overflow-hidden">
+                        <ScrumFilterBar
+                          searchVal={boardSearch}
+                          onSearchChange={setBoardSearch}
+                          categoryVal={boardCategory}
+                          onCategoryChange={setBoardCategory}
+                          priorityVal={boardPriority}
+                          onPriorityChange={setBoardPriority}
+                          picVal={boardPic}
+                          onPicChange={setBoardPic}
+                          uniqueCategories={uniqueCategories}
+                          allUsers={allUsers}
+                          onReset={() => {
+                            setBoardSearch('');
+                            setBoardCategory('All');
+                            setBoardPriority('All');
+                            setBoardPic('All');
+                          }}
+                          searchPlaceholder="Cari tugas di papan sprint..."
+                        />
                         {/* Active Sprint Header Info */}
                         {/* Active Sprint Header Info */}
                         <div className="bg-white border border-slate-200 rounded-2xl p-6 mb-6 shadow-xs animate-fadeIn text-left">
@@ -1525,7 +1565,7 @@ const ScrumBoard: React.FC = () => {
                         {/* 5-COLUMN KANBAN BOARD */}
                         <div className="flex-1 flex overflow-x-auto gap-4 pb-4 scrollbar-thin scrollbar-thumb-slate-300">
                           {Object.values(Status).map((status) => {
-                            const statusTasks = projectTasks.filter(t => t.sprintId === activeSprint.id && t.status === status);
+                            const statusTasks = filteredBoardTasks.filter(t => t.status === status);
                             const totalColumnSp = statusTasks.reduce((sum, t) => sum + (t.storyPoints || 0), 0);
 
                             return (

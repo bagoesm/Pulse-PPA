@@ -60,7 +60,8 @@ export const TasksProvider: React.FC<TasksProviderProps> = ({ children, session 
         queryFn: async (): Promise<Task[]> => {
             const { data: tasksData, error: tasksErr } = await supabase
                 .from('tasks')
-                .select('*, master_categories:category_id(name), master_sub_categories:sub_category_id(name)');
+                .select('*, master_categories:category_id(name), master_sub_categories:sub_category_id(name)')
+                .order('created_at', { ascending: true });
             if (tasksErr) {
                 console.error('Error fetch tasks:', tasksErr);
                 return [];
