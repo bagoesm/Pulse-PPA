@@ -1563,7 +1563,7 @@ const ScrumBoard: React.FC = () => {
                         </div>
 
                         {/* 5-COLUMN KANBAN BOARD */}
-                        <div className="flex-1 flex overflow-x-auto gap-4 pb-4 scrollbar-thin scrollbar-thumb-slate-300 min-h-[550px] lg:min-h-[650px]">
+                        <div className="flex-1 flex overflow-x-auto gap-4 pb-4 scrollbar-thin scrollbar-thumb-slate-300">
                           {Object.values(Status).map((status) => {
                             const statusTasks = filteredBoardTasks.filter(t => t.status === status);
                             const totalColumnSp = statusTasks.reduce((sum, t) => sum + (t.storyPoints || 0), 0);
@@ -1573,7 +1573,7 @@ const ScrumBoard: React.FC = () => {
                                 key={status}
                                 onDragOver={(e) => e.preventDefault()}
                                 onDrop={(e) => handleDropToKanbanColumn(e, status)}
-                                className="flex-1 min-w-[200px] bg-slate-100/60 border border-slate-200/60 rounded-2xl flex flex-col h-full overflow-hidden"
+                                className="flex-1 min-w-[220px] bg-slate-100/60 border border-slate-200/60 rounded-2xl flex flex-col h-[900px] lg:h-[1100px] overflow-hidden"
                               >
                                 {/* Column Header */}
                                 <div className="p-3 flex justify-between items-center border-b border-slate-200/80 bg-slate-50/50">
