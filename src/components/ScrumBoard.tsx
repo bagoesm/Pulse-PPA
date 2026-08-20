@@ -1464,7 +1464,7 @@ const ScrumBoard: React.FC = () => {
 
                 {/* TAB 2: ACTIVE SPRINT BOARD */}
                 {activeTab === 'board' && (
-                  <div className="flex-1 flex flex-col min-h-0 overflow-hidden p-4 sm:p-6 pb-2 animate-fadeIn">
+                  <div className="flex-1 flex flex-col min-h-0 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-300 p-4 sm:p-6 pb-2 animate-fadeIn">
                     {!activeSprint ? (
                       <div className="flex-1 flex flex-col items-center justify-center bg-white border border-slate-200 rounded-3xl p-8 text-center shadow-sm">
                         <div className="w-16 h-16 bg-gov-50 text-gov-600 rounded-2xl flex items-center justify-center mx-auto shadow-md mb-4 animate-bounce">
@@ -1482,7 +1482,7 @@ const ScrumBoard: React.FC = () => {
                         </button>
                       </div>
                     ) : (
-                      <div className="flex-1 flex flex-col overflow-hidden">
+                      <div className="flex-1 flex flex-col min-h-0">
                         <ScrumFilterBar
                           searchVal={boardSearch}
                           onSearchChange={setBoardSearch}
@@ -1563,7 +1563,7 @@ const ScrumBoard: React.FC = () => {
                         </div>
 
                         {/* 5-COLUMN KANBAN BOARD */}
-                        <div className="flex-1 flex overflow-x-auto gap-4 pb-4 scrollbar-thin scrollbar-thumb-slate-300">
+                        <div className="flex-1 flex overflow-x-auto gap-4 pb-4 scrollbar-thin scrollbar-thumb-slate-300 min-h-[550px] lg:min-h-[650px]">
                           {Object.values(Status).map((status) => {
                             const statusTasks = filteredBoardTasks.filter(t => t.status === status);
                             const totalColumnSp = statusTasks.reduce((sum, t) => sum + (t.storyPoints || 0), 0);
