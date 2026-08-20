@@ -1483,87 +1483,130 @@ const ScrumBoard: React.FC = () => {
                       </div>
                     ) : (
                       <div className="flex-1 flex flex-col min-h-0">
-                        <ScrumFilterBar
-                          searchVal={boardSearch}
-                          onSearchChange={setBoardSearch}
-                          categoryVal={boardCategory}
-                          onCategoryChange={setBoardCategory}
-                          priorityVal={boardPriority}
-                          onPriorityChange={setBoardPriority}
-                          picVal={boardPic}
-                          onPicChange={setBoardPic}
-                          uniqueCategories={uniqueCategories}
-                          allUsers={allUsers}
-                          onReset={() => {
-                            setBoardSearch('');
-                            setBoardCategory('All');
-                            setBoardPriority('All');
-                            setBoardPic('All');
-                          }}
-                          searchPlaceholder="Cari tugas di papan sprint..."
-                        />
-                        {/* Active Sprint Header Info */}
-                        {/* Active Sprint Header Info */}
-                        <div className="bg-white border border-slate-200 rounded-2xl p-6 mb-6 shadow-xs animate-fadeIn text-left">
-                          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-100 pb-4 mb-4">
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span className="flex h-2.5 w-2.5 relative">
-                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-                                </span>
-                                <h2 className="text-lg font-bold text-slate-800 tracking-tight">{activeSprint.name}</h2>
-                                <span className="bg-emerald-50 border border-emerald-100 text-emerald-800 text-[10px] px-2 py-0.5 rounded font-extrabold uppercase ml-1">
-                                  Aktif
-                                </span>
-                              </div>
+                        {/* Unified Active Sprint Header & Filter Panel */}
+                        <div className="bg-white border border-slate-200 rounded-2xl p-5 mb-6 shadow-xs animate-fadeIn text-left space-y-4">
+                          {/* Top row: Sprint Title & Status, Actions */}
+                          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                            <div className="flex items-center gap-2">
+                              <span className="flex h-2.5 w-2.5 relative">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                              </span>
+                              <h2 className="text-base sm:text-lg font-bold text-slate-800 tracking-tight">{activeSprint.name}</h2>
+                              <span className="bg-emerald-50 border border-emerald-100 text-emerald-800 text-[9px] px-2 py-0.5 rounded font-extrabold uppercase tracking-wide">
+                                Aktif
+                              </span>
                             </div>
 
-                            <div className="flex items-center gap-3 w-full md:w-auto justify-end">
-                              <span className="bg-indigo-50 border border-indigo-100 text-indigo-755 text-xs font-bold px-3 py-1.5 rounded-xl">
-                                Poin Sprint: {getSprintStoryPoints(activeSprint.id)} SP
+                            <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto justify-start sm:justify-end">
+                              <span className="bg-indigo-50 border border-indigo-100 text-indigo-755 text-xs font-bold px-2.5 py-1 rounded-lg">
+                                {getSprintStoryPoints(activeSprint.id)} SP
                               </span>
                               <button
                                 onClick={() => handleCompleteSprint(activeSprint)}
-                                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl transition-all shadow-sm text-xs sm:text-sm flex items-center gap-1.5 cursor-pointer"
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-lg transition-all shadow-sm text-xs flex items-center gap-1.5 cursor-pointer"
                               >
-                                <CheckCircle2 className="w-4 h-4" />
+                                <CheckCircle2 className="w-3.5 h-3.5" />
                                 Selesaikan Sprint
                               </button>
                             </div>
                           </div>
 
-                          {/* Detail Grid */}
-                          <div className="space-y-3">
-                            <div className="flex flex-wrap gap-2.5">
+                          {/* Middle row: Goals & Period & Description */}
+                          {(activeSprint.goal || activeSprint.startDate || activeSprint.endDate || activeSprint.description) && (
+                            <div className="flex flex-wrap gap-2.5 text-xs text-slate-500 border-t border-slate-100 pt-3">
                               {activeSprint.goal && (
-                                <div className="flex items-center gap-1.5 text-xs bg-slate-50 border border-slate-200/80 text-slate-600 px-3 py-1.5 rounded-xl">
+                                <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200/80 px-2.5 py-1 rounded-lg">
                                   <Target className="w-3.5 h-3.5 text-gov-600 flex-shrink-0" />
-                                  <span className="font-semibold text-slate-700">Tujuan Sprint:</span>
-                                  <span>{activeSprint.goal}</span>
+                                  <span className="font-semibold text-slate-700">Goal:</span>
+                                  <span className="text-slate-600">{activeSprint.goal}</span>
                                 </div>
                               )}
-                              
                               {(activeSprint.startDate || activeSprint.endDate) && (
-                                <div className="flex items-center gap-1.5 text-xs bg-slate-50 border border-slate-200/80 text-slate-600 px-3 py-1.5 rounded-xl">
+                                <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200/80 px-2.5 py-1 rounded-lg">
                                   <Calendar className="w-3.5 h-3.5 text-gov-600 flex-shrink-0" />
                                   <span className="font-semibold text-slate-700">Periode:</span>
-                                  <span>{activeSprint.startDate ? formatDate(activeSprint.startDate) : '-'} s/d {activeSprint.endDate ? formatDate(activeSprint.endDate) : '-'}</span>
+                                  <span className="text-slate-600">{activeSprint.startDate ? formatDate(activeSprint.startDate) : '-'} s/d {activeSprint.endDate ? formatDate(activeSprint.endDate) : '-'}</span>
                                 </div>
                               )}
+                              {activeSprint.description && (
+                                <p className="text-xs text-slate-500 italic mt-0.5 line-clamp-1 flex-1 min-w-[200px]" title={activeSprint.description}>
+                                  Desc: {activeSprint.description}
+                                </p>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Bottom row: Search & Filters (Merged inline ScrumFilterBar style to save space!) */}
+                          <div className="flex flex-col lg:flex-row gap-2.5 border-t border-slate-100 pt-4 bg-slate-50/50 -mx-5 -mb-5 p-4 rounded-b-2xl">
+                            <div className="relative flex-1">
+                              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 w-3.5 h-3.5" />
+                              <input
+                                type="text"
+                                placeholder="Cari tugas di papan..."
+                                value={boardSearch}
+                                onChange={(e) => setBoardSearch(e.target.value)}
+                                className="w-full bg-white hover:bg-slate-50 focus:bg-white border border-slate-200 rounded-lg pl-8 pr-4 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-gov-400 focus:border-gov-400 transition-all font-medium text-slate-800 placeholder-slate-400"
+                              />
                             </div>
 
-                            {activeSprint.description && (
-                              <div className="bg-slate-50/50 border border-slate-150 rounded-xl p-3.5">
-                                <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Deskripsi Perencanaan</h4>
-                                <p className="text-xs text-slate-600 leading-relaxed">{activeSprint.description}</p>
-                              </div>
-                            )}
+                            <div className="flex flex-wrap gap-2 flex-shrink-0">
+                              <SearchableSelect
+                                options={[
+                                  { value: 'All', label: 'Semua Kategori' },
+                                  ...uniqueCategories.map(cat => ({ value: cat, label: cat }))
+                                ]}
+                                value={boardCategory}
+                                onChange={boardCategory => setBoardCategory(boardCategory)}
+                                className="w-full sm:w-40 text-xs"
+                                placeholder="Pilih Kategori"
+                              />
+
+                              <SearchableSelect
+                                options={[
+                                  { value: 'All', label: 'Semua Prioritas' },
+                                  { value: 'Low', label: 'Low' },
+                                  { value: 'Medium', label: 'Medium' },
+                                  { value: 'High', label: 'High' },
+                                  { value: 'Urgent', label: 'Urgent' }
+                                ]}
+                                value={boardPriority}
+                                onChange={boardPriority => setBoardPriority(boardPriority)}
+                                className="w-full sm:w-40 text-xs"
+                                placeholder="Pilih Prioritas"
+                              />
+
+                              <SearchableSelect
+                                options={[
+                                  { value: 'All', label: 'Semua PIC' },
+                                  ...allUsers.map(u => ({ value: u.name, label: u.name }))
+                                ]}
+                                value={boardPic}
+                                onChange={boardPic => setBoardPic(boardPic)}
+                                className="w-full sm:w-40 text-xs"
+                                placeholder="Pilih PIC"
+                              />
+
+                              {(boardSearch !== '' || boardCategory !== 'All' || boardPriority !== 'All' || boardPic !== 'All') && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setBoardSearch('');
+                                    setBoardCategory('All');
+                                    setBoardPriority('All');
+                                    setBoardPic('All');
+                                  }}
+                                  className="text-xs text-rose-600 hover:text-rose-700 font-bold px-2 py-1.5 rounded transition-all hover:bg-rose-50 cursor-pointer flex-shrink-0"
+                                >
+                                  Reset
+                                </button>
+                              )}
+                            </div>
                           </div>
                         </div>
 
                         {/* 5-COLUMN KANBAN BOARD */}
-                        <div className="flex-1 flex overflow-x-auto gap-4 pb-4 scrollbar-thin scrollbar-thumb-slate-300">
+                        <div className="flex-1 flex overflow-x-auto gap-4 pb-4 scrollbar-thin scrollbar-thumb-slate-300 min-h-[550px] lg:min-h-[650px]">
                           {Object.values(Status).map((status) => {
                             const statusTasks = filteredBoardTasks.filter(t => t.status === status);
                             const totalColumnSp = statusTasks.reduce((sum, t) => sum + (t.storyPoints || 0), 0);
@@ -1573,7 +1616,7 @@ const ScrumBoard: React.FC = () => {
                                 key={status}
                                 onDragOver={(e) => e.preventDefault()}
                                 onDrop={(e) => handleDropToKanbanColumn(e, status)}
-                                className="flex-1 min-w-[220px] bg-slate-100/60 border border-slate-200/60 rounded-2xl flex flex-col h-[900px] lg:h-[1100px] overflow-hidden"
+                                className="flex-1 min-w-[200px] bg-slate-100/60 border border-slate-200/60 rounded-2xl flex flex-col h-full overflow-hidden"
                               >
                                 {/* Column Header */}
                                 <div className="p-3 flex justify-between items-center border-b border-slate-200/80 bg-slate-50/50">
