@@ -44,9 +44,10 @@ interface PeriodOption {
 const getPeriodOptions = (): PeriodOption[] => {
   const options: PeriodOption[] = [];
   const now = new Date();
+  const startMonthOffset = now.getDate() >= 16 ? 1 : 0;
   
   for (let i = 0; i < 12; i++) {
-    const refDate = new Date(now.getFullYear(), now.getMonth() - i, 15);
+    const refDate = new Date(now.getFullYear(), now.getMonth() + startMonthOffset - i, 15);
     const endYear = refDate.getFullYear();
     const endMonth = refDate.getMonth();
     
