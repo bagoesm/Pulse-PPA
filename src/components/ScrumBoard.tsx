@@ -9,7 +9,8 @@ import {
   Play, Check, X, ArrowLeftRight, Clock, User, Sparkles,
   HelpCircle, ChevronUp, GripVertical, AlertTriangle, ArrowRight, ArrowLeft,
   Search, Pencil, ChevronsUpDown, FolderPlus, CheckSquare, Square,
-  TrendingDown, FileSpreadsheet, FileText, Download, MessageSquare
+  TrendingDown, FileSpreadsheet, FileText, Download, MessageSquare,
+  MessageSquareQuote
 } from 'lucide-react';
 
 // Context Hooks
@@ -33,6 +34,7 @@ import { SprintCompletionModal } from './scrum/SprintCompletionModal';
 import { ScrumBulkActionBar } from './scrum/ScrumBulkActionBar';
 import { SprintAnalyticsModal } from './scrum/SprintAnalyticsModal';
 import { SprintRetroModal } from './scrum/SprintRetroModal';
+import { SprintDailyNotesModal } from './scrum/SprintDailyNotesModal';
 import { exportSprintToExcel, exportSprintToPDF } from '../utils/sprintExport';
 
 // Typing animation component for the welcome landing page
@@ -185,6 +187,7 @@ const ScrumBoard: React.FC = () => {
   const [editingSprintId, setEditingSprintId] = useState<string | null>(null);
   const [editingSprintName, setEditingSprintName] = useState('');
   const [editingSprintGoal, setEditingSprintGoal] = useState('');
+  const [editingSprintDesc, setEditingSprintDesc] = useState('');
   const [editingSprintStart, setEditingSprintStart] = useState('');
   const [editingSprintEnd, setEditingSprintEnd] = useState('');
   const [isSubmittingEditSprint, setIsSubmittingEditSprint] = useState(false);
@@ -208,6 +211,10 @@ const ScrumBoard: React.FC = () => {
   // Sprint Retrospective Modal State
   const [retroSprint, setRetroSprint] = useState<Sprint | null>(null);
   const [isRetroModalOpen, setIsRetroModalOpen] = useState(false);
+
+  // Sprint Daily Notes Modal State
+  const [dailyNotesSprint, setDailyNotesSprint] = useState<Sprint | null>(null);
+  const [isDailyNotesModalOpen, setIsDailyNotesModalOpen] = useState(false);
 
   const sortOptions = [
     { value: 'created_desc', label: 'Terbaru Dibuat' },
@@ -562,6 +569,7 @@ const ScrumBoard: React.FC = () => {
     setEditingSprintId(sprint.id);
     setEditingSprintName(sprint.name);
     setEditingSprintGoal(sprint.goal || '');
+    setEditingSprintDesc(sprint.description || '');
     setEditingSprintStart(sprint.startDate || '');
     setEditingSprintEnd(sprint.endDate || '');
     setIsEditSprintModalOpen(true);
@@ -576,6 +584,7 @@ const ScrumBoard: React.FC = () => {
       const success = await updateSprint(editingSprintId, {
         name: editingSprintName.trim(),
         goal: editingSprintGoal.trim() || undefined,
+        description: editingSprintDesc.trim() || undefined,
         startDate: editingSprintStart || undefined,
         endDate: editingSprintEnd || undefined
       });
@@ -1797,6 +1806,20 @@ const ScrumBoard: React.FC = () => {
                               <span className="hidden sm:inline">Retrospektif</span>
                             </button>
 
+                            {/* Daily Standup Button */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDailyNotesSprint(activeSprint);
+                                setIsDailyNotesModalOpen(true);
+                              }}
+                              className="flex items-center gap-1 bg-teal-50 hover:bg-teal-100 text-teal-700 font-bold px-2.5 py-1.5 rounded-lg text-xs transition-all border border-teal-200 cursor-pointer"
+                              title="Catatan Daily Standup Sprint"
+                            >
+                              <MessageSquareQuote className="w-3.5 h-3.5" />
+                              <span className="hidden sm:inline">Daily Standup</span>
+                            </button>
+
                             {/* Export Dropdown */}
                             <div className="relative">
                               <button
@@ -2196,6 +2219,25 @@ const ScrumBoard: React.FC = () => {
                                       <button
                                         type="button"
                                         onClick={() => {
+                                          setDailyNotesSprint(completedSprint);
+                                          setIsDailyNotesModalOpen(true);
+                                        }}
+                                        className="p-1.5 hover:bg-teal-50 text-teal-600 rounded-lg transition-colors border border-teal-100 cursor-pointer"
+                                        title="Lihat Catatan Daily Standup"
+                                      >
+                                        <MessageSquareQuote className="w-3.5 h-3.5" />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleOpenEditSprint(completedSprint)}
+                                        className="p-1.5 hover:bg-slate-100 text-slate-500 rounded-lg transition-colors border border-slate-200 cursor-pointer"
+                                        title="Edit Sprint (Nama, Goal, Periode, Catatan)"
+                                      >
+                                        <Pencil className="w-3.5 h-3.5" />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
                                           setAnalyticsSprint(completedSprint);
                                           setIsAnalyticsModalOpen(true);
                                         }}
@@ -2317,6 +2359,20 @@ const ScrumBoard: React.FC = () => {
                                 <span>Retrospektif</span>
                               </button>
 
+                              {/* Daily Standup Button */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setDailyNotesSprint(activeSprint);
+                                  setIsDailyNotesModalOpen(true);
+                                }}
+                                className="flex items-center gap-1 bg-teal-50 hover:bg-teal-100 text-teal-700 font-bold px-2.5 py-1.5 rounded-lg text-xs transition-all border border-teal-200 cursor-pointer"
+                                title="Catatan Daily Standup Sprint"
+                              >
+                                <MessageSquareQuote className="w-3.5 h-3.5" />
+                                <span>Daily Standup</span>
+                              </button>
+
                               {/* Export Dropdown */}
                               <div className="relative">
                                 <button
@@ -2372,6 +2428,17 @@ const ScrumBoard: React.FC = () => {
                                   </>
                                 )}
                               </div>
+
+                              {/* Edit Sprint Button */}
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEditSprint(activeSprint)}
+                                className="flex items-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-2.5 py-1.5 rounded-lg text-xs transition-all border border-slate-200 cursor-pointer"
+                                title="Edit Nama, Goal, Periode, & Catatan Sprint"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                                <span className="hidden sm:inline">Edit Sprint</span>
+                              </button>
 
                               <button
                                 type="button"
@@ -2911,6 +2978,17 @@ const ScrumBoard: React.FC = () => {
                 </div>
               </div>
 
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Catatan / Deskripsi Sprint</label>
+                <textarea
+                  rows={3}
+                  placeholder="Catatan sprint, target detail, atau catatan khusus..."
+                  value={editingSprintDesc}
+                  onChange={(e) => setEditingSprintDesc(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gov-500/20 focus:border-gov-500 transition-all resize-none"
+                />
+              </div>
+
               <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
                 <button
                   type="button"
@@ -2981,6 +3059,19 @@ const ScrumBoard: React.FC = () => {
           onClose={() => {
             setIsRetroModalOpen(false);
             setRetroSprint(null);
+          }}
+          currentUser={currentUser}
+        />
+      )}
+
+      {/* 13. SPRINT DAILY NOTES MODAL (DAILY STANDUP) */}
+      {isDailyNotesModalOpen && dailyNotesSprint && (
+        <SprintDailyNotesModal
+          sprint={dailyNotesSprint}
+          isOpen={true}
+          onClose={() => {
+            setIsDailyNotesModalOpen(false);
+            setDailyNotesSprint(null);
           }}
           currentUser={currentUser}
         />

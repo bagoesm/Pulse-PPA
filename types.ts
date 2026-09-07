@@ -152,6 +152,22 @@ export interface SprintRetroItem {
   updatedAt?: string;
 }
 
+export interface SprintDailyNote {
+  id: string;
+  sprintId: string;
+  date: string; // YYYY-MM-DD
+  authorName?: string;
+  yesterdayNotes?: string;
+  todayNotes?: string;
+  blockers?: string;
+  generalNotes?: string;
+  attendees?: string;
+  createdBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+
 // Epic - Middle layer between Project and Task
 export type EpicStatus = 'Not Started' | 'In Progress' | 'Completed';
 
