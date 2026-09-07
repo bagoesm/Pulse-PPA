@@ -8,7 +8,7 @@ import {
   CheckCircle2, AlertCircle, ChevronDown, ChevronRight,
   Play, Check, X, ArrowLeftRight, Clock, User, Sparkles,
   HelpCircle, ChevronUp, GripVertical, AlertTriangle, ArrowRight, ArrowLeft,
-  Search
+  Search, Pencil, ChevronsUpDown, FolderPlus
 } from 'lucide-react';
 
 // Context Hooks
@@ -24,7 +24,7 @@ import SearchableSelect from './SearchableSelect';
 import CompactPICSelector from './CompactPICSelector';
 import PICDisplay from './PICDisplay';
 import ScrumFilterBar from './ScrumFilterBar';
-import { Task, Sprint, Subtask, Status, SprintStatus, User as UserType } from '../../types';
+import { Task, Sprint, Subtask, Status, SprintStatus, User as UserType, Backlog } from '../../types';
 
 // Typing animation component for the welcome landing page
 const ProjectNameTyper: React.FC<{ projectNames: string[] }> = ({ projectNames }) => {
@@ -93,11 +93,27 @@ const ScrumBoard: React.FC = () => {
     updateSprint, 
     deleteSprint, 
     assignTaskToSprint,
-    isSprintsLoading
+    isSprintsLoading,
+    backlogs,
+    createBacklog,
+    updateBacklog,
+    deleteBacklog,
+    assignTaskToBacklog,
+    isBacklogsLoading
   } = useSprints();
   const { tasks, isTasksLoading } = useTasks();
   const { subtasks, getSubtasksByParent } = useSubtasks();
-  const { showConfirm, showToast, showNotification, draggedTaskId, setDraggedTaskId, setViewingTask, setIsTaskViewModalOpen } = useUI();
+  const { 
+    showConfirm, 
+    showToast, 
+    showNotification, 
+    draggedTaskId, 
+    setDraggedTaskId, 
+    setViewingTask, 
+    setIsTaskViewModalOpen,
+    setIsModalOpen,
+    setFilters
+  } = useUI();
   const { allUsers } = useUsers();
 
   // Selected project state
@@ -108,8 +124,6 @@ const ScrumBoard: React.FC = () => {
 
   // Search query for projects welcome landing page
   const [projectSearchQuery, setProjectSearchQuery] = useState('');
-
-
 
   // Local Backlog Filter States
   const [backlogSearch, setBacklogSearch] = useState('');
@@ -125,7 +139,9 @@ const ScrumBoard: React.FC = () => {
 
   // Accordion toggle states for Sprints and Backlog in Jira-style list
   const [expandedSprintIds, setExpandedSprintIds] = useState<Record<string, boolean>>({
-    'backlog': true // backlog open by default
+    'active': true,
+    'backlog': true,
+    'backlog-default': true
   });
 
   // Subtask accordion toggles on Kanban Board
@@ -138,8 +154,31 @@ const ScrumBoard: React.FC = () => {
   // inline PIC edit state
   const [editingPicTaskId, setEditingPicTaskId] = useState<string | null>(null);
 
-  // Backlog Sorting state
+  // Backlog Sorting states
   const [backlogSortBy, setBacklogSortBy] = useState<string>('created_desc');
+  const [backlogSortByMap, setBacklogSortByMap] = useState<Record<string, string>>({});
+
+  // Move Task Menu state (holds task.id of the currently open destination dropdown)
+  const [openMoveMenuTaskId, setOpenMoveMenuTaskId] = useState<string | null>(null);
+
+  // Multiple Backlog Fields Management state
+  const [isCreateBacklogModalOpen, setIsCreateBacklogModalOpen] = useState(false);
+  const [newBacklogTitle, setNewBacklogTitle] = useState('');
+  const [isSubmittingBacklog, setIsSubmittingBacklog] = useState(false);
+
+  // Edit Backlog Section Title state
+  const [editingBacklogId, setEditingBacklogId] = useState<string | null>(null);
+  const [tempBacklogTitle, setTempBacklogTitle] = useState('');
+  const [defaultBacklogTitle, setDefaultBacklogTitle] = useState('Backlog Proyek');
+
+  // Edit Sprint Modal State
+  const [isEditSprintModalOpen, setIsEditSprintModalOpen] = useState(false);
+  const [editingSprintId, setEditingSprintId] = useState<string | null>(null);
+  const [editingSprintName, setEditingSprintName] = useState('');
+  const [editingSprintGoal, setEditingSprintGoal] = useState('');
+  const [editingSprintStart, setEditingSprintStart] = useState('');
+  const [editingSprintEnd, setEditingSprintEnd] = useState('');
+  const [isSubmittingEditSprint, setIsSubmittingEditSprint] = useState(false);
 
   const sortOptions = [
     { value: 'created_desc', label: 'Terbaru Dibuat' },
@@ -243,41 +282,72 @@ const ScrumBoard: React.FC = () => {
     return filtered;
   }, [projectTasks, backlogSearch, backlogCategory, backlogPriority, backlogPic]);
 
-  // Backlog tasks (project tasks with no sprint assigned, excluding completed ones, applying local search, filters & sorting)
-  const backlogTasks = useMemo(() => {
-    let filtered = filteredPlanningTasks.filter(t => !t.sprintId && t.status !== Status.Done);
-    
-    // Apply sorting
-    filtered.sort((a, b) => {
-      if (backlogSortBy === 'created_desc') {
+  // Project Backlogs
+  const projectBacklogs = useMemo(() => {
+    if (!selectedProjectId) return [];
+    return backlogs.filter(b => b.projectId === selectedProjectId);
+  }, [backlogs, selectedProjectId]);
+
+  // All Backlog Sections (Default + Custom)
+  const allBacklogSections = useMemo(() => {
+    return [
+      { id: 'default', title: defaultBacklogTitle, isDefault: true },
+      ...projectBacklogs.map(b => ({ ...b, isDefault: false }))
+    ];
+  }, [defaultBacklogTitle, projectBacklogs]);
+
+  // Load project default backlog title from storage
+  useEffect(() => {
+    if (selectedProjectId) {
+      const saved = localStorage.getItem(`scrum_default_backlog_title_${selectedProjectId}`);
+      setDefaultBacklogTitle(saved || 'Backlog Proyek');
+    }
+  }, [selectedProjectId]);
+
+  // Get Backlog Tasks for a specific section
+  const getBacklogTasks = useCallback((sectionId: string) => {
+    const list = filteredPlanningTasks.filter(t => {
+      if (t.sprintId || t.status === Status.Done) return false;
+      if (sectionId === 'default') {
+        return !t.backlogId || t.backlogId === 'default' || !projectBacklogs.some(b => b.id === t.backlogId);
+      }
+      return t.backlogId === sectionId;
+    });
+
+    const sortBy = backlogSortByMap[sectionId] || backlogSortBy;
+    return [...list].sort((a, b) => {
+      if (sortBy === 'created_desc') {
         return new Date(b.createdAt || b.created_at || 0).getTime() - new Date(a.createdAt || a.created_at || 0).getTime();
       }
-      if (backlogSortBy === 'created_asc') {
+      if (sortBy === 'created_asc') {
         return new Date(a.createdAt || a.created_at || 0).getTime() - new Date(b.createdAt || b.created_at || 0).getTime();
       }
-      if (backlogSortBy === 'title_asc') {
+      if (sortBy === 'title_asc') {
         return a.title.localeCompare(b.title);
       }
-      if (backlogSortBy === 'title_desc') {
+      if (sortBy === 'title_desc') {
         return b.title.localeCompare(a.title);
       }
-      if (backlogSortBy === 'sp_desc') {
+      if (sortBy === 'sp_desc') {
         return (b.storyPoints || 0) - (a.storyPoints || 0);
       }
-      if (backlogSortBy === 'sp_asc') {
+      if (sortBy === 'sp_asc') {
         return (a.storyPoints || 0) - (b.storyPoints || 0);
       }
-      if (backlogSortBy === 'priority_desc' || backlogSortBy === 'priority_asc') {
+      if (sortBy === 'priority_desc' || sortBy === 'priority_asc') {
         const priorityWeight = { 'Urgent': 4, 'High': 3, 'Medium': 2, 'Low': 1 };
         const wA = priorityWeight[a.priority as keyof typeof priorityWeight] || 0;
         const wB = priorityWeight[b.priority as keyof typeof priorityWeight] || 0;
-        return backlogSortBy === 'priority_desc' ? wB - wA : wA - wB;
+        return sortBy === 'priority_desc' ? wB - wA : wA - wB;
       }
       return 0;
     });
-    
-    return filtered;
-  }, [filteredPlanningTasks, backlogSortBy]);
+  }, [filteredPlanningTasks, projectBacklogs, backlogSortByMap, backlogSortBy]);
+
+  // Overall Backlog Tasks (all tasks with no sprint assigned)
+  const backlogTasks = useMemo(() => {
+    return filteredPlanningTasks.filter(t => !t.sprintId && t.status !== Status.Done);
+  }, [filteredPlanningTasks]);
 
   // Unique categories in project tasks for backlog filtering
   const uniqueCategories = useMemo(() => {
@@ -302,7 +372,7 @@ const ScrumBoard: React.FC = () => {
     }
     
     if (boardCategory !== 'All') {
-      filtered = filtered.filter(t => t.category === boardCategory);
+      filtered = filtered.filter(t => t.category === backlogCategory);
     }
     
     if (boardPriority !== 'All') {
@@ -320,8 +390,28 @@ const ScrumBoard: React.FC = () => {
   const toggleSprintAccordion = (sprintId: string) => {
     setExpandedSprintIds(prev => ({
       ...prev,
-      [sprintId]: !prev[sprintId]
+      [sprintId]: !(prev[sprintId] ?? true)
     }));
+  };
+
+  // Toggle All Accordions helper
+  const toggleAllAccordions = () => {
+    const isActiveOpen = expandedSprintIds['active'] ?? true;
+    const isAnySprintOpen = projectSprints.filter(s => s.status === 'Planned').some(s => expandedSprintIds[s.id] ?? true);
+    const isAnyBacklogOpen = allBacklogSections.some(sec => expandedSprintIds['backlog-' + sec.id] ?? true);
+    const isAnyOpen = isActiveOpen || isAnySprintOpen || isAnyBacklogOpen;
+
+    const nextState = !isAnyOpen;
+    const nextMap: Record<string, boolean> = {
+      'active': nextState,
+    };
+    projectSprints.forEach(s => {
+      nextMap[s.id] = nextState;
+    });
+    allBacklogSections.forEach(sec => {
+      nextMap['backlog-' + sec.id] = nextState;
+    });
+    setExpandedSprintIds(nextMap);
   };
 
   // Expand / collapse subtask accordion helper
@@ -345,23 +435,139 @@ const ScrumBoard: React.FC = () => {
     e.dataTransfer.effectAllowed = 'move';
   };
 
-  // Handle Drop onto Backlog Section
-  const handleDropToBacklog = async (e: React.DragEvent) => {
+  // Handle Drop onto a specific Backlog Section
+  const handleDropToBacklog = async (e: React.DragEvent, sectionId: string | null = null) => {
     e.preventDefault();
     const taskId = draggedTaskId;
     if (!taskId) return;
 
     const task = projectTasks.find(t => t.id === taskId);
-    if (!task || !task.sprintId) {
+    if (!task) {
       setDraggedTaskId(null);
-      return; // already in backlog
+      return;
     }
 
-    const success = await assignTaskToSprint(taskId, null);
+    const targetBacklogId = sectionId === 'default' ? null : sectionId;
+    const currentBacklogId = task.backlogId || null;
+    if (!task.sprintId && currentBacklogId === targetBacklogId) {
+      setDraggedTaskId(null);
+      return; // already here
+    }
+
+    const success = await assignTaskToBacklog(taskId, targetBacklogId);
     if (success) {
-      showToast(`Task "${task.title}" dipindahkan ke Backlog.`, 'info');
+      const targetTitle = targetBacklogId 
+        ? (projectBacklogs.find(b => b.id === targetBacklogId)?.title || 'Field Backlog')
+        : defaultBacklogTitle;
+      showToast(`Task "${task.title}" dipindahkan ke "${targetTitle}".`, 'info');
     }
     setDraggedTaskId(null);
+  };
+
+  // Handle Move Task to a specific Backlog Section
+  const handleMoveTaskToBacklog = async (task: Task, sectionId: string | null = null) => {
+    const targetBacklogId = sectionId === 'default' ? null : sectionId;
+    const currentBacklogId = task.backlogId || null;
+    if (!task.sprintId && currentBacklogId === targetBacklogId) return;
+
+    const success = await assignTaskToBacklog(task.id, targetBacklogId);
+    if (success) {
+      const targetTitle = targetBacklogId 
+        ? (projectBacklogs.find(b => b.id === targetBacklogId)?.title || 'Field Backlog')
+        : defaultBacklogTitle;
+      showToast(`Task "${task.title}" dipindahkan ke "${targetTitle}".`, 'info');
+    }
+  };
+
+  // Handle Save Backlog Title
+  const handleSaveBacklogTitle = async (sectionId: string) => {
+    if (!tempBacklogTitle.trim()) {
+      showToast('Judul backlog tidak boleh kosong.', 'warning');
+      return;
+    }
+    if (sectionId === 'default') {
+      setDefaultBacklogTitle(tempBacklogTitle.trim());
+      if (selectedProjectId) {
+        localStorage.setItem(`scrum_default_backlog_title_${selectedProjectId}`, tempBacklogTitle.trim());
+      }
+      showToast('Judul Backlog Utama diperbarui.', 'success');
+      setEditingBacklogId(null);
+      return;
+    }
+
+    const success = await updateBacklog(sectionId, { title: tempBacklogTitle.trim() });
+    if (success) {
+      showToast('Judul Backlog diperbarui.', 'success');
+      setEditingBacklogId(null);
+    } else {
+      showToast('Gagal memperbarui judul backlog.', 'error');
+    }
+  };
+
+  // Handle Create Backlog Submit
+  const handleCreateBacklogSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newBacklogTitle.trim() || !selectedProjectId) return;
+
+    setIsSubmittingBacklog(true);
+    try {
+      const created = await createBacklog({
+        projectId: selectedProjectId,
+        title: newBacklogTitle.trim()
+      });
+      if (created) {
+        setIsCreateBacklogModalOpen(false);
+        setNewBacklogTitle('');
+        setExpandedSprintIds(prev => ({ ...prev, ['backlog-' + created.id]: true }));
+        showToast(`Field Backlog "${created.title}" berhasil dibuat.`, 'success');
+      } else {
+        showToast('Gagal membuat field backlog.', 'error');
+      }
+    } finally {
+      setIsSubmittingBacklog(false);
+    }
+  };
+
+  // Handle Edit Sprint Modal handlers
+  const handleOpenEditSprint = (sprint: Sprint) => {
+    setEditingSprintId(sprint.id);
+    setEditingSprintName(sprint.name);
+    setEditingSprintGoal(sprint.goal || '');
+    setEditingSprintStart(sprint.startDate || '');
+    setEditingSprintEnd(sprint.endDate || '');
+    setIsEditSprintModalOpen(true);
+  };
+
+  const handleEditSprintSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingSprintId || !editingSprintName.trim()) return;
+
+    setIsSubmittingEditSprint(true);
+    try {
+      const success = await updateSprint(editingSprintId, {
+        name: editingSprintName.trim(),
+        goal: editingSprintGoal.trim() || undefined,
+        startDate: editingSprintStart || undefined,
+        endDate: editingSprintEnd || undefined
+      });
+      if (success) {
+        setIsEditSprintModalOpen(false);
+        setEditingSprintId(null);
+        showToast('Sprint berhasil diperbarui.', 'success');
+      } else {
+        showToast('Gagal memperbarui Sprint.', 'error');
+      }
+    } finally {
+      setIsSubmittingEditSprint(false);
+    }
+  };
+
+  // Trigger AddTaskModal with current project locked
+  const handleCreateTaskForProject = () => {
+    if (selectedProjectId) {
+      setFilters(prev => ({ ...prev, projectId: selectedProjectId }));
+    }
+    setIsModalOpen(true);
   };
 
   // Handle Drop onto a Sprint Section
@@ -814,10 +1020,10 @@ const ScrumBoard: React.FC = () => {
                         if (e.key === 'Escape') setEditingSpTaskId(null);
                       }}
                     />
-                    <button onClick={() => handleSaveSp(task.id)} className="p-0.5 text-emerald-600 hover:bg-slate-100 rounded">
+                    <button onClick={() => handleSaveSp(task.id)} className="p-0.5 text-emerald-600 hover:bg-slate-100 rounded cursor-pointer">
                       <Check className="w-3 h-3" />
                     </button>
-                    <button onClick={() => setEditingSpTaskId(null)} className="p-0.5 text-rose-600 hover:bg-slate-100 rounded">
+                    <button onClick={() => setEditingSpTaskId(null)} className="p-0.5 text-rose-600 hover:bg-slate-100 rounded cursor-pointer">
                       <X className="w-3 h-3" />
                     </button>
                   </div>
@@ -835,6 +1041,131 @@ const ScrumBoard: React.FC = () => {
                     <span>SP:</span>
                     <span>{task.storyPoints !== null ? task.storyPoints : '-'}</span>
                   </button>
+                )}
+
+                {/* Move Task Menu / Dropdown */}
+                {!isSprintCompleted && (
+                  <div className="relative">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenMoveMenuTaskId(openMoveMenuTaskId === task.id ? null : task.id);
+                      }}
+                      className="p-1.5 bg-slate-50 hover:bg-gov-50 text-slate-600 hover:text-gov-700 rounded-lg border border-slate-200 font-bold transition-all flex items-center gap-1 cursor-pointer shadow-3xs text-[11px]"
+                      title="Pindahkan tugas ke Sprint atau Field Backlog lain"
+                    >
+                      <ArrowLeftRight className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">Pindah</span>
+                    </button>
+
+                    {openMoveMenuTaskId === task.id && (
+                      <>
+                        <div 
+                          className="fixed inset-0 z-40" 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpenMoveMenuTaskId(null);
+                          }} 
+                        />
+                        <div 
+                          onClick={(e) => e.stopPropagation()}
+                          className="absolute right-0 top-full mt-1.5 z-50 w-64 bg-white rounded-2xl shadow-xl border border-slate-200 p-2 text-xs animate-zoomIn max-h-72 overflow-y-auto"
+                        >
+                          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2 py-1">
+                            Pindahkan Tugas Ke:
+                          </div>
+
+                          {/* 1. Active Sprint */}
+                          {activeSprint && (
+                            <div className="mb-2">
+                              <div className="text-[10px] font-extrabold text-emerald-600 px-2 py-0.5 flex items-center gap-1">
+                                <Play className="w-2.5 h-2.5" />
+                                Sprint Aktif
+                              </div>
+                              <button
+                                disabled={task.sprintId === activeSprint.id}
+                                onClick={() => {
+                                  handleMoveTaskDirectly(task, activeSprint);
+                                  setOpenMoveMenuTaskId(null);
+                                }}
+                                className={`w-full text-left px-2.5 py-1.5 rounded-lg font-semibold flex items-center justify-between transition-colors ${
+                                  task.sprintId === activeSprint.id
+                                    ? 'bg-slate-50 text-slate-400 cursor-not-allowed'
+                                    : 'hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 cursor-pointer'
+                                }`}
+                              >
+                                <span className="truncate">{activeSprint.name}</span>
+                                {task.sprintId === activeSprint.id && <span className="text-[9px] bg-slate-200 text-slate-600 px-1 py-0.5 rounded">Saat ini</span>}
+                              </button>
+                            </div>
+                          )}
+
+                          {/* 2. Planned Sprints */}
+                          {projectSprints.filter(s => s.status === 'Planned').length > 0 && (
+                            <div className="mb-2 border-t border-slate-100 pt-1">
+                              <div className="text-[10px] font-extrabold text-indigo-600 px-2 py-0.5 flex items-center gap-1">
+                                <Clock className="w-2.5 h-2.5" />
+                                Sprint Direncanakan
+                              </div>
+                              {projectSprints.filter(s => s.status === 'Planned').map(sprint => (
+                                <button
+                                  key={sprint.id}
+                                  disabled={task.sprintId === sprint.id}
+                                  onClick={() => {
+                                    handleMoveTaskDropdown(task, sprint.id);
+                                    setOpenMoveMenuTaskId(null);
+                                  }}
+                                  className={`w-full text-left px-2.5 py-1.5 rounded-lg font-semibold flex items-center justify-between transition-colors ${
+                                    task.sprintId === sprint.id
+                                      ? 'bg-slate-50 text-slate-400 cursor-not-allowed'
+                                      : 'hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 cursor-pointer'
+                                  }`}
+                                >
+                                  <span className="truncate">{sprint.name}</span>
+                                  {task.sprintId === sprint.id && <span className="text-[9px] bg-slate-200 text-slate-600 px-1 py-0.5 rounded">Saat ini</span>}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* 3. Backlog Fields */}
+                          <div className="border-t border-slate-100 pt-1">
+                            <div className="text-[10px] font-extrabold text-slate-500 px-2 py-0.5 flex items-center gap-1">
+                              <Layers className="w-2.5 h-2.5" />
+                              Field Backlog
+                            </div>
+                            {allBacklogSections.map(section => {
+                              const isDefault = section.id === 'default';
+                              const isCurrent = !task.sprintId && (
+                                isDefault 
+                                  ? (!task.backlogId || task.backlogId === 'default' || !projectBacklogs.some(b => b.id === task.backlogId))
+                                  : task.backlogId === section.id
+                              );
+
+                              return (
+                                <button
+                                  key={section.id}
+                                  disabled={isCurrent}
+                                  onClick={() => {
+                                    handleMoveTaskToBacklog(task, isDefault ? null : section.id);
+                                    setOpenMoveMenuTaskId(null);
+                                  }}
+                                  className={`w-full text-left px-2.5 py-1.5 rounded-lg font-semibold flex items-center justify-between transition-colors ${
+                                    isCurrent
+                                      ? 'bg-slate-50 text-slate-400 cursor-not-allowed'
+                                      : 'hover:bg-slate-100 text-slate-700 hover:text-slate-900 cursor-pointer'
+                                  }`}
+                                >
+                                  <span className="truncate">{section.title}</span>
+                                  {isCurrent && <span className="text-[9px] bg-slate-200 text-slate-600 px-1 py-0.5 rounded">Saat ini</span>}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
                 )}
 
                 {/* Quick Add to Sprint Button (For Backlog tasks) */}
@@ -1230,21 +1561,91 @@ const ScrumBoard: React.FC = () => {
                       searchPlaceholder="Cari tugas di backlog & sprint..."
                     />
                     
+                    {/* QUICK ACTION & ACCORDION CONTROL BAR */}
+                    <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200/90 shadow-2xs">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs font-bold text-slate-700 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200/70">
+                          {activeSprint ? '1 Sprint Aktif' : '0 Sprint Aktif'}
+                        </span>
+                        <span className="text-xs font-bold text-indigo-700 bg-indigo-50 px-3 py-1.5 rounded-xl border border-indigo-100">
+                          {projectSprints.filter(s => s.status === 'Planned').length} Sprint Direncanakan
+                        </span>
+                        <span className="text-xs font-bold text-slate-700 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
+                          {allBacklogSections.length} Field Backlog ({backlogTasks.length} Tugas)
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {/* Collapse All / Expand All Button */}
+                        <button
+                          onClick={toggleAllAccordions}
+                          className="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3 py-1.5 rounded-xl transition-all text-xs cursor-pointer border border-slate-200"
+                          title="Buka atau tutup seluruh bagian"
+                        >
+                          <ChevronsUpDown className="w-3.5 h-3.5 text-slate-500" />
+                          <span>
+                            {(expandedSprintIds['active'] ?? true) ||
+                            projectSprints.filter(s => s.status === 'Planned').some(s => expandedSprintIds[s.id] ?? true) ||
+                            allBacklogSections.some(sec => expandedSprintIds['backlog-' + sec.id] ?? true)
+                              ? 'Tutup Semua'
+                              : 'Buka Semua'}
+                          </span>
+                        </button>
+
+                        {/* Quick Create Task */}
+                        <button
+                          onClick={handleCreateTaskForProject}
+                          className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-xl transition-all shadow-sm text-xs cursor-pointer"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Buat Tugas</span>
+                        </button>
+
+                        {/* Add Sprint */}
+                        <button
+                          onClick={() => setIsCreateModalOpen(true)}
+                          className="flex items-center gap-1.5 bg-gov-600 hover:bg-gov-700 text-white font-bold px-3 py-1.5 rounded-xl transition-all shadow-sm text-xs cursor-pointer"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Tambah Sprint</span>
+                        </button>
+
+                        {/* Add Backlog Field */}
+                        <button
+                          onClick={() => setIsCreateBacklogModalOpen(true)}
+                          className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-900 text-white font-bold px-3 py-1.5 rounded-xl transition-all shadow-sm text-xs cursor-pointer"
+                        >
+                          <FolderPlus className="w-3.5 h-3.5" />
+                          <span>Tambah Field Backlog</span>
+                        </button>
+                      </div>
+                    </div>
+                    
                     {/* JIRA STYLE SECTION 1: ACTIVE SPRINT */}
                     <div className="bg-white border border-slate-200 rounded-2xl shadow-2xs overflow-hidden">
                       {/* Active Sprint Section Header */}
                       <div className="p-4 sm:p-5 border-b border-slate-100 bg-gov-25/10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse" />
-                            <h2 className="text-base sm:text-lg font-bold text-slate-800">
-                              Sprint Aktif: {activeSprint ? activeSprint.name : 'Belum Ada Sprint Aktif'}
-                            </h2>
-                          </div>
-                          {activeSprint?.goal && (
-                            <p className="text-xs text-slate-500 font-semibold mt-1">Goal: {activeSprint.goal}</p>
+                        <button
+                          onClick={() => toggleSprintAccordion('active')}
+                          className="flex items-center gap-2.5 font-bold text-slate-800 hover:text-slate-900 transition-colors text-left cursor-pointer group"
+                        >
+                          {(expandedSprintIds['active'] ?? true) ? (
+                            <ChevronDown className="w-5 h-5 text-slate-400 group-hover:text-slate-600 flex-shrink-0 transition-transform" />
+                          ) : (
+                            <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-slate-600 flex-shrink-0 transition-transform" />
                           )}
-                        </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse" />
+                              <h2 className="text-base sm:text-lg font-bold text-slate-800">
+                                Sprint Aktif: {activeSprint ? activeSprint.name : 'Belum Ada Sprint Aktif'}
+                              </h2>
+                            </div>
+                            {activeSprint?.goal && (
+                              <p className="text-xs text-slate-500 font-semibold mt-1">Goal: {activeSprint.goal}</p>
+                            )}
+                          </div>
+                        </button>
 
                         {activeSprint && (
                           <div className="flex items-center gap-2 flex-wrap">
@@ -1252,8 +1653,15 @@ const ScrumBoard: React.FC = () => {
                               {getSprintStoryPoints(activeSprint.id)} Story Points
                             </span>
                             <button
+                              onClick={() => handleOpenEditSprint(activeSprint)}
+                              className="p-1.5 hover:bg-slate-100 text-slate-500 hover:text-slate-700 rounded-lg transition-all border border-slate-200"
+                              title="Edit Sprint Aktif"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button
                               onClick={() => handleCompleteSprint(activeSprint)}
-                              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition-all shadow-sm flex items-center gap-1"
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition-all shadow-sm flex items-center gap-1 cursor-pointer"
                             >
                               <Check className="w-3.5 h-3.5" />
                               Selesaikan Sprint
@@ -1263,28 +1671,35 @@ const ScrumBoard: React.FC = () => {
                       </div>
 
                       {/* Active Sprint Tasks List */}
-                      {activeSprint ? (
-                        <div 
-                          onDragOver={(e) => e.preventDefault()}
-                          onDrop={(e) => handleDropToSprint(e, activeSprint)}
-                          className="p-4"
-                        >
-                          {renderTaskList(filteredPlanningTasks.filter(t => t.sprintId === activeSprint.id), activeSprint.id)}
-                        </div>
-                      ) : (
-                        <div className="p-8 text-center text-slate-400 text-xs border-t border-slate-100">
-                          Tidak ada sprint yang sedang berjalan. Klik tombol <strong>"Mulai"</strong> di sprint yang direncanakan di bawah untuk memulainya.
-                        </div>
+                      {(expandedSprintIds['active'] ?? true) && (
+                        activeSprint ? (
+                          <div 
+                            onDragOver={(e) => e.preventDefault()}
+                            onDrop={(e) => handleDropToSprint(e, activeSprint)}
+                            className="p-4"
+                          >
+                            {renderTaskList(filteredPlanningTasks.filter(t => t.sprintId === activeSprint.id), activeSprint.id)}
+                          </div>
+                        ) : (
+                          <div className="p-8 text-center text-slate-400 text-xs border-t border-slate-100">
+                            Tidak ada sprint yang sedang berjalan. Klik tombol <strong>"Mulai"</strong> di sprint yang direncanakan di bawah untuk memulainya.
+                          </div>
+                        )
                       )}
                     </div>
 
                     {/* JIRA STYLE SECTION 2: PLANNED SPRINTS */}
                     <div className="space-y-4">
                       <div className="flex justify-between items-center px-1">
-                        <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Sprint Direncanakan (Planned)</h3>
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Sprint Direncanakan (Planned)</h3>
+                          <span className="bg-slate-200 text-slate-700 text-[11px] font-bold px-2 py-0.5 rounded-full">
+                            {projectSprints.filter(s => s.status === 'Planned').length}
+                          </span>
+                        </div>
                         <button
                           onClick={() => setIsCreateModalOpen(true)}
-                          className="flex items-center gap-1.5 bg-gov-600 hover:bg-gov-700 text-white font-bold px-3 py-1.5 rounded-xl transition-all shadow-sm text-xs sm:text-sm"
+                          className="flex items-center gap-1.5 bg-gov-600 hover:bg-gov-700 text-white font-bold px-3 py-1.5 rounded-xl transition-all shadow-sm text-xs sm:text-sm cursor-pointer"
                         >
                           <Plus className="w-4 h-4" />
                           Tambah Sprint
@@ -1312,7 +1727,7 @@ const ScrumBoard: React.FC = () => {
                               <div className="p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-100 bg-slate-50/50">
                                 <button
                                   onClick={() => toggleSprintAccordion(sprint.id)}
-                                  className="flex items-center gap-2 font-bold text-slate-700 hover:text-slate-900 transition-colors text-left"
+                                  className="flex items-center gap-2 font-bold text-slate-700 hover:text-slate-900 transition-colors text-left cursor-pointer"
                                 >
                                   {isExpanded ? <ChevronDown className="w-4 h-4 text-slate-400 flex-shrink-0" /> : <ChevronRight className="w-4 h-4 text-slate-400 flex-shrink-0" />}
                                   <div>
@@ -1323,7 +1738,7 @@ const ScrumBoard: React.FC = () => {
                                   </div>
                                 </button>
 
-                                <div className="flex items-center gap-2.5">
+                                <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
                                   <span className="bg-indigo-50 border border-indigo-100 text-indigo-700 text-[10px] font-bold px-2 py-0.5 rounded-md">
                                     {totalSp} Story Points
                                   </span>
@@ -1334,6 +1749,14 @@ const ScrumBoard: React.FC = () => {
                                   >
                                     <Play className="w-3 h-3" />
                                     Mulai Sprint
+                                  </button>
+
+                                  <button
+                                    onClick={() => handleOpenEditSprint(sprint)}
+                                    className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-all"
+                                    title="Edit Sprint"
+                                  >
+                                    <Pencil className="w-3.5 h-3.5" />
                                   </button>
 
                                   <button
@@ -1349,7 +1772,7 @@ const ScrumBoard: React.FC = () => {
                                         }
                                       );
                                     }}
-                                    className="p-1 hover:bg-rose-50 text-rose-500 hover:text-rose-700 rounded transition-all"
+                                    className="p-1.5 hover:bg-rose-50 text-rose-500 hover:text-rose-700 rounded-lg transition-all cursor-pointer"
                                     title="Hapus Sprint"
                                   >
                                     <Trash2 className="w-3.5 h-3.5" />
@@ -1369,54 +1792,160 @@ const ScrumBoard: React.FC = () => {
                       )}
                     </div>
 
-                    {/* JIRA STYLE SECTION 3: BACKLOG (AT THE BOTTOM) */}
-                    <div 
-                      onDragOver={(e) => e.preventDefault()}
-                      onDrop={handleDropToBacklog}
-                      className="bg-white border border-slate-200 rounded-2xl shadow-2xs overflow-hidden"
-                    >
-                      {/* Backlog Section Header */}
-                      <div className="p-4 sm:p-5 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
-                        <button
-                          onClick={() => toggleSprintAccordion('backlog')}
-                          className="flex items-center gap-2 font-bold text-slate-800 hover:text-slate-900 transition-colors text-left"
-                        >
-                          {expandedSprintIds['backlog'] ? <ChevronDown className="w-4 h-4 text-slate-400 flex-shrink-0" /> : <ChevronRight className="w-4 h-4 text-slate-400 flex-shrink-0" />}
-                          <div>
-                            <span className="text-sm font-extrabold text-slate-800">Backlog Proyek</span>
-                            <p className="text-xs text-slate-400 font-semibold mt-0.5">Tugas yang belum dijadwalkan ke sprint.</p>
-                          </div>
-                        </button>
-
-                        <div className="flex gap-2">
-                          <span className="bg-slate-200 text-slate-700 text-xs font-bold px-2.5 py-1 rounded-lg">
-                            {backlogTasks.length} Tugas
-                          </span>
-                          <span className="bg-indigo-50 border border-indigo-100 text-indigo-700 text-xs font-extrabold px-2.5 py-1 rounded-lg">
-                            {backlogTasks.reduce((sum, t) => sum + (t.storyPoints || 0), 0)} SP
+                    {/* JIRA STYLE SECTION 3: MULTIPLE BACKLOG FIELDS */}
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center px-1">
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Field Backlog</h3>
+                          <span className="bg-slate-200 text-slate-700 text-[11px] font-bold px-2 py-0.5 rounded-full">
+                            {allBacklogSections.length} Bagian
                           </span>
                         </div>
+                        <button
+                          onClick={() => setIsCreateBacklogModalOpen(true)}
+                          className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-900 text-white font-bold px-3 py-1.5 rounded-xl transition-all shadow-sm text-xs sm:text-sm cursor-pointer"
+                        >
+                          <FolderPlus className="w-4 h-4" />
+                          Tambah Field Backlog
+                        </button>
                       </div>
 
-                      {/* Backlog Tasks List */}
-                      {expandedSprintIds['backlog'] && (
-                        <div className="p-4">
-                          {/* Backlog Sort Selector */}
-                          <div className="flex justify-end mb-4">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs text-slate-500 font-semibold">Urutkan:</span>
-                              <SearchableSelect
-                                options={sortOptions}
-                                value={backlogSortBy}
-                                onChange={setBacklogSortBy}
-                                className="w-48"
-                              />
-                            </div>
-                          </div>
+                      {/* Render All Backlog Sections */}
+                      {allBacklogSections.map(section => {
+                        const isDefault = section.id === 'default';
+                        const sectionTasks = getBacklogTasks(section.id);
+                        const totalSp = sectionTasks.reduce((sum, t) => sum + (t.storyPoints || 0), 0);
+                        const isExpanded = expandedSprintIds['backlog-' + section.id] ?? true;
+                        const isEditingThisTitle = editingBacklogId === section.id;
 
-                          {renderTaskList(backlogTasks, null)}
-                        </div>
-                      )}
+                        return (
+                          <div 
+                            key={section.id}
+                            onDragOver={(e) => e.preventDefault()}
+                            onDrop={(e) => handleDropToBacklog(e, section.id)}
+                            className="bg-white border border-slate-200 rounded-2xl shadow-2xs overflow-hidden"
+                          >
+                            {/* Backlog Section Header */}
+                            <div className="p-4 sm:p-5 border-b border-slate-100 bg-slate-50/70 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                              <div className="flex items-center gap-2 flex-1 min-w-0">
+                                <button
+                                  onClick={() => toggleSprintAccordion('backlog-' + section.id)}
+                                  className="text-slate-400 hover:text-slate-700 p-1 rounded-lg hover:bg-slate-200/60 transition-colors cursor-pointer"
+                                  title={isExpanded ? "Tutup Backlog" : "Buka Backlog"}
+                                >
+                                  {isExpanded ? <ChevronDown className="w-4 h-4 flex-shrink-0" /> : <ChevronRight className="w-4 h-4 flex-shrink-0" />}
+                                </button>
+
+                                {isEditingThisTitle ? (
+                                  <div className="flex items-center gap-1.5 flex-1 max-w-sm" onClick={e => e.stopPropagation()}>
+                                    <input
+                                      type="text"
+                                      value={tempBacklogTitle}
+                                      onChange={e => setTempBacklogTitle(e.target.value)}
+                                      className="bg-white border border-gov-400 rounded-lg px-2.5 py-1 text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-gov-500/20 w-full"
+                                      autoFocus
+                                      onKeyDown={e => {
+                                        if (e.key === 'Enter') handleSaveBacklogTitle(section.id);
+                                        if (e.key === 'Escape') setEditingBacklogId(null);
+                                      }}
+                                    />
+                                    <button
+                                      onClick={() => handleSaveBacklogTitle(section.id)}
+                                      className="p-1 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
+                                      title="Simpan"
+                                    >
+                                      <Check className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                      onClick={() => setEditingBacklogId(null)}
+                                      className="p-1 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                                      title="Batal"
+                                    >
+                                      <X className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <span 
+                                      onClick={() => toggleSprintAccordion('backlog-' + section.id)}
+                                      className="text-sm font-extrabold text-slate-800 hover:text-gov-700 cursor-pointer transition-colors truncate"
+                                    >
+                                      {section.title}
+                                    </span>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setEditingBacklogId(section.id);
+                                        setTempBacklogTitle(section.title);
+                                      }}
+                                      className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-200/50 rounded transition-colors cursor-pointer"
+                                      title="Ubah Nama Judul Field Backlog"
+                                    >
+                                      <Pencil className="w-3 h-3" />
+                                    </button>
+                                    {isDefault && (
+                                      <span className="text-[10px] bg-slate-200/70 text-slate-600 font-semibold px-2 py-0.5 rounded">
+                                        Utama
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                                <span className="bg-slate-200 text-slate-700 text-xs font-bold px-2.5 py-1 rounded-lg">
+                                  {sectionTasks.length} Tugas
+                                </span>
+                                <span className="bg-indigo-50 border border-indigo-100 text-indigo-700 text-xs font-extrabold px-2.5 py-1 rounded-lg">
+                                  {totalSp} SP
+                                </span>
+
+                                {/* If custom backlog: Delete button */}
+                                {!isDefault && (
+                                  <button
+                                    onClick={() => {
+                                      showConfirm(
+                                        'Hapus Field Backlog',
+                                        `Apakah Anda yakin ingin menghapus field backlog "${section.title}"?\n\nTugas-tugas di dalamnya otomatis dikembalikan ke Backlog Utama.`,
+                                        async () => {
+                                          const success = await deleteBacklog(section.id);
+                                          if (success) {
+                                            showToast(`Field backlog "${section.title}" dihapus.`, 'info');
+                                          }
+                                        }
+                                      );
+                                    }}
+                                    className="p-1.5 hover:bg-rose-50 text-rose-500 hover:text-rose-700 rounded-lg transition-all ml-1 cursor-pointer"
+                                    title="Hapus Field Backlog ini"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Backlog Tasks List */}
+                            {isExpanded && (
+                              <div className="p-4">
+                                {/* Backlog Sort Selector */}
+                                <div className="flex justify-end mb-4">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs text-slate-500 font-semibold">Urutkan:</span>
+                                    <SearchableSelect
+                                      options={sortOptions}
+                                      value={backlogSortByMap[section.id] || 'created_desc'}
+                                      onChange={(val) => setBacklogSortByMap(prev => ({ ...prev, [section.id]: val }))}
+                                      className="w-48"
+                                    />
+                                  </div>
+                                </div>
+
+                                {renderTaskList(sectionTasks, null, false)}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
 
                     {/* JIRA STYLE SECTION 4: HISTORY SPRINT COMPLETED (COLLAPSIBLE) */}
@@ -1914,6 +2443,146 @@ const ScrumBoard: React.FC = () => {
                 >
                   {isSubmittingSprint && <RefreshCw className="w-4 h-4 animate-spin" />}
                   Rencanakan Sprint
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 7. CREATE BACKLOG MODAL */}
+      {isCreateBacklogModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-[9999]">
+          <div className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden border border-slate-100 animate-zoomIn">
+            <div className="px-6 py-5 bg-slate-50/50 border-b border-slate-100 flex justify-between items-center">
+              <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
+                <FolderPlus className="w-5 h-5 text-gov-600" />
+                Tambah Field Backlog
+              </h3>
+              <button 
+                onClick={() => setIsCreateBacklogModalOpen(false)} 
+                className="p-1.5 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-600 transition-all cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateBacklogSubmit} className="p-6 space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Judul Field Backlog *</label>
+                <input
+                  type="text"
+                  required
+                  autoFocus
+                  placeholder="Contoh: Backlog Desain / Backlog Q3 / Technical Debt"
+                  value={newBacklogTitle}
+                  onChange={(e) => setNewBacklogTitle(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gov-500/20 focus:border-gov-500 transition-all"
+                />
+                <p className="text-xs text-slate-400">
+                  Field backlog baru akan muncul sebagai wadah terpisah di perencanaan Scrum untuk mengelompokkan tugas.
+                </p>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsCreateBacklogModalOpen(false)}
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold transition-all text-sm cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingBacklog || !newBacklogTitle.trim()}
+                  className="px-4 py-2.5 bg-gov-600 hover:bg-gov-700 text-white font-bold rounded-xl transition-all shadow-sm text-sm disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+                >
+                  {isSubmittingBacklog && <RefreshCw className="w-4 h-4 animate-spin" />}
+                  Simpan Field Backlog
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 8. EDIT SPRINT MODAL */}
+      {isEditSprintModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-[9999]">
+          <div className="bg-white rounded-3xl shadow-xl w-full max-w-lg overflow-hidden border border-slate-100 animate-zoomIn">
+            <div className="px-6 py-5 bg-slate-50/50 border-b border-slate-100 flex justify-between items-center">
+              <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
+                <Pencil className="w-5 h-5 text-indigo-500" />
+                Edit Rencana Sprint
+              </h3>
+              <button 
+                onClick={() => setIsEditSprintModalOpen(false)} 
+                className="p-1.5 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-600 transition-all cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleEditSprintSubmit} className="p-6 space-y-4">
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nama Sprint *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Nama Sprint"
+                  value={editingSprintName}
+                  onChange={(e) => setEditingSprintName(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gov-500/20 focus:border-gov-500 transition-all"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Sprint Goal / Target</label>
+                <input
+                  type="text"
+                  placeholder="Apa target utama sprint ini?"
+                  value={editingSprintGoal}
+                  onChange={(e) => setEditingSprintGoal(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gov-500/20 focus:border-gov-500 transition-all"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tanggal Mulai</label>
+                  <input
+                    type="date"
+                    value={editingSprintStart}
+                    onChange={(e) => setEditingSprintStart(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gov-500/20 focus:border-gov-500 transition-all"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tanggal Selesai</label>
+                  <input
+                    type="date"
+                    value={editingSprintEnd}
+                    onChange={(e) => setEditingSprintEnd(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gov-500/20 focus:border-gov-500 transition-all"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsEditSprintModalOpen(false)}
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold transition-all text-sm cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingEditSprint || !editingSprintName.trim()}
+                  className="px-4 py-2.5 bg-gov-600 hover:bg-gov-700 text-white font-bold rounded-xl transition-all shadow-sm text-sm disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+                >
+                  {isSubmittingEditSprint && <RefreshCw className="w-4 h-4 animate-spin" />}
+                  Simpan Perubahan
                 </button>
               </div>
             </form>

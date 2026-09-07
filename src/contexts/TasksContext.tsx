@@ -134,6 +134,7 @@ export const TasksProvider: React.FC<TasksProviderProps> = ({ children, session 
                     projectId: t.project_id || t.projectId || null,
                     epicId: t.epic_id || t.epicId || null,
                     sprintId: t.sprint_id || null,
+                    backlogId: t.backlog_id || null,
                     storyPoints: t.story_points || null,
                     createdBy: createdByName,
                     pic: picNames,

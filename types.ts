@@ -130,6 +130,15 @@ export interface Sprint {
   updatedAt?: string;         // ISO Date string
 }
 
+export interface Backlog {
+  id: string;
+  projectId: string;          // Parent project
+  title: string;              // Judul field backlog
+  createdBy?: string;         // User yang membuat
+  createdAt?: string;         // ISO Date string
+  updatedAt?: string;         // ISO Date string
+}
+
 // Epic - Middle layer between Project and Task
 export type EpicStatus = 'Not Started' | 'In Progress' | 'Completed';
 
@@ -221,6 +230,7 @@ export interface Task {
   updatedAt?: string;
   updated_status_at?: string;
   sprintId?: string;          // OPSIONAL - Task boleh tanpa sprint
+  backlogId?: string;         // OPSIONAL - Backlog section jika dalam backlog
   storyPoints?: number;       // OPSIONAL - Estimasi bobot tugas
 }
 
