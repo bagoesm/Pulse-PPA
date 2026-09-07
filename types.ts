@@ -139,6 +139,19 @@ export interface Backlog {
   updatedAt?: string;         // ISO Date string
 }
 
+export type SprintRetroCategory = 'went_well' | 'challenges' | 'improvements';
+
+export interface SprintRetroItem {
+  id: string;
+  sprintId: string;
+  category: SprintRetroCategory;
+  content: string;
+  authorName?: string;
+  createdBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 // Epic - Middle layer between Project and Task
 export type EpicStatus = 'Not Started' | 'In Progress' | 'Completed';
 

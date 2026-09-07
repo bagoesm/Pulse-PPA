@@ -9,7 +9,7 @@ import {
   Play, Check, X, ArrowLeftRight, Clock, User, Sparkles,
   HelpCircle, ChevronUp, GripVertical, AlertTriangle, ArrowRight, ArrowLeft,
   Search, Pencil, ChevronsUpDown, FolderPlus, CheckSquare, Square,
-  TrendingDown, FileSpreadsheet, FileText, Download
+  TrendingDown, FileSpreadsheet, FileText, Download, MessageSquare
 } from 'lucide-react';
 
 // Context Hooks
@@ -32,6 +32,7 @@ import { StoryPointsPicker } from './scrum/StoryPointsPicker';
 import { SprintCompletionModal } from './scrum/SprintCompletionModal';
 import { ScrumBulkActionBar } from './scrum/ScrumBulkActionBar';
 import { SprintAnalyticsModal } from './scrum/SprintAnalyticsModal';
+import { SprintRetroModal } from './scrum/SprintRetroModal';
 import { exportSprintToExcel, exportSprintToPDF } from '../utils/sprintExport';
 
 // Typing animation component for the welcome landing page
@@ -203,6 +204,10 @@ const ScrumBoard: React.FC = () => {
 
   // Sprint Export Menu Dropdown State (sprint.id)
   const [openExportMenuSprintId, setOpenExportMenuSprintId] = useState<string | null>(null);
+
+  // Sprint Retrospective Modal State
+  const [retroSprint, setRetroSprint] = useState<Sprint | null>(null);
+  const [isRetroModalOpen, setIsRetroModalOpen] = useState(false);
 
   const sortOptions = [
     { value: 'created_desc', label: 'Terbaru Dibuat' },
@@ -1778,6 +1783,20 @@ const ScrumBoard: React.FC = () => {
                               <span className="hidden sm:inline">Analitik</span>
                             </button>
 
+                            {/* Retrospective Button */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setRetroSprint(activeSprint);
+                                setIsRetroModalOpen(true);
+                              }}
+                              className="flex items-center gap-1 bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold px-2.5 py-1.5 rounded-lg text-xs transition-all border border-amber-200 cursor-pointer"
+                              title="Papan Evaluasi & Retrospektif Sprint"
+                            >
+                              <MessageSquare className="w-3.5 h-3.5" />
+                              <span className="hidden sm:inline">Retrospektif</span>
+                            </button>
+
                             {/* Export Dropdown */}
                             <div className="relative">
                               <button
@@ -2166,6 +2185,17 @@ const ScrumBoard: React.FC = () => {
                                       <button
                                         type="button"
                                         onClick={() => {
+                                          setRetroSprint(completedSprint);
+                                          setIsRetroModalOpen(true);
+                                        }}
+                                        className="p-1.5 hover:bg-amber-50 text-amber-600 rounded-lg transition-colors border border-amber-100 cursor-pointer"
+                                        title="Papan Evaluasi & Retrospektif Sprint"
+                                      >
+                                        <MessageSquare className="w-3.5 h-3.5" />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
                                           setAnalyticsSprint(completedSprint);
                                           setIsAnalyticsModalOpen(true);
                                         }}
@@ -2271,6 +2301,20 @@ const ScrumBoard: React.FC = () => {
                               >
                                 <TrendingDown className="w-3.5 h-3.5" />
                                 <span>Analitik</span>
+                              </button>
+
+                              {/* Retrospective Button */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setRetroSprint(activeSprint);
+                                  setIsRetroModalOpen(true);
+                                }}
+                                className="flex items-center gap-1 bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold px-2.5 py-1.5 rounded-lg text-xs transition-all border border-amber-200 cursor-pointer"
+                                title="Papan Evaluasi & Retrospektif Sprint"
+                              >
+                                <MessageSquare className="w-3.5 h-3.5" />
+                                <span>Retrospektif</span>
                               </button>
 
                               {/* Export Dropdown */}
@@ -2926,6 +2970,19 @@ const ScrumBoard: React.FC = () => {
             setIsAnalyticsModalOpen(false);
             setAnalyticsSprint(null);
           }}
+        />
+      )}
+
+      {/* 12. SPRINT RETROSPECTIVE MODAL (3-COLUMN BOARD) */}
+      {isRetroModalOpen && retroSprint && (
+        <SprintRetroModal
+          sprint={retroSprint}
+          isOpen={true}
+          onClose={() => {
+            setIsRetroModalOpen(false);
+            setRetroSprint(null);
+          }}
+          currentUser={currentUser}
         />
       )}
 
