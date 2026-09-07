@@ -74,9 +74,10 @@ export const SprintDailyNotesModal: React.FC<SprintDailyNotesModalProps> = ({
       }));
 
       setNotes(mapped);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error fetching sprint daily notes:', err);
-      showToast('Gagal memuat catatan daily sprint.', 'error');
+      const msg = err?.message || 'Gagal memuat catatan daily sprint.';
+      showToast(msg.includes('sprint_daily_notes') ? 'Tabel sprint_daily_notes belum ada di database Supabase Anda. Silakan jalankan migration 035.' : msg, 'error');
     } finally {
       setIsLoading(false);
     }
@@ -168,7 +169,7 @@ export const SprintDailyNotesModal: React.FC<SprintDailyNotesModalProps> = ({
         showToast('Catatan daily berhasil diperbarui.', 'success');
       } else {
         // Insert
-        payload.created_by = activeUser?.id || null;
+        payload.created_by = activeUser?.id ? String(activeUser.id) : null;
         payload.created_at = new Date().toISOString();
 
         const { error } = await supabase
@@ -181,9 +182,10 @@ export const SprintDailyNotesModal: React.FC<SprintDailyNotesModalProps> = ({
 
       resetForm();
       fetchDailyNotes();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error saving sprint daily note:', err);
-      showToast('Gagal menyimpan catatan daily.', 'error');
+      const msg = err?.message || 'Gagal menyimpan catatan daily.';
+      showToast(msg.includes('sprint_daily_notes') ? 'Tabel sprint_daily_notes belum ada di database Supabase Anda. Jalankan migration 035 di Supabase SQL Editor.' : `Gagal menyimpan: ${msg}`, 'error');
     } finally {
       setIsSubmitting(false);
     }

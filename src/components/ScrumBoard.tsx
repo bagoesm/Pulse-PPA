@@ -570,8 +570,8 @@ const ScrumBoard: React.FC = () => {
     setEditingSprintName(sprint.name);
     setEditingSprintGoal(sprint.goal || '');
     setEditingSprintDesc(sprint.description || '');
-    setEditingSprintStart(sprint.startDate || '');
-    setEditingSprintEnd(sprint.endDate || '');
+    setEditingSprintStart(sprint.startDate ? sprint.startDate.split('T')[0] : '');
+    setEditingSprintEnd(sprint.endDate ? sprint.endDate.split('T')[0] : '');
     setIsEditSprintModalOpen(true);
   };
 
@@ -903,7 +903,7 @@ const ScrumBoard: React.FC = () => {
       async () => {
         const success = await updateSprint(sprint.id, { 
           status: 'Active',
-          startDate: new Date().toISOString()
+          startDate: sprint.startDate ? sprint.startDate.split('T')[0] : new Date().toISOString().split('T')[0]
         });
         if (success) {
           showToast(`Sprint "${sprint.name}" telah dimulai!`, 'success');

@@ -15,6 +15,21 @@ interface SprintRetroModalProps {
   currentUser?: UserType | null;
 }
 
+const formatDate = (dateStr?: string) => {
+  if (!dateStr) return '-';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    return d.toLocaleDateString('id-ID', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    });
+  } catch (e) {
+    return dateStr;
+  }
+};
+
 export const SprintRetroModal: React.FC<SprintRetroModalProps> = ({
   sprint,
   isOpen,
@@ -153,7 +168,7 @@ export const SprintRetroModal: React.FC<SprintRetroModalProps> = ({
     const lines: string[] = [
       `📋 NOTULA SPRINT RETROSPECTIVE`,
       `Sprint: ${sprint.name}`,
-      `Periode: ${sprint.startDate || '-'} s/d ${sprint.endDate || '-'}`,
+      `Periode: ${formatDate(sprint.startDate)} s/d ${formatDate(sprint.endDate)}`,
       sprint.goal ? `Sprint Goal: ${sprint.goal}` : '',
       `Tanggal Rapat: ${new Date().toLocaleDateString('id-ID')}`,
       '',
@@ -281,7 +296,7 @@ export const SprintRetroModal: React.FC<SprintRetroModalProps> = ({
               <div className="flex items-center gap-1">
                 <Calendar className="w-3.5 h-3.5 text-indigo-500" />
                 <span className="font-semibold text-slate-700">Periode:</span>
-                <span>{sprint.startDate || '-'} s/d {sprint.endDate || '-'}</span>
+                <span>{formatDate(sprint.startDate)} s/d {formatDate(sprint.endDate)}</span>
               </div>
             )}
           </div>

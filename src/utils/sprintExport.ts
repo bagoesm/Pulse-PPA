@@ -7,6 +7,21 @@ interface SprintExportOptions {
   users?: User[];
 }
 
+const formatDate = (dateStr?: string) => {
+  if (!dateStr) return '-';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    return d.toLocaleDateString('id-ID', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    });
+  } catch {
+    return dateStr;
+  }
+};
+
 /**
  * Export Sprint report to Excel (.xlsx)
  */
@@ -32,8 +47,8 @@ export const exportSprintToExcel = async ({
     { 'Properti': 'Nama Proyek', 'Keterangan': projectName },
     { 'Properti': 'Sprint Goal / Target', 'Keterangan': sprint.goal || '-' },
     { 'Properti': 'Status Sprint', 'Keterangan': sprint.status },
-    { 'Properti': 'Tanggal Mulai', 'Keterangan': sprint.startDate || '-' },
-    { 'Properti': 'Tanggal Selesai', 'Keterangan': sprint.endDate || '-' },
+    { 'Properti': 'Tanggal Mulai', 'Keterangan': formatDate(sprint.startDate) },
+    { 'Properti': 'Tanggal Selesai', 'Keterangan': formatDate(sprint.endDate) },
     { 'Properti': 'Total Tugas', 'Keterangan': sprintTasks.length },
     { 'Properti': 'Tugas Selesai (Done)', 'Keterangan': completedTasks.length },
     { 'Properti': 'Tugas Belum Selesai', 'Keterangan': sprintTasks.length - completedTasks.length },
@@ -146,7 +161,7 @@ export const exportSprintToPDF = async ({
   doc.text(`Proyek: ${projectName}`, 14, 38);
   doc.text(`Goal: ${sprint.goal || '-'}`, 14, 44);
 
-  doc.text(`Periode: ${sprint.startDate || '-'} s/d ${sprint.endDate || '-'}`, 130, 32);
+  doc.text(`Periode: ${formatDate(sprint.startDate)} s/d ${formatDate(sprint.endDate)}`, 130, 32);
   doc.text(`Status: ${sprint.status}`, 130, 38);
   doc.text(`Pencapaian: ${completedTasks.length}/${sprintTasks.length} Tugas (${rate}%) | ${completedSp}/${totalSp} Story Points`, 130, 44);
 
