@@ -10,7 +10,8 @@ import {
   HelpCircle, ChevronUp, GripVertical, AlertTriangle, ArrowRight, ArrowLeft,
   Search, Pencil, ChevronsUpDown, FolderPlus, CheckSquare, Square,
   TrendingDown, FileSpreadsheet, FileText, Download, MessageSquare,
-  MessageSquareQuote, Rocket, ShieldCheck, Eye, PanelLeftClose, ChevronsLeftRight
+  MessageSquareQuote, Rocket, ShieldCheck, Eye, PanelLeftClose, ChevronsLeftRight,
+  MoreHorizontal
 } from 'lucide-react';
 
 // Context Hooks
@@ -330,6 +331,7 @@ const ScrumBoard: React.FC = () => {
 
   // Sprint Export Menu Dropdown State (sprint.id)
   const [openExportMenuSprintId, setOpenExportMenuSprintId] = useState<string | null>(null);
+  const [isBoardOptionsMenuOpen, setIsBoardOptionsMenuOpen] = useState(false);
 
   // Sprint Retrospective Modal State
   const [retroSprint, setRetroSprint] = useState<Sprint | null>(null);
@@ -1683,7 +1685,7 @@ const ScrumBoard: React.FC = () => {
         <div className="flex-1 flex flex-col overflow-hidden min-h-0">
           
           {/* 1. TOP HEADER SELECT BAR */}
-          <div className="bg-white border-b border-slate-200/80 px-6 sm:px-8 py-5 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div className="bg-white border-b border-slate-200/80 px-4 sm:px-6 py-3 sm:py-3.5 shadow-2xs flex flex-col md:flex-row justify-between items-start md:items-center gap-3 flex-shrink-0">
             <div>
               <div className="flex items-center gap-2">
                 <div className="p-1.5 bg-gov-50 text-gov-600 rounded-lg">
@@ -1719,7 +1721,7 @@ const ScrumBoard: React.FC = () => {
           
           <div className="flex-1 flex flex-col overflow-hidden min-h-0">
             {/* 3. TABS AND SUMMARY STATS */}
-            <div className="bg-white border-b border-slate-200 px-6 sm:px-8 py-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <div className="bg-white border-b border-slate-200 px-4 sm:px-6 py-2 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2.5 flex-shrink-0">
               
               {/* Horizontal Tabs */}
               <div className="flex flex-wrap items-center gap-2 p-1 bg-slate-100 rounded-xl">
@@ -2415,7 +2417,7 @@ const ScrumBoard: React.FC = () => {
 
                 {/* TAB 2: ACTIVE SPRINT BOARD */}
                 {activeTab === 'board' && (
-                  <div className="flex-1 flex flex-col min-h-0 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-300 p-4 sm:p-6 pb-2 animate-fadeIn">
+                  <div className="flex-1 flex flex-col min-h-0 overflow-y-auto md:overflow-hidden px-5 sm:px-8 pt-4 pb-5 animate-fadeIn">
                     {!activeSprint ? (
                       <div className="flex-1 flex flex-col items-center justify-center bg-white border border-slate-200 rounded-3xl p-8 text-center shadow-sm">
                         <div className="w-16 h-16 bg-gov-50 text-gov-600 rounded-2xl flex items-center justify-center mx-auto shadow-md mb-4 animate-bounce">
@@ -2434,117 +2436,159 @@ const ScrumBoard: React.FC = () => {
                       </div>
                     ) : (
                       <div className="flex-1 flex flex-col min-h-0">
-                        {/* Unified Active Sprint Header & Filter Panel */}
-                        <div className="bg-white border border-slate-200 rounded-2xl p-5 mb-6 shadow-xs animate-fadeIn text-left space-y-4">
-                          {/* Top row: Sprint Title & Status, Actions */}
-                          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                            <div className="flex items-center gap-2">
-                              <span className="flex h-2.5 w-2.5 relative">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-                              </span>
-                              <h2 className="text-base sm:text-lg font-bold text-slate-800 tracking-tight">{activeSprint.name}</h2>
-                              <span className="bg-emerald-50 border border-emerald-100 text-emerald-800 text-[9px] px-2 py-0.5 rounded font-extrabold uppercase tracking-wide">
-                                Aktif
-                              </span>
+                        {/* Unified Active Sprint Header & Filter Panel with Comfortable Spacing */}
+                        <div className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 mb-5 shadow-xs animate-fadeIn text-left flex-shrink-0">
+                          {/* ROW 1: Sprint Identity & Grouped Actions */}
+                          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+                            {/* Left: Title, Status, SP & Clean Metadata Pills */}
+                            <div className="flex flex-col gap-2 min-w-0">
+                              <div className="flex items-center gap-2.5 flex-wrap">
+                                <span className="flex h-2.5 w-2.5 relative">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                                </span>
+                                <h2 className="text-lg sm:text-xl font-bold text-slate-800 tracking-tight">{activeSprint.name}</h2>
+                                <span className="bg-emerald-50 text-emerald-700 text-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider border border-emerald-200/70">
+                                  Aktif
+                                </span>
+                                <span className="bg-indigo-50 text-indigo-700 text-xs font-bold px-2.5 py-0.5 rounded-lg border border-indigo-200/70">
+                                  {getSprintStoryPoints(activeSprint.id)} SP
+                                </span>
+                              </div>
+
+                              {/* Clean Metadata Pills with Generous Breathing Room */}
+                              <div className="flex items-center gap-2.5 text-xs text-slate-600 flex-wrap pt-0.5">
+                                {(activeSprint.startDate || activeSprint.endDate) && (
+                                  <span className="inline-flex items-center gap-1.5 bg-slate-50 border border-slate-200/80 px-2.5 py-1 rounded-md text-slate-700 font-medium">
+                                    <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                                    <span>{activeSprint.startDate ? formatDate(activeSprint.startDate) : '-'} s/d {activeSprint.endDate ? formatDate(activeSprint.endDate) : '-'}</span>
+                                  </span>
+                                )}
+                                {activeSprint.goal && (
+                                  <span className="inline-flex items-center gap-1.5 bg-slate-50 border border-slate-200/80 px-2.5 py-1 rounded-md text-slate-700 font-medium max-w-xl truncate" title={activeSprint.goal}>
+                                    <Target className="w-3.5 h-3.5 text-gov-600 flex-shrink-0" />
+                                    <span className="truncate"><strong className="text-slate-800">Goal:</strong> {activeSprint.goal}</span>
+                                  </span>
+                                )}
+                                {activeSprint.description && (
+                                  <span className="text-slate-400 italic text-xs max-w-xs truncate px-1" title={activeSprint.description}>
+                                    {activeSprint.description}
+                                  </span>
+                                )}
+                              </div>
                             </div>
 
-                            <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto justify-start sm:justify-end">
-                              <span className="bg-indigo-50 border border-indigo-100 text-indigo-700 text-xs font-bold px-2.5 py-1 rounded-lg">
-                                {getSprintStoryPoints(activeSprint.id)} SP
-                              </span>
+                            {/* Right: Exactly 3 Cohesive Action Groups */}
+                            <div className="flex items-center gap-2.5 w-full lg:w-auto justify-start lg:justify-end flex-shrink-0">
+                              {/* Group 1: Sprint Ceremonies (Segmented Control) */}
+                              <div className="inline-flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200/80 text-xs font-semibold gap-0.5">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setAnalyticsSprint(activeSprint);
+                                    setIsAnalyticsModalOpen(true);
+                                  }}
+                                  className="px-3 py-1.5 rounded-lg text-slate-650 hover:text-slate-900 hover:bg-white transition-all flex items-center gap-1.5 cursor-pointer shadow-3xs"
+                                  title="Lihat Burndown & Velocity Chart"
+                                >
+                                  <TrendingDown className="w-3.5 h-3.5 text-indigo-500" />
+                                  <span className="hidden sm:inline">Analitik</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setRetroSprint(activeSprint);
+                                    setIsRetroModalOpen(true);
+                                  }}
+                                  className="px-3 py-1.5 rounded-lg text-slate-650 hover:text-slate-900 hover:bg-white transition-all flex items-center gap-1.5 cursor-pointer shadow-3xs"
+                                  title="Papan Evaluasi & Retrospektif Sprint"
+                                >
+                                  <MessageSquare className="w-3.5 h-3.5 text-amber-500" />
+                                  <span className="hidden sm:inline">Retrospektif</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setDailyNotesSprint(activeSprint);
+                                    setIsDailyNotesModalOpen(true);
+                                  }}
+                                  className="px-3 py-1.5 rounded-lg text-slate-650 hover:text-slate-900 hover:bg-white transition-all flex items-center gap-1.5 cursor-pointer shadow-3xs"
+                                  title="Catatan Daily Standup Sprint"
+                                >
+                                  <MessageSquareQuote className="w-3.5 h-3.5 text-teal-500" />
+                                  <span className="hidden sm:inline">Daily</span>
+                                </button>
+                              </div>
 
-                              {/* Analytics & Burndown Button */}
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setAnalyticsSprint(activeSprint);
-                                  setIsAnalyticsModalOpen(true);
-                                }}
-                                className="flex items-center gap-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold px-2.5 py-1.5 rounded-lg text-xs transition-all border border-indigo-200 cursor-pointer"
-                                title="Lihat Burndown & Velocity Chart"
-                              >
-                                <TrendingDown className="w-3.5 h-3.5" />
-                                <span>Analitik</span>
-                              </button>
-
-                              {/* Retrospective Button */}
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setRetroSprint(activeSprint);
-                                  setIsRetroModalOpen(true);
-                                }}
-                                className="flex items-center gap-1 bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold px-2.5 py-1.5 rounded-lg text-xs transition-all border border-amber-200 cursor-pointer"
-                                title="Papan Evaluasi & Retrospektif Sprint"
-                              >
-                                <MessageSquare className="w-3.5 h-3.5" />
-                                <span>Retrospektif</span>
-                              </button>
-
-                              {/* Daily Standup Button */}
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setDailyNotesSprint(activeSprint);
-                                  setIsDailyNotesModalOpen(true);
-                                }}
-                                className="flex items-center gap-1 bg-teal-50 hover:bg-teal-100 text-teal-700 font-bold px-2.5 py-1.5 rounded-lg text-xs transition-all border border-teal-200 cursor-pointer"
-                                title="Catatan Daily Standup Sprint"
-                              >
-                                <MessageSquareQuote className="w-3.5 h-3.5" />
-                                <span>Daily Standup</span>
-                              </button>
-
-                              {/* Export Dropdown */}
+                              {/* Group 2: Opsi Sprint (Edit & Export in clean menu) */}
                               <div className="relative">
                                 <button
                                   type="button"
-                                  onClick={() => setOpenExportMenuSprintId(openExportMenuSprintId === `board-${activeSprint.id}` ? null : `board-${activeSprint.id}`)}
-                                  className="flex items-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-2.5 py-1.5 rounded-lg text-xs transition-all border border-slate-200 cursor-pointer"
-                                  title="Export Laporan Sprint"
+                                  onClick={() => setIsBoardOptionsMenuOpen(!isBoardOptionsMenuOpen)}
+                                  className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 font-semibold px-3 py-2 rounded-xl text-xs transition-all border border-slate-200 shadow-3xs cursor-pointer"
+                                  title="Kelola & Ekspor Sprint"
                                 >
-                                  <Download className="w-3.5 h-3.5" />
-                                  <span>Export</span>
+                                  <MoreHorizontal className="w-4 h-4 text-slate-500" />
+                                  <span className="hidden md:inline">Opsi</span>
+                                  <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
                                 </button>
 
-                                {openExportMenuSprintId === `board-${activeSprint.id}` && (
+                                {isBoardOptionsMenuOpen && (
                                   <>
                                     <div 
                                       className="fixed inset-0 z-40" 
-                                      onClick={() => setOpenExportMenuSprintId(null)} 
+                                      onClick={() => setIsBoardOptionsMenuOpen(false)} 
                                     />
-                                    <div className="absolute right-0 top-full mt-1.5 w-44 bg-white rounded-2xl shadow-xl border border-slate-200 py-1.5 z-50 text-xs font-bold animate-zoomIn">
+                                    <div className="absolute right-0 top-full mt-1.5 w-48 bg-white rounded-xl shadow-xl border border-slate-200 py-1 z-50 text-xs font-medium animate-zoomIn">
+                                      <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                        Kelola Sprint
+                                      </div>
                                       <button
                                         type="button"
                                         onClick={() => {
+                                          setIsBoardOptionsMenuOpen(false);
+                                          handleOpenEditSprint(activeSprint);
+                                        }}
+                                        className="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center gap-2 text-slate-700 cursor-pointer font-semibold"
+                                      >
+                                        <Pencil className="w-3.5 h-3.5 text-slate-400" />
+                                        <span>Edit Detail Sprint</span>
+                                      </button>
+
+                                      <div className="border-t border-slate-100 my-1" />
+                                      <div className="px-3 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                        Ekspor Laporan
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setIsBoardOptionsMenuOpen(false);
                                           exportSprintToExcel({
                                             sprint: activeSprint,
                                             tasks: projectTasks,
                                             projectName: selectedProject?.name || 'Proyek',
                                             users: allUsers
                                           });
-                                          setOpenExportMenuSprintId(null);
                                         }}
-                                        className="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center gap-2 text-emerald-700 cursor-pointer"
+                                        className="w-full text-left px-3 py-2 hover:bg-emerald-50/60 flex items-center gap-2 text-emerald-700 cursor-pointer font-semibold"
                                       >
-                                        <FileSpreadsheet className="w-4 h-4" />
+                                        <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
                                         <span>Export Excel (.xlsx)</span>
                                       </button>
                                       <button
                                         type="button"
                                         onClick={() => {
+                                          setIsBoardOptionsMenuOpen(false);
                                           exportSprintToPDF({
                                             sprint: activeSprint,
                                             tasks: projectTasks,
                                             projectName: selectedProject?.name || 'Proyek',
                                             users: allUsers
                                           });
-                                          setOpenExportMenuSprintId(null);
                                         }}
-                                        className="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center gap-2 text-rose-700 cursor-pointer"
+                                        className="w-full text-left px-3 py-2 hover:bg-rose-50/60 flex items-center gap-2 text-rose-700 cursor-pointer font-semibold"
                                       >
-                                        <FileText className="w-4 h-4" />
+                                        <FileText className="w-3.5 h-3.5 text-rose-600" />
                                         <span>Export PDF (.pdf)</span>
                                       </button>
                                     </div>
@@ -2552,65 +2596,30 @@ const ScrumBoard: React.FC = () => {
                                 )}
                               </div>
 
-                              {/* Edit Sprint Button */}
-                              <button
-                                type="button"
-                                onClick={() => handleOpenEditSprint(activeSprint)}
-                                className="flex items-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-2.5 py-1.5 rounded-lg text-xs transition-all border border-slate-200 cursor-pointer"
-                                title="Edit Nama, Goal, Periode, & Catatan Sprint"
-                              >
-                                <Pencil className="w-3.5 h-3.5" />
-                                <span className="hidden sm:inline">Edit Sprint</span>
-                              </button>
-
+                              {/* Group 3: Primary CTA - Selesaikan Sprint */}
                               <button
                                 type="button"
                                 onClick={() => handleCompleteSprint(activeSprint)}
-                                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-lg transition-all shadow-sm text-xs flex items-center gap-1.5 cursor-pointer"
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl transition-all shadow-xs hover:shadow text-xs sm:text-sm flex items-center gap-2 cursor-pointer flex-shrink-0"
                               >
-                                <CheckCircle2 className="w-3.5 h-3.5" />
-                                Selesaikan Sprint
+                                <CheckCircle2 className="w-4 h-4" />
+                                <span>Selesaikan Sprint</span>
                               </button>
                             </div>
                           </div>
 
-                          {/* Middle row: Goals & Period & Description */}
-                          {(activeSprint.goal || activeSprint.startDate || activeSprint.endDate || activeSprint.description) && (
-                            <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 pt-1">
-                              {activeSprint.goal && (
-                                <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200/80 px-2.5 py-1 rounded-lg max-w-md truncate" title={activeSprint.goal}>
-                                  <Target className="w-3.5 h-3.5 text-gov-600 flex-shrink-0" />
-                                  <span className="font-semibold text-slate-700 flex-shrink-0">Goal:</span>
-                                  <span className="text-slate-600 truncate">{activeSprint.goal}</span>
-                                </div>
-                              )}
-                              {(activeSprint.startDate || activeSprint.endDate) && (
-                                <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200/80 px-2.5 py-1 rounded-lg flex-shrink-0">
-                                  <Calendar className="w-3.5 h-3.5 text-gov-600 flex-shrink-0" />
-                                  <span className="font-semibold text-slate-700">Periode:</span>
-                                  <span className="text-slate-600">{activeSprint.startDate ? formatDate(activeSprint.startDate) : '-'} s/d {activeSprint.endDate ? formatDate(activeSprint.endDate) : '-'}</span>
-                                </div>
-                              )}
-                              {activeSprint.description && (
-                                <p className="text-xs text-slate-500 italic line-clamp-1 max-w-sm truncate" title={activeSprint.description}>
-                                  Desc: {activeSprint.description}
-                                </p>
-                              )}
-                            </div>
-                          )}
-
-                          {/* Unified Toolbar: Search, Filters, Pipeline Mode, & Auto-Collapse Toggle */}
-                          <div className="flex flex-wrap items-center justify-between gap-2.5 border-t border-slate-100 pt-3 bg-slate-50/70 -mx-5 -mb-5 px-4 py-2.5 rounded-b-2xl">
+                          {/* ROW 2: UNIFIED FILTER & VIEW TOOLBAR WITH AIRY PADDING */}
+                          <div className="mt-5 pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
                             {/* Left: Filters */}
-                            <div className="flex flex-wrap items-center gap-2 flex-1 min-w-[280px]">
-                              <div className="relative w-44 sm:w-52">
-                                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 w-3.5 h-3.5" />
+                            <div className="flex flex-wrap items-center gap-2.5 flex-1 min-w-[280px]">
+                              <div className="relative w-48 sm:w-56">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
                                 <input
                                   type="text"
                                   placeholder="Cari tugas di papan..."
                                   value={boardSearch}
                                   onChange={(e) => setBoardSearch(e.target.value)}
-                                  className="w-full bg-white hover:bg-slate-50 focus:bg-white border border-slate-200 rounded-lg pl-8 pr-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-gov-400 focus:border-gov-400 transition-all font-medium text-slate-800 placeholder-slate-400"
+                                  className="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 rounded-xl pl-9 pr-3.5 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-gov-400 focus:border-gov-400 transition-all font-medium text-slate-800 placeholder-slate-400"
                                 />
                               </div>
 
@@ -2621,8 +2630,9 @@ const ScrumBoard: React.FC = () => {
                                 ]}
                                 value={boardCategory}
                                 onChange={boardCategory => setBoardCategory(boardCategory)}
-                                className="w-32 sm:w-36 text-xs"
+                                className="w-40 sm:w-48 text-xs"
                                 placeholder="Kategori"
+                                buttonClassName="w-full px-3 py-2 border border-slate-200 hover:border-slate-300 focus:border-gov-400 rounded-xl outline-none text-xs text-slate-700 bg-slate-50 hover:bg-white flex items-center justify-between gap-2 min-w-0 font-medium transition-all shadow-3xs"
                               />
 
                               <SearchableSelect
@@ -2635,8 +2645,9 @@ const ScrumBoard: React.FC = () => {
                                 ]}
                                 value={boardPriority}
                                 onChange={boardPriority => setBoardPriority(boardPriority)}
-                                className="w-28 sm:w-32 text-xs"
+                                className="w-36 sm:w-42 text-xs"
                                 placeholder="Prioritas"
+                                buttonClassName="w-full px-3 py-2 border border-slate-200 hover:border-slate-300 focus:border-gov-400 rounded-xl outline-none text-xs text-slate-700 bg-slate-50 hover:bg-white flex items-center justify-between gap-2 min-w-0 font-medium transition-all shadow-3xs"
                               />
 
                               <SearchableSelect
@@ -2646,8 +2657,9 @@ const ScrumBoard: React.FC = () => {
                                 ]}
                                 value={boardPic}
                                 onChange={boardPic => setBoardPic(boardPic)}
-                                className="w-28 sm:w-32 text-xs"
+                                className="w-36 sm:w-42 text-xs"
                                 placeholder="PIC"
+                                buttonClassName="w-full px-3 py-2 border border-slate-200 hover:border-slate-300 focus:border-gov-400 rounded-xl outline-none text-xs text-slate-700 bg-slate-50 hover:bg-white flex items-center justify-between gap-2 min-w-0 font-medium transition-all shadow-3xs"
                               />
 
                               {(boardSearch !== '' || boardCategory !== 'All' || boardPriority !== 'All' || boardPic !== 'All') && (
@@ -2659,7 +2671,7 @@ const ScrumBoard: React.FC = () => {
                                     setBoardPriority('All');
                                     setBoardPic('All');
                                   }}
-                                  className="text-xs text-rose-600 hover:text-rose-700 font-bold px-2 py-1 rounded transition-all hover:bg-rose-50 cursor-pointer flex-shrink-0"
+                                  className="text-xs text-rose-600 hover:text-rose-700 font-bold px-3 py-2 rounded-xl transition-all hover:bg-rose-50 cursor-pointer flex-shrink-0"
                                 >
                                   Reset
                                 </button>
@@ -2667,25 +2679,25 @@ const ScrumBoard: React.FC = () => {
                             </div>
 
                             {/* Right: Pipeline Mode & Auto-Collapse Empty Toggle */}
-                            <div className="flex flex-wrap items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2.5">
                               {/* Workflow selector pills */}
-                              <div className="inline-flex bg-slate-200/80 p-0.5 rounded-lg text-xs font-semibold">
+                              <div className="inline-flex bg-slate-100 p-1 rounded-xl border border-slate-200/80 text-xs font-semibold gap-0.5">
                                 <button
                                   type="button"
                                   onClick={() => setSprintWorkflowMode('devops')}
-                                  className={`px-2.5 py-1 rounded-md transition-all flex items-center gap-1 cursor-pointer ${
+                                  className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1 cursor-pointer ${
                                     sprintWorkflowMode === 'devops'
                                       ? 'bg-white text-gov-800 shadow-2xs font-extrabold'
                                       : 'text-slate-600 hover:text-slate-900'
                                   }`}
                                   title="6 Kolom: To Do, In Progress, Review, Deploy Dev, Testing VA/PT, Done"
                                 >
-                                  <span>🚀 DevOps (6)</span>
+                                  <span>DevOps (6)</span>
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => setSprintWorkflowMode('all')}
-                                  className={`px-2.5 py-1 rounded-md transition-all flex items-center gap-1 cursor-pointer ${
+                                  className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1 cursor-pointer ${
                                     sprintWorkflowMode === 'all'
                                       ? 'bg-white text-gov-800 shadow-2xs font-extrabold'
                                       : 'text-slate-600 hover:text-slate-900'
@@ -2697,7 +2709,7 @@ const ScrumBoard: React.FC = () => {
                                 <button
                                   type="button"
                                   onClick={() => setSprintWorkflowMode('standard')}
-                                  className={`px-2.5 py-1 rounded-md transition-all flex items-center gap-1 cursor-pointer ${
+                                  className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1 cursor-pointer ${
                                     sprintWorkflowMode === 'standard'
                                       ? 'bg-white text-gov-800 shadow-2xs font-extrabold'
                                       : 'text-slate-600 hover:text-slate-900'
@@ -2716,15 +2728,15 @@ const ScrumBoard: React.FC = () => {
                                   setAutoCollapseEmpty(next);
                                   setCollapsedColumns({});
                                 }}
-                                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 border cursor-pointer ${
+                                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border cursor-pointer ${
                                   autoCollapseEmpty
                                     ? 'bg-indigo-50 border-indigo-200 text-indigo-700 shadow-2xs'
-                                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 shadow-3xs'
                                 }`}
                                 title="Otomatis lipat kolom tanpa tugas agar kolom aktif lebih lebar dan lega"
                               >
                                 <ChevronsLeftRight className="w-3.5 h-3.5" />
-                                <span className="hidden xl:inline">{autoCollapseEmpty ? 'Kolom Kosong Dilipat' : 'Buka Semua Kolom'}</span>
+                                <span className="hidden xl:inline">{autoCollapseEmpty ? 'Kolom Kosong Dilipat' : 'Buka Semua'}</span>
                               </button>
 
                               {/* Pending warning if in devops mode */}
@@ -2732,7 +2744,7 @@ const ScrumBoard: React.FC = () => {
                                 <button
                                   type="button"
                                   onClick={() => setSprintWorkflowMode('all')}
-                                  className="text-xs text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 font-semibold px-2.5 py-1 rounded-lg flex items-center gap-1 transition-colors cursor-pointer"
+                                  className="text-xs text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 font-semibold px-3 py-2 rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer shadow-3xs"
                                 >
                                   <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
                                   <span>{filteredBoardTasks.filter(t => t.status === Status.Pending).length} Pending</span>
@@ -2743,7 +2755,7 @@ const ScrumBoard: React.FC = () => {
                         </div>
 
                         {/* SPRINT KANBAN PIPELINE BOARD */}
-                        <div className="flex-1 flex overflow-x-auto gap-3.5 pb-4 scrollbar-thin scrollbar-thumb-slate-300 min-h-[550px] lg:min-h-[650px]">
+                        <div className="flex-1 min-h-0 flex overflow-x-auto gap-4 pb-2 scrollbar-thin scrollbar-thumb-slate-300">
                           {sprintColumns.map((status) => {
                             const config = getSprintColumnConfig(status);
                             const statusTasks = filteredBoardTasks.filter(t => t.status === status);
@@ -2835,18 +2847,16 @@ const ScrumBoard: React.FC = () => {
                                 </div>
 
                                 {/* Column Cards Container */}
-                                <div className="flex-1 overflow-y-auto p-3 space-y-2.5 scrollbar-thin scrollbar-thumb-slate-300">
+                                <div className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-3.5 space-y-3 kanban-scroll">
                                   {statusTasks.length === 0 ? (
-                                    <div className="text-center py-10 text-xs text-slate-400 border border-dashed border-slate-200/80 rounded-xl bg-white/40">
+                                    <div className="text-center py-12 text-xs text-slate-400 border border-dashed border-slate-200/80 rounded-xl bg-white/40">
                                       Drag tugas ke sini
                                     </div>
                                   ) : (
                                     statusTasks.map(task => {
                                       const taskSubtasks = getSubtasksByParent(task.id);
-                                      const isSubtaskExpanded = expandedTaskSubtasks[task.id] ?? false;
                                       const subtaskDone = taskSubtasks.filter(s => s.status === 'Done').length;
                                       const totalSub = taskSubtasks.length;
-                                      const subPct = totalSub > 0 ? Math.round((subtaskDone / totalSub) * 100) : 0;
 
                                       return (
                                         <div
@@ -2857,46 +2867,57 @@ const ScrumBoard: React.FC = () => {
                                             setViewingTask(task);
                                             setIsTaskViewModalOpen(true);
                                           }}
-                                          className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-2xs hover:shadow-sm transition-all cursor-pointer hover:border-gov-200 group relative text-left"
+                                          className="bg-white border border-slate-200/90 rounded-xl p-4 shadow-2xs hover:shadow-sm transition-all cursor-pointer hover:border-gov-300 group relative text-left"
                                         >
                                           <div className="flex justify-between items-start gap-2">
                                             <div className="flex items-center gap-1.5 flex-wrap min-w-0">
-                                              <span className="text-[9px] text-slate-400 font-bold tracking-wider uppercase truncate max-w-[130px]" title={task.category}>
+                                              <span className="text-[10px] text-slate-400 font-bold tracking-wider uppercase truncate max-w-[140px]" title={task.category}>
                                                 {task.category}
                                               </span>
                                               {task.status === Status.DeployDev && (
-                                                <span className="text-[9px] bg-cyan-100 text-cyan-800 font-bold px-1.5 py-0.5 rounded border border-cyan-200 flex items-center gap-0.5">
+                                                <span className="text-[10px] bg-cyan-100 text-cyan-800 font-bold px-1.5 py-0.5 rounded border border-cyan-200 flex items-center gap-0.5">
                                                   🚀 Dev
                                                 </span>
                                               )}
                                               {task.status === Status.TestingVAPT && (
-                                                <span className="text-[9px] bg-indigo-100 text-indigo-800 font-bold px-1.5 py-0.5 rounded border border-indigo-200 flex items-center gap-0.5">
+                                                <span className="text-[10px] bg-indigo-100 text-indigo-800 font-bold px-1.5 py-0.5 rounded border border-indigo-200 flex items-center gap-0.5">
                                                   🛡️ VA/PT
                                                 </span>
                                               )}
                                             </div>
                                             {task.storyPoints !== null && (
-                                              <span className="text-[9px] bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded border border-indigo-100 font-extrabold flex-shrink-0">
+                                              <span className="text-[10px] bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded border border-indigo-100 font-extrabold flex-shrink-0">
                                                 SP: {task.storyPoints}
                                               </span>
                                             )}
                                           </div>
 
-                                          <h4 className="text-xs sm:text-sm font-semibold text-slate-800 mt-1.5 line-clamp-2 leading-snug group-hover:text-gov-600 group-hover:underline">
+                                          <h4 className="text-xs sm:text-sm font-semibold text-slate-800 mt-2 line-clamp-2 leading-snug group-hover:text-gov-600 group-hover:underline">
                                             {task.title}
                                           </h4>
 
-                                          {/* Task priority and pic info */}
-                                          <div className="flex justify-between items-center mt-2.5 pt-2 border-t border-slate-100 text-xs">
-                                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold border ${
-                                              task.priority === 'Urgent' || task.priority === 'High'
-                                                ? 'bg-rose-50 border-rose-100 text-rose-700'
-                                                : task.priority === 'Medium'
-                                                ? 'bg-amber-50 border-amber-100 text-amber-700'
-                                                : 'bg-slate-50 border-slate-100 text-slate-650'
-                                            }`}>
-                                              {task.priority}
-                                            </span>
+                                          {/* Task priority, subtask count, and pic info */}
+                                          <div className="flex justify-between items-center mt-3 pt-2.5 border-t border-slate-100 text-xs">
+                                            <div className="flex items-center gap-1.5 min-w-0">
+                                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold border ${
+                                                task.priority === 'Urgent' || task.priority === 'High'
+                                                  ? 'bg-rose-50 border-rose-100 text-rose-700'
+                                                  : task.priority === 'Medium'
+                                                  ? 'bg-amber-50 border-amber-100 text-amber-700'
+                                                  : 'bg-slate-50 border-slate-100 text-slate-650'
+                                              }`}>
+                                                {task.priority}
+                                              </span>
+                                              {totalSub > 0 && (
+                                                <span 
+                                                  className="inline-flex items-center gap-1 text-[10px] text-slate-500 font-bold bg-slate-100/90 border border-slate-200/80 px-1.5 py-0.5 rounded flex-shrink-0" 
+                                                  title={`${subtaskDone} dari ${totalSub} subtask selesai`}
+                                                >
+                                                  <CheckSquare className="w-3 h-3 text-slate-400" />
+                                                  <span>{subtaskDone}/{totalSub}</span>
+                                                </span>
+                                              )}
+                                            </div>
                                             {editingPicTaskId === task.id ? (
                                               <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                                                 <div className="w-40">
@@ -2928,94 +2949,11 @@ const ScrumBoard: React.FC = () => {
                                             )}
                                           </div>
 
-                                          {/* SUBTASK AUTOLOAD INTEGRATION SECTION */}
-                                          {totalSub > 0 && (
-                                            <div className="mt-2.5 pt-2 border-t border-slate-100" onClick={(e) => e.stopPropagation()}>
-                                              <button
-                                                onClick={() => toggleTaskSubtasks(task.id)}
-                                                className="w-full flex justify-between items-center text-xs font-bold text-slate-500 hover:text-slate-700 transition-colors"
-                                              >
-                                                <span className="flex items-center gap-1">
-                                                  Subtask ({subtaskDone}/{totalSub})
-                                                </span>
-                                                {isSubtaskExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-                                              </button>
-
-                                              <div className="w-full bg-slate-100 rounded-full h-1.5 mt-1.5 overflow-hidden">
-                                                <div 
-                                                  className={`h-full transition-all duration-300 ${
-                                                    subPct === 100 ? 'bg-emerald-500' : 'bg-gov-500'
-                                                  }`}
-                                                  style={{ width: `${subPct}%` }}
-                                                />
-                                              </div>
-
-                                              {isSubtaskExpanded && (
-                                                <div className="mt-2 space-y-2 bg-slate-50/50 p-2 rounded-lg border border-slate-100">
-                                                  {taskSubtasks.map(sub => (
-                                                    <div key={sub.id} className="flex items-start gap-2 text-xs">
-                                                      <input
-                                                        type="checkbox"
-                                                        checked={sub.status === 'Done'}
-                                                        onChange={() => handleToggleSubtask(sub)}
-                                                        className="mt-0.5 w-3.5 h-3.5 rounded border-slate-300 text-gov-600 focus:ring-gov-500/20 cursor-pointer"
-                                                      />
-                                                      <span className={`flex-1 break-words font-medium leading-tight ${
-                                                        sub.status === 'Done' ? 'text-slate-400 line-through' : 'text-slate-600'
-                                                      }`}>
-                                                        {sub.title}
-                                                      </span>
-                                                    </div>
-                                                  ))}
-                                                </div>
-                                              )}
-                                            </div>
-                                          )}
-
-                                          {/* Inline Subtask Quick Addition */}
-                                          {addingSubtaskTaskId === task.id ? (
-                                            <div className="mt-2.5 pt-2 border-t border-slate-100 flex gap-1" onClick={(e) => e.stopPropagation()}>
-                                              <input
-                                                type="text"
-                                                placeholder="Nama subtask..."
-                                                value={newSubtaskTitle}
-                                                onChange={(e) => setNewSubtaskTitle(e.target.value)}
-                                                className="flex-1 text-xs border border-slate-350 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-gov-500"
-                                                onKeyDown={(e) => {
-                                                  if (e.key === 'Enter') handleAddSubtaskSubmit(task.id);
-                                                  if (e.key === 'Escape') setAddingSubtaskTaskId(null);
-                                                }}
-                                              />
-                                              <button 
-                                                onClick={() => handleAddSubtaskSubmit(task.id)}
-                                                className="bg-gov-600 hover:bg-gov-700 text-white font-semibold px-2 py-1 rounded-lg text-xs cursor-pointer"
-                                              >
-                                                Simpan
-                                              </button>
-                                              <button 
-                                                onClick={() => setAddingSubtaskTaskId(null)}
-                                                className="p-1 hover:bg-slate-100 text-slate-500 rounded cursor-pointer"
-                                              >
-                                                <X className="w-3.5 h-3.5" />
-                                              </button>
-                                            </div>
-                                          ) : (
-                                            <button
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                setAddingSubtaskTaskId(task.id);
-                                                setNewSubtaskTitle('');
-                                              }}
-                                              className="mt-2 w-full flex items-center justify-center gap-1 py-1 border border-dashed border-slate-200 hover:border-slate-300 rounded-lg text-[10px] text-slate-500 font-bold hover:bg-slate-50 transition-all opacity-0 group-hover:opacity-100 cursor-pointer"
-                                            >
-                                              <Plus className="w-3 h-3" /> Tambah Subtask
-                                            </button>
-                                          )}
-
                                         </div>
                                       );
                                     })
                                   )}
+                                  <div className="h-1.5 flex-shrink-0" />
                                 </div>
                               </div>
                             );

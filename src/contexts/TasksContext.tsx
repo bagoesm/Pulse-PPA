@@ -142,7 +142,9 @@ export const TasksProvider: React.FC<TasksProviderProps> = ({ children, session 
                     attachments,
                     links,
                     blockedBy: Array.isArray(t.blocked_by) ? t.blocked_by : [],
-                    checklists: Array.isArray(t.checklists) ? t.checklists : []
+                    checklists: Array.isArray(t.checklists) ? t.checklists : [],
+                    createdAt: t.created_at || t.createdAt || null,
+                    updatedAt: t.updated_at || t.updatedAt || null
                 } as Task;
             });
         },

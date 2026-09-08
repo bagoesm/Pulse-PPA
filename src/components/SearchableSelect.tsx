@@ -17,6 +17,7 @@ interface SearchableSelectProps {
     className?: string; // Class for the trigger container
     dropdownClassName?: string; // Class for the dropdown portal content
     onDeleteOption?: (value: string) => void;
+    buttonClassName?: string;
 }
 
 const SearchableSelect: React.FC<SearchableSelectProps> = ({
@@ -28,7 +29,8 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
     emptyOption = '-- Pilih --',
     className = '',
     dropdownClassName = '',
-    onDeleteOption
+    onDeleteOption,
+    buttonClassName
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
@@ -159,7 +161,8 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
 
     const handleClear = (e: React.MouseEvent) => {
         e.stopPropagation();
-        onChange('');
+        const hasAllOption = options.some(opt => opt.value === 'All');
+        onChange(hasAllOption ? 'All' : '');
         setSearchQuery('');
     };
 
@@ -171,12 +174,16 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
         );
     }
 
+    const showClearButton = Boolean(value && value !== 'All');
+
+    const defaultButtonClass = "w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm text-slate-700 bg-white flex items-center justify-between gap-2 min-w-0";
+
     return (
         <div ref={containerRef} className={`relative ${className}`}>
             <button
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
-                className={`w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-gov-400 outline-none text-sm text-slate-700 bg-white flex items-center justify-between gap-2 min-w-0 ${isOpen ? 'ring-2 ring-gov-400' : ''}`}
+                className={`${buttonClassName || defaultButtonClass} ${isOpen ? 'ring-2 ring-gov-400' : ''}`}
             >
                 <div className="flex-1 truncate text-left min-w-0">
                     <span className={`block truncate ${selectedLabel ? 'text-slate-700' : 'text-slate-400'}`}>
@@ -185,13 +192,14 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
                 </div>
 
                 <div className="flex items-center gap-1 flex-shrink-0">
-                    {value && (
+                    {showClearButton && (
                         <span
                             role="button"
                             onClick={handleClear}
                             className="p-0.5 hover:bg-slate-100 rounded cursor-pointer"
+                            title="Hapus filter"
                         >
-                            <X size={14} className="text-slate-400" />
+                            <X size={14} className="text-slate-400 hover:text-slate-600" />
                         </span>
                     )}
                     <ChevronDown

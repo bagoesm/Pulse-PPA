@@ -32,39 +32,109 @@ export const SprintAnalyticsModal: React.FC<SprintAnalyticsModalProps> = ({
   const burndownData = useMemo(() => {
     const sprintTasks = tasks.filter(t => t.sprintId === sprint.id);
     const totalSp = sprintTasks.reduce((sum, t) => sum + (t.storyPoints || 0), 0);
+    const completedTasks = sprintTasks.filter(t => t.status === 'Done');
+    const totalCompletedSp = completedTasks.reduce((sum, t) => sum + (t.storyPoints || 0), 0);
 
-    const startDate = sprint.startDate ? new Date(sprint.startDate) : new Date();
-    // Default sprint duration: 14 days if not specified
-    const endDate = sprint.endDate 
-      ? new Date(sprint.endDate) 
-      : new Date(startDate.getTime() + 14 * 24 * 60 * 60 * 1000);
+    // Parse date without timezone shift
+    const parseYMD = (str?: string) => {
+      if (!str) return new Date();
+      const clean = str.split('T')[0];
+      const parts = clean.split('-');
+      if (parts.length === 3) {
+        return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+      }
+      return new Date(str);
+    };
 
-    const now = new Date();
-    const dayCount = Math.max(1, Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
+    const startDate = parseYMD(sprint.startDate);
+    startDate.setHours(0, 0, 0, 0);
+
+    let endDate: Date;
+    if (sprint.endDate) {
+      endDate = parseYMD(sprint.endDate);
+      endDate.setHours(23, 59, 59, 999);
+    } else {
+      endDate = new Date(startDate);
+      endDate.setDate(endDate.getDate() + 13);
+      endDate.setHours(23, 59, 59, 999);
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Calculate total sprint days (e.g. 14 days)
+    const diffTime = Math.max(0, endDate.getTime() - startDate.getTime());
+    const dayCount = Math.max(1, Math.round(diffTime / (1000 * 60 * 60 * 24)));
+
+    // Helper to extract completion date safely
+    const getTaskCompletionDate = (t: Task): Date | null => {
+      const raw = (t as any).updated_status_at || (t as any).updated_at || t.updatedAt || (t as any).created_at || t.createdAt;
+      if (!raw) return null;
+      const d = new Date(raw);
+      return isNaN(d.getTime()) ? null : d;
+    };
+
+    const isSprintCompleted = sprint.status === 'Completed';
 
     const dataPoints = [];
 
-    // Calculate daily data points
-    for (let i = 0; i <= dayCount; i++) {
-      const currentDate = new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000);
-      const isPastOrToday = currentDate <= now || i === 0;
+    // Point 0: Sprint Start Baseline (Mulai)
+    dataPoints.push({
+      day: 'Awal',
+      date: 'Mulai',
+      ideal: totalSp,
+      actual: totalSp
+    });
 
-      // Ideal Line: Linear reduction from totalSp to 0
+    // Calculate daily data points for Day 1 through Day N
+    for (let i = 1; i <= dayCount; i++) {
+      const currentDate = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate() + (i - 1));
+      const dayDate = new Date(currentDate);
+      dayDate.setHours(0, 0, 0, 0);
+
+      const isPast = dayDate < today;
+      const isCurrentDay = dayDate.getTime() === today.getTime();
+      const isFuture = dayDate > today;
+
+      // Ideal Line: Linear reduction from totalSp down to 0 on the final day
       const idealRemaining = Math.max(0, Math.round(totalSp - (totalSp / dayCount) * i));
 
-      // Actual Line: Total SP minus tasks completed on or before currentDate
+      // Actual Line:
       let actualRemaining: number | null = null;
-      if (isPastOrToday) {
-        const completedSpSoFar = sprintTasks
+
+      if (isSprintCompleted) {
+        const endOfDay = new Date(currentDate);
+        endOfDay.setHours(23, 59, 59, 999);
+
+        const completedSoFar = sprintTasks
           .filter(t => {
             if (t.status !== 'Done') return false;
-            // Check completed date or updated date
-            const compDate = t.updatedAt ? new Date(t.updatedAt) : new Date(t.createdAt || '');
-            return compDate <= currentDate;
+            const compDate = getTaskCompletionDate(t);
+            return compDate ? compDate <= endOfDay : true;
           })
           .reduce((sum, t) => sum + (t.storyPoints || 0), 0);
 
-        actualRemaining = Math.max(0, totalSp - completedSpSoFar);
+        actualRemaining = Math.max(0, totalSp - completedSoFar);
+      } else if (isCurrentDay) {
+        // Today: reflects current real-time remaining story points
+        actualRemaining = Math.max(0, totalSp - totalCompletedSp);
+      } else if (isPast) {
+        // Past day: tasks completed on or before that day's 23:59:59
+        const endOfDay = new Date(currentDate);
+        endOfDay.setHours(23, 59, 59, 999);
+
+        const completedSoFar = sprintTasks
+          .filter(t => {
+            if (t.status !== 'Done') return false;
+            const compDate = getTaskCompletionDate(t);
+            return compDate ? compDate <= endOfDay : false;
+          })
+          .reduce((sum, t) => sum + (t.storyPoints || 0), 0);
+
+        actualRemaining = Math.max(0, totalSp - completedSoFar);
+      } else if (isFuture) {
+        // Future days: null so line doesn't project ahead
+        actualRemaining = null;
       }
 
       const dayLabel = `${currentDate.getDate()}/${currentDate.getMonth() + 1}`;
@@ -79,7 +149,7 @@ export const SprintAnalyticsModal: React.FC<SprintAnalyticsModalProps> = ({
     return {
       points: dataPoints,
       totalSp,
-      completedSp: sprintTasks.filter(t => t.status === 'Done').reduce((sum, t) => sum + (t.storyPoints || 0), 0)
+      completedSp: totalCompletedSp
     };
   }, [sprint, tasks]);
 
@@ -217,8 +287,20 @@ export const SprintAnalyticsModal: React.FC<SprintAnalyticsModalProps> = ({
                           border: 'none', 
                           borderRadius: '12px', 
                           color: '#fff', 
-                          fontSize: '12px' 
-                        }} 
+                          fontSize: '12px',
+                          boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.2)'
+                        }}
+                        formatter={(val: any, name: string) => [
+                          val !== null && val !== undefined ? `${val} SP` : '-',
+                          name
+                        ]}
+                        labelFormatter={(_label: string, payload: any) => {
+                          if (payload && payload[0] && payload[0].payload) {
+                            const p = payload[0].payload;
+                            return p.day === 'Mulai' ? 'Awal Sprint (Baseline)' : `${p.day} (${p.date})`;
+                          }
+                          return _label;
+                        }}
                       />
                       <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
                       <Line 
