@@ -10,6 +10,8 @@ export enum Status {
   InProgress = 'In Progress',
   Pending = 'Pending',
   Review = 'Review',
+  DeployDev = 'Deploy Dev',
+  TestingVAPT = 'Testing VA PT',
   Done = 'Done',
 }
 

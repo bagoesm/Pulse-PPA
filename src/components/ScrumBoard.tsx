@@ -10,7 +10,7 @@ import {
   HelpCircle, ChevronUp, GripVertical, AlertTriangle, ArrowRight, ArrowLeft,
   Search, Pencil, ChevronsUpDown, FolderPlus, CheckSquare, Square,
   TrendingDown, FileSpreadsheet, FileText, Download, MessageSquare,
-  MessageSquareQuote
+  MessageSquareQuote, Rocket, ShieldCheck, Eye
 } from 'lucide-react';
 
 // Context Hooks
@@ -27,6 +27,7 @@ import CompactPICSelector from './CompactPICSelector';
 import PICDisplay from './PICDisplay';
 import ScrumFilterBar from './ScrumFilterBar';
 import { Task, Sprint, Subtask, Status, SprintStatus, User as UserType, Backlog, Priority } from '../../types';
+import { translateStatus } from '../utils/translations';
 
 // Scrum Modular Extensions
 import { StoryPointsPicker } from './scrum/StoryPointsPicker';
@@ -95,6 +96,92 @@ const formatDate = (dateStr?: string) => {
   }
 };
 
+// Pipeline visual and label configuration for Sprint Kanban columns
+const getSprintColumnConfig = (status: Status) => {
+  switch (status) {
+    case Status.ToDo:
+      return {
+        label: 'To Do',
+        sublabel: 'Sprint Backlog',
+        headerBorder: 'border-t-4 border-t-slate-400',
+        bg: 'bg-slate-50/70',
+        cardBorder: 'border-slate-200/80',
+        badge: 'bg-slate-200 text-slate-700',
+        icon: <Clock className="w-3.5 h-3.5 text-slate-500" />
+      };
+    case Status.InProgress:
+      return {
+        label: 'In Progress',
+        sublabel: 'Sedang Dikerjakan',
+        headerBorder: 'border-t-4 border-t-sky-500',
+        bg: 'bg-sky-50/30',
+        cardBorder: 'border-sky-200/70',
+        badge: 'bg-sky-100 text-sky-700',
+        icon: <Play className="w-3.5 h-3.5 text-sky-500 fill-sky-500/20" />
+      };
+    case Status.Pending:
+      return {
+        label: 'Tertunda',
+        sublabel: 'Blocked / Menunggu',
+        headerBorder: 'border-t-4 border-t-amber-500',
+        bg: 'bg-amber-50/30',
+        cardBorder: 'border-amber-200/70',
+        badge: 'bg-amber-100 text-amber-700',
+        icon: <AlertCircle className="w-3.5 h-3.5 text-amber-500" />
+      };
+    case Status.Review:
+      return {
+        label: 'Review',
+        sublabel: 'Code Review / PR',
+        headerBorder: 'border-t-4 border-t-purple-500',
+        bg: 'bg-purple-50/30',
+        cardBorder: 'border-purple-200/70',
+        badge: 'bg-purple-100 text-purple-700',
+        icon: <Eye className="w-3.5 h-3.5 text-purple-500" />
+      };
+    case Status.DeployDev:
+      return {
+        label: 'Deploy Development',
+        sublabel: 'Dev Environment',
+        headerBorder: 'border-t-4 border-t-cyan-500',
+        bg: 'bg-cyan-50/30',
+        cardBorder: 'border-cyan-200/70',
+        badge: 'bg-cyan-100 text-cyan-800 font-bold',
+        icon: <Rocket className="w-3.5 h-3.5 text-cyan-600 animate-pulse" />
+      };
+    case Status.TestingVAPT:
+      return {
+        label: 'Testing VA/PT',
+        sublabel: 'Security & QA',
+        headerBorder: 'border-t-4 border-t-indigo-600',
+        bg: 'bg-indigo-50/30',
+        cardBorder: 'border-indigo-200/70',
+        badge: 'bg-indigo-100 text-indigo-800 font-bold',
+        icon: <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
+      };
+    case Status.Done:
+      return {
+        label: 'Selesai',
+        sublabel: 'Done & Verified',
+        headerBorder: 'border-t-4 border-t-emerald-500',
+        bg: 'bg-emerald-50/30',
+        cardBorder: 'border-emerald-200/70',
+        badge: 'bg-emerald-100 text-emerald-700',
+        icon: <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+      };
+    default:
+      return {
+        label: status as string,
+        sublabel: '',
+        headerBorder: 'border-t-4 border-t-slate-300',
+        bg: 'bg-slate-50',
+        cardBorder: 'border-slate-200',
+        badge: 'bg-slate-100 text-slate-600',
+        icon: null
+      };
+  }
+};
+
 const ScrumBoard: React.FC = () => {
   const { currentUser } = useAuth();
   const { projects, isProjectsLoading } = useProjects();
@@ -147,6 +234,23 @@ const ScrumBoard: React.FC = () => {
   const [boardCategory, setBoardCategory] = useState('All');
   const [boardPriority, setBoardPriority] = useState('All');
   const [boardPic, setBoardPic] = useState('All');
+
+  // Sprint Workflow Pipeline Mode:
+  // 'devops' (6 columns: To Do -> In Progress -> Review -> Deploy Dev -> Testing VA PT -> Done)
+  // 'all' (7 columns with Pending) | 'standard' (4 columns)
+  const [sprintWorkflowMode, setSprintWorkflowMode] = useState<'devops' | 'all' | 'standard'>('devops');
+
+  const sprintColumns = useMemo(() => {
+    switch (sprintWorkflowMode) {
+      case 'standard':
+        return [Status.ToDo, Status.InProgress, Status.Review, Status.Done];
+      case 'all':
+        return [Status.ToDo, Status.InProgress, Status.Pending, Status.Review, Status.DeployDev, Status.TestingVAPT, Status.Done];
+      case 'devops':
+      default:
+        return [Status.ToDo, Status.InProgress, Status.Review, Status.DeployDev, Status.TestingVAPT, Status.Done];
+    }
+  }, [sprintWorkflowMode]);
 
   // Accordion toggle states for Sprints and Backlog in Jira-style list
   const [expandedSprintIds, setExpandedSprintIds] = useState<Record<string, boolean>>({
@@ -679,7 +783,7 @@ const ScrumBoard: React.FC = () => {
       if (error) throw error;
       
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      showToast(`Status task "${task.title}" diperbarui menjadi ${targetStatus}.`, 'success');
+      showToast(`Status task "${task.title}" diperbarui menjadi ${translateStatus(targetStatus)}.`, 'success');
     } catch (err) {
       console.error('Error updating task status:', err);
       showToast('Gagal memindahkan task.', 'error');
@@ -2542,11 +2646,72 @@ const ScrumBoard: React.FC = () => {
                               )}
                             </div>
                           </div>
+
+                          {/* Workflow Pipeline Mode Switcher */}
+                          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pt-3 border-t border-slate-200/60 -mx-5 -mb-5 px-4 pb-3 bg-slate-100/50 rounded-b-2xl">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                                <Rocket className="w-3.5 h-3.5 text-cyan-600" />
+                                Alur Sprint:
+                              </span>
+                              <div className="inline-flex bg-slate-200/80 p-0.5 rounded-xl text-xs font-semibold">
+                                <button
+                                  type="button"
+                                  onClick={() => setSprintWorkflowMode('devops')}
+                                  className={`px-3 py-1 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+                                    sprintWorkflowMode === 'devops'
+                                      ? 'bg-white text-gov-800 shadow-2xs font-extrabold'
+                                      : 'text-slate-600 hover:text-slate-900'
+                                  }`}
+                                  title="6 Kolom: To Do, In Progress, Review, Deploy Dev, Testing VA/PT, Done"
+                                >
+                                  <span>🚀 DevOps & VA/PT (6 Kolom)</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setSprintWorkflowMode('all')}
+                                  className={`px-3 py-1 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+                                    sprintWorkflowMode === 'all'
+                                      ? 'bg-white text-gov-800 shadow-2xs font-extrabold'
+                                      : 'text-slate-600 hover:text-slate-900'
+                                  }`}
+                                  title="Semua 7 Status termasuk Tertunda (Pending)"
+                                >
+                                  <span>Semua Status (7 Kolom)</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setSprintWorkflowMode('standard')}
+                                  className={`px-3 py-1 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+                                    sprintWorkflowMode === 'standard'
+                                      ? 'bg-white text-gov-800 shadow-2xs font-extrabold'
+                                      : 'text-slate-600 hover:text-slate-900'
+                                  }`}
+                                  title="4 Kolom: To Do, In Progress, Review, Done"
+                                >
+                                  <span>Standar (4 Kolom)</span>
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Pending notice if tasks exist in Pending while devops mode is active */}
+                            {sprintWorkflowMode === 'devops' && filteredBoardTasks.some(t => t.status === Status.Pending) && (
+                              <button
+                                type="button"
+                                onClick={() => setSprintWorkflowMode('all')}
+                                className="text-xs text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 font-semibold px-2.5 py-1 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer"
+                              >
+                                <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+                                <span>Ada {filteredBoardTasks.filter(t => t.status === Status.Pending).length} tugas Tertunda (Pending). Klik untuk lihat</span>
+                              </button>
+                            )}
+                          </div>
                         </div>
 
-                        {/* 5-COLUMN KANBAN BOARD */}
-                        <div className="flex-1 flex overflow-x-auto gap-4 pb-4 scrollbar-thin scrollbar-thumb-slate-300 min-h-[550px] lg:min-h-[650px]">
-                          {Object.values(Status).map((status) => {
+                        {/* SPRINT KANBAN PIPELINE BOARD */}
+                        <div className="flex-1 flex overflow-x-auto gap-3.5 pb-4 scrollbar-thin scrollbar-thumb-slate-300 min-h-[550px] lg:min-h-[650px]">
+                          {sprintColumns.map((status) => {
+                            const config = getSprintColumnConfig(status);
                             const statusTasks = filteredBoardTasks.filter(t => t.status === status);
                             const totalColumnSp = statusTasks.reduce((sum, t) => sum + (t.storyPoints || 0), 0);
 
@@ -2555,18 +2720,25 @@ const ScrumBoard: React.FC = () => {
                                 key={status}
                                 onDragOver={(e) => e.preventDefault()}
                                 onDrop={(e) => handleDropToKanbanColumn(e, status)}
-                                className="flex-1 min-w-[200px] bg-slate-100/60 border border-slate-200/60 rounded-2xl flex flex-col h-full overflow-hidden"
+                                className={`flex-1 min-w-[210px] max-w-[320px] ${config.bg} border ${config.cardBorder} ${config.headerBorder} rounded-2xl flex flex-col h-full overflow-hidden shadow-2xs`}
                               >
                                 {/* Column Header */}
-                                <div className="p-3 flex justify-between items-center border-b border-slate-200/80 bg-slate-50/50">
-                                  <span className="font-bold text-xs sm:text-sm text-slate-700 uppercase tracking-wider">
-                                    {status === 'To Do' ? 'To Do' :
-                                     status === 'In Progress' ? 'In Progress' :
-                                     status === 'Pending' ? 'Tertunda' :
-                                     status === 'Review' ? 'Review' : 'Selesai'}
-                                  </span>
-                                  <div className="flex gap-1.5 items-center">
-                                    <span className="text-[10px] bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full font-bold">
+                                <div className="p-3 flex justify-between items-center border-b border-slate-200/80 bg-white/75 backdrop-blur-xs">
+                                  <div className="flex items-center gap-1.5 min-w-0">
+                                    {config.icon}
+                                    <div className="min-w-0">
+                                      <div className="font-bold text-xs text-slate-800 uppercase tracking-wider truncate">
+                                        {config.label}
+                                      </div>
+                                      {config.sublabel && (
+                                        <div className="text-[9px] text-slate-400 font-medium leading-none truncate">
+                                          {config.sublabel}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div className="flex gap-1.5 items-center flex-shrink-0">
+                                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${config.badge}`}>
                                       {statusTasks.length}
                                     </span>
                                     {totalColumnSp > 0 && (
@@ -2603,9 +2775,21 @@ const ScrumBoard: React.FC = () => {
                                           className="bg-white border border-slate-200 rounded-xl p-4 shadow-2xs hover:shadow-sm transition-all cursor-pointer hover:border-gov-200 group relative text-left"
                                         >
                                           <div className="flex justify-between items-start gap-2">
-                                            <span className="text-[10px] text-slate-400 font-semibold tracking-wider uppercase text-left">
-                                              {task.category}
-                                            </span>
+                                            <div className="flex items-center gap-1.5 flex-wrap">
+                                              <span className="text-[10px] text-slate-400 font-semibold tracking-wider uppercase text-left">
+                                                {task.category}
+                                              </span>
+                                              {task.status === Status.DeployDev && (
+                                                <span className="text-[9px] bg-cyan-100 text-cyan-800 font-bold px-1.5 py-0.5 rounded border border-cyan-200 flex items-center gap-0.5">
+                                                  🚀 Dev
+                                                </span>
+                                              )}
+                                              {task.status === Status.TestingVAPT && (
+                                                <span className="text-[9px] bg-indigo-100 text-indigo-800 font-bold px-1.5 py-0.5 rounded border border-indigo-200 flex items-center gap-0.5">
+                                                  🛡️ VA/PT
+                                                </span>
+                                              )}
+                                            </div>
                                             {task.storyPoints !== null && (
                                               <span className="text-[9px] bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded border border-indigo-100 font-extrabold">
                                                 SP: {task.storyPoints}

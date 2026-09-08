@@ -69,7 +69,7 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({ task, projects, users = 
       `}
     >
       <div className="flex justify-between items-center mb-2">
-        <div className="flex items-center gap-1.5 overflow-hidden">
+        <div className="flex items-center gap-1.5 overflow-hidden flex-wrap">
           {(task as any).isSubtask && (
             <span className="text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded border bg-violet-100 text-violet-700 border-violet-200 whitespace-nowrap">
               Subtugas
@@ -78,6 +78,16 @@ const TaskCard: React.FC<TaskCardProps> = React.memo(({ task, projects, users = 
           <span className={`text-[9px] sm:text-[10px] uppercase font-bold px-1.5 sm:px-2 py-0.5 rounded border ${getCategoryColor(task.category)} truncate`}>
             {task.category}
           </span>
+          {task.status === Status.DeployDev && (
+            <span className="text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded border bg-sky-100 text-sky-700 border-sky-200 whitespace-nowrap flex items-center gap-0.5">
+              🚀 Deploy Dev
+            </span>
+          )}
+          {task.status === Status.TestingVAPT && (
+            <span className="text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded border bg-indigo-100 text-indigo-700 border-indigo-200 whitespace-nowrap flex items-center gap-0.5">
+              🛡️ Testing VA/PT
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
           {onShare && (

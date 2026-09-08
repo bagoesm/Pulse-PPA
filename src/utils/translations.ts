@@ -14,6 +14,12 @@ export const translateStatus = (status: string | Status): string => {
     case 'Review':
     case Status.Review:
       return 'Dalam Peninjauan';
+    case 'Deploy Dev':
+    case Status.DeployDev:
+      return 'Deploy Development';
+    case 'Testing VA PT':
+    case Status.TestingVAPT:
+      return 'Testing VA/PT';
     case 'Done':
     case Status.Done:
       return 'Selesai';

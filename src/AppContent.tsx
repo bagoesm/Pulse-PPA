@@ -346,7 +346,8 @@ const AppContent: React.FC = () => {
   // Share functionality
   const { shareState, openTaskShare, closeShare } = useTaskShare();
 
-  const columns = Object.values(Status);
+  // Lock regular Kanban board to 5 standard columns (Deploy Dev & VA/PT are exclusive to Sprint Kanban)
+  const columns = [Status.ToDo, Status.InProgress, Status.Pending, Status.Review, Status.Done];
 
   // ===== LAZY LOADING: Fetch data based on active tab =====
   const visitedTabsRef = useRef<Set<string>>(new Set());
@@ -1402,7 +1403,12 @@ const AppContent: React.FC = () => {
                   <KanbanColumn
                     key={status}
                     status={status}
-                    tasks={filteredTasks.filter(t => t.status === status)}
+                    tasks={filteredTasks.filter(t => {
+                      if (status === Status.Review) {
+                        return t.status === Status.Review || t.status === Status.DeployDev || t.status === Status.TestingVAPT;
+                      }
+                      return t.status === status;
+                    })}
                     projects={projects}
                     users={allUsers}
                     allTasks={tasks}

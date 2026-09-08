@@ -64,6 +64,10 @@ const getStatusConfig = (status: Status) => {
       return { color: 'bg-yellow-500', text: 'text-yellow-700', bg: 'bg-yellow-50', icon: '⏸️' };
     case Status.Review:
       return { color: 'bg-purple-500', text: 'text-purple-700', bg: 'bg-purple-50', icon: '👀' };
+    case Status.DeployDev:
+      return { color: 'bg-sky-500', text: 'text-sky-700', bg: 'bg-sky-50', icon: '🚀' };
+    case Status.TestingVAPT:
+      return { color: 'bg-indigo-600', text: 'text-indigo-700', bg: 'bg-indigo-50', icon: '🛡️' };
     case Status.Done:
       return { color: 'bg-green-500', text: 'text-green-700', bg: 'bg-green-50', icon: '✅' };
     default:
