@@ -10,7 +10,7 @@ import {
   HelpCircle, ChevronUp, GripVertical, AlertTriangle, ArrowRight, ArrowLeft,
   Search, Pencil, ChevronsUpDown, FolderPlus, CheckSquare, Square,
   TrendingDown, FileSpreadsheet, FileText, Download, MessageSquare,
-  MessageSquareQuote, Rocket, ShieldCheck, Eye
+  MessageSquareQuote, Rocket, ShieldCheck, Eye, PanelLeftClose, ChevronsLeftRight
 } from 'lucide-react';
 
 // Context Hooks
@@ -141,7 +141,7 @@ const getSprintColumnConfig = (status: Status) => {
       };
     case Status.DeployDev:
       return {
-        label: 'Deploy Development',
+        label: 'Deploy Dev',
         sublabel: 'Dev Environment',
         headerBorder: 'border-t-4 border-t-cyan-500',
         bg: 'bg-cyan-50/30',
@@ -239,6 +239,25 @@ const ScrumBoard: React.FC = () => {
   // 'devops' (6 columns: To Do -> In Progress -> Review -> Deploy Dev -> Testing VA PT -> Done)
   // 'all' (7 columns with Pending) | 'standard' (4 columns)
   const [sprintWorkflowMode, setSprintWorkflowMode] = useState<'devops' | 'all' | 'standard'>('devops');
+
+  // Collapsed state for individual Kanban columns on Active Sprint Board
+  const [collapsedColumns, setCollapsedColumns] = useState<Record<string, boolean>>({});
+  // Auto-collapse empty columns toggle (defaults to true for spacious viewing)
+  const [autoCollapseEmpty, setAutoCollapseEmpty] = useState<boolean>(true);
+
+  const isColumnCollapsed = useCallback((status: Status, count: number) => {
+    if (collapsedColumns[status] !== undefined) {
+      return collapsedColumns[status];
+    }
+    return autoCollapseEmpty && count === 0;
+  }, [collapsedColumns, autoCollapseEmpty]);
+
+  const toggleColumnCollapse = useCallback((status: Status, currentVal: boolean) => {
+    setCollapsedColumns(prev => ({
+      ...prev,
+      [status]: !currentVal
+    }));
+  }, []);
 
   const sprintColumns = useMemo(() => {
     switch (sprintWorkflowMode) {
@@ -2557,43 +2576,44 @@ const ScrumBoard: React.FC = () => {
 
                           {/* Middle row: Goals & Period & Description */}
                           {(activeSprint.goal || activeSprint.startDate || activeSprint.endDate || activeSprint.description) && (
-                            <div className="flex flex-wrap gap-2.5 text-xs text-slate-500 border-t border-slate-100 pt-3">
+                            <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 pt-1">
                               {activeSprint.goal && (
-                                <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200/80 px-2.5 py-1 rounded-lg">
+                                <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200/80 px-2.5 py-1 rounded-lg max-w-md truncate" title={activeSprint.goal}>
                                   <Target className="w-3.5 h-3.5 text-gov-600 flex-shrink-0" />
-                                  <span className="font-semibold text-slate-700">Goal:</span>
-                                  <span className="text-slate-600">{activeSprint.goal}</span>
+                                  <span className="font-semibold text-slate-700 flex-shrink-0">Goal:</span>
+                                  <span className="text-slate-600 truncate">{activeSprint.goal}</span>
                                 </div>
                               )}
                               {(activeSprint.startDate || activeSprint.endDate) && (
-                                <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200/80 px-2.5 py-1 rounded-lg">
+                                <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200/80 px-2.5 py-1 rounded-lg flex-shrink-0">
                                   <Calendar className="w-3.5 h-3.5 text-gov-600 flex-shrink-0" />
                                   <span className="font-semibold text-slate-700">Periode:</span>
                                   <span className="text-slate-600">{activeSprint.startDate ? formatDate(activeSprint.startDate) : '-'} s/d {activeSprint.endDate ? formatDate(activeSprint.endDate) : '-'}</span>
                                 </div>
                               )}
                               {activeSprint.description && (
-                                <p className="text-xs text-slate-500 italic mt-0.5 line-clamp-1 flex-1 min-w-[200px]" title={activeSprint.description}>
+                                <p className="text-xs text-slate-500 italic line-clamp-1 max-w-sm truncate" title={activeSprint.description}>
                                   Desc: {activeSprint.description}
                                 </p>
                               )}
                             </div>
                           )}
 
-                          {/* Bottom row: Search & Filters (Merged inline ScrumFilterBar style to save space!) */}
-                          <div className="flex flex-col lg:flex-row gap-2.5 border-t border-slate-100 pt-4 bg-slate-50/50 -mx-5 -mb-5 p-4 rounded-b-2xl">
-                            <div className="relative flex-1">
-                              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 w-3.5 h-3.5" />
-                              <input
-                                type="text"
-                                placeholder="Cari tugas di papan..."
-                                value={boardSearch}
-                                onChange={(e) => setBoardSearch(e.target.value)}
-                                className="w-full bg-white hover:bg-slate-50 focus:bg-white border border-slate-200 rounded-lg pl-8 pr-4 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-gov-400 focus:border-gov-400 transition-all font-medium text-slate-800 placeholder-slate-400"
-                              />
-                            </div>
+                          {/* Unified Toolbar: Search, Filters, Pipeline Mode, & Auto-Collapse Toggle */}
+                          <div className="flex flex-wrap items-center justify-between gap-2.5 border-t border-slate-100 pt-3 bg-slate-50/70 -mx-5 -mb-5 px-4 py-2.5 rounded-b-2xl">
+                            {/* Left: Filters */}
+                            <div className="flex flex-wrap items-center gap-2 flex-1 min-w-[280px]">
+                              <div className="relative w-44 sm:w-52">
+                                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 w-3.5 h-3.5" />
+                                <input
+                                  type="text"
+                                  placeholder="Cari tugas di papan..."
+                                  value={boardSearch}
+                                  onChange={(e) => setBoardSearch(e.target.value)}
+                                  className="w-full bg-white hover:bg-slate-50 focus:bg-white border border-slate-200 rounded-lg pl-8 pr-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-gov-400 focus:border-gov-400 transition-all font-medium text-slate-800 placeholder-slate-400"
+                                />
+                              </div>
 
-                            <div className="flex flex-wrap gap-2 flex-shrink-0">
                               <SearchableSelect
                                 options={[
                                   { value: 'All', label: 'Semua Kategori' },
@@ -2601,8 +2621,8 @@ const ScrumBoard: React.FC = () => {
                                 ]}
                                 value={boardCategory}
                                 onChange={boardCategory => setBoardCategory(boardCategory)}
-                                className="w-full sm:w-40 text-xs"
-                                placeholder="Pilih Kategori"
+                                className="w-32 sm:w-36 text-xs"
+                                placeholder="Kategori"
                               />
 
                               <SearchableSelect
@@ -2615,8 +2635,8 @@ const ScrumBoard: React.FC = () => {
                                 ]}
                                 value={boardPriority}
                                 onChange={boardPriority => setBoardPriority(boardPriority)}
-                                className="w-full sm:w-40 text-xs"
-                                placeholder="Pilih Prioritas"
+                                className="w-28 sm:w-32 text-xs"
+                                placeholder="Prioritas"
                               />
 
                               <SearchableSelect
@@ -2626,8 +2646,8 @@ const ScrumBoard: React.FC = () => {
                                 ]}
                                 value={boardPic}
                                 onChange={boardPic => setBoardPic(boardPic)}
-                                className="w-full sm:w-40 text-xs"
-                                placeholder="Pilih PIC"
+                                className="w-28 sm:w-32 text-xs"
+                                placeholder="PIC"
                               />
 
                               {(boardSearch !== '' || boardCategory !== 'All' || boardPriority !== 'All' || boardPic !== 'All') && (
@@ -2639,72 +2659,86 @@ const ScrumBoard: React.FC = () => {
                                     setBoardPriority('All');
                                     setBoardPic('All');
                                   }}
-                                  className="text-xs text-rose-600 hover:text-rose-700 font-bold px-2 py-1.5 rounded transition-all hover:bg-rose-50 cursor-pointer flex-shrink-0"
+                                  className="text-xs text-rose-600 hover:text-rose-700 font-bold px-2 py-1 rounded transition-all hover:bg-rose-50 cursor-pointer flex-shrink-0"
                                 >
                                   Reset
                                 </button>
                               )}
                             </div>
-                          </div>
 
-                          {/* Workflow Pipeline Mode Switcher */}
-                          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pt-3 border-t border-slate-200/60 -mx-5 -mb-5 px-4 pb-3 bg-slate-100/50 rounded-b-2xl">
+                            {/* Right: Pipeline Mode & Auto-Collapse Empty Toggle */}
                             <div className="flex flex-wrap items-center gap-2">
-                              <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider flex items-center gap-1">
-                                <Rocket className="w-3.5 h-3.5 text-cyan-600" />
-                                Alur Sprint:
-                              </span>
-                              <div className="inline-flex bg-slate-200/80 p-0.5 rounded-xl text-xs font-semibold">
+                              {/* Workflow selector pills */}
+                              <div className="inline-flex bg-slate-200/80 p-0.5 rounded-lg text-xs font-semibold">
                                 <button
                                   type="button"
                                   onClick={() => setSprintWorkflowMode('devops')}
-                                  className={`px-3 py-1 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+                                  className={`px-2.5 py-1 rounded-md transition-all flex items-center gap-1 cursor-pointer ${
                                     sprintWorkflowMode === 'devops'
                                       ? 'bg-white text-gov-800 shadow-2xs font-extrabold'
                                       : 'text-slate-600 hover:text-slate-900'
                                   }`}
                                   title="6 Kolom: To Do, In Progress, Review, Deploy Dev, Testing VA/PT, Done"
                                 >
-                                  <span>🚀 DevOps & VA/PT (6 Kolom)</span>
+                                  <span>🚀 DevOps (6)</span>
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => setSprintWorkflowMode('all')}
-                                  className={`px-3 py-1 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+                                  className={`px-2.5 py-1 rounded-md transition-all flex items-center gap-1 cursor-pointer ${
                                     sprintWorkflowMode === 'all'
                                       ? 'bg-white text-gov-800 shadow-2xs font-extrabold'
                                       : 'text-slate-600 hover:text-slate-900'
                                   }`}
                                   title="Semua 7 Status termasuk Tertunda (Pending)"
                                 >
-                                  <span>Semua Status (7 Kolom)</span>
+                                  <span>Semua (7)</span>
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => setSprintWorkflowMode('standard')}
-                                  className={`px-3 py-1 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+                                  className={`px-2.5 py-1 rounded-md transition-all flex items-center gap-1 cursor-pointer ${
                                     sprintWorkflowMode === 'standard'
                                       ? 'bg-white text-gov-800 shadow-2xs font-extrabold'
                                       : 'text-slate-600 hover:text-slate-900'
                                   }`}
                                   title="4 Kolom: To Do, In Progress, Review, Done"
                                 >
-                                  <span>Standar (4 Kolom)</span>
+                                  <span>Standar (4)</span>
                                 </button>
                               </div>
-                            </div>
 
-                            {/* Pending notice if tasks exist in Pending while devops mode is active */}
-                            {sprintWorkflowMode === 'devops' && filteredBoardTasks.some(t => t.status === Status.Pending) && (
+                              {/* Toggle: Lipat Kolom Kosong */}
                               <button
                                 type="button"
-                                onClick={() => setSprintWorkflowMode('all')}
-                                className="text-xs text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 font-semibold px-2.5 py-1 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer"
+                                onClick={() => {
+                                  const next = !autoCollapseEmpty;
+                                  setAutoCollapseEmpty(next);
+                                  setCollapsedColumns({});
+                                }}
+                                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 border cursor-pointer ${
+                                  autoCollapseEmpty
+                                    ? 'bg-indigo-50 border-indigo-200 text-indigo-700 shadow-2xs'
+                                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                                }`}
+                                title="Otomatis lipat kolom tanpa tugas agar kolom aktif lebih lebar dan lega"
                               >
-                                <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
-                                <span>Ada {filteredBoardTasks.filter(t => t.status === Status.Pending).length} tugas Tertunda (Pending). Klik untuk lihat</span>
+                                <ChevronsLeftRight className="w-3.5 h-3.5" />
+                                <span className="hidden xl:inline">{autoCollapseEmpty ? 'Kolom Kosong Dilipat' : 'Buka Semua Kolom'}</span>
                               </button>
-                            )}
+
+                              {/* Pending warning if in devops mode */}
+                              {sprintWorkflowMode === 'devops' && filteredBoardTasks.some(t => t.status === Status.Pending) && (
+                                <button
+                                  type="button"
+                                  onClick={() => setSprintWorkflowMode('all')}
+                                  className="text-xs text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 font-semibold px-2.5 py-1 rounded-lg flex items-center gap-1 transition-colors cursor-pointer"
+                                >
+                                  <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+                                  <span>{filteredBoardTasks.filter(t => t.status === Status.Pending).length} Pending</span>
+                                </button>
+                              )}
+                            </div>
                           </div>
                         </div>
 
@@ -2714,13 +2748,56 @@ const ScrumBoard: React.FC = () => {
                             const config = getSprintColumnConfig(status);
                             const statusTasks = filteredBoardTasks.filter(t => t.status === status);
                             const totalColumnSp = statusTasks.reduce((sum, t) => sum + (t.storyPoints || 0), 0);
+                            const isCollapsed = isColumnCollapsed(status, statusTasks.length);
 
+                            // RENDER COLLAPSED SLIM VERTICAL STRIP
+                            if (isCollapsed) {
+                              return (
+                                <div
+                                  key={status}
+                                  onDragOver={(e) => e.preventDefault()}
+                                  onDrop={(e) => handleDropToKanbanColumn(e, status)}
+                                  onClick={() => toggleColumnCollapse(status, true)}
+                                  className={`w-12 min-w-[48px] max-w-[48px] ${config.bg} border ${config.cardBorder} ${config.headerBorder} rounded-2xl flex flex-col items-center py-3.5 h-full cursor-pointer hover:brightness-95 transition-all shadow-2xs group select-none relative`}
+                                  title={`Klik untuk membuka kolom ${config.label} (${statusTasks.length} tugas)`}
+                                >
+                                  <div className="p-1.5 rounded-lg bg-white/80 shadow-2xs text-slate-650 group-hover:text-gov-700 transition-colors">
+                                    {config.icon}
+                                  </div>
+
+                                  <span className={`mt-2 text-[10px] px-1.5 py-0.5 rounded-full font-extrabold ${config.badge}`}>
+                                    {statusTasks.length}
+                                  </span>
+
+                                  {totalColumnSp > 0 && (
+                                    <span className="mt-1 text-[9px] bg-indigo-50 border border-indigo-100 text-indigo-700 px-1 py-0.5 rounded font-bold">
+                                      {totalColumnSp}SP
+                                    </span>
+                                  )}
+
+                                  <div className="flex-1 flex items-center justify-center my-4 overflow-hidden">
+                                    <span 
+                                      className="text-xs font-bold text-slate-650 tracking-wider uppercase whitespace-nowrap"
+                                      style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
+                                    >
+                                      {config.label}
+                                    </span>
+                                  </div>
+
+                                  <div className="p-1 rounded bg-white/80 text-slate-400 group-hover:text-slate-700 transition-colors mt-auto" title="Buka kolom">
+                                    <ChevronRight className="w-3.5 h-3.5" />
+                                  </div>
+                                </div>
+                              );
+                            }
+
+                            // RENDER EXPANDED SPACIOUS COLUMN
                             return (
                               <div
                                 key={status}
                                 onDragOver={(e) => e.preventDefault()}
                                 onDrop={(e) => handleDropToKanbanColumn(e, status)}
-                                className={`flex-1 min-w-[210px] max-w-[320px] ${config.bg} border ${config.cardBorder} ${config.headerBorder} rounded-2xl flex flex-col h-full overflow-hidden shadow-2xs`}
+                                className={`flex-1 min-w-[270px] sm:min-w-[280px] max-w-[360px] ${config.bg} border ${config.cardBorder} ${config.headerBorder} rounded-2xl flex flex-col h-full overflow-hidden shadow-2xs transition-all duration-200`}
                               >
                                 {/* Column Header */}
                                 <div className="p-3 flex justify-between items-center border-b border-slate-200/80 bg-white/75 backdrop-blur-xs">
@@ -2737,22 +2814,30 @@ const ScrumBoard: React.FC = () => {
                                       )}
                                     </div>
                                   </div>
-                                  <div className="flex gap-1.5 items-center flex-shrink-0">
+                                  <div className="flex gap-1 items-center flex-shrink-0">
                                     <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${config.badge}`}>
                                       {statusTasks.length}
                                     </span>
                                     {totalColumnSp > 0 && (
-                                      <span className="text-[10px] bg-indigo-50 border border-indigo-100 text-indigo-600 px-2 py-0.5 rounded-full font-extrabold">
+                                      <span className="text-[10px] bg-indigo-50 border border-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded-full font-extrabold">
                                         {totalColumnSp} SP
                                       </span>
                                     )}
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleColumnCollapse(status, false)}
+                                      className="p-1 hover:bg-slate-200/60 rounded text-slate-400 hover:text-slate-600 transition-colors ml-0.5 cursor-pointer"
+                                      title={`Ciutkan kolom ${config.label}`}
+                                    >
+                                      <PanelLeftClose className="w-3.5 h-3.5" />
+                                    </button>
                                   </div>
                                 </div>
 
                                 {/* Column Cards Container */}
-                                <div className="flex-1 overflow-y-auto p-3 space-y-3 scrollbar-thin scrollbar-thumb-slate-300">
+                                <div className="flex-1 overflow-y-auto p-3 space-y-2.5 scrollbar-thin scrollbar-thumb-slate-300">
                                   {statusTasks.length === 0 ? (
-                                    <div className="text-center py-10 text-xs text-slate-450 border border-dashed border-slate-200/80 rounded-xl bg-white/40">
+                                    <div className="text-center py-10 text-xs text-slate-400 border border-dashed border-slate-200/80 rounded-xl bg-white/40">
                                       Drag tugas ke sini
                                     </div>
                                   ) : (
@@ -2772,11 +2857,11 @@ const ScrumBoard: React.FC = () => {
                                             setViewingTask(task);
                                             setIsTaskViewModalOpen(true);
                                           }}
-                                          className="bg-white border border-slate-200 rounded-xl p-4 shadow-2xs hover:shadow-sm transition-all cursor-pointer hover:border-gov-200 group relative text-left"
+                                          className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-2xs hover:shadow-sm transition-all cursor-pointer hover:border-gov-200 group relative text-left"
                                         >
                                           <div className="flex justify-between items-start gap-2">
-                                            <div className="flex items-center gap-1.5 flex-wrap">
-                                              <span className="text-[10px] text-slate-400 font-semibold tracking-wider uppercase text-left">
+                                            <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                                              <span className="text-[9px] text-slate-400 font-bold tracking-wider uppercase truncate max-w-[130px]" title={task.category}>
                                                 {task.category}
                                               </span>
                                               {task.status === Status.DeployDev && (
@@ -2791,18 +2876,18 @@ const ScrumBoard: React.FC = () => {
                                               )}
                                             </div>
                                             {task.storyPoints !== null && (
-                                              <span className="text-[9px] bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded border border-indigo-100 font-extrabold">
+                                              <span className="text-[9px] bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded border border-indigo-100 font-extrabold flex-shrink-0">
                                                 SP: {task.storyPoints}
                                               </span>
                                             )}
                                           </div>
 
-                                          <h4 className="text-sm font-bold text-slate-700 mt-1 line-clamp-2 group-hover:text-gov-600 group-hover:underline">
+                                          <h4 className="text-xs sm:text-sm font-semibold text-slate-800 mt-1.5 line-clamp-2 leading-snug group-hover:text-gov-600 group-hover:underline">
                                             {task.title}
                                           </h4>
 
                                           {/* Task priority and pic info */}
-                                          <div className="flex justify-between items-center mt-3 pt-3 border-t border-slate-100 text-xs">
+                                          <div className="flex justify-between items-center mt-2.5 pt-2 border-t border-slate-100 text-xs">
                                             <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold border ${
                                               task.priority === 'Urgent' || task.priority === 'High'
                                                 ? 'bg-rose-50 border-rose-100 text-rose-700'
@@ -2845,7 +2930,7 @@ const ScrumBoard: React.FC = () => {
 
                                           {/* SUBTASK AUTOLOAD INTEGRATION SECTION */}
                                           {totalSub > 0 && (
-                                            <div className="mt-3 pt-2.5 border-t border-slate-100" onClick={(e) => e.stopPropagation()}>
+                                            <div className="mt-2.5 pt-2 border-t border-slate-100" onClick={(e) => e.stopPropagation()}>
                                               <button
                                                 onClick={() => toggleTaskSubtasks(task.id)}
                                                 className="w-full flex justify-between items-center text-xs font-bold text-slate-500 hover:text-slate-700 transition-colors"
@@ -2889,7 +2974,7 @@ const ScrumBoard: React.FC = () => {
 
                                           {/* Inline Subtask Quick Addition */}
                                           {addingSubtaskTaskId === task.id ? (
-                                            <div className="mt-3 pt-2.5 border-t border-slate-100 flex gap-1" onClick={(e) => e.stopPropagation()}>
+                                            <div className="mt-2.5 pt-2 border-t border-slate-100 flex gap-1" onClick={(e) => e.stopPropagation()}>
                                               <input
                                                 type="text"
                                                 placeholder="Nama subtask..."
@@ -2903,13 +2988,13 @@ const ScrumBoard: React.FC = () => {
                                               />
                                               <button 
                                                 onClick={() => handleAddSubtaskSubmit(task.id)}
-                                                className="bg-gov-600 hover:bg-gov-700 text-white font-semibold px-2 py-1 rounded-lg text-xs"
+                                                className="bg-gov-600 hover:bg-gov-700 text-white font-semibold px-2 py-1 rounded-lg text-xs cursor-pointer"
                                               >
                                                 Simpan
                                               </button>
                                               <button 
                                                 onClick={() => setAddingSubtaskTaskId(null)}
-                                                className="p-1 hover:bg-slate-100 text-slate-500 rounded"
+                                                className="p-1 hover:bg-slate-100 text-slate-500 rounded cursor-pointer"
                                               >
                                                 <X className="w-3.5 h-3.5" />
                                               </button>
@@ -2921,7 +3006,7 @@ const ScrumBoard: React.FC = () => {
                                                 setAddingSubtaskTaskId(task.id);
                                                 setNewSubtaskTitle('');
                                               }}
-                                              className="mt-3 w-full flex items-center justify-center gap-1 py-1 border border-dashed border-slate-200 hover:border-slate-300 rounded-lg text-[10px] text-slate-500 font-bold hover:bg-slate-50 transition-all"
+                                              className="mt-2 w-full flex items-center justify-center gap-1 py-1 border border-dashed border-slate-200 hover:border-slate-300 rounded-lg text-[10px] text-slate-500 font-bold hover:bg-slate-50 transition-all opacity-0 group-hover:opacity-100 cursor-pointer"
                                             >
                                               <Plus className="w-3 h-3" /> Tambah Subtask
                                             </button>
