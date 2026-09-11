@@ -1546,7 +1546,7 @@ const ScrumBoard: React.FC = () => {
                         const activeSprint = sprints.find(s => s.projectId === proj.id && s.status === 'Active');
                         const sprintTasks = tasks.filter(t => t.sprintId === activeSprint?.id);
                         const sprintSp = sprintTasks.reduce((sum, t) => sum + (t.storyPoints || 0), 0);
-                        const sprintDone = sprintTasks.filter(t => t.status === Status.Done).length;
+                        const sprintDone = sprintTasks.filter(t => t.status === Status.Done || t.status === Status.TestingVAPT).length;
 
                         return (
                           <div

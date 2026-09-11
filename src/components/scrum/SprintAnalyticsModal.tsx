@@ -7,7 +7,7 @@ import {
   ResponsiveContainer, LineChart, Line, BarChart, Bar, 
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine 
 } from 'recharts';
-import { Sprint, Task } from '../../../types';
+import { Sprint, Task, Status } from '../../../types';
 
 interface SprintAnalyticsModalProps {
   sprint: Sprint;
@@ -32,8 +32,17 @@ export const SprintAnalyticsModal: React.FC<SprintAnalyticsModalProps> = ({
   const burndownData = useMemo(() => {
     const sprintTasks = tasks.filter(t => t.sprintId === sprint.id);
     const totalSp = sprintTasks.reduce((sum, t) => sum + (t.storyPoints || 0), 0);
-    const completedTasks = sprintTasks.filter(t => t.status === 'Done');
-    const totalCompletedSp = completedTasks.reduce((sum, t) => sum + (t.storyPoints || 0), 0);
+    
+    // Status Done and Testing VA/PT are counted as completed/burned-down SP
+    const isTaskCompletedOrTesting = (status: Status | string) => {
+      return status === Status.Done || status === Status.TestingVAPT;
+    };
+
+    const doneTasks = sprintTasks.filter(t => t.status === Status.Done);
+    const testingTasks = sprintTasks.filter(t => t.status === Status.TestingVAPT);
+    const doneSp = doneTasks.reduce((sum, t) => sum + (t.storyPoints || 0), 0);
+    const testingSp = testingTasks.reduce((sum, t) => sum + (t.storyPoints || 0), 0);
+    const totalCompletedSp = doneSp + testingSp;
 
     // Parse date without timezone shift
     const parseYMD = (str?: string) => {
@@ -108,7 +117,7 @@ export const SprintAnalyticsModal: React.FC<SprintAnalyticsModalProps> = ({
 
         const completedSoFar = sprintTasks
           .filter(t => {
-            if (t.status !== 'Done') return false;
+            if (!isTaskCompletedOrTesting(t.status)) return false;
             const compDate = getTaskCompletionDate(t);
             return compDate ? compDate <= endOfDay : true;
           })
@@ -119,19 +128,23 @@ export const SprintAnalyticsModal: React.FC<SprintAnalyticsModalProps> = ({
         // Today: reflects current real-time remaining story points
         actualRemaining = Math.max(0, totalSp - totalCompletedSp);
       } else if (isPast) {
-        // Past day: tasks completed on or before that day's 23:59:59
-        const endOfDay = new Date(currentDate);
-        endOfDay.setHours(23, 59, 59, 999);
+        // If sprint is past its endDate and not completed, the final day should reflect current state
+        if (i === dayCount && today > endDate) {
+          actualRemaining = Math.max(0, totalSp - totalCompletedSp);
+        } else {
+          const endOfDay = new Date(currentDate);
+          endOfDay.setHours(23, 59, 59, 999);
 
-        const completedSoFar = sprintTasks
-          .filter(t => {
-            if (t.status !== 'Done') return false;
-            const compDate = getTaskCompletionDate(t);
-            return compDate ? compDate <= endOfDay : false;
-          })
-          .reduce((sum, t) => sum + (t.storyPoints || 0), 0);
+          const completedSoFar = sprintTasks
+            .filter(t => {
+              if (!isTaskCompletedOrTesting(t.status)) return false;
+              const compDate = getTaskCompletionDate(t);
+              return compDate ? compDate <= endOfDay : false;
+            })
+            .reduce((sum, t) => sum + (t.storyPoints || 0), 0);
 
-        actualRemaining = Math.max(0, totalSp - completedSoFar);
+          actualRemaining = Math.max(0, totalSp - completedSoFar);
+        }
       } else if (isFuture) {
         // Future days: null so line doesn't project ahead
         actualRemaining = null;
@@ -149,12 +162,18 @@ export const SprintAnalyticsModal: React.FC<SprintAnalyticsModalProps> = ({
     return {
       points: dataPoints,
       totalSp,
-      completedSp: totalCompletedSp
+      completedSp: totalCompletedSp,
+      doneSp,
+      testingSp
     };
   }, [sprint, tasks]);
 
   // 2. VELOCITY CHART CALCULATION
   const velocityData = useMemo(() => {
+    const isTaskCompletedOrTesting = (status: Status | string) => {
+      return status === Status.Done || status === Status.TestingVAPT;
+    };
+
     // Sprints belonging to the same project, sorted chronologically
     const projectSprints = allSprints
       .filter(s => s.projectId === sprint.projectId)
@@ -164,7 +183,7 @@ export const SprintAnalyticsModal: React.FC<SprintAnalyticsModalProps> = ({
     const chartPoints = projectSprints.map(s => {
       const sTasks = tasks.filter(t => t.sprintId === s.id);
       const committed = sTasks.reduce((sum, t) => sum + (t.storyPoints || 0), 0);
-      const completed = sTasks.filter(t => t.status === 'Done').reduce((sum, t) => sum + (t.storyPoints || 0), 0);
+      const completed = sTasks.filter(t => isTaskCompletedOrTesting(t.status)).reduce((sum, t) => sum + (t.storyPoints || 0), 0);
 
       return {
         name: s.name.length > 12 ? s.name.substring(0, 10) + '...' : s.name,
@@ -234,7 +253,7 @@ export const SprintAnalyticsModal: React.FC<SprintAnalyticsModalProps> = ({
             }`}
           >
             <BarChart3 className="w-4 h-4" />
-            <span>Velocity Chart (Kecepatan Tim)</span>
+            <span>Velocity Chart</span>
           </button>
         </div>
 
@@ -255,7 +274,17 @@ export const SprintAnalyticsModal: React.FC<SprintAnalyticsModalProps> = ({
                 </div>
 
                 <div className="bg-emerald-50/60 p-3.5 rounded-2xl border border-emerald-100">
-                  <div className="text-[11px] font-bold text-emerald-700 uppercase">Telah Selesai</div>
+                  <div className="text-[11px] font-bold text-emerald-700 uppercase flex items-center justify-between flex-wrap gap-1">
+                    <span>Telah Selesai</span>
+                    {burndownData.testingSp > 0 && (
+                      <span 
+                        className="text-[9px] font-semibold text-emerald-700 bg-emerald-100/90 border border-emerald-200/60 px-1.5 py-0.5 rounded-md"
+                        title={`Done: ${burndownData.doneSp} SP + Testing VA/PT: ${burndownData.testingSp} SP`}
+                      >
+                        incl. {burndownData.testingSp} SP VA/PT
+                      </span>
+                    )}
+                  </div>
                   <div className="text-xl font-extrabold text-emerald-800 mt-0.5">
                     {burndownData.completedSp} <span className="text-xs font-normal text-emerald-600">SP</span>
                   </div>
@@ -271,9 +300,11 @@ export const SprintAnalyticsModal: React.FC<SprintAnalyticsModalProps> = ({
 
               {/* Burndown Line Chart */}
               <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-2xs">
-                <div className="text-xs font-bold text-slate-600 mb-3 flex items-center justify-between">
+                <div className="text-xs font-bold text-slate-600 mb-3 flex items-center justify-between flex-wrap gap-2">
                   <span>Garis Tren Sisa SP (Ideal vs Aktual)</span>
-                  <span className="text-[11px] font-normal text-slate-400">Target: Turun ke 0 pada akhir sprint</span>
+                  <span className="text-[11px] font-medium text-slate-400">
+                    Termasuk Done & Testing VA/PT
+                  </span>
                 </div>
                 <div className="w-full h-64">
                   <ResponsiveContainer width="100%" height="100%">
@@ -297,7 +328,7 @@ export const SprintAnalyticsModal: React.FC<SprintAnalyticsModalProps> = ({
                         labelFormatter={(_label: string, payload: any) => {
                           if (payload && payload[0] && payload[0].payload) {
                             const p = payload[0].payload;
-                            return p.day === 'Mulai' ? 'Awal Sprint (Baseline)' : `${p.day} (${p.date})`;
+                            return p.date === 'Mulai' || p.day === 'Awal' ? 'Awal Sprint (Baseline)' : `${p.day} (${p.date})`;
                           }
                           return _label;
                         }}

@@ -144,7 +144,8 @@ export const TasksProvider: React.FC<TasksProviderProps> = ({ children, session 
                     blockedBy: Array.isArray(t.blocked_by) ? t.blocked_by : [],
                     checklists: Array.isArray(t.checklists) ? t.checklists : [],
                     createdAt: t.created_at || t.createdAt || null,
-                    updatedAt: t.updated_at || t.updatedAt || null
+                    updatedAt: t.updated_at || t.updatedAt || null,
+                    updated_status_at: t.updated_status_at || null
                 } as Task;
             });
         },
