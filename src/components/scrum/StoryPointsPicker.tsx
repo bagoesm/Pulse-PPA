@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Check, X, Hash } from 'lucide-react';
 
 interface StoryPointsPickerProps {
   currentSp: number | null | undefined;
   onSelect: (points: number | null) => void;
   onClose: () => void;
+  anchorEl?: HTMLElement | null;
 }
 
 const FIBONACCI_POINTS = [0, 1, 2, 3, 5, 8, 13, 21];
@@ -12,22 +14,78 @@ const FIBONACCI_POINTS = [0, 1, 2, 3, 5, 8, 13, 21];
 export const StoryPointsPicker: React.FC<StoryPointsPickerProps> = ({
   currentSp,
   onSelect,
-  onClose
+  onClose,
+  anchorEl
 }) => {
   const [isCustomMode, setIsCustomMode] = useState(false);
   const [customValue, setCustomValue] = useState(currentSp !== null && currentSp !== undefined ? String(currentSp) : '');
+  const [coords, setCoords] = useState<{ top: number; left: number; openUpwards: boolean } | null>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
 
-  // Close when clicking outside
+  // Calculate coordinates and auto-flip direction based on anchorEl
+  useEffect(() => {
+    if (!anchorEl) return;
+
+    const updatePosition = () => {
+      const rect = anchorEl.getBoundingClientRect();
+      const popoverHeight = 195;
+      const popoverWidth = 256; // 16rem (w-64)
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+
+      // Auto-flip: open upwards if space below is limited (< 215px) and there's space above
+      const openUpwards = spaceBelow < 215 && spaceAbove > 180;
+
+      const top = openUpwards
+        ? Math.max(10, rect.top - popoverHeight - 6)
+        : Math.min(window.innerHeight - popoverHeight - 10, rect.bottom + 6);
+
+      // Align right edge of popover with right edge of button
+      let left = rect.right - popoverWidth;
+      if (left < 12) left = 12;
+      if (left + popoverWidth > window.innerWidth - 12) {
+        left = window.innerWidth - popoverWidth - 12;
+      }
+
+      setCoords({ top, left, openUpwards });
+    };
+
+    updatePosition();
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+    };
+  }, [anchorEl]);
+
+  // Close when clicking outside or pressing Escape
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (
+        popoverRef.current && 
+        !popoverRef.current.contains(target) &&
+        (!anchorEl || !anchorEl.contains(target))
+      ) {
         onClose();
       }
     };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [onClose]);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [onClose, anchorEl]);
 
   const handleCustomSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,11 +98,17 @@ export const StoryPointsPicker: React.FC<StoryPointsPickerProps> = ({
     onClose();
   };
 
-  return (
+  const popoverContent = (
     <div 
       ref={popoverRef}
       onClick={(e) => e.stopPropagation()}
-      className="absolute right-0 top-full mt-1.5 z-50 bg-white rounded-2xl shadow-xl border border-slate-200 p-3 w-64 animate-zoomIn"
+      style={coords ? {
+        position: 'fixed',
+        top: coords.top,
+        left: coords.left,
+        zIndex: 99999
+      } : undefined}
+      className={`${coords ? 'fixed' : 'absolute right-0 top-full mt-1.5 z-50'} bg-white rounded-2xl shadow-2xl border border-slate-200 p-3 w-64 animate-zoomIn`}
     >
       <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
         <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1">
@@ -53,6 +117,7 @@ export const StoryPointsPicker: React.FC<StoryPointsPickerProps> = ({
         </span>
         <button 
           onClick={onClose}
+          type="button"
           className="text-slate-400 hover:text-slate-600 p-0.5 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
         >
           <X className="w-3.5 h-3.5" />
@@ -138,4 +203,6 @@ export const StoryPointsPicker: React.FC<StoryPointsPickerProps> = ({
       )}
     </div>
   );
+
+  return anchorEl && coords ? createPortal(popoverContent, document.body) : popoverContent;
 };

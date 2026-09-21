@@ -158,7 +158,10 @@ export interface SprintDailyNote {
   id: string;
   sprintId: string;
   date: string; // YYYY-MM-DD
-  authorName?: string;
+  authorName?: string; // Member name or author name
+  memberName?: string; // Specific team member this update is for
+  memberId?: string;   // User ID if linked
+  recordedByName?: string; // Person who inputted this note (if recorded on behalf)
   yesterdayNotes?: string;
   todayNotes?: string;
   blockers?: string;

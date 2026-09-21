@@ -319,8 +319,9 @@ const ScrumBoard: React.FC = () => {
   // Multi-Select Task IDs for Bulk Actions
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
 
-  // Fibonacci Story Points Picker task ID
+  // Fibonacci Story Points Picker task ID and Anchor
   const [pickerSpTaskId, setPickerSpTaskId] = useState<string | null>(null);
+  const [pickerSpAnchorEl, setPickerSpAnchorEl] = useState<HTMLElement | null>(null);
 
   // Sprint Completion Modal State
   const [completingSprint, setCompletingSprint] = useState<Sprint | null>(null);
@@ -1274,7 +1275,13 @@ const ScrumBoard: React.FC = () => {
                     onClick={(e) => {
                       e.stopPropagation();
                       if (isSprintCompleted) return;
-                      setPickerSpTaskId(pickerSpTaskId === task.id ? null : task.id);
+                      if (pickerSpTaskId === task.id) {
+                        setPickerSpTaskId(null);
+                        setPickerSpAnchorEl(null);
+                      } else {
+                        setPickerSpTaskId(task.id);
+                        setPickerSpAnchorEl(e.currentTarget);
+                      }
                     }}
                     disabled={isSprintCompleted}
                     title="Klik untuk ubah Story Points (Fibonacci)"
@@ -1287,8 +1294,16 @@ const ScrumBoard: React.FC = () => {
                   {pickerSpTaskId === task.id && (
                     <StoryPointsPicker
                       currentSp={task.storyPoints}
-                      onSelect={(pts) => handleSelectSp(task.id, pts)}
-                      onClose={() => setPickerSpTaskId(null)}
+                      anchorEl={pickerSpAnchorEl}
+                      onSelect={(pts) => {
+                        handleSelectSp(task.id, pts);
+                        setPickerSpTaskId(null);
+                        setPickerSpAnchorEl(null);
+                      }}
+                      onClose={() => {
+                        setPickerSpTaskId(null);
+                        setPickerSpAnchorEl(null);
+                      }}
                     />
                   )}
                 </div>
@@ -1872,9 +1887,9 @@ const ScrumBoard: React.FC = () => {
                     </div>
                     
                     {/* JIRA STYLE SECTION 1: ACTIVE SPRINT */}
-                    <div className="bg-white border border-slate-200 rounded-2xl shadow-2xs overflow-hidden">
+                    <div className="bg-white border border-slate-200 rounded-2xl shadow-2xs">
                       {/* Active Sprint Section Header */}
-                      <div className="p-4 sm:p-5 border-b border-slate-100 bg-gov-25/10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                      <div className={`p-4 sm:p-5 border-b border-slate-100 bg-gov-25/10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 ${(expandedSprintIds['active'] ?? true) ? 'rounded-t-2xl' : 'rounded-2xl'}`}>
                         <button
                           onClick={() => toggleSprintAccordion('active')}
                           className="flex items-center gap-2.5 font-bold text-slate-800 hover:text-slate-900 transition-colors text-left cursor-pointer group"
@@ -2072,10 +2087,10 @@ const ScrumBoard: React.FC = () => {
                               key={sprint.id}
                               onDragOver={(e) => e.preventDefault()}
                               onDrop={(e) => handleDropToSprint(e, sprint)}
-                              className="bg-white border border-slate-200 rounded-2xl shadow-2xs overflow-hidden"
+                              className="bg-white border border-slate-200 rounded-2xl shadow-2xs"
                             >
                               {/* Sprint Collapsible Header */}
-                              <div className="p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-100 bg-slate-50/50">
+                              <div className={`p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-100 bg-slate-50/50 ${isExpanded ? 'rounded-t-2xl' : 'rounded-2xl'}`}>
                                 <button
                                   onClick={() => toggleSprintAccordion(sprint.id)}
                                   className="flex items-center gap-2 font-bold text-slate-700 hover:text-slate-900 transition-colors text-left cursor-pointer"
@@ -2174,10 +2189,10 @@ const ScrumBoard: React.FC = () => {
                             key={section.id}
                             onDragOver={(e) => e.preventDefault()}
                             onDrop={(e) => handleDropToBacklog(e, section.id)}
-                            className="bg-white border border-slate-200 rounded-2xl shadow-2xs overflow-hidden"
+                            className="bg-white border border-slate-200 rounded-2xl shadow-2xs"
                           >
                             {/* Backlog Section Header */}
-                            <div className="p-4 sm:p-5 border-b border-slate-100 bg-slate-50/70 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                            <div className={`p-4 sm:p-5 border-b border-slate-100 bg-slate-50/70 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 ${isExpanded ? 'rounded-t-2xl' : 'rounded-2xl'}`}>
                               <div className="flex items-center gap-2 flex-1 min-w-0">
                                 <button
                                   onClick={() => toggleSprintAccordion('backlog-' + section.id)}
@@ -2301,8 +2316,8 @@ const ScrumBoard: React.FC = () => {
 
                     {/* JIRA STYLE SECTION 4: HISTORY SPRINT COMPLETED (COLLAPSIBLE) */}
                     {projectSprints.filter(s => s.status === 'Completed').length > 0 && (
-                      <div className="bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden">
-                        <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-100/60">
+                      <div className="bg-slate-50 border border-slate-200 rounded-2xl">
+                        <div className={`p-4 border-b border-slate-200 flex justify-between items-center bg-slate-100/60 ${expandedSprintIds['completed-history'] ? 'rounded-t-2xl' : 'rounded-2xl'}`}>
                           <button
                             onClick={() => toggleSprintAccordion('completed-history')}
                             className="flex items-center gap-2 font-bold text-slate-600 hover:text-slate-800 transition-colors text-left"
@@ -3281,6 +3296,8 @@ const ScrumBoard: React.FC = () => {
             setDailyNotesSprint(null);
           }}
           currentUser={currentUser}
+          tasks={projectTasks.length > 0 ? projectTasks : tasks}
+          users={allUsers}
         />
       )}
 
