@@ -2,6 +2,7 @@
 // Comprehensive task handlers - CRUD, drag/drop, comments, activities
 import { useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { queryClient } from '../lib/queryClient';
 import { Task, Status, Comment, TaskActivity, User, Category, Meeting, ChecklistItem, ActivityType, Subtask } from '../../types';
 import { parseMentions } from '../components/MentionInput';
 
@@ -336,6 +337,9 @@ export const useTaskHandlers = ({
             description: newTaskData.description,
             project_id: newTaskData.projectId || null,
             epic_id: newTaskData.epicId || null,
+            sprint_id: newTaskData.sprintId !== undefined ? newTaskData.sprintId : (editingTask?.sprintId || null),
+            backlog_id: newTaskData.backlogId !== undefined ? newTaskData.backlogId : (editingTask?.backlogId || null),
+            story_points: newTaskData.storyPoints !== undefined ? newTaskData.storyPoints : (editingTask?.storyPoints ?? null),
             attachments: newTaskData.attachments,
             links: newTaskData.links,
             blocked_by: newTaskData.blockedBy || [],
@@ -439,12 +443,16 @@ export const useTaskHandlers = ({
                 startDate: updatedTask.start_date,
                 projectId: updatedTask.project_id,
                 epicId: updatedTask.epic_id,
+                sprintId: updatedTask.sprint_id || null,
+                backlogId: updatedTask.backlog_id || null,
+                storyPoints: updatedTask.story_points ?? null,
                 createdBy: editingTask.createdBy,
                 pic: picNames, // Use mapped names instead of UUIDs
             };
 
             setTasks(prev => prev.map(t => t.id === editingTask.id ? mappedUpdate : t));
             setProjectRefreshTrigger(prev => prev + 1);
+            queryClient.invalidateQueries({ queryKey: ['tasks'] });
 
             // Log to activity_logs for admin view
             await logToActivityLogs('update', editingTask.id, newTaskData.title, newTaskData.projectId);
@@ -504,11 +512,15 @@ export const useTaskHandlers = ({
             startDate: data.start_date,
             projectId: data.project_id,
             epicId: data.epic_id,
+            sprintId: data.sprint_id || null,
+            backlogId: data.backlog_id || null,
+            storyPoints: data.story_points ?? null,
             createdBy: createdByName,
             pic: picNames, // Use mapped names instead of UUIDs
         };
 
         setTasks(prev => [...prev, mapped]);
+        queryClient.invalidateQueries({ queryKey: ['tasks'] });
         await logTaskActivity(data.id, 'created', undefined, newTaskData.title);
 
         // Log to activity_logs for admin view
@@ -556,6 +568,9 @@ export const useTaskHandlers = ({
             description: newTaskData.description,
             project_id: newTaskData.projectId || null,
             epic_id: newTaskData.epicId || null,
+            sprint_id: newTaskData.sprintId || null,
+            backlog_id: newTaskData.backlogId || null,
+            story_points: newTaskData.storyPoints !== undefined ? newTaskData.storyPoints : null,
             attachments: newTaskData.attachments || [],
             links: newTaskData.links || [],
             blocked_by: newTaskData.blockedBy || [],
@@ -606,12 +621,16 @@ export const useTaskHandlers = ({
                     startDate: taskData.start_date,
                     projectId: taskData.project_id,
                     epicId: taskData.epic_id,
+                    sprintId: taskData.sprint_id || null,
+                    backlogId: taskData.backlog_id || null,
+                    storyPoints: taskData.story_points ?? null,
                     createdBy: createdByName,
                     pic: picNames,
                 };
             });
 
             setTasks(prev => [...prev, ...mappedTasks]);
+            queryClient.invalidateQueries({ queryKey: ['tasks'] });
 
             // Perform logging and notifications for each task
             for (let i = 0; i < data.length; i++) {
@@ -662,6 +681,7 @@ export const useTaskHandlers = ({
 
             setTasks(prev => prev.filter(t => t.id !== id));
             setProjectRefreshTrigger(prev => prev + 1);
+            queryClient.invalidateQueries({ queryKey: ['tasks'] });
             setIsModalOpen(false);
             setEditingTask(null);
 

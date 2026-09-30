@@ -761,6 +761,9 @@ const AddTaskModal: React.FC<AddTaskModalProps> = ({
       createdBy: initialData?.createdBy || currentUser?.name || 'System',
       projectId: formData.projectId || undefined, // Opsional - bisa kosong
       epicId: formData.epicId || undefined, // Opsional - bisa kosong
+      sprintId: formData.sprintId || initialData?.sprintId || undefined,
+      backlogId: formData.backlogId || initialData?.backlogId || undefined,
+      storyPoints: formData.storyPoints !== undefined ? formData.storyPoints : null,
       attachments: formData.attachments || [],
       links: formData.links || [],
       blockedBy: formData.blockedBy || [],

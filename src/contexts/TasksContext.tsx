@@ -58,16 +58,37 @@ export const TasksProvider: React.FC<TasksProviderProps> = ({ children, session 
     const { data: queryTasks, isLoading: isTasksQueryLoading, refetch: refetchTasks } = useQuery({
         queryKey: ['tasks'],
         queryFn: async (): Promise<Task[]> => {
-            const { data: tasksData, error: tasksErr } = await supabase
-                .from('tasks')
-                .select('*, master_categories:category_id(name), master_sub_categories:sub_category_id(name)')
-                .order('created_at', { ascending: true });
-            if (tasksErr) {
-                console.error('Error fetch tasks:', tasksErr);
-                return [];
+            const PAGE_SIZE = 1000;
+            let tasksData: any[] = [];
+            let from = 0;
+            let hasMore = true;
+
+            while (hasMore) {
+                const to = from + PAGE_SIZE - 1;
+                const { data, error: tasksErr } = await supabase
+                    .from('tasks')
+                    .select('*, master_categories:category_id(name), master_sub_categories:sub_category_id(name)')
+                    .order('created_at', { ascending: true })
+                    .range(from, to);
+
+                if (tasksErr) {
+                    console.error('Error fetch tasks chunk:', tasksErr);
+                    break;
+                }
+
+                if (data && data.length > 0) {
+                    tasksData = tasksData.concat(data);
+                    if (data.length < PAGE_SIZE) {
+                        hasMore = false;
+                    } else {
+                        from += PAGE_SIZE;
+                    }
+                } else {
+                    hasMore = false;
+                }
             }
 
-            if (!tasksData) return [];
+            if (!tasksData || tasksData.length === 0) return [];
 
             // Fetch profiles to map createdBy names
             const { data: profiles } = await supabase.from('profiles').select('id, name');
@@ -135,7 +156,7 @@ export const TasksProvider: React.FC<TasksProviderProps> = ({ children, session 
                     epicId: t.epic_id || t.epicId || null,
                     sprintId: t.sprint_id || null,
                     backlogId: t.backlog_id || null,
-                    storyPoints: t.story_points || null,
+                    storyPoints: t.story_points ?? null,
                     createdBy: createdByName,
                     pic: picNames,
                     deadline: t.deadline || (t.deadline_at || null),

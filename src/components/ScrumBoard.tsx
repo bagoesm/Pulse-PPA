@@ -200,7 +200,7 @@ const ScrumBoard: React.FC = () => {
     assignTaskToBacklog,
     isBacklogsLoading
   } = useSprints();
-  const { tasks, isTasksLoading } = useTasks();
+  const { tasks, setTasks, isTasksLoading } = useTasks();
   const { subtasks, getSubtasksByParent } = useSubtasks();
   const { 
     showConfirm, 
@@ -891,6 +891,7 @@ const ScrumBoard: React.FC = () => {
 
       if (error) throw error;
       
+      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, storyPoints: points } : t));
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       setEditingSpTaskId(null);
       showToast('Estimasi bobot berhasil diperbarui.', 'success');
@@ -1116,6 +1117,7 @@ const ScrumBoard: React.FC = () => {
         .update({ story_points: points })
         .eq('id', taskId);
       if (error) throw error;
+      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, storyPoints: points } : t));
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       showToast(points !== null ? `Story points diatur ke ${points}.` : 'Story points dihapus.', 'success');
     } catch (err) {
