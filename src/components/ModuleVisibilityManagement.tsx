@@ -14,6 +14,7 @@ const ModuleVisibilityManagement: React.FC = () => {
     'Scrum Board',
     'Surat & Kegiatan',
     'Realisasi Anggaran',
+    'Monitoring Capaian',
     'Inventori Data',
     'Inventori BMN',
     'Pelayanan Zoom',

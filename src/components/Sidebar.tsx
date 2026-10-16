@@ -33,7 +33,8 @@ import {
   Layers,
   Presentation,
   Camera,
-  UserCheck
+  UserCheck,
+  Target
 } from 'lucide-react';
 import { SIDEBAR_ITEMS, User } from '../../types';
 import { useSidebar } from '../contexts/SidebarContext';
@@ -79,7 +80,8 @@ const IconMap: Record<string, React.ElementType> = {
   'Layers': Layers,
   'Presentation': Presentation,
   'Camera': Camera,
-  'UserCheck': UserCheck
+  'UserCheck': UserCheck,
+  'Target': Target
 };
 
 const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser, users, onSwitchUser, onLogout }) => {

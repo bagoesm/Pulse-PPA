@@ -14,7 +14,8 @@ import {
   CalendarDays,
   FileSpreadsheet,
   Video,
-  Layers
+  Layers,
+  Target
 } from 'lucide-react';
 import { User } from '../../types';
 import UserAvatar from './UserAvatar';
@@ -58,6 +59,7 @@ const MobileNav: React.FC<MobileNavProps> = ({
   const moreMenuItems = [
     { name: 'Jadwal Kegiatan', icon: CalendarDays, color: 'text-indigo-600', bg: 'bg-indigo-50' },
     { name: 'Daftar Surat', icon: FileSpreadsheet, color: 'text-teal-600', bg: 'bg-teal-50' },
+    { name: 'Monitoring Capaian', icon: Target, color: 'text-amber-600', bg: 'bg-amber-50' },
     { name: 'Dashboard Realisasi', icon: FileSpreadsheet, color: 'text-rose-600', bg: 'bg-rose-50' },
     { name: 'Diskusi & Chat', icon: MessageSquarePlus, color: 'text-gov-600', bg: 'bg-gov-50' },
     { name: 'Saran Masukan', icon: MessageSquarePlus, color: 'text-emerald-600', bg: 'bg-emerald-50' },

@@ -466,6 +466,7 @@ export const SIDEBAR_ITEMS = [
       { name: 'Inventori Data', icon: 'Database' },
       { name: 'Pelayanan Zoom', icon: 'Video' },
       { name: 'Penilaian Arsip', icon: 'ClipboardCheck' },
+      { name: 'Monitoring Capaian', icon: 'Target' },
       {
         name: 'Monitoring Anggaran',
         icon: 'PieChart',

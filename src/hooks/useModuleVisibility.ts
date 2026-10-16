@@ -25,6 +25,7 @@ export function useModuleVisibility(currentUser: User | null) {
         'Scrum Board',
         'Surat & Kegiatan',
         'Realisasi Anggaran',
+        'Monitoring Capaian',
         'Inventori Data',
         'Inventori BMN',
         'Pelayanan Zoom',
@@ -54,7 +55,7 @@ export function useModuleVisibility(currentUser: User | null) {
       }
 
       // 'Dashboard' is always visible to everyone
-      setVisibleModules(['Dashboard', ...finalModules]);
+      setVisibleModules(['Dashboard', 'Monitoring Capaian', ...finalModules]);
     } catch (error) {
       console.error('Failed to load module visibility:', error);
       // Fallback in case of error: show standard modules, hide Laporan Absensi & Pelayanan Zoom
@@ -64,6 +65,7 @@ export function useModuleVisibility(currentUser: User | null) {
         'Project',
         'Surat & Kegiatan',
         'Realisasi Anggaran',
+        'Monitoring Capaian',
         'Inventori Data',
         'Inventori BMN',
         'Penilaian Arsip',
@@ -85,7 +87,7 @@ export function useModuleVisibility(currentUser: User | null) {
 
   const isModuleVisible = useCallback(
     (moduleName: string): boolean => {
-      if (moduleName === 'Diskusi & Chat') return true;
+      if (moduleName === 'Diskusi & Chat' || moduleName === 'Monitoring Capaian') return true;
       if (loading) {
         // During loading, show standard items to prevent flashing, but hide restricted ones
         if (moduleName === 'Pelayanan Zoom' || moduleName === 'Manajemen Modul' || moduleName === 'Laporan Absensi') {
