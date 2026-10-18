@@ -1,4 +1,3 @@
-// src/components/MonitoringCapaian/UploadRkklModal.tsx
 import React, { useState, useRef } from 'react';
 import { CapaianRO } from '../../types/monitoringCapaian';
 import { monitoringCapaianService } from '../../services/MonitoringCapaianService';
@@ -10,7 +9,8 @@ import {
   AlertCircle,
   Download,
   Loader2,
-  Layers
+  Layers,
+  Building2
 } from 'lucide-react';
 
 interface UploadRkklModalProps {
@@ -29,9 +29,12 @@ export const UploadRkklModal: React.FC<UploadRkklModalProps> = ({
   const [dragActive, setDragActive] = useState<boolean>(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
+  const [targetSatker, setTargetSatker] = useState<string>('auto');
+  const [customSatkerName, setCustomSatkerName] = useState<string>('');
   const [parseResult, setParseResult] = useState<{
     success: boolean;
     data: CapaianRO[];
+    detectedSatker?: string;
     message: string;
   } | null>(null);
 
@@ -52,24 +55,44 @@ export const UploadRkklModal: React.FC<UploadRkklModalProps> = ({
     e.stopPropagation();
     setDragActive(false);
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      processFile(e.dataTransfer.files[0]);
+      processFile(e.dataTransfer.files[0], getEffectiveSatker(targetSatker, customSatkerName));
     }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      processFile(e.target.files[0]);
+      processFile(e.target.files[0], getEffectiveSatker(targetSatker, customSatkerName));
     }
   };
 
-  const processFile = async (file: File) => {
+  const getEffectiveSatker = (satkerMode: string, customName: string) => {
+    if (satkerMode === 'auto') return undefined;
+    if (satkerMode === 'custom') return customName.trim() || undefined;
+    return satkerMode;
+  };
+
+  const processFile = async (file: File, overrideSatker?: string) => {
     setSelectedFile(file);
     setLoading(true);
     setParseResult(null);
 
-    const result = await monitoringCapaianService.parseExcelFile(file);
+    const result = await monitoringCapaianService.parseExcelFile(file, overrideSatker);
     setParseResult(result);
     setLoading(false);
+  };
+
+  const handleSatkerChange = (newSatker: string) => {
+    setTargetSatker(newSatker);
+    if (selectedFile) {
+      processFile(selectedFile, getEffectiveSatker(newSatker, customSatkerName));
+    }
+  };
+
+  const handleCustomSatkerChange = (newName: string) => {
+    setCustomSatkerName(newName);
+    if (selectedFile && newName.trim()) {
+      processFile(selectedFile, newName.trim());
+    }
   };
 
   const handleApply = () => {
@@ -146,6 +169,51 @@ export const UploadRkklModal: React.FC<UploadRkklModalProps> = ({
             </p>
           </div>
 
+          {/* Target Satker Selection */}
+          <div className="bg-slate-50 border border-slate-200/90 rounded-xl p-3.5 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                <Building2 size={14} className="text-gov-700" />
+                <span>Satuan Kerja Tujuan (Eselon I)</span>
+              </label>
+              {parseResult?.detectedSatker && (
+                <span className="text-[11px] font-semibold text-blue-700 bg-blue-100/70 border border-blue-200 px-2 py-0.5 rounded-full">
+                  Terdeteksi: {parseResult.detectedSatker}
+                </span>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <select
+                value={targetSatker}
+                onChange={(e) => handleSatkerChange(e.target.value)}
+                className="w-full text-xs font-medium bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-gov-500 shadow-2xs"
+              >
+                <option value="auto">⚡ Deteksi Otomatis dari Berkas / SAKTI</option>
+                <option value="Sekretariat Kementerian">Sekretariat Kementerian</option>
+                <option value="Deputi Bidang Kesetaraan Gender">Deputi Bidang Kesetaraan Gender (Deputi I)</option>
+                <option value="Deputi Bidang Pemenuhan Hak Anak">Deputi Bidang Pemenuhan Hak Anak (Deputi II)</option>
+                <option value="Deputi Bidang Perlindungan Hak Perempuan">Deputi Bidang Perlindungan Hak Perempuan (Deputi III)</option>
+                <option value="Deputi Bidang Perlindungan Khusus Anak">Deputi Bidang Perlindungan Khusus Anak (Deputi IV)</option>
+                <option value="custom">+ Ketik Nama Satker Lainnya...</option>
+              </select>
+
+              {targetSatker === 'custom' && (
+                <input
+                  type="text"
+                  placeholder="Ketik nama Satker baru..."
+                  value={customSatkerName}
+                  onChange={(e) => handleCustomSatkerChange(e.target.value)}
+                  className="w-full text-xs bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-gov-500 shadow-2xs"
+                />
+              )}
+            </div>
+
+            <p className="text-[11px] text-slate-500 leading-relaxed">
+              Bila Anda mengunggah berkas Excel untuk <strong>Deputi</strong>, pilih nama Deputi di atas agar data RO otomatis terkelompokkan dan dihitung terpisah dari Sekretariat Kementerian.
+            </p>
+          </div>
+
           {/* Template Download Help */}
           <div className="flex items-center justify-between p-3.5 bg-blue-50/70 border border-blue-200 rounded-xl text-xs text-blue-900">
             <div>
@@ -167,7 +235,7 @@ export const UploadRkklModal: React.FC<UploadRkklModalProps> = ({
             <div>
               <span className="font-bold text-slate-800">Sistem Penggabungan Data (Smart Upsert):</span>
               <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
-                RO dengan kode dan unit yang sama akan <strong>diperbarui nilainya</strong> dengan data terbaru dari Excel. RO baru akan <strong>ditambahkan</strong>, sedangkan data RO lain yang tidak tercantum dalam file Excel ini <strong>tetap aman dan tidak akan terhapus</strong>.
+                RO dengan kode dan unit yang sama akan <strong>diperbarui nilainya</strong> dengan data terbaru dari Excel. RO baru akan <strong>ditambahkan</strong>, sedangkan data RO lain (seperti Sekretariat Kementerian) <strong>tetap aman dan tidak akan terhapus</strong>.
               </p>
             </div>
           </div>
@@ -213,6 +281,7 @@ export const UploadRkklModal: React.FC<UploadRkklModalProps> = ({
                       <thead className="bg-slate-100 text-slate-600 uppercase font-semibold text-[10px]">
                         <tr>
                           <th className="py-2 px-3">Kode RO</th>
+                          <th className="py-2 px-3">Satker</th>
                           <th className="py-2 px-3">Uraian</th>
                           <th className="py-2 px-3 text-right">Pagu</th>
                           <th className="py-2 px-3 text-right">Realisasi</th>
@@ -223,6 +292,7 @@ export const UploadRkklModal: React.FC<UploadRkklModalProps> = ({
                         {parseResult.data.slice(0, 5).map((row, i) => (
                           <tr key={i} className="hover:bg-slate-50">
                             <td className="py-2 px-3 font-mono font-semibold text-slate-700">{row.kodeRo}</td>
+                            <td className="py-2 px-3 text-blue-700 font-semibold whitespace-nowrap text-[11px]">{row.satkerNama}</td>
                             <td className="py-2 px-3 text-slate-800 line-clamp-1">{row.namaRo}</td>
                             <td className="py-2 px-3 text-right font-medium text-slate-600">{formatRupiah(row.pagu)}</td>
                             <td className="py-2 px-3 text-right font-bold text-gov-700">{formatRupiah(row.realisasi)}</td>

@@ -15,7 +15,8 @@ import {
 } from '../types/monitoringCapaian';
 import { INITIAL_RO_DATA, INITIAL_SATKERS } from '../data/rkklInitialData';
 
-const STORAGE_KEY = 'pulse_rkkl_monitoring_capaian_v1';
+const STORAGE_KEY = 'pulse_rkkl_monitoring_capaian_v2';
+const DUMMY_IDS = new Set(['ro-39', 'ro-40', 'ro-41', 'ro-42', 'ro-43', 'ro-44']);
 
 export class MonitoringCapaianService {
   private static instance: MonitoringCapaianService;
@@ -121,18 +122,20 @@ export class MonitoringCapaianService {
           const localMap = new Map(localROs.map(l => [l.kodeRo, l]));
           const initialMap = new Map(INITIAL_RO_DATA.map(init => [init.kodeRo, init]));
 
-          const mapped = data.map(r => {
-            const ro = this.mapRowToRO(r);
-            const local = localMap.get(ro.kodeRo);
-            const init = initialMap.get(ro.kodeRo);
+          const mapped = data
+            .filter((r: any) => !DUMMY_IDS.has(r.id))
+            .map(r => {
+              const ro = this.mapRowToRO(r);
+              const local = localMap.get(ro.kodeRo);
+              const init = initialMap.get(ro.kodeRo);
 
-            if (local && local.komponen && local.komponen.length > 0) {
-              ro.komponen = local.komponen;
-            } else if (init && init.komponen && init.komponen.length > 0) {
-              ro.komponen = init.komponen;
-            }
-            return ro;
-          });
+              if (local && local.komponen && local.komponen.length > 0) {
+                ro.komponen = local.komponen;
+              } else if (init && init.komponen && init.komponen.length > 0) {
+                ro.komponen = init.komponen;
+              }
+              return ro;
+            });
 
           this.saveAllROs(mapped); // cache in localStorage
           return mapped;
@@ -171,30 +174,32 @@ export class MonitoringCapaianService {
           // Merge missing komponen / jadwal from INITIAL_RO_DATA if missing in cache
           const initialMap = new Map(INITIAL_RO_DATA.map(init => [init.kodeRo, init]));
           let modified = false;
-          const merged = parsed.map((ro: CapaianRO) => {
-            const init = initialMap.get(ro.kodeRo);
-            if (init) {
-              let updated = { ...ro };
-              if ((!ro.komponen || ro.komponen.length === 0) && init.komponen && init.komponen.length > 0) {
-                updated.komponen = init.komponen;
-                modified = true;
+          const merged = parsed
+            .filter((ro: any) => !DUMMY_IDS.has(ro.id))
+            .map((ro: CapaianRO) => {
+              const init = initialMap.get(ro.kodeRo);
+              if (init) {
+                let updated = { ...ro };
+                if ((!ro.komponen || ro.komponen.length === 0) && init.komponen && init.komponen.length > 0) {
+                  updated.komponen = init.komponen;
+                  modified = true;
+                }
+                if ((!ro.jadwal || Object.keys(ro.jadwal).length === 0) && init.jadwal && Object.keys(init.jadwal).length > 0) {
+                  updated.jadwal = init.jadwal;
+                  modified = true;
+                }
+                if (!ro.totalKebutuhan && init.totalKebutuhan) {
+                  updated.totalKebutuhan = init.totalKebutuhan;
+                  modified = true;
+                }
+                if (ro.danaTidakTerserap === undefined && init.danaTidakTerserap !== undefined) {
+                  updated.danaTidakTerserap = init.danaTidakTerserap;
+                  modified = true;
+                }
+                return updated;
               }
-              if ((!ro.jadwal || Object.keys(ro.jadwal).length === 0) && init.jadwal && Object.keys(init.jadwal).length > 0) {
-                updated.jadwal = init.jadwal;
-                modified = true;
-              }
-              if (!ro.totalKebutuhan && init.totalKebutuhan) {
-                updated.totalKebutuhan = init.totalKebutuhan;
-                modified = true;
-              }
-              if (ro.danaTidakTerserap === undefined && init.danaTidakTerserap !== undefined) {
-                updated.danaTidakTerserap = init.danaTidakTerserap;
-                modified = true;
-              }
-              return updated;
-            }
-            return ro;
-          });
+              return ro;
+            });
 
           if (modified) {
             this.saveAllROs(merged);
@@ -618,7 +623,10 @@ export class MonitoringCapaianService {
   }
 
   // Parse uploaded Excel file (support GLP039 SAKTI or AJK format)
-  public async parseExcelFile(file: File): Promise<{ success: boolean; data: CapaianRO[]; message: string }> {
+  public async parseExcelFile(
+    file: File,
+    overrideSatkerNama?: string
+  ): Promise<{ success: boolean; data: CapaianRO[]; detectedSatker: string; message: string }> {
     return new Promise((resolve) => {
       const reader = new FileReader();
 
@@ -626,7 +634,7 @@ export class MonitoringCapaianService {
         try {
           const buffer = e.target?.result;
           if (!buffer) {
-            resolve({ success: false, data: [], message: 'File kosong atau tidak dapat dibaca.' });
+            resolve({ success: false, data: [], detectedSatker: '', message: 'File kosong atau tidak dapat dibaca.' });
             return;
           }
 
@@ -636,7 +644,7 @@ export class MonitoringCapaianService {
           const rows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
 
           if (!rows || rows.length < 5) {
-            resolve({ success: false, data: [], message: 'Struktur file Excel tidak sesuai atau baris terlalu sedikit.' });
+            resolve({ success: false, data: [], detectedSatker: '', message: 'Struktur file Excel tidak sesuai atau baris terlalu sedikit.' });
             return;
           }
 
@@ -653,8 +661,25 @@ export class MonitoringCapaianService {
             const ajkRows: any[][] = XLSX.utils.sheet_to_json(ajkWs, { header: 1, defval: null });
 
             // Extract Satker / Unit from title rows if present
-            let detectedSatker = 'Sekretariat Kementerian';
-            let detectedUnit = 'Biro Data dan Informasi';
+            let detectedSatker = overrideSatkerNama || 'Sekretariat Kementerian';
+            let detectedUnit = 'Unit Kerja Terkait';
+
+            const headerSlice = ajkRows.slice(0, 10).map(r => (r || []).join(' ').toLowerCase()).join(' ');
+            const fullTextCheck = (fileName + ' ' + headerSlice).toLowerCase();
+
+            if (!overrideSatkerNama) {
+              if (fullTextCheck.includes('kesetaraan gender')) {
+                detectedSatker = 'Deputi Bidang Kesetaraan Gender';
+              } else if (fullTextCheck.includes('pemenuhan hak anak')) {
+                detectedSatker = 'Deputi Bidang Pemenuhan Hak Anak';
+              } else if (fullTextCheck.includes('perlindungan hak perempuan')) {
+                detectedSatker = 'Deputi Bidang Perlindungan Hak Perempuan';
+              } else if (fullTextCheck.includes('perlindungan khusus anak')) {
+                detectedSatker = 'Deputi Bidang Perlindungan Khusus Anak';
+              } else if (fullTextCheck.includes('sekretariat')) {
+                detectedSatker = 'Sekretariat Kementerian';
+              }
+            }
 
             for (let i = 0; i < Math.min(6, ajkRows.length); i++) {
               const rowText = (ajkRows[i] || []).join(' ').toLowerCase();
@@ -664,6 +689,10 @@ export class MonitoringCapaianService {
               else if (rowText.includes('biro sdm')) detectedUnit = 'Biro Sumber Daya Manusia dan Organisasi';
               else if (rowText.includes('biro umum')) detectedUnit = 'Biro Hubungan Masyarakat dan Umum';
               else if (rowText.includes('inspektorat')) detectedUnit = 'Inspektorat';
+              else if (rowText.includes('asdep') || rowText.includes('asisten deputi') || rowText.includes('sekretariat deputi')) {
+                const found = (ajkRows[i] || []).find((c: any) => c && (String(c).toLowerCase().includes('asdep') || String(c).toLowerCase().includes('asisten deputi') || String(c).toLowerCase().includes('sekretariat deputi')));
+                if (found) detectedUnit = String(found).trim();
+              }
             }
 
             // Find header row with 'No', 'Kegiatan', 'Pagu'
@@ -714,7 +743,7 @@ export class MonitoringCapaianService {
                 currentRoObj = {
                   id: `ro-imp-${Date.now()}-${parsedROs.length + 1}`,
                   satkerId: 'satker-imp',
-                  satkerNama: detectedSatker,
+                  satkerNama: overrideSatkerNama || detectedSatker,
                   unitKerjaId: 'unit-imp',
                   unitKerjaNama: detectedUnit,
                   kodeRo: String(colCode).trim(),
@@ -756,7 +785,7 @@ export class MonitoringCapaianService {
             }
           } else {
             // General tabular / SAKTI format
-            let detectedSatker = 'Sekretariat Kementerian';
+            let detectedSatker = overrideSatkerNama || 'Sekretariat Kementerian';
             let currentKegiatan = '';
             let currentUnit = 'Unit Kerja Terkait';
 
@@ -764,8 +793,14 @@ export class MonitoringCapaianService {
               const row = rows[r] || [];
               const strRow = row.join(' ').toLowerCase();
 
-              if (strRow.includes('satuan kerja') && row[2]) {
-                detectedSatker = String(row[2]).trim();
+              if (!overrideSatkerNama && strRow.includes('satuan kerja')) {
+                for (let c = 0; c < row.length; c++) {
+                  const val = String(row[c] || '').trim();
+                  if (val.toLowerCase().includes('deputi') || val.toLowerCase().includes('sekretariat')) {
+                    detectedSatker = val;
+                    break;
+                  }
+                }
               }
 
               // Check Kegiatan e.g. WA.2783
@@ -789,7 +824,7 @@ export class MonitoringCapaianService {
                 parsedROs.push({
                   id: `ro-imp-${Date.now()}-${parsedROs.length + 1}`,
                   satkerId: 'satker-imp',
-                  satkerNama: detectedSatker,
+                  satkerNama: overrideSatkerNama || detectedSatker,
                   unitKerjaId: 'unit-imp',
                   unitKerjaNama: currentUnit,
                   kodeRo: roCode,
@@ -814,6 +849,7 @@ export class MonitoringCapaianService {
             resolve({
               success: false,
               data: [],
+              detectedSatker: '',
               message: 'Tidak ditemukan data baris RO yang valid dalam file Excel tersebut.'
             });
             return;
@@ -844,23 +880,26 @@ export class MonitoringCapaianService {
             console.warn('Supabase import sync skipped:', syncErr);
           }
 
+          const finalSatkerName = parsedROs[0]?.satkerNama || 'Satker';
           resolve({
             success: true,
             data: parsedROs,
-            message: `Berhasil memproses dan mengimpor ${parsedROs.length} Rincian Output (RO).`
+            detectedSatker: finalSatkerName,
+            message: `Berhasil memproses dan mengimpor ${parsedROs.length} Rincian Output (RO) untuk Satker "${finalSatkerName}".`
           });
         } catch (err: any) {
           console.error('Error parsing excel:', err);
           resolve({
             success: false,
             data: [],
+            detectedSatker: '',
             message: `Gagal membaca file: ${err.message || 'Format tidak valid'}`
           });
         }
       };
 
       reader.onerror = () => {
-        resolve({ success: false, data: [], message: 'Terjadi kesalahan saat membaca berkas.' });
+        resolve({ success: false, data: [], detectedSatker: '', message: 'Terjadi kesalahan saat membaca berkas.' });
       };
 
       reader.readAsArrayBuffer(file);

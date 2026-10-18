@@ -54,6 +54,7 @@ export const DashboardPimpinanView: React.FC<DashboardPimpinanViewProps> = ({
   onSelectRO
 }) => {
   const [selectedSatker, setSelectedSatker] = useState<string>('All');
+  const [breakdownMode, setBreakdownMode] = useState<'satker' | 'unit'>('satker');
 
   // Filtered ROs based on satker filter
   const filteredROs = useMemo(() => {
@@ -207,6 +208,42 @@ export const DashboardPimpinanView: React.FC<DashboardPimpinanViewProps> = ({
     });
     return list.sort((a, b) => b.persentase - a.persentase);
   }, [satkers, ros]);
+
+  // Unit Kerja / Biro breakdown list with percentage
+  const unitBreakdown = useMemo(() => {
+    const unitsMap = new Map<string, {
+      nama: string;
+      satker: string;
+      pagu: number;
+      realisasi: number;
+      roCount: number;
+    }>();
+
+    filteredROs.forEach(r => {
+      const key = r.unitKerjaNama || 'Lainnya';
+      const exist = unitsMap.get(key) || {
+        nama: key,
+        satker: r.satkerNama,
+        pagu: 0,
+        realisasi: 0,
+        roCount: 0
+      };
+      exist.pagu += Number(r.pagu || 0);
+      exist.realisasi += Number(r.realisasi || 0);
+      exist.roCount += 1;
+      unitsMap.set(key, exist);
+    });
+
+    return Array.from(unitsMap.values()).map(u => {
+      const sisa = Math.max(0, u.pagu - u.realisasi);
+      const persentase = u.pagu > 0 ? Number(((u.realisasi / u.pagu) * 100).toFixed(2)) : 0;
+      return {
+        ...u,
+        sisa,
+        persentase
+      };
+    }).sort((a, b) => b.persentase - a.persentase);
+  }, [filteredROs]);
 
   const formatRupiah = (val: number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -416,49 +453,92 @@ export const DashboardPimpinanView: React.FC<DashboardPimpinanViewProps> = ({
 
       {/* Charts & Interactive Breakdown Row */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Column (7 Cols): Capaian per Eselon I / Satker */}
+        {/* Left Column (7 Cols): Capaian per Eselon I / Satker / Unit Kerja */}
         <div className="lg:col-span-7 bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
             <div>
               <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
                 <Building2 size={18} className="text-blue-600" />
-                <span>Kinerja Realisasi per Satuan Kerja / Eselon I</span>
+                <span>
+                  {satkerBreakdown.length <= 1
+                    ? 'Kinerja Realisasi per Biro / Unit Kerja di Lingkungan Setmen'
+                    : breakdownMode === 'satker'
+                    ? 'Kinerja Realisasi per Satuan Kerja / Eselon I'
+                    : 'Kinerja Realisasi per Biro / Unit Kerja'}
+                </span>
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Perbandingan penyerapan anggaran terhadap pagu masing-masing unit eselon I
+                {satkerBreakdown.length <= 1
+                  ? 'Perbandingan serapan anggaran 7 Unit Kerja / Biro di lingkungan Sekretariat Kementerian'
+                  : 'Perbandingan penyerapan anggaran terhadap pagu masing-masing unit'}
               </p>
             </div>
-            <button
-              onClick={() => onNavigateToDetail('satker')}
-              className="text-xs font-semibold text-blue-600 hover:text-blue-800 flex items-center gap-1 whitespace-nowrap"
-            >
-              <span>Struktur Detail</span>
-              <ArrowUpRight size={14} />
-            </button>
+
+            <div className="flex items-center gap-2">
+              {satkerBreakdown.length > 1 && (
+                <div className="inline-flex p-0.5 bg-slate-100 rounded-lg border border-slate-200 text-xs">
+                  <button
+                    onClick={() => setBreakdownMode('satker')}
+                    className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
+                      breakdownMode === 'satker'
+                        ? 'bg-white text-slate-900 shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Per Satker
+                  </button>
+                  <button
+                    onClick={() => setBreakdownMode('unit')}
+                    className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
+                      breakdownMode === 'unit'
+                        ? 'bg-white text-slate-900 shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Per Biro/Unit
+                  </button>
+                </div>
+              )}
+              <button
+                onClick={() => onNavigateToDetail(satkerBreakdown.length <= 1 ? 'ranking' : 'satker')}
+                className="text-xs font-semibold text-blue-600 hover:text-blue-800 flex items-center gap-1 whitespace-nowrap"
+              >
+                <span>Struktur Detail</span>
+                <ArrowUpRight size={14} />
+              </button>
+            </div>
           </div>
 
           <div className="space-y-3.5 pt-1">
-            {satkerBreakdown.map((satker) => {
+            {(satkerBreakdown.length <= 1 || breakdownMode === 'unit' ? unitBreakdown : satkerBreakdown).map((item: any) => {
               const statusColor =
-                satker.persentase >= 90
+                item.persentase >= 90
                   ? 'bg-emerald-500'
-                  : satker.persentase >= 75
+                  : item.persentase >= 75
                   ? 'bg-amber-500'
                   : 'bg-rose-500';
 
               const badgeColor =
-                satker.persentase >= 90
+                item.persentase >= 90
                   ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                  : satker.persentase >= 75
+                  : item.persentase >= 75
                   ? 'bg-amber-50 text-amber-700 border-amber-200'
                   : 'bg-rose-50 text-rose-700 border-rose-200';
 
+              const isUnit = 'satker' in item && item.satker;
+
               return (
                 <div
-                  key={satker.id || satker.nama}
-                  onClick={() => setSelectedSatker(satker.nama)}
+                  key={item.id || item.nama}
+                  onClick={() => {
+                    if (isUnit) {
+                      onNavigateToDetail('ro', item.nama);
+                    } else {
+                      setSelectedSatker(item.nama);
+                    }
+                  }}
                   className={`p-3.5 rounded-xl border transition-all cursor-pointer ${
-                    selectedSatker === satker.nama
+                    (!isUnit && selectedSatker === item.nama)
                       ? 'border-blue-500 bg-blue-50/30 shadow-xs'
                       : 'border-slate-200/80 hover:border-slate-300 hover:bg-slate-50/50'
                   }`}
@@ -466,18 +546,18 @@ export const DashboardPimpinanView: React.FC<DashboardPimpinanViewProps> = ({
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
                     <div className="flex items-center gap-2">
                       <span className="font-bold text-slate-900 text-xs sm:text-sm">
-                        {satker.nama}
+                        {item.nama}
                       </span>
                       <span className="text-[10px] text-slate-400 font-mono">
-                        ({satker.roCount} RO)
+                        ({item.roCount} RO)
                       </span>
                     </div>
                     <div className="flex items-center gap-3">
                       <span className="text-xs text-slate-600 font-mono">
-                        {formatShortRupiah(satker.totalReal)} / {formatShortRupiah(satker.totalPagu)}
+                        {formatShortRupiah(item.realisasi || item.totalReal)} / {formatShortRupiah(item.pagu || item.totalPagu)}
                       </span>
                       <span className={`text-xs font-bold font-mono px-2 py-0.5 rounded-md border ${badgeColor}`}>
-                        {satker.persentase}%
+                        {item.persentase}%
                       </span>
                     </div>
                   </div>
@@ -485,7 +565,7 @@ export const DashboardPimpinanView: React.FC<DashboardPimpinanViewProps> = ({
                   <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
                     <div
                       className={`h-full ${statusColor} rounded-full transition-all duration-700`}
-                      style={{ width: `${Math.min(100, Math.max(0, satker.persentase))}%` }}
+                      style={{ width: `${Math.min(100, Math.max(0, item.persentase))}%` }}
                     />
                   </div>
                 </div>
@@ -769,7 +849,7 @@ export const DashboardPimpinanView: React.FC<DashboardPimpinanViewProps> = ({
             <span>Ingin Memeriksa Data Operasional & Sub-Komponen Belanja?</span>
           </h4>
           <p className="text-xs text-slate-600">
-            Beralih ke tab <strong>Data & Rincian Operasional</strong> untuk melihat seluruh tabel 44 RO, mengedit rincian komponen (lisensi, ATK, server, konsumsi), dan matriks AJK mingguan.
+            Beralih ke tab <strong>Data & Rincian Operasional</strong> untuk melihat seluruh tabel {ros.length} RO, mengedit rincian komponen (lisensi, ATK, server, konsumsi), dan matriks AJK mingguan.
           </p>
         </div>
 
