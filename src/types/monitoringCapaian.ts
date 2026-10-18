@@ -17,6 +17,16 @@ export interface JadwalMingguan {
   des4?: number;
 }
 
+export interface KomponenRO {
+  id?: string;
+  nama: string;
+  pagu?: number;
+  realisasi?: number;
+  sisa?: number;
+  jadwal?: JadwalMingguan;
+  keterangan?: string;
+}
+
 export interface CapaianRO {
   id: string;
   satkerId: string;
@@ -38,6 +48,7 @@ export interface CapaianRO {
   totalKebutuhan?: number;
   danaTidakTerserap?: number;
   keterangan?: string;
+  komponen?: KomponenRO[];
   updatedAt?: string;
   updatedBy?: string;
 }

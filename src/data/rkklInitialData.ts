@@ -1038,7 +1038,30 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
     "danaTidakTerserap": 6500.0,
     "keterangan": "",
     "updatedAt": "2026-10-12T00:00:00Z",
-    "updatedBy": "Sistem RKKL"
+    "updatedBy": "Sistem RKKL",
+    "komponen": [
+      {
+        "nama": "Konsumsi",
+        "pagu": 0.0,
+        "realisasi": 0.0,
+        "sisa": 582500.0,
+        "jadwal": {
+          "nov2": 576000.0
+        },
+        "keterangan": ""
+      },
+      {
+        "nama": "Honorarium Narasumber",
+        "pagu": 0.0,
+        "realisasi": 0.0,
+        "sisa": 7200000.0,
+        "jadwal": {
+          "okt4": 3600000.0,
+          "nov1": 3600000.0
+        },
+        "keterangan": ""
+      }
+    ]
   },
   {
     "id": "ro-28",
@@ -1074,7 +1097,35 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
     "danaTidakTerserap": 2978730.0,
     "keterangan": "",
     "updatedAt": "2026-10-12T00:00:00Z",
-    "updatedBy": "Sistem RKKL"
+    "updatedBy": "Sistem RKKL",
+    "komponen": [
+      {
+        "nama": "Peningkatan Pengembangan Aplikasi SIMFONI PPA V.3",
+        "pagu": 3075000.0,
+        "realisasi": 120000.0,
+        "sisa": 2955000.0,
+        "jadwal": {},
+        "keterangan": ""
+      },
+      {
+        "nama": "Implementasi Jaringan Intra Pemerintah",
+        "pagu": 867000.0,
+        "realisasi": 0.0,
+        "sisa": 867000.0,
+        "jadwal": {
+          "okt4": 867000.0
+        },
+        "keterangan": ""
+      },
+      {
+        "nama": "Sisa belanja konsumsi dan transport",
+        "pagu": 0.0,
+        "realisasi": 0.0,
+        "sisa": 23730.0,
+        "jadwal": {},
+        "keterangan": ""
+      }
+    ]
   },
   {
     "id": "ro-29",
@@ -1110,7 +1161,150 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
     "danaTidakTerserap": 16256963.0,
     "keterangan": "direvisi untuk penambahan lisensi burp suite pro; akan direvisi menyesuaikan kebutuhan; akan direvisi menyesuaikan kebutuhan; akan direvisi menyesuaikan kebutuhan",
     "updatedAt": "2026-10-12T00:00:00Z",
-    "updatedBy": "Sistem RKKL"
+    "updatedBy": "Sistem RKKL",
+    "komponen": [
+      {
+        "nama": "Belanja Keperluan Perkantoran (ATK)",
+        "pagu": 12706000.0,
+        "realisasi": 0.0,
+        "sisa": 12706000.0,
+        "jadwal": {
+          "okt4": 8650000.0,
+          "nov1": 4056000.0
+        },
+        "keterangan": ""
+      },
+      {
+        "nama": "Belanja Bahan (ATK)",
+        "pagu": 2999000.0,
+        "realisasi": 0.0,
+        "sisa": 209000.0,
+        "jadwal": {
+          "nov1": 209000.0
+        },
+        "keterangan": "direvisi untuk penambahan lisensi burp suite pro"
+      },
+      {
+        "nama": "Langganan Daya dan Jasa Lainnya",
+        "pagu": 252339000.0,
+        "realisasi": 152547086.0,
+        "sisa": 99791914.0,
+        "jadwal": {
+          "okt4": 35000000.0,
+          "nov1": 33196000.0,
+          "nov2": 23532000.0
+        },
+        "keterangan": "akan direvisi menyesuaikan kebutuhan"
+      },
+      {
+        "nama": "Audit Surveilance ISO 27001:2022 (Konsultan)",
+        "pagu": 21500000.0,
+        "realisasi": 0.0,
+        "sisa": 21500000.0,
+        "jadwal": {
+          "okt3": 10480000.0,
+          "nov3": 10480000.0
+        },
+        "keterangan": "akan direvisi menyesuaikan kebutuhan"
+      },
+      {
+        "nama": "Audit Surveilance ISO 27001:2022 (Sertifikasi)",
+        "pagu": 28500000.0,
+        "realisasi": 0.0,
+        "sisa": 28500000.0,
+        "jadwal": {
+          "nov2": 28500000.0
+        },
+        "keterangan": ""
+      },
+      {
+        "nama": "Jasa Pemeliharaan AC dan UPS Lt.1  2",
+        "pagu": 0.0,
+        "realisasi": 0.0,
+        "sisa": 21367500.0,
+        "jadwal": {
+          "okt2": 21367500.0
+        },
+        "keterangan": ""
+      },
+      {
+        "nama": "Jasa Perbaikan Pemeliharan Perangkat/Peralatan\nCommand Center Ruang Server",
+        "pagu": 0.0,
+        "realisasi": 0.0,
+        "sisa": 65013745.0,
+        "jadwal": {
+          "okt2": 65013255.0
+        },
+        "keterangan": ""
+      },
+      {
+        "nama": "Perbaikan AC dan Laptop",
+        "pagu": 23667000.0,
+        "realisasi": 0.0,
+        "sisa": 23667000.0,
+        "jadwal": {
+          "okt3": 18870000.0,
+          "okt4": 4797000.0
+        },
+        "keterangan": ""
+      },
+      {
+        "nama": "Software Backup",
+        "pagu": 25000000.0,
+        "realisasi": 0.0,
+        "sisa": 25000000.0,
+        "jadwal": {
+          "nov1": 25000000.0
+        },
+        "keterangan": ""
+      },
+      {
+        "nama": "Lisensi Gemini AI",
+        "pagu": 17500000.0,
+        "realisasi": 0.0,
+        "sisa": 17500000.0,
+        "jadwal": {
+          "nov1": 17500000.0
+        },
+        "keterangan": ""
+      },
+      {
+        "nama": "Lisensi Figma",
+        "pagu": 4000000.0,
+        "realisasi": 0.0,
+        "sisa": 4000000.0,
+        "jadwal": {
+          "nov1": 4000000.0
+        },
+        "keterangan": ""
+      },
+      {
+        "nama": "Open Router AI",
+        "pagu": 2500000.0,
+        "realisasi": 0.0,
+        "sisa": 2500000.0,
+        "jadwal": {
+          "nov1": 2500000.0
+        },
+        "keterangan": ""
+      },
+      {
+        "nama": "Cloudflare Bisnis",
+        "pagu": 50000000.0,
+        "realisasi": 43039214.0,
+        "sisa": 6960786.0,
+        "jadwal": {},
+        "keterangan": "akan direvisi menyesuaikan kebutuhan"
+      },
+      {
+        "nama": "Lisensi Cloude",
+        "pagu": 0.0,
+        "realisasi": 0.0,
+        "sisa": 691773.0,
+        "jadwal": {},
+        "keterangan": ""
+      }
+    ]
   },
   {
     "id": "ro-30",
@@ -1146,7 +1340,39 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
     "danaTidakTerserap": 346350.0,
     "keterangan": "",
     "updatedAt": "2026-10-12T00:00:00Z",
-    "updatedBy": "Sistem RKKL"
+    "updatedBy": "Sistem RKKL",
+    "komponen": [
+      {
+        "nama": "Konsumsi (051)",
+        "pagu": 0.0,
+        "realisasi": 0.0,
+        "sisa": 4556350.0,
+        "jadwal": {
+          "nov2": 4410000.0
+        },
+        "keterangan": ""
+      },
+      {
+        "nama": "Transport (051)",
+        "pagu": 0.0,
+        "realisasi": 0.0,
+        "sisa": 600000.0,
+        "jadwal": {
+          "okt2": 400000.0
+        },
+        "keterangan": ""
+      },
+      {
+        "nama": "Honor Narasumber (052, di akun rumga)",
+        "pagu": 0.0,
+        "realisasi": 0.0,
+        "sisa": 21600000.0,
+        "jadwal": {
+          "nov4": 21600000.0
+        },
+        "keterangan": ""
+      }
+    ]
   },
   {
     "id": "ro-31",
@@ -1182,7 +1408,43 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
     "danaTidakTerserap": 599500.0,
     "keterangan": "akan dirubah untuk konsumsi",
     "updatedAt": "2026-10-12T00:00:00Z",
-    "updatedBy": "Sistem RKKL"
+    "updatedBy": "Sistem RKKL",
+    "komponen": [
+      {
+        "nama": "Konsumsi",
+        "pagu": 0.0,
+        "realisasi": 0.0,
+        "sisa": 3600000.0,
+        "jadwal": {
+          "okt2": 1480000.0,
+          "okt3": 1995000.0
+        },
+        "keterangan": ""
+      },
+      {
+        "nama": "Honor Narasumber (di akun rumga)",
+        "pagu": 0.0,
+        "realisasi": 0.0,
+        "sisa": 4000000.0,
+        "jadwal": {
+          "okt4": 2157500.0,
+          "nov2": 1368000.0
+        },
+        "keterangan": "akan dirubah untuk konsumsi"
+      },
+      {
+        "nama": "Konsumsi (di akun rumga)",
+        "pagu": 0.0,
+        "realisasi": 0.0,
+        "sisa": 5200000.0,
+        "jadwal": {
+          "okt2": 1972500.0,
+          "okt3": 1680000.0,
+          "okt4": 1547500.0
+        },
+        "keterangan": ""
+      }
+    ]
   },
   {
     "id": "ro-32",
@@ -1218,7 +1480,29 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
     "danaTidakTerserap": 10800.0,
     "keterangan": "",
     "updatedAt": "2026-10-12T00:00:00Z",
-    "updatedBy": "Sistem RKKL"
+    "updatedBy": "Sistem RKKL",
+    "komponen": [
+      {
+        "nama": "Konsumsi",
+        "pagu": 0.0,
+        "realisasi": 0.0,
+        "sisa": 1474800.0,
+        "jadwal": {
+          "nov2": 1464000.0
+        },
+        "keterangan": ""
+      },
+      {
+        "nama": "Honor Narasumber (di akun rumga)",
+        "pagu": 0.0,
+        "realisasi": 0.0,
+        "sisa": 200000.0,
+        "jadwal": {
+          "nov4": 200000.0
+        },
+        "keterangan": ""
+      }
+    ]
   },
   {
     "id": "ro-33",
@@ -1254,7 +1538,30 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
     "danaTidakTerserap": 65500.0,
     "keterangan": "",
     "updatedAt": "2026-10-12T00:00:00Z",
-    "updatedBy": "Sistem RKKL"
+    "updatedBy": "Sistem RKKL",
+    "komponen": [
+      {
+        "nama": "Konsumsi",
+        "pagu": 0.0,
+        "realisasi": 0.0,
+        "sisa": 7200000.0,
+        "jadwal": {
+          "okt2": 3974500.0,
+          "nov3": 3160000.0
+        },
+        "keterangan": ""
+      },
+      {
+        "nama": "Honor Narasumber (di akun rumga)",
+        "pagu": 0.0,
+        "realisasi": 0.0,
+        "sisa": 3800000.0,
+        "jadwal": {
+          "nov4": 3800000.0
+        },
+        "keterangan": ""
+      }
+    ]
   },
   {
     "id": "ro-34",
@@ -1290,7 +1597,57 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
     "danaTidakTerserap": 1173901.0,
     "keterangan": "",
     "updatedAt": "2026-10-12T00:00:00Z",
-    "updatedBy": "Sistem RKKL"
+    "updatedBy": "Sistem RKKL",
+    "komponen": [
+      {
+        "nama": "Konsumsi",
+        "pagu": 0.0,
+        "realisasi": 0.0,
+        "sisa": 720401.0,
+        "jadwal": {
+          "okt3": 480000.0
+        },
+        "keterangan": ""
+      },
+      {
+        "nama": "Honorarium Narasumber",
+        "pagu": 0.0,
+        "realisasi": 0.0,
+        "sisa": 2000000.0,
+        "jadwal": {
+          "nov4": 1800000.0
+        },
+        "keterangan": ""
+      },
+      {
+        "nama": "Honorarium Narasumber (di akun rumga)",
+        "pagu": 0.0,
+        "realisasi": 0.0,
+        "sisa": 500000.0,
+        "jadwal": {},
+        "keterangan": ""
+      },
+      {
+        "nama": "Transport dalam kota",
+        "pagu": 0.0,
+        "realisasi": 0.0,
+        "sisa": 400000.0,
+        "jadwal": {
+          "okt2": 200000.0
+        },
+        "keterangan": ""
+      },
+      {
+        "nama": "Transport luar kota",
+        "pagu": 0.0,
+        "realisasi": 0.0,
+        "sisa": 400000.0,
+        "jadwal": {
+          "okt3": 366500.0
+        },
+        "keterangan": ""
+      }
+    ]
   },
   {
     "id": "ro-35",
@@ -1326,7 +1683,30 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
     "danaTidakTerserap": 50000.0,
     "keterangan": "",
     "updatedAt": "2026-10-12T00:00:00Z",
-    "updatedBy": "Sistem RKKL"
+    "updatedBy": "Sistem RKKL",
+    "komponen": [
+      {
+        "nama": "Konsumsi",
+        "pagu": 0.0,
+        "realisasi": 0.0,
+        "sisa": 7200000.0,
+        "jadwal": {
+          "nov4": 4120000.0,
+          "des1": 3030000.0
+        },
+        "keterangan": ""
+      },
+      {
+        "nama": "Honorarium Narasumber (di akun rumga)",
+        "pagu": 0.0,
+        "realisasi": 0.0,
+        "sisa": 4100000.0,
+        "jadwal": {
+          "nov4": 4100000.0
+        },
+        "keterangan": ""
+      }
+    ]
   },
   {
     "id": "ro-36",
@@ -1362,7 +1742,42 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
     "danaTidakTerserap": 779500.0,
     "keterangan": "",
     "updatedAt": "2026-10-12T00:00:00Z",
-    "updatedBy": "Sistem RKKL"
+    "updatedBy": "Sistem RKKL",
+    "komponen": [
+      {
+        "nama": "Konsumsi",
+        "pagu": 0.0,
+        "realisasi": 0.0,
+        "sisa": 7200000.0,
+        "jadwal": {
+          "okt2": 3206500.0,
+          "nov4": 3914000.0
+        },
+        "keterangan": ""
+      },
+      {
+        "nama": "Honorarium Narasumber",
+        "pagu": 0.0,
+        "realisasi": 0.0,
+        "sisa": 8700000.0,
+        "jadwal": {
+          "okt4": 7400000.0,
+          "des1": 900000.0
+        },
+        "keterangan": ""
+      },
+      {
+        "nama": "Honorarium Narasumber (di akun rumga)",
+        "pagu": 0.0,
+        "realisasi": 0.0,
+        "sisa": 2800000.0,
+        "jadwal": {
+          "okt2": 700000.0,
+          "des1": 1800000.0
+        },
+        "keterangan": ""
+      }
+    ]
   },
   {
     "id": "ro-37",

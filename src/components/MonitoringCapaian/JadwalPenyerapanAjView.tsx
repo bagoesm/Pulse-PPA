@@ -1,8 +1,8 @@
-// src/components/MonitoringCapaian/JadwalPenyerapanAjView.tsx
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   CapaianRO,
-  JadwalMingguan
+  JadwalMingguan,
+  KomponenRO
 } from '../../types/monitoringCapaian';
 import {
   CalendarDays,
@@ -12,7 +12,11 @@ import {
   Download,
   Edit3,
   CheckCircle2,
-  AlertCircle
+  ChevronDown,
+  ChevronRight,
+  Layers,
+  Plus,
+  Trash2
 } from 'lucide-react';
 
 interface JadwalPenyerapanAjViewProps {
@@ -20,16 +24,35 @@ interface JadwalPenyerapanAjViewProps {
   onEditJadwal: (ro: CapaianRO) => void;
   onDownloadTemplate: () => void;
   onOpenUpload: () => void;
+  onAddKomponen: (ro: CapaianRO) => void;
+  onEditKomponen: (ro: CapaianRO, item: KomponenRO, index: number) => void;
+  onDeleteKomponen: (ro: CapaianRO, index: number) => void;
+  initialUnitFilter?: string;
 }
 
 export const JadwalPenyerapanAjView: React.FC<JadwalPenyerapanAjViewProps> = ({
   ros,
   onEditJadwal,
   onDownloadTemplate,
-  onOpenUpload
+  onOpenUpload,
+  onAddKomponen,
+  onEditKomponen,
+  onDeleteKomponen,
+  initialUnitFilter
 }) => {
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [unitFilter, setUnitFilter] = useState<string>('All');
+  const [unitFilter, setUnitFilter] = useState<string>(initialUnitFilter || 'All');
+  const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
+
+  const toggleExpand = (id: string) => {
+    setExpandedRows(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  useEffect(() => {
+    if (initialUnitFilter) {
+      setUnitFilter(initialUnitFilter);
+    }
+  }, [initialUnitFilter]);
 
   const formatNumber = (val?: number) => {
     if (!val || val === 0) return '-';
@@ -96,6 +119,29 @@ export const JadwalPenyerapanAjView: React.FC<JadwalPenyerapanAjViewProps> = ({
     return sums;
   }, [filteredROs]);
 
+  const hasAnyKomponen = useMemo(() => {
+    return filteredROs.some(r => r.komponen && r.komponen.length > 0);
+  }, [filteredROs]);
+
+  const allExpanded = useMemo(() => {
+    const withKomp = filteredROs.filter(r => r.komponen && r.komponen.length > 0);
+    return withKomp.length > 0 && withKomp.every(r => expandedRows[r.id]);
+  }, [filteredROs, expandedRows]);
+
+  const toggleExpandAll = () => {
+    if (allExpanded) {
+      setExpandedRows({});
+    } else {
+      const next: Record<string, boolean> = {};
+      filteredROs.forEach(r => {
+        if (r.komponen && r.komponen.length > 0) {
+          next[r.id] = true;
+        }
+      });
+      setExpandedRows(next);
+    }
+  };
+
   return (
     <div className="space-y-4 animate-fadeIn">
       {/* Header Info */}
@@ -145,18 +191,31 @@ export const JadwalPenyerapanAjView: React.FC<JadwalPenyerapanAjViewProps> = ({
           />
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-500 font-medium">Unit Kerja:</span>
-          <select
-            value={unitFilter}
-            onChange={(e) => setUnitFilter(e.target.value)}
-            className="text-xs px-3 py-1.5 border border-slate-200 rounded-lg bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-teal-500 max-w-[240px] truncate"
-          >
-            <option value="All">Semua Unit Kerja</option>
-            {unitOptions.map(u => (
-              <option key={u} value={u}>{u}</option>
-            ))}
-          </select>
+        <div className="flex flex-wrap items-center gap-2">
+          {hasAnyKomponen && (
+            <button
+              type="button"
+              onClick={toggleExpandAll}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition-colors shadow-2xs"
+            >
+              <Layers size={13} className="text-blue-600" />
+              <span>{allExpanded ? 'Tutup Semua Rincian' : 'Buka Semua Rincian Belanja'}</span>
+            </button>
+          )}
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-500 font-medium">Unit Kerja:</span>
+            <select
+              value={unitFilter}
+              onChange={(e) => setUnitFilter(e.target.value)}
+              className="text-xs px-3 py-1.5 border border-slate-200 rounded-lg bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-teal-500 max-w-[240px] truncate"
+            >
+              <option value="All">Semua Unit Kerja</option>
+              {unitOptions.map(u => (
+                <option key={u} value={u}>{u}</option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -223,97 +282,227 @@ export const JadwalPenyerapanAjView: React.FC<JadwalPenyerapanAjViewProps> = ({
                 const sumNov = (j.nov1 || 0) + (j.nov2 || 0) + (j.nov3 || 0) + (j.nov4 || 0);
                 const sumDes = (j.des1 || 0) + (j.des2 || 0) + (j.des3 || 0) + (j.des4 || 0);
                 const totalJadwal = sumOkt + sumNov + sumDes;
+                const hasKomponen = ro.komponen && ro.komponen.length > 0;
+                const isExpanded = !!expandedRows[ro.id];
 
                 return (
-                  <tr key={ro.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="py-2.5 px-3 text-center border-r border-slate-100 font-mono text-slate-400">
-                      {idx + 1}
-                    </td>
-                    <td className="py-2.5 px-3 border-r border-slate-100 whitespace-nowrap">
-                      <span className="inline-block bg-blue-50 text-blue-800 border border-blue-200/90 font-mono font-bold px-2 py-0.5 rounded-md shadow-2xs">
-                        {ro.kodeRo}
-                      </span>
-                    </td>
-                    <td className="py-2.5 px-3 border-r border-slate-100">
-                      <div className="font-semibold text-slate-900 line-clamp-1" title={ro.namaRo}>
-                        {ro.namaRo}
-                      </div>
-                      <div className="text-[10px] text-slate-500 font-medium">
-                        {ro.unitKerjaNama}
-                      </div>
-                    </td>
-                    <td className="py-2.5 px-3 border-r border-slate-100 text-right font-mono tabular-nums font-semibold text-slate-700 whitespace-nowrap">
-                      {formatNumber(ro.pagu)}
-                    </td>
-                    <td className="py-2.5 px-3 border-r border-slate-100 text-right font-mono tabular-nums font-bold text-emerald-700 whitespace-nowrap">
-                      <span className="bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-200/60">
-                        {formatNumber(ro.realisasi)}
-                      </span>
-                    </td>
-                    <td className="py-2.5 px-3 border-r border-slate-100 text-right font-mono tabular-nums font-medium text-slate-600 whitespace-nowrap">
-                      {formatNumber(ro.sisa)}
-                    </td>
+                  <React.Fragment key={ro.id}>
+                    <tr className={`hover:bg-slate-50/80 transition-colors ${isExpanded ? 'bg-blue-50/20' : ''}`}>
+                      <td className="py-2.5 px-3 text-center border-r border-slate-100 font-mono text-slate-400">
+                        {idx + 1}
+                      </td>
+                      <td className="py-2.5 px-3 border-r border-slate-100 whitespace-nowrap">
+                        <span className="inline-block bg-blue-50 text-blue-800 border border-blue-200/90 font-mono font-bold px-2 py-0.5 rounded-md shadow-2xs">
+                          {ro.kodeRo}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 border-r border-slate-100">
+                        <div className="font-semibold text-slate-900 line-clamp-1" title={ro.namaRo}>
+                          {ro.namaRo}
+                        </div>
+                        <div className="text-[10px] text-slate-500 font-medium">
+                          {ro.unitKerjaNama}
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                          <button
+                            type="button"
+                            onClick={() => toggleExpand(ro.id)}
+                            className="inline-flex items-center gap-1 text-[10px] font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded border border-blue-200/80 transition-colors shadow-2xs group"
+                          >
+                            {isExpanded ? <ChevronDown size={11} className="text-blue-600" /> : <ChevronRight size={11} className="text-blue-600 group-hover:translate-x-0.5 transition-transform" />}
+                            <span>{isExpanded ? 'Tutup Rincian' : hasKomponen ? `Lihat ${ro.komponen!.length} Rincian Belanja` : '+ Tambah Rincian'}</span>
+                          </button>
+                          {isExpanded && (
+                            <button
+                              type="button"
+                              onClick={() => onAddKomponen(ro)}
+                              className="inline-flex items-center gap-1 text-[10px] font-semibold text-white bg-blue-600 hover:bg-blue-700 px-2 py-0.5 rounded transition-colors shadow-2xs"
+                              title="Tambah Komponen Baru"
+                            >
+                              <Plus size={10} />
+                              <span>Tambah</span>
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-2.5 px-3 border-r border-slate-100 text-right font-mono tabular-nums font-semibold text-slate-700 whitespace-nowrap">
+                        {formatNumber(ro.pagu)}
+                      </td>
+                      <td className="py-2.5 px-3 border-r border-slate-100 text-right font-mono tabular-nums font-bold text-emerald-700 whitespace-nowrap">
+                        <span className="bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-200/60">
+                          {formatNumber(ro.realisasi)}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 border-r border-slate-100 text-right font-mono tabular-nums font-medium text-slate-600 whitespace-nowrap">
+                        {formatNumber(ro.sisa)}
+                      </td>
 
-                    {/* Okt */}
-                    <td className="py-2 px-2 border-r border-sky-100 text-right font-mono tabular-nums text-sky-950 bg-sky-50/30 whitespace-nowrap">
-                      {formatNumber(j.okt2)}
-                    </td>
-                    <td className="py-2 px-2 border-r border-sky-100 text-right font-mono tabular-nums text-sky-950 bg-sky-50/30 whitespace-nowrap">
-                      {formatNumber(j.okt3)}
-                    </td>
-                    <td className="py-2 px-2 border-r border-sky-100 text-right font-mono tabular-nums text-sky-950 bg-sky-50/30 whitespace-nowrap">
-                      {formatNumber(j.okt4)}
-                    </td>
+                      {/* Okt */}
+                      <td className="py-2 px-2 border-r border-sky-100 text-right font-mono tabular-nums text-sky-950 bg-sky-50/30 whitespace-nowrap">
+                        {formatNumber(j.okt2)}
+                      </td>
+                      <td className="py-2 px-2 border-r border-sky-100 text-right font-mono tabular-nums text-sky-950 bg-sky-50/30 whitespace-nowrap">
+                        {formatNumber(j.okt3)}
+                      </td>
+                      <td className="py-2 px-2 border-r border-sky-100 text-right font-mono tabular-nums text-sky-950 bg-sky-50/30 whitespace-nowrap">
+                        {formatNumber(j.okt4)}
+                      </td>
 
-                    {/* Nov */}
-                    <td className="py-2 px-2 border-r border-indigo-100 text-right font-mono tabular-nums text-indigo-950 bg-indigo-50/30 whitespace-nowrap">
-                      {formatNumber(j.nov1)}
-                    </td>
-                    <td className="py-2 px-2 border-r border-indigo-100 text-right font-mono tabular-nums text-indigo-950 bg-indigo-50/30 whitespace-nowrap">
-                      {formatNumber(j.nov2)}
-                    </td>
-                    <td className="py-2 px-2 border-r border-indigo-100 text-right font-mono tabular-nums text-indigo-950 bg-indigo-50/30 whitespace-nowrap">
-                      {formatNumber(j.nov3)}
-                    </td>
-                    <td className="py-2 px-2 border-r border-indigo-100 text-right font-mono tabular-nums text-indigo-950 bg-indigo-50/30 whitespace-nowrap">
-                      {formatNumber(j.nov4)}
-                    </td>
+                      {/* Nov */}
+                      <td className="py-2 px-2 border-r border-indigo-100 text-right font-mono tabular-nums text-indigo-950 bg-indigo-50/30 whitespace-nowrap">
+                        {formatNumber(j.nov1)}
+                      </td>
+                      <td className="py-2 px-2 border-r border-indigo-100 text-right font-mono tabular-nums text-indigo-950 bg-indigo-50/30 whitespace-nowrap">
+                        {formatNumber(j.nov2)}
+                      </td>
+                      <td className="py-2 px-2 border-r border-indigo-100 text-right font-mono tabular-nums text-indigo-950 bg-indigo-50/30 whitespace-nowrap">
+                        {formatNumber(j.nov3)}
+                      </td>
+                      <td className="py-2 px-2 border-r border-indigo-100 text-right font-mono tabular-nums text-indigo-950 bg-indigo-50/30 whitespace-nowrap">
+                        {formatNumber(j.nov4)}
+                      </td>
 
-                    {/* Des */}
-                    <td className="py-2 px-2 border-r border-emerald-100 text-right font-mono tabular-nums text-emerald-950 bg-emerald-50/30 whitespace-nowrap">
-                      {formatNumber(j.des1)}
-                    </td>
-                    <td className="py-2 px-2 border-r border-emerald-100 text-right font-mono tabular-nums text-emerald-950 bg-emerald-50/30 whitespace-nowrap">
-                      {formatNumber(j.des2)}
-                    </td>
-                    <td className="py-2 px-2 border-r border-emerald-100 text-right font-mono tabular-nums text-emerald-950 bg-emerald-50/30 whitespace-nowrap">
-                      {formatNumber(j.des3)}
-                    </td>
-                    <td className="py-2 px-2 border-r border-emerald-100 text-right font-mono tabular-nums text-emerald-950 bg-emerald-50/30 whitespace-nowrap">
-                      {formatNumber(j.des4)}
-                    </td>
+                      {/* Des */}
+                      <td className="py-2 px-2 border-r border-emerald-100 text-right font-mono tabular-nums text-emerald-950 bg-emerald-50/30 whitespace-nowrap">
+                        {formatNumber(j.des1)}
+                      </td>
+                      <td className="py-2 px-2 border-r border-emerald-100 text-right font-mono tabular-nums text-emerald-950 bg-emerald-50/30 whitespace-nowrap">
+                        {formatNumber(j.des2)}
+                      </td>
+                      <td className="py-2 px-2 border-r border-emerald-100 text-right font-mono tabular-nums text-emerald-950 bg-emerald-50/30 whitespace-nowrap">
+                        {formatNumber(j.des3)}
+                      </td>
+                      <td className="py-2 px-2 border-r border-emerald-100 text-right font-mono tabular-nums text-emerald-950 bg-emerald-50/30 whitespace-nowrap">
+                        {formatNumber(j.des4)}
+                      </td>
 
-                    {/* Totals & Notes */}
-                    <td className="py-2.5 px-3 border-r border-amber-200/80 text-right font-mono tabular-nums font-bold text-amber-950 bg-amber-50/70 whitespace-nowrap">
-                      {formatNumber(ro.totalKebutuhan || totalJadwal)}
-                    </td>
-                    <td className="py-2.5 px-3 border-r border-rose-200/80 text-right font-mono tabular-nums font-bold text-rose-800 bg-rose-50/70 whitespace-nowrap">
-                      {formatNumber(ro.danaTidakTerserap)}
-                    </td>
-                    <td className="py-2.5 px-3 border-r border-slate-100 text-slate-600 max-w-[200px] truncate" title={ro.keterangan}>
-                      {ro.keterangan || '-'}
-                    </td>
-                    <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                      <button
-                        onClick={() => onEditJadwal(ro)}
-                        className="px-2 py-1 text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200/80 rounded-md transition-colors inline-flex items-center gap-1 font-semibold text-[11px] shadow-2xs"
-                        title="Edit Rencana Jadwal"
-                      >
-                        <Edit3 size={13} />
-                        <span>Edit</span>
-                      </button>
-                    </td>
-                  </tr>
+                      {/* Totals & Notes */}
+                      <td className="py-2.5 px-3 border-r border-amber-200/80 text-right font-mono tabular-nums font-bold text-amber-950 bg-amber-50/70 whitespace-nowrap">
+                        {formatNumber(ro.totalKebutuhan || totalJadwal)}
+                      </td>
+                      <td className="py-2.5 px-3 border-r border-rose-200/80 text-right font-mono tabular-nums font-bold text-rose-800 bg-rose-50/70 whitespace-nowrap">
+                        {formatNumber(ro.danaTidakTerserap)}
+                      </td>
+                      <td className="py-2.5 px-3 border-r border-slate-100 text-slate-600 max-w-[200px] truncate" title={ro.keterangan}>
+                        {ro.keterangan || '-'}
+                      </td>
+                      <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                        <button
+                          onClick={() => onEditJadwal(ro)}
+                          className="px-2 py-1 text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200/80 rounded-md transition-colors inline-flex items-center gap-1 font-semibold text-[11px] shadow-2xs"
+                          title="Edit Rencana Jadwal"
+                        >
+                          <Edit3 size={13} />
+                          <span>Edit</span>
+                        </button>
+                      </td>
+                    </tr>
+
+                    {/* Sub-Komponen Rows */}
+                    {isExpanded && hasKomponen && ro.komponen!.map((k, kIdx) => {
+                      const kj = k.jadwal || {};
+                      const kSumOkt = (kj.okt2 || 0) + (kj.okt3 || 0) + (kj.okt4 || 0);
+                      const kSumNov = (kj.nov1 || 0) + (kj.nov2 || 0) + (kj.nov3 || 0) + (kj.nov4 || 0);
+                      const kSumDes = (kj.des1 || 0) + (kj.des2 || 0) + (kj.des3 || 0) + (kj.des4 || 0);
+                      const kTotalJadwal = kSumOkt + kSumNov + kSumDes;
+
+                      return (
+                        <tr key={`${ro.id}-sub-${kIdx}`} className="bg-slate-50/75 hover:bg-blue-50/40 transition-colors text-[11px] border-b border-slate-100">
+                          <td className="py-2 px-3 text-center border-r border-slate-100 font-mono text-[10px] text-slate-400">
+                            {idx + 1}.{kIdx + 1}
+                          </td>
+                          <td className="py-2 px-3 border-r border-slate-100 font-mono text-[10px] text-slate-400 text-center">
+                            <span className="text-[9px] text-slate-500 bg-slate-200/70 px-1 py-0.5 rounded font-sans font-medium">komp</span>
+                          </td>
+                          <td className="py-2 px-3 border-r border-slate-100">
+                            <div className="flex items-center gap-1.5 pl-2 text-slate-700 font-medium">
+                              <span className="text-slate-400">↳</span>
+                              <span title={k.nama}>{k.nama}</span>
+                            </div>
+                          </td>
+                          <td className="py-2 px-3 border-r border-slate-100 text-right font-mono tabular-nums text-slate-600 whitespace-nowrap text-[10px]">
+                            {k.pagu ? formatNumber(k.pagu) : '-'}
+                          </td>
+                          <td className="py-2 px-3 border-r border-slate-100 text-right font-mono tabular-nums text-slate-400 whitespace-nowrap bg-emerald-50/20 text-[10px]">
+                            -
+                          </td>
+                          <td className="py-2 px-3 border-r border-slate-100 text-right font-mono tabular-nums text-slate-600 whitespace-nowrap text-[10px]">
+                            {k.sisa ? formatNumber(k.sisa) : '-'}
+                          </td>
+
+                          {/* Okt */}
+                          <td className="py-1.5 px-2 border-r border-sky-100 text-right font-mono tabular-nums text-sky-900 bg-sky-50/20 whitespace-nowrap text-[10px]">
+                            {formatNumber(kj.okt2)}
+                          </td>
+                          <td className="py-1.5 px-2 border-r border-sky-100 text-right font-mono tabular-nums text-sky-900 bg-sky-50/20 whitespace-nowrap text-[10px]">
+                            {formatNumber(kj.okt3)}
+                          </td>
+                          <td className="py-1.5 px-2 border-r border-sky-100 text-right font-mono tabular-nums text-sky-900 bg-sky-50/20 whitespace-nowrap text-[10px]">
+                            {formatNumber(kj.okt4)}
+                          </td>
+
+                          {/* Nov */}
+                          <td className="py-1.5 px-2 border-r border-indigo-100 text-right font-mono tabular-nums text-indigo-900 bg-indigo-50/20 whitespace-nowrap text-[10px]">
+                            {formatNumber(kj.nov1)}
+                          </td>
+                          <td className="py-1.5 px-2 border-r border-indigo-100 text-right font-mono tabular-nums text-indigo-900 bg-indigo-50/20 whitespace-nowrap text-[10px]">
+                            {formatNumber(kj.nov2)}
+                          </td>
+                          <td className="py-1.5 px-2 border-r border-indigo-100 text-right font-mono tabular-nums text-indigo-900 bg-indigo-50/20 whitespace-nowrap text-[10px]">
+                            {formatNumber(kj.nov3)}
+                          </td>
+                          <td className="py-1.5 px-2 border-r border-indigo-100 text-right font-mono tabular-nums text-indigo-900 bg-indigo-50/20 whitespace-nowrap text-[10px]">
+                            {formatNumber(kj.nov4)}
+                          </td>
+
+                          {/* Des */}
+                          <td className="py-1.5 px-2 border-r border-emerald-100 text-right font-mono tabular-nums text-emerald-900 bg-emerald-50/20 whitespace-nowrap text-[10px]">
+                            {formatNumber(kj.des1)}
+                          </td>
+                          <td className="py-1.5 px-2 border-r border-emerald-100 text-right font-mono tabular-nums text-emerald-900 bg-emerald-50/20 whitespace-nowrap text-[10px]">
+                            {formatNumber(kj.des2)}
+                          </td>
+                          <td className="py-1.5 px-2 border-r border-emerald-100 text-right font-mono tabular-nums text-emerald-900 bg-emerald-50/20 whitespace-nowrap text-[10px]">
+                            {formatNumber(kj.des3)}
+                          </td>
+                          <td className="py-1.5 px-2 border-r border-emerald-100 text-right font-mono tabular-nums text-emerald-900 bg-emerald-50/20 whitespace-nowrap text-[10px]">
+                            {formatNumber(kj.des4)}
+                          </td>
+
+                          {/* Totals & Notes */}
+                          <td className="py-2 px-3 border-r border-amber-200/50 text-right font-mono tabular-nums font-semibold text-amber-900 bg-amber-50/40 whitespace-nowrap text-[10px]">
+                            {formatNumber(kTotalJadwal)}
+                          </td>
+                          <td className="py-2 px-3 border-r border-rose-200/50 text-right font-mono tabular-nums text-slate-400 bg-rose-50/30 whitespace-nowrap text-[10px]">
+                            -
+                          </td>
+                          <td className="py-2 px-3 border-r border-slate-100 text-slate-500 max-w-[200px] truncate text-[10px]" title={k.keterangan}>
+                            {k.keterangan || '-'}
+                          </td>
+                          <td className="py-2 px-3 text-center whitespace-nowrap">
+                            <div className="flex items-center justify-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => onEditKomponen(ro, k, kIdx)}
+                                className="p-1 text-amber-700 hover:text-amber-900 hover:bg-amber-100/60 rounded transition-colors"
+                                title="Edit Rincian Komponen"
+                              >
+                                <Edit3 size={12} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => onDeleteKomponen(ro, kIdx)}
+                                className="p-1 text-rose-600 hover:text-rose-800 hover:bg-rose-100/60 rounded transition-colors"
+                                title="Hapus Rincian Komponen"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </React.Fragment>
                 );
               })}
             </tbody>

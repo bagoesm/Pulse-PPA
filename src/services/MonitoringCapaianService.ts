@@ -10,7 +10,8 @@ import {
   CapaianUnitKerja,
   CapaianKementerianSummary,
   StatusCapaian,
-  JadwalMingguan
+  JadwalMingguan,
+  KomponenRO
 } from '../types/monitoringCapaian';
 import { INITIAL_RO_DATA, INITIAL_SATKERS } from '../data/rkklInitialData';
 
@@ -41,6 +42,14 @@ export class MonitoringCapaianService {
     const sisa = Number(row.sisa !== undefined ? row.sisa : Math.max(0, pagu - realisasi));
     const persentase = pagu > 0 ? Number(((realisasi / pagu) * 100).toFixed(2)) : 0;
 
+    let komponen = Array.isArray(row.komponen) && row.komponen.length > 0 ? row.komponen : [];
+    if (komponen.length === 0) {
+      const init = INITIAL_RO_DATA.find(i => i.kodeRo === (row.kode_ro || ''));
+      if (init && init.komponen && init.komponen.length > 0) {
+        komponen = init.komponen;
+      }
+    }
+
     return {
       id: row.id,
       satkerId: row.satker_id || '',
@@ -62,6 +71,7 @@ export class MonitoringCapaianService {
       totalKebutuhan: Number(row.total_kebutuhan || 0),
       danaTidakTerserap: Number(row.dana_tidak_terserap || 0),
       keterangan: row.keterangan || '',
+      komponen,
       updatedAt: row.updated_at || row.created_at || '',
       updatedBy: row.updated_by || ''
     };
@@ -87,6 +97,7 @@ export class MonitoringCapaianService {
       persentase: ro.persentase,
       status: ro.status,
       jadwal: ro.jadwal || {},
+      komponen: ro.komponen || [],
       total_kebutuhan: ro.totalKebutuhan || 0,
       dana_tidak_terserap: ro.danaTidakTerserap || 0,
       keterangan: ro.keterangan || null,
@@ -106,7 +117,23 @@ export class MonitoringCapaianService {
       if (!error && Array.isArray(data)) {
         this.hasSupabaseTable = true;
         if (data.length > 0) {
-          const mapped = data.map(r => this.mapRowToRO(r));
+          const localROs = this.getROs();
+          const localMap = new Map(localROs.map(l => [l.kodeRo, l]));
+          const initialMap = new Map(INITIAL_RO_DATA.map(init => [init.kodeRo, init]));
+
+          const mapped = data.map(r => {
+            const ro = this.mapRowToRO(r);
+            const local = localMap.get(ro.kodeRo);
+            const init = initialMap.get(ro.kodeRo);
+
+            if (local && local.komponen && local.komponen.length > 0) {
+              ro.komponen = local.komponen;
+            } else if (init && init.komponen && init.komponen.length > 0) {
+              ro.komponen = init.komponen;
+            }
+            return ro;
+          });
+
           this.saveAllROs(mapped); // cache in localStorage
           return mapped;
         } else {
@@ -141,7 +168,38 @@ export class MonitoringCapaianService {
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+          // Merge missing komponen / jadwal from INITIAL_RO_DATA if missing in cache
+          const initialMap = new Map(INITIAL_RO_DATA.map(init => [init.kodeRo, init]));
+          let modified = false;
+          const merged = parsed.map((ro: CapaianRO) => {
+            const init = initialMap.get(ro.kodeRo);
+            if (init) {
+              let updated = { ...ro };
+              if ((!ro.komponen || ro.komponen.length === 0) && init.komponen && init.komponen.length > 0) {
+                updated.komponen = init.komponen;
+                modified = true;
+              }
+              if ((!ro.jadwal || Object.keys(ro.jadwal).length === 0) && init.jadwal && Object.keys(init.jadwal).length > 0) {
+                updated.jadwal = init.jadwal;
+                modified = true;
+              }
+              if (!ro.totalKebutuhan && init.totalKebutuhan) {
+                updated.totalKebutuhan = init.totalKebutuhan;
+                modified = true;
+              }
+              if (ro.danaTidakTerserap === undefined && init.danaTidakTerserap !== undefined) {
+                updated.danaTidakTerserap = init.danaTidakTerserap;
+                modified = true;
+              }
+              return updated;
+            }
+            return ro;
+          });
+
+          if (modified) {
+            this.saveAllROs(merged);
+          }
+          return merged;
         }
       }
     } catch (err) {
@@ -281,6 +339,110 @@ export class MonitoringCapaianService {
     }
 
     return updated;
+  }
+
+  // Save entire komponen list for an RO (Add / Edit / Delete)
+  public async saveKomponenRO(
+    roId: string,
+    komponenList: KomponenRO[],
+    updatedBy?: string
+  ): Promise<CapaianRO | null> {
+    const ros = this.getROs();
+    const index = ros.findIndex(r => r.id === roId);
+    if (index === -1) return null;
+
+    const current = ros[index];
+    const now = new Date().toISOString();
+
+    const updated: CapaianRO = {
+      ...current,
+      komponen: [...komponenList],
+      updatedAt: now,
+      updatedBy: updatedBy || current.updatedBy || 'Pengguna'
+    };
+
+    ros[index] = updated;
+    this.saveAllROs(ros);
+
+    // Save to Supabase
+    try {
+      const payload: any = {
+        komponen: updated.komponen,
+        updated_at: updated.updatedAt,
+        updated_by: updated.updatedBy
+      };
+
+      const { error } = await supabase
+        .from('monitoring_capaian_ro')
+        .update(payload)
+        .eq('id', roId);
+
+      if (error) {
+        console.warn('Gagal menyimpan komponen ke Supabase:', error);
+      }
+    } catch (err) {
+      console.warn('Supabase update komponen error:', err);
+    }
+
+    return updated;
+  }
+
+  // Add a new component to an RO
+  public async addKomponenRO(
+    roId: string,
+    item: KomponenRO,
+    updatedBy?: string
+  ): Promise<CapaianRO | null> {
+    const ros = this.getROs();
+    const target = ros.find(r => r.id === roId);
+    if (!target) return null;
+
+    const currentList = target.komponen || [];
+    const updatedList = [
+      ...currentList,
+      {
+        ...item,
+        id: item.id || `komp-${Date.now()}`
+      }
+    ];
+
+    return this.saveKomponenRO(roId, updatedList, updatedBy);
+  }
+
+  // Update an existing component by index
+  public async updateKomponenRO(
+    roId: string,
+    index: number,
+    item: KomponenRO,
+    updatedBy?: string
+  ): Promise<CapaianRO | null> {
+    const ros = this.getROs();
+    const target = ros.find(r => r.id === roId);
+    if (!target) return null;
+
+    const currentList = [...(target.komponen || [])];
+    if (index < 0 || index >= currentList.length) return null;
+
+    currentList[index] = {
+      ...currentList[index],
+      ...item
+    };
+
+    return this.saveKomponenRO(roId, currentList, updatedBy);
+  }
+
+  // Delete a component by index
+  public async deleteKomponenRO(
+    roId: string,
+    index: number,
+    updatedBy?: string
+  ): Promise<CapaianRO | null> {
+    const ros = this.getROs();
+    const target = ros.find(r => r.id === roId);
+    if (!target) return null;
+
+    const currentList = (target.komponen || []).filter((_, idx) => idx !== index);
+    return this.saveKomponenRO(roId, currentList, updatedBy);
   }
 
   // Delete an RO

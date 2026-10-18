@@ -6,7 +6,8 @@ import {
   CapaianSatker,
   CapaianUnitKerja,
   CapaianKementerianSummary,
-  JadwalMingguan
+  JadwalMingguan,
+  KomponenRO
 } from '../../types/monitoringCapaian';
 import { monitoringCapaianService } from '../../services/MonitoringCapaianService';
 
@@ -17,6 +18,7 @@ import { JadwalPenyerapanAjView } from './JadwalPenyerapanAjView';
 import { FormInputRoModal } from './FormInputRoModal';
 import { EditRencanaModal } from './EditRencanaModal';
 import { UploadRkklModal } from './UploadRkklModal';
+import { KelolaKomponenModal } from './KelolaKomponenModal';
 
 import {
   Target,
@@ -52,8 +54,12 @@ export const MonitoringCapaianPage: React.FC<MonitoringCapaianPageProps> = ({
   const [isInputModalOpen, setIsInputModalOpen] = useState<boolean>(false);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState<boolean>(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState<boolean>(false);
+  const [isKomponenModalOpen, setIsKomponenModalOpen] = useState<boolean>(false);
   const [selectedRoForEdit, setSelectedRoForEdit] = useState<CapaianRO | null>(null);
   const [selectedRoForSchedule, setSelectedRoForSchedule] = useState<CapaianRO | null>(null);
+  const [selectedRoForKomponen, setSelectedRoForKomponen] = useState<CapaianRO | null>(null);
+  const [selectedKomponenForEdit, setSelectedKomponenForEdit] = useState<KomponenRO | null>(null);
+  const [editKomponenIndex, setEditKomponenIndex] = useState<number | null>(null);
   const [focusedUnitFilter, setFocusedUnitFilter] = useState<string>('All');
 
   const loadData = useCallback(async () => {
@@ -121,6 +127,47 @@ export const MonitoringCapaianPage: React.FC<MonitoringCapaianPageProps> = ({
     if (showNotification) {
       showNotification('Dihapus', 'Data Rincian Output telah dihapus', 'info');
     }
+  };
+
+  // Komponen Belanja Handlers
+  const handleOpenAddKomponen = (ro: CapaianRO) => {
+    setSelectedRoForKomponen(ro);
+    setSelectedKomponenForEdit(null);
+    setEditKomponenIndex(null);
+    setIsKomponenModalOpen(true);
+  };
+
+  const handleOpenEditKomponen = (ro: CapaianRO, item: KomponenRO, index: number) => {
+    setSelectedRoForKomponen(ro);
+    setSelectedKomponenForEdit(item);
+    setEditKomponenIndex(index);
+    setIsKomponenModalOpen(true);
+  };
+
+  const handleDeleteKomponen = async (ro: CapaianRO, index: number) => {
+    const itemName = ro.komponen?.[index]?.nama || 'komponen';
+    if (confirm(`Hapus rincian belanja "${itemName}" dari RO "${ro.kodeRo}"?`)) {
+      await monitoringCapaianService.deleteKomponenRO(ro.id, index, currentUser?.name);
+      loadData();
+      if (showNotification) {
+        showNotification('Dihapus', `Rincian "${itemName}" berhasil dihapus`, 'info');
+      }
+    }
+  };
+
+  const handleSaveKomponen = async (roId: string, item: KomponenRO, editIdx?: number) => {
+    if (editIdx !== undefined && editIdx !== null) {
+      await monitoringCapaianService.updateKomponenRO(roId, editIdx, item, currentUser?.name);
+      if (showNotification) {
+        showNotification('Berhasil', 'Rincian komponen berhasil diperbarui', 'success');
+      }
+    } else {
+      await monitoringCapaianService.addKomponenRO(roId, item, currentUser?.name);
+      if (showNotification) {
+        showNotification('Berhasil', 'Rincian komponen baru berhasil ditambahkan', 'success');
+      }
+    }
+    loadData();
   };
 
   const handleUploadSuccess = (count: number) => {
@@ -400,18 +447,25 @@ export const MonitoringCapaianPage: React.FC<MonitoringCapaianPageProps> = ({
               setIsScheduleModalOpen(true);
             }}
             onDeleteRO={handleDeleteRO}
+            onAddKomponen={handleOpenAddKomponen}
+            onEditKomponen={handleOpenEditKomponen}
+            onDeleteKomponen={handleDeleteKomponen}
           />
         )}
 
         {activeSubTab === 'jadwal' && (
           <JadwalPenyerapanAjView
             ros={ros}
+            initialUnitFilter={focusedUnitFilter}
             onEditJadwal={(ro) => {
               setSelectedRoForSchedule(ro);
               setIsScheduleModalOpen(true);
             }}
             onDownloadTemplate={() => monitoringCapaianService.downloadTemplate()}
             onOpenUpload={() => setIsUploadModalOpen(true)}
+            onAddKomponen={handleOpenAddKomponen}
+            onEditKomponen={handleOpenEditKomponen}
+            onDeleteKomponen={handleDeleteKomponen}
           />
         )}
       </div>
@@ -437,6 +491,15 @@ export const MonitoringCapaianPage: React.FC<MonitoringCapaianPageProps> = ({
         isOpen={isUploadModalOpen}
         onClose={() => setIsUploadModalOpen(false)}
         onSuccess={handleUploadSuccess}
+      />
+
+      <KelolaKomponenModal
+        isOpen={isKomponenModalOpen}
+        onClose={() => setIsKomponenModalOpen(false)}
+        ro={selectedRoForKomponen}
+        komponenToEdit={selectedKomponenForEdit}
+        editIndex={editKomponenIndex}
+        onSave={handleSaveKomponen}
       />
       </div>
     </div>

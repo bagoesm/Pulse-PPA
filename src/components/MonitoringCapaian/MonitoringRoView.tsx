@@ -1,8 +1,8 @@
-// src/components/MonitoringCapaian/MonitoringRoView.tsx
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   CapaianRO,
-  StatusCapaian
+  StatusCapaian,
+  KomponenRO
 } from '../../types/monitoringCapaian';
 import {
   Search,
@@ -15,8 +15,11 @@ import {
   Trash2,
   ArrowUpDown,
   FileSpreadsheet,
-  ChevronLeft,
+  ChevronDown,
   ChevronRight,
+  ChevronLeft,
+  Layers,
+  Plus,
   ExternalLink
 } from 'lucide-react';
 
@@ -25,6 +28,9 @@ interface MonitoringRoViewProps {
   onEditRO: (ro: CapaianRO) => void;
   onEditJadwal: (ro: CapaianRO) => void;
   onDeleteRO: (roId: string) => void;
+  onAddKomponen: (ro: CapaianRO) => void;
+  onEditKomponen: (ro: CapaianRO, item: KomponenRO, index: number) => void;
+  onDeleteKomponen: (ro: CapaianRO, index: number) => void;
   initialUnitFilter?: string;
 }
 
@@ -33,12 +39,33 @@ export const MonitoringRoView: React.FC<MonitoringRoViewProps> = ({
   onEditRO,
   onEditJadwal,
   onDeleteRO,
+  onAddKomponen,
+  onEditKomponen,
+  onDeleteKomponen,
   initialUnitFilter
 }) => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | StatusCapaian>('ALL');
   const [satkerFilter, setSatkerFilter] = useState<string>('All');
   const [unitFilter, setUnitFilter] = useState<string>(initialUnitFilter || 'All');
+  const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
+
+  const toggleExpand = (id: string) => {
+    setExpandedRows(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  // Sync with initialUnitFilter when navigating from hierarchy tab
+  useEffect(() => {
+    if (initialUnitFilter) {
+      setUnitFilter(initialUnitFilter);
+      if (initialUnitFilter !== 'All') {
+        setSatkerFilter('All');
+        setSearchTerm('');
+        setStatusFilter('ALL');
+      }
+      setCurrentPage(1);
+    }
+  }, [initialUnitFilter]);
 
   // Sorting
   const [sortField, setSortField] = useState<'kodeRo' | 'pagu' | 'realisasi' | 'persentase'>('persentase');
@@ -120,6 +147,29 @@ export const MonitoringRoView: React.FC<MonitoringRoViewProps> = ({
     const start = (currentPage - 1) * itemsPerPage;
     return filteredData.slice(start, start + itemsPerPage);
   }, [filteredData, currentPage]);
+
+  const hasAnyKomponen = useMemo(() => {
+    return paginatedData.some(r => r.komponen && r.komponen.length > 0);
+  }, [paginatedData]);
+
+  const allExpanded = useMemo(() => {
+    const withKomp = paginatedData.filter(r => r.komponen && r.komponen.length > 0);
+    return withKomp.length > 0 && withKomp.every(r => expandedRows[r.id]);
+  }, [paginatedData, expandedRows]);
+
+  const toggleExpandAll = () => {
+    if (allExpanded) {
+      setExpandedRows({});
+    } else {
+      const next: Record<string, boolean> = { ...expandedRows };
+      paginatedData.forEach(r => {
+        if (r.komponen && r.komponen.length > 0) {
+          next[r.id] = true;
+        }
+      });
+      setExpandedRows(next);
+    }
+  };
 
   const getStatusBadge = (status: StatusCapaian, pct: number) => {
     if (status === 'Sesuai Target') {
@@ -257,6 +307,17 @@ export const MonitoringRoView: React.FC<MonitoringRoViewProps> = ({
             ))}
           </select>
 
+          {hasAnyKomponen && (
+            <button
+              type="button"
+              onClick={toggleExpandAll}
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition-colors shadow-2xs"
+            >
+              <Layers size={13} className="text-blue-600" />
+              <span>{allExpanded ? 'Tutup Semua Rincian' : 'Buka Semua Rincian Belanja'}</span>
+            </button>
+          )}
+
           <select
             value={unitFilter}
             onChange={(e) => { setUnitFilter(e.target.value); setCurrentPage(1); }}
@@ -343,6 +404,8 @@ export const MonitoringRoView: React.FC<MonitoringRoViewProps> = ({
               ) : (
                 paginatedData.map((ro) => {
                   const hasSchedule = ro.jadwal && Object.values(ro.jadwal).some(v => (v || 0) > 0);
+                  const hasKomponen = ro.komponen && ro.komponen.length > 0;
+                  const isExpanded = !!expandedRows[ro.id];
 
                   const rowHoverClass =
                     ro.status === 'Sesuai Target'
@@ -359,84 +422,199 @@ export const MonitoringRoView: React.FC<MonitoringRoViewProps> = ({
                       : 'bg-gradient-to-r from-rose-500 to-red-600';
 
                   return (
-                    <tr key={ro.id} className={`${rowHoverClass} transition-colors border-b border-slate-100`}>
-                      <td className="py-3 px-4 font-mono font-bold text-xs text-slate-800 whitespace-nowrap">
-                        <span className="inline-block bg-blue-50 text-blue-800 border border-blue-200/90 font-mono font-bold px-2 py-0.5 rounded-md shadow-2xs">
-                          {ro.kodeRo}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="font-semibold text-slate-900 text-sm line-clamp-2">
-                          {ro.namaRo}
-                        </div>
-                        <div className="text-xs text-slate-500 mt-1 flex items-center gap-1.5 flex-wrap">
-                          <span className="font-semibold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded text-[11px]">{ro.unitKerjaNama}</span>
-                          <span className="text-slate-300">•</span>
-                          <span className="text-slate-500 text-[11px]">{ro.satkerNama}</span>
-                        </div>
-                        {ro.keterangan && (
-                          <div className="text-[11px] text-amber-800 bg-amber-50/80 p-1 rounded border border-amber-200/60 line-clamp-1 mt-1">
-                            Ket: {ro.keterangan}
+                    <React.Fragment key={ro.id}>
+                      <tr className={`${rowHoverClass} transition-colors border-b border-slate-100 ${isExpanded ? 'bg-blue-50/20' : ''}`}>
+                        <td className="py-3 px-4 font-mono font-bold text-xs text-slate-800 whitespace-nowrap">
+                          <span className="inline-block bg-blue-50 text-blue-800 border border-blue-200/90 font-mono font-bold px-2 py-0.5 rounded-md shadow-2xs">
+                            {ro.kodeRo}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="font-semibold text-slate-900 text-sm line-clamp-2">
+                            {ro.namaRo}
                           </div>
-                        )}
-                      </td>
-                      <td className="py-3 px-4 text-right font-mono tabular-nums font-semibold text-slate-700 whitespace-nowrap">
-                        {formatRupiah(ro.pagu)}
-                      </td>
-                      <td className="py-3 px-4 text-right font-mono tabular-nums font-bold text-emerald-700 whitespace-nowrap">
-                        <span className="bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded border border-emerald-200/60">
-                          {formatRupiah(ro.realisasi)}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-right font-mono tabular-nums font-medium text-slate-600 whitespace-nowrap">
-                        {formatRupiah(ro.sisa)}
-                      </td>
-                      <td className="py-3 px-4 whitespace-nowrap">
-                        <div className="space-y-1">
-                          <div className="flex justify-between text-xs font-bold font-mono tabular-nums">
-                            <span className="text-slate-900">{ro.persentase}%</span>
+                          <div className="text-xs text-slate-500 mt-1 flex items-center gap-1.5 flex-wrap">
+                            <span className="font-semibold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded text-[11px]">{ro.unitKerjaNama}</span>
+                            <span className="text-slate-300">•</span>
+                            <span className="text-slate-500 text-[11px]">{ro.satkerNama}</span>
                           </div>
-                          <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200/60">
-                            <div
-                              className={`h-full ${progressGradient} transition-all duration-500`}
-                              style={{ width: `${Math.min(100, Math.max(0, ro.persentase))}%` }}
-                            />
+                          {ro.keterangan && (
+                            <div className="text-[11px] text-amber-800 bg-amber-50/80 p-1 rounded border border-amber-200/60 line-clamp-1 mt-1">
+                              Ket: {ro.keterangan}
+                            </div>
+                          )}
+
+                          {/* Expand button */}
+                          <div className="mt-2">
+                            <button
+                              type="button"
+                              onClick={() => toggleExpand(ro.id)}
+                              className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded-md border border-blue-200/80 transition-colors shadow-2xs group"
+                            >
+                              {isExpanded ? <ChevronDown size={13} className="text-blue-600" /> : <ChevronRight size={13} className="text-blue-600 group-hover:translate-x-0.5 transition-transform" />}
+                              <span>{isExpanded ? 'Tutup Rincian' : hasKomponen ? `Buka ${ro.komponen!.length} Rincian Belanja / Komponen` : '+ Tambah Rincian Komponen'}</span>
+                            </button>
                           </div>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 text-center whitespace-nowrap">
-                        {getStatusBadge(ro.status, ro.persentase)}
-                      </td>
-                      <td className="py-3 px-4 text-center whitespace-nowrap">
-                        <div className="flex items-center justify-center gap-1.5">
-                          <button
-                            onClick={() => onEditJadwal(ro)}
-                            className="p-1.5 text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200/80 rounded-lg shadow-2xs transition-colors"
-                            title="Atur Rencana / Jadwal AJK"
-                          >
-                            <Calendar size={15} />
-                          </button>
-                          <button
-                            onClick={() => onEditRO(ro)}
-                            className="p-1.5 text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200/80 rounded-lg shadow-2xs transition-colors"
-                            title="Edit Data Pagu/Realisasi"
-                          >
-                            <Edit size={15} />
-                          </button>
-                          <button
-                            onClick={() => {
-                              if (confirm(`Hapus RO "${ro.kodeRo} - ${ro.namaRo}"?`)) {
-                                onDeleteRO(ro.id);
-                              }
-                            }}
-                            className="p-1.5 text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200/80 rounded-lg shadow-2xs transition-colors"
-                            title="Hapus RO"
-                          >
-                            <Trash2 size={15} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
+                        </td>
+                        <td className="py-3 px-4 text-right font-mono tabular-nums font-semibold text-slate-700 whitespace-nowrap">
+                          {formatRupiah(ro.pagu)}
+                        </td>
+                        <td className="py-3 px-4 text-right font-mono tabular-nums font-bold text-emerald-700 whitespace-nowrap">
+                          <span className="bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded border border-emerald-200/60">
+                            {formatRupiah(ro.realisasi)}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-right font-mono tabular-nums font-medium text-slate-600 whitespace-nowrap">
+                          {formatRupiah(ro.sisa)}
+                        </td>
+                        <td className="py-3 px-4 whitespace-nowrap">
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-xs font-bold font-mono tabular-nums">
+                              <span className="text-slate-900">{ro.persentase}%</span>
+                            </div>
+                            <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200/60">
+                              <div
+                                className={`h-full ${progressGradient} transition-all duration-500`}
+                                style={{ width: `${Math.min(100, Math.max(0, ro.persentase))}%` }}
+                              />
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 text-center whitespace-nowrap">
+                          {getStatusBadge(ro.status, ro.persentase)}
+                        </td>
+                        <td className="py-3 px-4 text-center whitespace-nowrap">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              onClick={() => onEditJadwal(ro)}
+                              className="p-1.5 text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200/80 rounded-lg shadow-2xs transition-colors"
+                              title="Atur Rencana / Jadwal AJK"
+                            >
+                              <Calendar size={15} />
+                            </button>
+                            <button
+                              onClick={() => onEditRO(ro)}
+                              className="p-1.5 text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200/80 rounded-lg shadow-2xs transition-colors"
+                              title="Edit Data Pagu/Realisasi"
+                            >
+                              <Edit size={15} />
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (confirm(`Hapus RO "${ro.kodeRo} - ${ro.namaRo}"?`)) {
+                                  onDeleteRO(ro.id);
+                                }
+                              }}
+                              className="p-1.5 text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200/80 rounded-lg shadow-2xs transition-colors"
+                              title="Hapus RO"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+
+                      {/* Expandable Sub-Components Row */}
+                      {isExpanded && (
+                        <tr className="bg-slate-50/90 border-b border-slate-200/90">
+                          <td colSpan={8} className="p-3 sm:p-4 pl-8 sm:pl-12">
+                            <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+                              <div className="px-4 py-2.5 bg-slate-100/70 border-b border-slate-200 flex items-center justify-between text-xs font-bold text-slate-800">
+                                <span className="flex items-center gap-2">
+                                  <span className="w-2 h-2 rounded-full bg-blue-600"></span>
+                                  Rincian Komponen / Sub-Kegiatan Belanja ({ro.komponen?.length || 0} item)
+                                </span>
+                                <div className="flex items-center gap-3">
+                                  <button
+                                    type="button"
+                                    onClick={() => onAddKomponen(ro)}
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors shadow-2xs"
+                                  >
+                                    <Plus size={12} />
+                                    <span>Tambah Komponen</span>
+                                  </button>
+                                  <span className="font-mono text-[11px] text-slate-500 font-normal">
+                                    RO: {ro.kodeRo} • {ro.unitKerjaNama}
+                                  </span>
+                                </div>
+                              </div>
+                              <table className="w-full text-xs text-left">
+                                <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200/70 uppercase text-[10px] tracking-wider">
+                                  <tr>
+                                    <th className="py-2.5 px-3 w-8 text-center">No</th>
+                                    <th className="py-2.5 px-3">Uraian Komponen / Sub-Kegiatan</th>
+                                    <th className="py-2.5 px-3 text-right w-32">Pagu (Rp)</th>
+                                    <th className="py-2.5 px-3 text-right w-32">Sisa Anggaran (Rp)</th>
+                                    <th className="py-2.5 px-3 min-w-[220px]">Rencana Penarikan Jadwal Mingguan</th>
+                                    <th className="py-2.5 px-3">Keterangan</th>
+                                    <th className="py-2.5 px-3 text-center w-20">Aksi</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                  {(!ro.komponen || ro.komponen.length === 0) ? (
+                                    <tr>
+                                      <td colSpan={7} className="py-6 text-center text-slate-400 text-xs">
+                                        Belum ada rincian belanja operasional untuk RO ini. Silakan klik tombol <strong>Tambah Komponen</strong> di atas.
+                                      </td>
+                                    </tr>
+                                  ) : (
+                                    ro.komponen.map((k, kIdx) => {
+                                      const hasJadwal = k.jadwal && Object.keys(k.jadwal).length > 0;
+                                      return (
+                                        <tr key={kIdx} className="hover:bg-blue-50/20 transition-colors">
+                                          <td className="py-2.5 px-3 text-center text-slate-400 font-mono text-[11px]">{kIdx + 1}</td>
+                                          <td className="py-2.5 px-3 font-semibold text-slate-800">{k.nama}</td>
+                                          <td className="py-2.5 px-3 text-right font-mono text-slate-700 tabular-nums">
+                                            {k.pagu ? formatRupiah(k.pagu) : '-'}
+                                          </td>
+                                          <td className="py-2.5 px-3 text-right font-mono text-slate-700 tabular-nums">
+                                            {k.sisa ? formatRupiah(k.sisa) : '-'}
+                                          </td>
+                                          <td className="py-2.5 px-3">
+                                            {hasJadwal ? (
+                                              <div className="flex flex-wrap gap-1">
+                                                {Object.entries(k.jadwal!).map(([minggu, val]) => (
+                                                  <span key={minggu} className="text-[10px] bg-blue-50 text-blue-700 font-semibold px-2 py-0.5 rounded border border-blue-200/60 font-mono">
+                                                    {minggu.toUpperCase()}: {formatRupiah(val)}
+                                                  </span>
+                                                ))}
+                                              </div>
+                                            ) : (
+                                              <span className="text-slate-400 italic text-[11px]">-</span>
+                                            )}
+                                          </td>
+                                          <td className="py-2.5 px-3 text-slate-500 text-[11px]">{k.keterangan || '-'}</td>
+                                          <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                                            <div className="flex items-center justify-center gap-1">
+                                              <button
+                                                type="button"
+                                                onClick={() => onEditKomponen(ro, k, kIdx)}
+                                                className="p-1 text-amber-700 hover:text-amber-900 hover:bg-amber-100/60 rounded transition-colors"
+                                                title="Edit Rincian Komponen"
+                                              >
+                                                <Edit size={13} />
+                                              </button>
+                                              <button
+                                                type="button"
+                                                onClick={() => onDeleteKomponen(ro, kIdx)}
+                                                className="p-1 text-rose-600 hover:text-rose-800 hover:bg-rose-100/60 rounded transition-colors"
+                                                title="Hapus Rincian Komponen"
+                                              >
+                                                <Trash2 size={13} />
+                                              </button>
+                                            </div>
+                                          </td>
+                                        </tr>
+                                      );
+                                    })
+                                  )}
+                                </tbody>
+                              </table>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
                   );
                 })
               )}

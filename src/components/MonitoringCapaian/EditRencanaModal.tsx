@@ -1,7 +1,6 @@
-// src/components/MonitoringCapaian/EditRencanaModal.tsx
 import React, { useState, useEffect } from 'react';
 import { CapaianRO, JadwalMingguan } from '../../types/monitoringCapaian';
-import { X, Calendar, Save, AlertCircle, DollarSign } from 'lucide-react';
+import { X, Calendar, Save, AlertCircle, DollarSign, ChevronDown, ChevronRight, Layers } from 'lucide-react';
 
 interface EditRencanaModalProps {
   isOpen: boolean;
@@ -21,6 +20,7 @@ export const EditRencanaModal: React.FC<EditRencanaModalProps> = ({
   const [jadwal, setJadwal] = useState<JadwalMingguan>({});
   const [danaTidakTerserap, setDanaTidakTerserap] = useState<number>(0);
   const [keterangan, setKeterangan] = useState<string>('');
+  const [showKomponenDetail, setShowKomponenDetail] = useState<boolean>(false);
 
   useEffect(() => {
     if (ro) {
@@ -102,6 +102,43 @@ export const EditRencanaModal: React.FC<EditRencanaModalProps> = ({
               <span className="font-bold text-slate-800">{ro.persentase}%</span>
             </div>
           </div>
+
+          {/* Sub-komponen Banner if present */}
+          {ro.komponen && ro.komponen.length > 0 && (
+            <div className="rounded-xl border border-blue-200 bg-blue-50/50 overflow-hidden text-xs">
+              <button
+                type="button"
+                onClick={() => setShowKomponenDetail(!showKomponenDetail)}
+                className="w-full px-4 py-2.5 flex items-center justify-between font-semibold text-blue-900 hover:bg-blue-100/50 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <Layers size={14} className="text-blue-600" />
+                  <span>Rincian Komponen Belanja Terdaftar ({ro.komponen.length} item)</span>
+                </div>
+                <div className="flex items-center gap-1 text-[11px] text-blue-700">
+                  <span>{showKomponenDetail ? 'Tutup Rincian' : 'Lihat Rincian Komponen'}</span>
+                  {showKomponenDetail ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                </div>
+              </button>
+
+              {showKomponenDetail && (
+                <div className="p-3 bg-white border-t border-blue-100 max-h-60 overflow-y-auto divide-y divide-slate-100">
+                  {ro.komponen.map((k, idx) => (
+                    <div key={idx} className="py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-slate-700">
+                      <div>
+                        <span className="font-semibold text-slate-900">{idx + 1}. {k.nama}</span>
+                        {k.keterangan && <span className="text-[10px] text-slate-400 block">{k.keterangan}</span>}
+                      </div>
+                      <div className="flex items-center gap-3 text-right font-mono text-[11px] whitespace-nowrap">
+                        {k.pagu ? <span className="text-slate-600">Pagu: {formatRupiah(k.pagu)}</span> : null}
+                        {k.sisa ? <span className="text-amber-800 font-semibold">Sisa: {formatRupiah(k.sisa)}</span> : null}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Oktober Weeks */}
           <div>
