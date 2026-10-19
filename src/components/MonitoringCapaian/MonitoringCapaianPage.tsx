@@ -37,8 +37,10 @@ import {
   FileSpreadsheet,
   PieChart,
   LayoutDashboard,
-  TableProperties
+  TableProperties,
+  RefreshCw
 } from 'lucide-react';
+import { supabase } from '../../lib/supabaseClient';
 
 interface MonitoringCapaianPageProps {
   currentUser: User;
@@ -53,6 +55,7 @@ export const MonitoringCapaianPage: React.FC<MonitoringCapaianPageProps> = ({
   const [activeSubTab, setActiveSubTab] = useState<'satker' | 'ranking' | 'ro' | 'jadwal'>('satker');
   const [ros, setRos] = useState<CapaianRO[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
   // Modals state
   const [isInputModalOpen, setIsInputModalOpen] = useState<boolean>(false);
@@ -66,7 +69,9 @@ export const MonitoringCapaianPage: React.FC<MonitoringCapaianPageProps> = ({
   const [editKomponenIndex, setEditKomponenIndex] = useState<number | null>(null);
   const [focusedUnitFilter, setFocusedUnitFilter] = useState<string>('All');
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (showIndicator = false) => {
+    if (showIndicator) setIsRefreshing(true);
+
     // 1. Instant load from cached localStorage/INITIAL_RO_DATA
     const cached = monitoringCapaianService.getROs();
     setRos(cached);
@@ -80,11 +85,34 @@ export const MonitoringCapaianPage: React.FC<MonitoringCapaianPageProps> = ({
       }
     } catch (err) {
       // Graceful fallback to cached
+    } finally {
+      if (showIndicator) setIsRefreshing(false);
     }
   }, []);
 
   useEffect(() => {
     loadData();
+
+    // Setup Supabase Realtime channel for multi-user sync
+    const channel = supabase
+      .channel('realtime_monitoring_capaian')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'monitoring_capaian_ro'
+        },
+        () => {
+          // Re-fetch latest data when another user inserts/updates/deletes
+          loadData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [loadData]);
 
   // Derived summaries & aggregates
@@ -270,6 +298,15 @@ export const MonitoringCapaianPage: React.FC<MonitoringCapaianPageProps> = ({
             >
               <Download size={14} className="text-slate-500" />
               <span>Export</span>
+            </button>
+            <button
+              onClick={() => loadData(true)}
+              disabled={isRefreshing}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded-lg text-xs font-semibold shadow-2xs transition-colors disabled:opacity-50"
+              title="Sinkronkan data terbaru dari server Supabase"
+            >
+              <RefreshCw size={13} className={`text-slate-500 ${isRefreshing ? 'animate-spin text-gov-600' : ''}`} />
+              <span>{isRefreshing ? 'Menyinkronkan...' : 'Sinkronkan'}</span>
             </button>
             <button
               onClick={handleResetToDefault}

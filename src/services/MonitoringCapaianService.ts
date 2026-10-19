@@ -1164,6 +1164,13 @@ export class MonitoringCapaianService {
 
     if (onProgress) onProgress(10, 'Menyiapkan dan menggabungkan data...');
 
+    // Ambil data terbaru dari Supabase terlebih dahulu agar tidak menimpa unggahan pengguna lain
+    try {
+      await this.fetchROsAsync();
+    } catch (e) {
+      // fallback ke local jika offline
+    }
+
     const existing = this.getROs();
     const existingMap = new Map<string, CapaianRO>();
     existing.forEach(ex => {
