@@ -67,7 +67,10 @@ export const DashboardPimpinanView: React.FC<DashboardPimpinanViewProps> = ({
     const totalPagu = filteredROs.reduce((acc, curr) => acc + (curr.pagu || 0), 0);
     const totalRealisasi = filteredROs.reduce((acc, curr) => acc + (curr.realisasi || 0), 0);
     const totalSisa = filteredROs.reduce((acc, curr) => acc + (curr.sisa || 0), 0);
-    const totalKebutuhan = filteredROs.reduce((acc, curr) => acc + (curr.totalKebutuhan || 0), 0);
+    const totalKebutuhan = filteredROs.reduce((acc, curr) => {
+      const roKeb = curr.totalKebutuhan !== undefined ? curr.totalKebutuhan : curr.sisa;
+      return acc + Math.min(curr.sisa, Math.max(0, roKeb));
+    }, 0);
     const totalSilpa = filteredROs.reduce((acc, curr) => acc + (curr.danaTidakTerserap || 0), 0);
     const pct = totalPagu > 0 ? Number(((totalRealisasi / totalPagu) * 100).toFixed(2)) : 0;
 
@@ -379,7 +382,7 @@ export const DashboardPimpinanView: React.FC<DashboardPimpinanViewProps> = ({
             <span className="text-slate-500 text-[11px]">Proyeksi Serapan Akhir:</span>
             <span className="font-bold font-mono text-teal-700">
               {currentSummary.totalPagu > 0
-                ? `${(((currentSummary.totalRealisasi + currentSummary.totalKebutuhan) / currentSummary.totalPagu) * 100).toFixed(1)}%`
+                ? `${Math.min(100, Number((((currentSummary.totalRealisasi + currentSummary.totalKebutuhan) / currentSummary.totalPagu) * 100).toFixed(1)))}%`
                 : '100%'}
             </span>
           </div>

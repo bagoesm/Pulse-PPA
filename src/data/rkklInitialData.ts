@@ -382,7 +382,7 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "keterangan": "Komponen SAKTI 001"
       }
     ],
-    "totalKebutuhan": 15867861074.0,
+    "totalKebutuhan": 13023678866.0,
     "danaTidakTerserap": 0.0,
     "keterangan": "",
     "updatedAt": "2026-10-19T00:00:00Z",
@@ -584,7 +584,7 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "keterangan": "Komponen SAKTI 052"
       }
     ],
-    "totalKebutuhan": 32697600.0,
+    "totalKebutuhan": 10224600.0,
     "danaTidakTerserap": 0.0,
     "keterangan": "",
     "updatedAt": "2026-10-19T00:00:00Z",
@@ -922,7 +922,7 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "keterangan": "Komponen SAKTI 002"
       }
     ],
-    "totalKebutuhan": 9790903620.0,
+    "totalKebutuhan": 4770545218.0,
     "danaTidakTerserap": 0.0,
     "keterangan": "",
     "updatedAt": "2026-10-19T00:00:00Z",
@@ -1756,7 +1756,7 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "keterangan": "Komponen SAKTI 002"
       }
     ],
-    "totalKebutuhan": 313150755.0,
+    "totalKebutuhan": 243026963.0,
     "danaTidakTerserap": 16256963.0,
     "keterangan": "direvisi untuk penambahan lisensi burp suite pro; akan direvisi menyesuaikan kebutuhan; akan direvisi menyesuaikan kebutuhan; akan direvisi menyesuaikan kebutuhan",
     "updatedAt": "2026-10-19T00:00:00Z",
@@ -1824,7 +1824,7 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "keterangan": ""
       }
     ],
-    "totalKebutuhan": 26410000.0,
+    "totalKebutuhan": 26356350.0,
     "danaTidakTerserap": 346350.0,
     "keterangan": "",
     "updatedAt": "2026-10-19T00:00:00Z",
@@ -1896,7 +1896,7 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "keterangan": ""
       }
     ],
-    "totalKebutuhan": 12200500.0,
+    "totalKebutuhan": 11320000.0,
     "danaTidakTerserap": 599500.0,
     "keterangan": "akan dirubah untuk konsumsi",
     "updatedAt": "2026-10-19T00:00:00Z",
@@ -2013,7 +2013,7 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "keterangan": ""
       }
     ],
-    "totalKebutuhan": 10934500.0,
+    "totalKebutuhan": 7025500.0,
     "danaTidakTerserap": 65500.0,
     "keterangan": "",
     "updatedAt": "2026-10-19T00:00:00Z",
@@ -2229,7 +2229,7 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "keterangan": ""
       }
     ],
-    "totalKebutuhan": 17920500.0,
+    "totalKebutuhan": 16793500.0,
     "danaTidakTerserap": 779500.0,
     "keterangan": "",
     "updatedAt": "2026-10-19T00:00:00Z",

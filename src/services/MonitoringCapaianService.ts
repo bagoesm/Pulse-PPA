@@ -15,7 +15,7 @@ import {
 } from '../types/monitoringCapaian';
 import { INITIAL_RO_DATA, INITIAL_SATKERS } from '../data/rkklInitialData';
 
-const STORAGE_KEY = 'pulse_rkkl_monitoring_capaian_v3';
+const STORAGE_KEY = 'pulse_rkkl_monitoring_capaian_v4';
 const DUMMY_IDS = new Set(['ro-39', 'ro-40', 'ro-41', 'ro-42', 'ro-43', 'ro-44']);
 
 export const SAKTI_SATKER_MAP: Record<string, { id: string; kode: string; nama: string }> = {
@@ -120,7 +120,7 @@ export class MonitoringCapaianService {
       persentase,
       status: (row.status as StatusCapaian) || this.calculateStatus(persentase),
       jadwal: typeof row.jadwal === 'object' && row.jadwal !== null ? row.jadwal : {},
-      totalKebutuhan: Number(row.total_kebutuhan || 0),
+      totalKebutuhan: Number(row.total_kebutuhan || 0) > 0 ? Math.min(sisa, Number(row.total_kebutuhan)) : sisa,
       danaTidakTerserap: Number(row.dana_tidak_terserap || 0),
       keterangan: row.keterangan || '',
       komponen,
@@ -365,11 +365,13 @@ export class MonitoringCapaianService {
 
     const current = ros[index];
     const totalSched = Object.values(jadwal).reduce((acc, curr) => acc + (Number(curr) || 0), 0);
+    const rawKeb = totalSched > 0 ? totalSched : (current.totalKebutuhan || current.sisa);
+    const totalKebutuhan = Math.min(current.sisa, Math.max(0, rawKeb));
 
     const updated: CapaianRO = {
       ...current,
       jadwal: { ...jadwal },
-      totalKebutuhan: totalSched > 0 ? totalSched : (current.totalKebutuhan || current.sisa),
+      totalKebutuhan,
       danaTidakTerserap: danaTidakTerserap !== undefined ? danaTidakTerserap : (current.danaTidakTerserap || 0),
       keterangan: keterangan !== undefined ? keterangan : (current.keterangan || ''),
       updatedAt: new Date().toISOString(),
@@ -704,14 +706,18 @@ export class MonitoringCapaianService {
             return;
           }
 
-          const fileName = file.name.toLowerCase();
-          const isAjk = fileName.includes('ajk') || wb.SheetNames.some(s => s.toLowerCase().includes('ajk'));
+          // Inspect first 15 rows to determine file type by actual content, not file name
+          const sampleText = rows.slice(0, 15).map(r => (r || []).join(' ')).join(' ').toUpperCase();
+          const isSaktiReport = sampleText.includes('KETERSEDIAAN DANA') || 
+                                sampleText.includes('PER PROGRAM;') || 
+                                sampleText.includes('PAGU REVISI') || 
+                                sampleText.includes('LOCK PAGU');
 
-          if (isAjk) {
-            const result = this.parseAjkRows(rows, wb, file.name, overrideSatkerNama);
+          if (isSaktiReport) {
+            const result = this.parseSaktiRows(rows, file.name, overrideSatkerNama);
             resolve(result);
           } else {
-            const result = this.parseSaktiRows(rows, file.name, overrideSatkerNama);
+            const result = this.parseAjkRows(rows, wb, file.name, overrideSatkerNama);
             resolve(result);
           }
         } catch (err: any) {
@@ -814,39 +820,47 @@ export class MonitoringCapaianService {
         };
       }
     } else {
-      // Auto-detect Satker from first 30 rows
-      for (let r = 0; r < Math.min(30, rows.length); r++) {
+      // Priority 1: Check any cell in the first 35 rows for the 6-digit SAKTI Satker Code
+      // (e.g. 427944, 664941, 664958, 664962, 664979, 664983) regardless of column offset or filename
+      for (let r = 0; r < Math.min(35, rows.length); r++) {
         const row = rows[r] || [];
-        const rStr = row.join(' ');
-        if (rStr.includes('Satuan Kerja')) {
-          const satkerCode = String(row[14] || '').trim();
-          const satkerNameRaw = String(row[15] || '').trim();
-          if (SAKTI_SATKER_MAP[satkerCode]) {
-            detectedSatkerInfo = SAKTI_SATKER_MAP[satkerCode];
+        for (let c = 0; c < row.length; c++) {
+          const val = String(row[c] || '').trim();
+          if (SAKTI_SATKER_MAP[val]) {
+            detectedSatkerInfo = SAKTI_SATKER_MAP[val];
             break;
           }
-          for (const [code, info] of Object.entries(SAKTI_SATKER_MAP)) {
-            if (
-              satkerNameRaw.toUpperCase().includes(code) ||
-              satkerNameRaw.toUpperCase().includes(info.nama.toUpperCase()) ||
-              info.nama.toUpperCase().includes(satkerNameRaw.toUpperCase())
-            ) {
-              detectedSatkerInfo = info;
+        }
+        if (detectedSatkerInfo) break;
+      }
+
+      // Priority 2: Check any cell containing Satker name keywords
+      if (!detectedSatkerInfo) {
+        for (let r = 0; r < Math.min(35, rows.length); r++) {
+          const row = rows[r] || [];
+          for (let c = 0; c < row.length; c++) {
+            const val = String(row[c] || '').trim().toUpperCase();
+            if (val.includes('KESETARAAN GENDER')) {
+              detectedSatkerInfo = SAKTI_SATKER_MAP['664941'];
+              break;
+            } else if (val.includes('PERLINDUNGAN HAK PEREMPUAN')) {
+              detectedSatkerInfo = SAKTI_SATKER_MAP['664958'];
+              break;
+            } else if (val.includes('PERLINDUNGAN KHUSUS ANAK')) {
+              detectedSatkerInfo = SAKTI_SATKER_MAP['664962'];
+              break;
+            } else if (val.includes('PEMENUHAN HAK ANAK')) {
+              detectedSatkerInfo = SAKTI_SATKER_MAP['664979'];
+              break;
+            } else if (val.includes('KOMISI PERLINDUNGAN ANAK') || val.includes('KPAI')) {
+              detectedSatkerInfo = SAKTI_SATKER_MAP['664983'];
+              break;
+            } else if (val.includes('SEKRETARIAT KEMENTERIAN')) {
+              detectedSatkerInfo = SAKTI_SATKER_MAP['427944'];
               break;
             }
           }
           if (detectedSatkerInfo) break;
-        }
-      }
-    }
-
-    if (!detectedSatkerInfo) {
-      // Fallback check full text
-      const fullText = rows.slice(0, 20).map(r => (r || []).join(' ')).join(' ').toUpperCase();
-      for (const info of Object.values(SAKTI_SATKER_MAP)) {
-        if (fullText.includes(info.nama.toUpperCase())) {
-          detectedSatkerInfo = info;
-          break;
         }
       }
     }
@@ -1159,17 +1173,45 @@ export class MonitoringCapaianService {
       const key = this.getROKey(n.satkerNama, n.kodeKegiatan, n.kodeRo);
       const prev = existingMap.get(key);
       if (prev) {
-        // Merge: keep custom schedule/keterangan if not present in newRO
+        const effectivePagu = n.pagu !== undefined ? n.pagu : prev.pagu;
+        const effectiveReal = n.realisasi !== undefined ? n.realisasi : prev.realisasi;
+        const effectiveSisa = Math.max(0, effectivePagu - effectiveReal);
+        const effectivePct = effectivePagu > 0 ? Number(((effectiveReal / effectivePagu) * 100).toFixed(2)) : 0;
+        const effectiveStatus = this.calculateStatus(effectivePct);
+
+        // Schedule: if new upload has schedule (e.g. AJK file), use it; otherwise preserve existing schedule
+        const activeJadwal = (n.jadwal && Object.keys(n.jadwal).length > 0) ? n.jadwal : (prev.jadwal || {});
+        const schedSum = Object.values(activeJadwal).reduce((acc, curr) => acc + (Number(curr) || 0), 0);
+
+        // SiLPA / Dana tidak terserap
+        const danaTidakTerserap = n.danaTidakTerserap !== undefined ? n.danaTidakTerserap : (prev.danaTidakTerserap || 0);
+
+        // Total Kebutuhan:
+        // If there is an active weekly schedule in AJK: use schedSum capped to effectiveSisa.
+        // If no weekly schedule: use effectiveSisa minus danaTidakTerserap.
+        let totalKebutuhan = effectiveSisa;
+        if (schedSum > 0) {
+          totalKebutuhan = Math.min(effectiveSisa, schedSum);
+        } else if (danaTidakTerserap > 0) {
+          totalKebutuhan = Math.max(0, effectiveSisa - danaTidakTerserap);
+        }
+
         const merged: CapaianRO = {
           ...prev,
           ...n,
           id: prev.id, // preserve existing database ID
-          jadwal: n.jadwal && Object.keys(n.jadwal).length > 0 ? n.jadwal : (prev.jadwal || {}),
-          totalKebutuhan: n.totalKebutuhan || prev.totalKebutuhan || n.sisa,
-          danaTidakTerserap: n.danaTidakTerserap !== undefined ? n.danaTidakTerserap : (prev.danaTidakTerserap || 0),
+          pagu: effectivePagu,
+          realisasi: effectiveReal,
+          sisa: effectiveSisa,
+          persentase: effectivePct,
+          status: effectiveStatus,
+          jadwal: activeJadwal,
+          totalKebutuhan,
+          danaTidakTerserap,
           keterangan: n.keterangan || prev.keterangan || '',
-          komponen: n.komponen && n.komponen.length > 0 ? n.komponen : (prev.komponen || []),
-          updatedAt: now
+          komponen: (n.komponen && n.komponen.length > 0) ? n.komponen : (prev.komponen || []),
+          updatedAt: now,
+          updatedBy: n.updatedBy || prev.updatedBy || 'Upload Data'
         };
         existingMap.set(key, merged);
         updatedOrNewROs.push(merged);
