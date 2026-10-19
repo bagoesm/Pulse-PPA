@@ -1155,9 +1155,14 @@ export class MonitoringCapaianService {
     };
   }
 
-  // Apply imported ROs (Smart Upsert into storage and Supabase)
-  public async applyImportedROs(newROs: CapaianRO[]): Promise<number> {
+  // Apply imported ROs (Smart Upsert into storage and Supabase with progress callback)
+  public async applyImportedROs(
+    newROs: CapaianRO[],
+    onProgress?: (pct: number, message: string) => void
+  ): Promise<number> {
     if (!newROs || newROs.length === 0) return 0;
+
+    if (onProgress) onProgress(10, 'Menyiapkan dan menggabungkan data...');
 
     const existing = this.getROs();
     const existingMap = new Map<string, CapaianRO>();
@@ -1229,11 +1234,23 @@ export class MonitoringCapaianService {
     const finalROs = Array.from(existingMap.values());
     this.saveAllROs(finalROs);
 
-    // Upsert to Supabase in batches
+    if (onProgress) onProgress(30, 'Menyimpan perubahan ke cache lokal...');
+
+    // Upsert to Supabase in batches with progress reports
     try {
       const rows = updatedOrNewROs.map(ro => this.mapROToRow(ro));
-      for (let i = 0; i < rows.length; i += 50) {
-        const batch = rows.slice(i, i + 50);
+      const batchSize = 50;
+      const totalBatches = Math.ceil(rows.length / batchSize);
+
+      for (let i = 0; i < rows.length; i += batchSize) {
+        const batchNum = Math.floor(i / batchSize) + 1;
+        const batch = rows.slice(i, i + batchSize);
+
+        const currentPct = 30 + Math.floor((batchNum / totalBatches) * 65);
+        if (onProgress) {
+          onProgress(currentPct, `Mengunggah ke database Supabase (Batch ${batchNum}/${totalBatches})...`);
+        }
+
         await supabase
           .from('monitoring_capaian_ro')
           .upsert(batch, { onConflict: 'kode_ro,unit_kerja_nama' });
@@ -1241,6 +1258,8 @@ export class MonitoringCapaianService {
     } catch (err) {
       console.warn('Gagal sinkronisasi data import ke Supabase:', err);
     }
+
+    if (onProgress) onProgress(100, 'Sinkronisasi berhasil diselesaikan!');
 
     return updatedOrNewROs.length;
   }
