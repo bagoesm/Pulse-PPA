@@ -96,37 +96,45 @@ export const MonitoringRoView: React.FC<MonitoringRoViewProps> = ({
     return Array.from(new Set(filtered.map(r => r.unitKerjaNama))).filter(Boolean);
   }, [ros, satkerFilter]);
 
-  // Counts for status chips
-  const counts = useMemo(() => {
-    let sesuai = 0;
-    let perhatian = 0;
-    let intervensi = 0;
-    ros.forEach(r => {
-      if (r.status === 'Sesuai Target') sesuai++;
-      else if (r.status === 'Perlu Perhatian') perhatian++;
-      else intervensi++;
-    });
-    return {
-      all: ros.length,
-      sesuai,
-      perhatian,
-      intervensi
-    };
-  }, [ros]);
-
-  const filteredData = useMemo(() => {
-    let result = ros.filter(r => {
+  // Base list filtered by contextual filters (Satker, Unit Kerja, and Search Term)
+  // Used for computing dynamic status counts so the chips update whenever user filters by Satker/Unit/Search
+  const baseFilteredROs = useMemo(() => {
+    return ros.filter(r => {
       const matchSearch =
+        !searchTerm.trim() ||
         r.kodeRo.toLowerCase().includes(searchTerm.toLowerCase()) ||
         r.namaRo.toLowerCase().includes(searchTerm.toLowerCase()) ||
         r.unitKerjaNama.toLowerCase().includes(searchTerm.toLowerCase()) ||
         r.satkerNama.toLowerCase().includes(searchTerm.toLowerCase());
 
-      const matchStatus = statusFilter === 'ALL' || r.status === statusFilter;
       const matchSatker = satkerFilter === 'All' || r.satkerNama === satkerFilter;
       const matchUnit = unitFilter === 'All' || r.unitKerjaNama === unitFilter;
 
-      return matchSearch && matchStatus && matchSatker && matchUnit;
+      return matchSearch && matchSatker && matchUnit;
+    });
+  }, [ros, searchTerm, satkerFilter, unitFilter]);
+
+  // Counts for status chips (now dynamically adjusts to selected Satker, Unit Kerja, and Search query!)
+  const counts = useMemo(() => {
+    let sesuai = 0;
+    let perhatian = 0;
+    let intervensi = 0;
+    baseFilteredROs.forEach(r => {
+      if (r.status === 'Sesuai Target') sesuai++;
+      else if (r.status === 'Perlu Perhatian') perhatian++;
+      else intervensi++;
+    });
+    return {
+      all: baseFilteredROs.length,
+      sesuai,
+      perhatian,
+      intervensi
+    };
+  }, [baseFilteredROs]);
+
+  const filteredData = useMemo(() => {
+    let result = baseFilteredROs.filter(r => {
+      return statusFilter === 'ALL' || r.status === statusFilter;
     });
 
     result.sort((a, b) => {
@@ -140,7 +148,7 @@ export const MonitoringRoView: React.FC<MonitoringRoViewProps> = ({
     });
 
     return result;
-  }, [ros, searchTerm, statusFilter, satkerFilter, unitFilter, sortField, sortOrder]);
+  }, [baseFilteredROs, statusFilter, sortField, sortOrder]);
 
   const totalPages = Math.ceil(filteredData.length / itemsPerPage) || 1;
   const paginatedData = useMemo(() => {
@@ -207,80 +215,7 @@ export const MonitoringRoView: React.FC<MonitoringRoViewProps> = ({
 
   return (
     <div className="space-y-4 animate-fadeIn">
-      {/* Quick Status Filter Tabs (Traffic Lights) */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
-        {/* ALL */}
-        <button
-          onClick={() => { setStatusFilter('ALL'); setCurrentPage(1); }}
-          className={`p-3.5 rounded-xl border text-left transition-all ${
-            statusFilter === 'ALL'
-              ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
-              : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 shadow-2xs'
-          }`}
-        >
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[11px] uppercase tracking-wider font-bold opacity-80">Semua RO</span>
-            <span className={`w-2 h-2 rounded-full ${statusFilter === 'ALL' ? 'bg-blue-400' : 'bg-slate-400'}`} />
-          </div>
-          <span className="text-2xl font-black font-mono tabular-nums">{counts.all}</span>
-        </button>
-
-        {/* HIJAU (>= 90%) */}
-        <button
-          onClick={() => { setStatusFilter('Sesuai Target'); setCurrentPage(1); }}
-          className={`p-3.5 rounded-xl border text-left transition-all ${
-            statusFilter === 'Sesuai Target'
-              ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
-              : 'bg-emerald-50 text-emerald-900 border-emerald-200 hover:bg-emerald-100/70 shadow-2xs'
-          }`}
-        >
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[11px] uppercase tracking-wider font-bold">
-              Sesuai Target (≥90%)
-            </span>
-            <span className={`w-2.5 h-2.5 rounded-full ${statusFilter === 'Sesuai Target' ? 'bg-white shadow-2xs' : 'bg-emerald-500'}`} />
-          </div>
-          <span className="text-2xl font-black font-mono tabular-nums">{counts.sesuai}</span>
-        </button>
-
-        {/* KUNING (> 75% & < 90%) */}
-        <button
-          onClick={() => { setStatusFilter('Perlu Perhatian'); setCurrentPage(1); }}
-          className={`p-3.5 rounded-xl border text-left transition-all ${
-            statusFilter === 'Perlu Perhatian'
-              ? 'bg-amber-500 text-white border-amber-500 shadow-sm'
-              : 'bg-amber-50 text-amber-900 border-amber-200 hover:bg-amber-100/70 shadow-2xs'
-          }`}
-        >
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[11px] uppercase tracking-wider font-bold">
-              Perlu Perhatian (75-90%)
-            </span>
-            <span className={`w-2.5 h-2.5 rounded-full ${statusFilter === 'Perlu Perhatian' ? 'bg-white shadow-2xs' : 'bg-amber-500'}`} />
-          </div>
-          <span className="text-2xl font-black font-mono tabular-nums">{counts.perhatian}</span>
-        </button>
-
-        {/* MERAH (<= 75%) */}
-        <button
-          onClick={() => { setStatusFilter('Perlu Intervensi'); setCurrentPage(1); }}
-          className={`p-3.5 rounded-xl border text-left transition-all ${
-            statusFilter === 'Perlu Intervensi'
-              ? 'bg-rose-600 text-white border-rose-600 shadow-sm'
-              : 'bg-rose-50 text-rose-900 border-rose-200 hover:bg-rose-100/70 shadow-2xs'
-          }`}
-        >
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[11px] uppercase tracking-wider font-bold">
-              Perlu Intervensi (≤75%)
-            </span>
-            <span className={`w-2.5 h-2.5 rounded-full ${statusFilter === 'Perlu Intervensi' ? 'bg-white shadow-2xs' : 'bg-rose-500'}`} />
-          </div>
-          <span className="text-2xl font-black font-mono tabular-nums">{counts.intervensi}</span>
-        </button>
-      </div>
-
-      {/* Search & Filter Bar */}
+      {/* 1. Search & Filter Bar */}
       <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3">
         {/* Search Input */}
         <div className="relative flex-1 max-w-md">
@@ -344,6 +279,92 @@ export const MonitoringRoView: React.FC<MonitoringRoViewProps> = ({
             </button>
           )}
         </div>
+      </div>
+
+      {/* 2. Quick Status Filter Tabs (Traffic Lights) - Positioned BELOW filter bar & dynamically synced */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+        {/* ALL */}
+        <button
+          type="button"
+          onClick={() => { setStatusFilter('ALL'); setCurrentPage(1); }}
+          className={`p-3.5 rounded-xl border text-left transition-all ${
+            statusFilter === 'ALL'
+              ? 'bg-slate-900 text-white border-slate-900 shadow-sm ring-2 ring-slate-900/20'
+              : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 shadow-2xs'
+          }`}
+        >
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[11px] uppercase tracking-wider font-bold opacity-80">Semua RO</span>
+            <span className={`w-2 h-2 rounded-full ${statusFilter === 'ALL' ? 'bg-blue-400' : 'bg-slate-400'}`} />
+          </div>
+          <span className="text-2xl font-black font-mono tabular-nums">{counts.all}</span>
+        </button>
+
+        {/* HIJAU (>= 90%) */}
+        <button
+          type="button"
+          onClick={() => {
+            setStatusFilter(prev => prev === 'Sesuai Target' ? 'ALL' : 'Sesuai Target');
+            setCurrentPage(1);
+          }}
+          className={`p-3.5 rounded-xl border text-left transition-all ${
+            statusFilter === 'Sesuai Target'
+              ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm ring-2 ring-emerald-600/30'
+              : 'bg-emerald-50 text-emerald-900 border-emerald-200 hover:bg-emerald-100/70 shadow-2xs'
+          }`}
+        >
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[11px] uppercase tracking-wider font-bold">
+              Sesuai Target (≥90%)
+            </span>
+            <span className={`w-2.5 h-2.5 rounded-full ${statusFilter === 'Sesuai Target' ? 'bg-white shadow-2xs' : 'bg-emerald-500'}`} />
+          </div>
+          <span className="text-2xl font-black font-mono tabular-nums">{counts.sesuai}</span>
+        </button>
+
+        {/* KUNING (> 75% & < 90%) */}
+        <button
+          type="button"
+          onClick={() => {
+            setStatusFilter(prev => prev === 'Perlu Perhatian' ? 'ALL' : 'Perlu Perhatian');
+            setCurrentPage(1);
+          }}
+          className={`p-3.5 rounded-xl border text-left transition-all ${
+            statusFilter === 'Perlu Perhatian'
+              ? 'bg-amber-500 text-white border-amber-500 shadow-sm ring-2 ring-amber-500/30'
+              : 'bg-amber-50 text-amber-900 border-amber-200 hover:bg-amber-100/70 shadow-2xs'
+          }`}
+        >
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[11px] uppercase tracking-wider font-bold">
+              Perlu Perhatian (75-90%)
+            </span>
+            <span className={`w-2.5 h-2.5 rounded-full ${statusFilter === 'Perlu Perhatian' ? 'bg-white shadow-2xs' : 'bg-amber-500'}`} />
+          </div>
+          <span className="text-2xl font-black font-mono tabular-nums">{counts.perhatian}</span>
+        </button>
+
+        {/* MERAH (<= 75%) */}
+        <button
+          type="button"
+          onClick={() => {
+            setStatusFilter(prev => prev === 'Perlu Intervensi' ? 'ALL' : 'Perlu Intervensi');
+            setCurrentPage(1);
+          }}
+          className={`p-3.5 rounded-xl border text-left transition-all ${
+            statusFilter === 'Perlu Intervensi'
+              ? 'bg-rose-600 text-white border-rose-600 shadow-sm ring-2 ring-rose-600/30'
+              : 'bg-rose-50 text-rose-900 border-rose-200 hover:bg-rose-100/70 shadow-2xs'
+          }`}
+        >
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[11px] uppercase tracking-wider font-bold">
+              Perlu Intervensi (≤75%)
+            </span>
+            <span className={`w-2.5 h-2.5 rounded-full ${statusFilter === 'Perlu Intervensi' ? 'bg-white shadow-2xs' : 'bg-rose-500'}`} />
+          </div>
+          <span className="text-2xl font-black font-mono tabular-nums">{counts.intervensi}</span>
+        </button>
       </div>
 
       {/* RO Table */}
