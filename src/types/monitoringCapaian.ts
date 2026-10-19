@@ -19,10 +19,13 @@ export interface JadwalMingguan {
 
 export interface KomponenRO {
   id?: string;
+  kode?: string;
   nama: string;
   pagu?: number;
   realisasi?: number;
   sisa?: number;
+  persentase?: number;
+  status?: StatusCapaian;
   jadwal?: JadwalMingguan;
   keterangan?: string;
 }

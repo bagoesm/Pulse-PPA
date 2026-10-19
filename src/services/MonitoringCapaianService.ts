@@ -15,8 +15,51 @@ import {
 } from '../types/monitoringCapaian';
 import { INITIAL_RO_DATA, INITIAL_SATKERS } from '../data/rkklInitialData';
 
-const STORAGE_KEY = 'pulse_rkkl_monitoring_capaian_v2';
+const STORAGE_KEY = 'pulse_rkkl_monitoring_capaian_v3';
 const DUMMY_IDS = new Set(['ro-39', 'ro-40', 'ro-41', 'ro-42', 'ro-43', 'ro-44']);
+
+export const SAKTI_SATKER_MAP: Record<string, { id: string; kode: string; nama: string }> = {
+  '427944': { id: 'satker-427944', kode: '01', nama: 'Sekretariat Kementerian' },
+  '664941': { id: 'satker-664941', kode: '02', nama: 'Deputi Bidang Kesetaraan Gender' },
+  '664958': { id: 'satker-664958', kode: '03', nama: 'Deputi Bidang Perlindungan Hak Perempuan' },
+  '664962': { id: 'satker-664962', kode: '04', nama: 'Deputi Bidang Perlindungan Khusus Anak' },
+  '664979': { id: 'satker-664979', kode: '05', nama: 'Deputi Bidang Pemenuhan Hak Anak' },
+  '664983': { id: 'satker-664983', kode: '06', nama: 'Komisi Perlindungan Anak Indonesia (KPAI)' }
+};
+
+export const SAKTI_KEGIATAN_UNIT_MAP: Record<string, string> = {
+  'WA.2780': 'Biro Perencanaan dan Keuangan',
+  'WA.2781': 'Biro Hubungan Masyarakat dan Umum',
+  'WA.2782': 'Biro Sumber Daya Manusia dan Organisasi',
+  'WA.2783': 'Biro Hukum dan Kerja Sama',
+  'WA.2784': 'Inspektorat',
+  'WA.2785': 'Biro Data dan Informasi',
+  'WA.2789': 'Sekretariat Kementerian',
+
+  'DE.2790': 'Asdep PUG Bidang Politik, Hukum, dan Hankam',
+  'DE.2791': 'Asdep PUG Bidang Sosial dan Budaya',
+  'DE.2792': 'Asdep PUG Bidang Ekonomi',
+  'DE.2793': 'Asdep Partisipasi Lembaga Profesi dan Dunia Usaha',
+  'DE.2794': 'Asdep Partisipasi Masyarakat',
+  'DE.2795': 'Sekretariat Deputi Kesetaraan Gender',
+
+  'DE.2796': 'Asdep Perlindungan Hak Perempuan Pekerja dan TPPO',
+  'DE.2801': 'Asdep Perlindungan Hak Perempuan Rumah Tangga dan Rentan',
+  'DE.2802': 'Asdep Perlindungan Hak Perempuan dalam Situasi Darurat dan Kondisi Khusus',
+  'DE.2803': 'Sekretariat Deputi Perlindungan Hak Perempuan',
+
+  'DE.2797': 'Asdep Perlindungan Khusus Anak dari Kekerasan',
+  'DE.2798': 'Asdep Perlindungan Anak Kondisi Khusus',
+  'DE.2799': 'Asdep Perlindungan Khusus Anak Memerlukan Perlindungan Khusus',
+  'DE.2800': 'Sekretariat Deputi Perlindungan Khusus Anak',
+
+  'DE.2807': 'Asdep Pemenuhan Hak Sipil, Informasi, dan Partisipasi Anak',
+  'DE.2808': 'Asdep Pemenuhan Hak Anak atas Pengasuhan dan Lingkungan',
+  'DE.2809': 'Asdep Pemenuhan Hak Anak atas Kesehatan dan Pendidikan',
+  'DE.2810': 'Sekretariat Deputi Pemenuhan Hak Anak',
+
+  'DE.2818': 'Sekretariat Komisi Perlindungan Anak Indonesia'
+};
 
 export class MonitoringCapaianService {
   private static instance: MonitoringCapaianService;
@@ -27,6 +70,11 @@ export class MonitoringCapaianService {
       MonitoringCapaianService.instance = new MonitoringCapaianService();
     }
     return MonitoringCapaianService.instance;
+  }
+
+  // Helper key to uniquely identify an RO across Satkers and Kegiatans
+  private getROKey(satkerNama: string, kodeKegiatan: string | undefined, kodeRo: string): string {
+    return `${satkerNama}_${kodeKegiatan || ''}_${kodeRo}`;
   }
 
   // Determine status based on realization percentage
@@ -45,7 +93,10 @@ export class MonitoringCapaianService {
 
     let komponen = Array.isArray(row.komponen) && row.komponen.length > 0 ? row.komponen : [];
     if (komponen.length === 0) {
-      const init = INITIAL_RO_DATA.find(i => i.kodeRo === (row.kode_ro || ''));
+      const init = INITIAL_RO_DATA.find(i => 
+        i.kodeRo === (row.kode_ro || '') && 
+        (!row.satker_nama || i.satkerNama === row.satker_nama)
+      );
       if (init && init.komponen && init.komponen.length > 0) {
         komponen = init.komponen;
       }
@@ -119,15 +170,16 @@ export class MonitoringCapaianService {
         this.hasSupabaseTable = true;
         if (data.length > 0) {
           const localROs = this.getROs();
-          const localMap = new Map(localROs.map(l => [l.kodeRo, l]));
-          const initialMap = new Map(INITIAL_RO_DATA.map(init => [init.kodeRo, init]));
+          const localMap = new Map(localROs.map(l => [this.getROKey(l.satkerNama, l.kodeKegiatan, l.kodeRo), l]));
+          const initialMap = new Map(INITIAL_RO_DATA.map(init => [this.getROKey(init.satkerNama, init.kodeKegiatan, init.kodeRo), init]));
 
           const mapped = data
             .filter((r: any) => !DUMMY_IDS.has(r.id))
             .map(r => {
               const ro = this.mapRowToRO(r);
-              const local = localMap.get(ro.kodeRo);
-              const init = initialMap.get(ro.kodeRo);
+              const key = this.getROKey(ro.satkerNama, ro.kodeKegiatan, ro.kodeRo);
+              const local = localMap.get(key);
+              const init = initialMap.get(key);
 
               if (local && local.komponen && local.komponen.length > 0) {
                 ro.komponen = local.komponen;
@@ -158,7 +210,10 @@ export class MonitoringCapaianService {
   public async seedInitialToSupabase(): Promise<void> {
     try {
       const rows = INITIAL_RO_DATA.map(ro => this.mapROToRow(ro));
-      await supabase.from('monitoring_capaian_ro').upsert(rows, { onConflict: 'kode_ro,unit_kerja_nama' });
+      for (let i = 0; i < rows.length; i += 50) {
+        const batch = rows.slice(i, i + 50);
+        await supabase.from('monitoring_capaian_ro').upsert(batch, { onConflict: 'kode_ro,unit_kerja_nama' });
+      }
     } catch (err) {
       console.warn('Supabase table seeding skipped or unavailable:', err);
     }
@@ -172,12 +227,13 @@ export class MonitoringCapaianService {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
           // Merge missing komponen / jadwal from INITIAL_RO_DATA if missing in cache
-          const initialMap = new Map(INITIAL_RO_DATA.map(init => [init.kodeRo, init]));
+          const initialMap = new Map(INITIAL_RO_DATA.map(init => [this.getROKey(init.satkerNama, init.kodeKegiatan, init.kodeRo), init]));
           let modified = false;
           const merged = parsed
             .filter((ro: any) => !DUMMY_IDS.has(ro.id))
             .map((ro: CapaianRO) => {
-              const init = initialMap.get(ro.kodeRo);
+              const key = this.getROKey(ro.satkerNama, ro.kodeKegiatan, ro.kodeRo);
+              const init = initialMap.get(key);
               if (init) {
                 let updated = { ...ro };
                 if ((!ro.komponen || ro.komponen.length === 0) && init.komponen && init.komponen.length > 0) {
@@ -622,7 +678,7 @@ export class MonitoringCapaianService {
     });
   }
 
-  // Parse uploaded Excel file (support GLP039 SAKTI or AJK format)
+  // Parse uploaded Excel file (support GLP039 SAKTI or AJK format) without writing to storage/database
   public async parseExcelFile(
     file: File,
     overrideSatkerNama?: string
@@ -648,245 +704,16 @@ export class MonitoringCapaianService {
             return;
           }
 
-          const parsedROs: CapaianRO[] = [];
           const fileName = file.name.toLowerCase();
-
-          // Check if it's AJK format or standard tabular format
-          let isAjk = fileName.includes('ajk') || wb.SheetNames.some(s => s.toLowerCase().includes('ajk'));
+          const isAjk = fileName.includes('ajk') || wb.SheetNames.some(s => s.toLowerCase().includes('ajk'));
 
           if (isAjk) {
-            // Find sheet AJK
-            const ajkSheetName = wb.SheetNames.find(s => s.toLowerCase().includes('ajk')) || firstSheetName;
-            const ajkWs = wb.Sheets[ajkSheetName];
-            const ajkRows: any[][] = XLSX.utils.sheet_to_json(ajkWs, { header: 1, defval: null });
-
-            // Extract Satker / Unit from title rows if present
-            let detectedSatker = overrideSatkerNama || 'Sekretariat Kementerian';
-            let detectedUnit = 'Unit Kerja Terkait';
-
-            const headerSlice = ajkRows.slice(0, 10).map(r => (r || []).join(' ').toLowerCase()).join(' ');
-            const fullTextCheck = (fileName + ' ' + headerSlice).toLowerCase();
-
-            if (!overrideSatkerNama) {
-              if (fullTextCheck.includes('kesetaraan gender')) {
-                detectedSatker = 'Deputi Bidang Kesetaraan Gender';
-              } else if (fullTextCheck.includes('pemenuhan hak anak')) {
-                detectedSatker = 'Deputi Bidang Pemenuhan Hak Anak';
-              } else if (fullTextCheck.includes('perlindungan hak perempuan')) {
-                detectedSatker = 'Deputi Bidang Perlindungan Hak Perempuan';
-              } else if (fullTextCheck.includes('perlindungan khusus anak')) {
-                detectedSatker = 'Deputi Bidang Perlindungan Khusus Anak';
-              } else if (fullTextCheck.includes('sekretariat')) {
-                detectedSatker = 'Sekretariat Kementerian';
-              }
-            }
-
-            for (let i = 0; i < Math.min(6, ajkRows.length); i++) {
-              const rowText = (ajkRows[i] || []).join(' ').toLowerCase();
-              if (rowText.includes('biro data')) detectedUnit = 'Biro Data dan Informasi';
-              else if (rowText.includes('biro perencanaan')) detectedUnit = 'Biro Perencanaan dan Keuangan';
-              else if (rowText.includes('biro hukum')) detectedUnit = 'Biro Hukum dan Kerja Sama';
-              else if (rowText.includes('biro sdm')) detectedUnit = 'Biro Sumber Daya Manusia dan Organisasi';
-              else if (rowText.includes('biro umum')) detectedUnit = 'Biro Hubungan Masyarakat dan Umum';
-              else if (rowText.includes('inspektorat')) detectedUnit = 'Inspektorat';
-              else if (rowText.includes('asdep') || rowText.includes('asisten deputi') || rowText.includes('sekretariat deputi')) {
-                const found = (ajkRows[i] || []).find((c: any) => c && (String(c).toLowerCase().includes('asdep') || String(c).toLowerCase().includes('asisten deputi') || String(c).toLowerCase().includes('sekretariat deputi')));
-                if (found) detectedUnit = String(found).trim();
-              }
-            }
-
-            // Find header row with 'No', 'Kegiatan', 'Pagu'
-            let headerRowIndex = -1;
-            for (let r = 0; r < Math.min(10, ajkRows.length); r++) {
-              const row = ajkRows[r] || [];
-              const strRow = row.join(' ').toLowerCase();
-              if (strRow.includes('pagu') && (strRow.includes('kegiatan') || strRow.includes('uraian'))) {
-                headerRowIndex = r;
-                break;
-              }
-            }
-
-            const startIdx = headerRowIndex !== -1 ? headerRowIndex + 1 : 5;
-            let currentRoObj: CapaianRO | null = null;
-
-            for (let r = startIdx; r < ajkRows.length; r++) {
-              const row = ajkRows[r] || [];
-              const colNo = row[0];
-              const colCode = row[1];
-              const colUraian = row[2];
-              const colPagu = row[3];
-              const colReal = row[4];
-              const colSisa = row[6];
-
-              // Schedule cols
-              const okt2 = Number(row[7]) || 0;
-              const okt3 = Number(row[8]) || 0;
-              const okt4 = Number(row[9]) || 0;
-              const nov1 = Number(row[10]) || 0;
-              const nov2 = Number(row[11]) || 0;
-              const nov3 = Number(row[12]) || 0;
-              const nov4 = Number(row[13]) || 0;
-              const des1 = Number(row[14]) || 0;
-              const des2 = Number(row[15]) || 0;
-              const des3 = Number(row[16]) || 0;
-              const des4 = Number(row[17]) || 0;
-              const totKeb = Number(row[18]) || 0;
-              const sisaDana = Number(row[19]) || 0;
-              const ket = row[20] ? String(row[20]).trim() : '';
-
-              if (colCode && String(colCode).includes('.')) {
-                const paguVal = Number(colPagu) || 0;
-                const realVal = Number(colReal) || 0;
-                const pctVal = paguVal > 0 ? Number(((realVal / paguVal) * 100).toFixed(2)) : 0;
-                const sisaVal = Number(colSisa) || Math.max(0, paguVal - realVal);
-
-                currentRoObj = {
-                  id: `ro-imp-${Date.now()}-${parsedROs.length + 1}`,
-                  satkerId: 'satker-imp',
-                  satkerNama: overrideSatkerNama || detectedSatker,
-                  unitKerjaId: 'unit-imp',
-                  unitKerjaNama: detectedUnit,
-                  kodeRo: String(colCode).trim(),
-                  namaRo: colUraian ? String(colUraian).trim() : String(colCode).trim(),
-                  pagu: paguVal,
-                  realisasi: realVal,
-                  sisa: sisaVal,
-                  persentase: pctVal,
-                  status: this.calculateStatus(pctVal),
-                  jadwal: { okt2, okt3, okt4, nov1, nov2, nov3, nov4, des1, des2, des3, des4 },
-                  totalKebutuhan: totKeb || sisaVal,
-                  danaTidakTerserap: sisaDana,
-                  keterangan: ket,
-                  updatedAt: new Date().toISOString(),
-                  updatedBy: file.name
-                };
-                parsedROs.push(currentRoObj);
-              } else if (currentRoObj && colUraian) {
-                // Component line under RO: accumulate schedules
-                currentRoObj.jadwal.okt2 = (currentRoObj.jadwal.okt2 || 0) + okt2;
-                currentRoObj.jadwal.okt3 = (currentRoObj.jadwal.okt3 || 0) + okt3;
-                currentRoObj.jadwal.okt4 = (currentRoObj.jadwal.okt4 || 0) + okt4;
-                currentRoObj.jadwal.nov1 = (currentRoObj.jadwal.nov1 || 0) + nov1;
-                currentRoObj.jadwal.nov2 = (currentRoObj.jadwal.nov2 || 0) + nov2;
-                currentRoObj.jadwal.nov3 = (currentRoObj.jadwal.nov3 || 0) + nov3;
-                currentRoObj.jadwal.nov4 = (currentRoObj.jadwal.nov4 || 0) + nov4;
-                currentRoObj.jadwal.des1 = (currentRoObj.jadwal.des1 || 0) + des1;
-                currentRoObj.jadwal.des2 = (currentRoObj.jadwal.des2 || 0) + des2;
-                currentRoObj.jadwal.des3 = (currentRoObj.jadwal.des3 || 0) + des3;
-                currentRoObj.jadwal.des4 = (currentRoObj.jadwal.des4 || 0) + des4;
-                if (totKeb) currentRoObj.totalKebutuhan = (currentRoObj.totalKebutuhan || 0) + totKeb;
-                if (sisaDana) currentRoObj.danaTidakTerserap = (currentRoObj.danaTidakTerserap || 0) + sisaDana;
-                if (ket) {
-                  currentRoObj.keterangan = currentRoObj.keterangan
-                    ? `${currentRoObj.keterangan}; ${ket}`
-                    : ket;
-                }
-              }
-            }
+            const result = this.parseAjkRows(rows, wb, file.name, overrideSatkerNama);
+            resolve(result);
           } else {
-            // General tabular / SAKTI format
-            let detectedSatker = overrideSatkerNama || 'Sekretariat Kementerian';
-            let currentKegiatan = '';
-            let currentUnit = 'Unit Kerja Terkait';
-
-            for (let r = 0; r < rows.length; r++) {
-              const row = rows[r] || [];
-              const strRow = row.join(' ').toLowerCase();
-
-              if (!overrideSatkerNama && strRow.includes('satuan kerja')) {
-                for (let c = 0; c < row.length; c++) {
-                  const val = String(row[c] || '').trim();
-                  if (val.toLowerCase().includes('deputi') || val.toLowerCase().includes('sekretariat')) {
-                    detectedSatker = val;
-                    break;
-                  }
-                }
-              }
-
-              // Check Kegiatan e.g. WA.2783
-              const c1 = row[1];
-              const c2 = row[2];
-              if (c1 && String(c1).startsWith('WA.')) {
-                currentKegiatan = String(c1).trim();
-                const uDesc = row[8] || row[3] || '';
-                if (uDesc) currentUnit = String(uDesc).trim();
-              }
-
-              // Check RO e.g. AEC.001
-              if (c2 && String(c2).includes('.')) {
-                const roCode = String(c2).trim();
-                const roName = row[10] || row[8] || row[6] || roCode;
-                const paguVal = Number(row[16] || row[3] || 0);
-                const realVal = Number(row[25] || row[24] || row[4] || 0);
-                const pctVal = paguVal > 0 ? Number(((realVal / paguVal) * 100).toFixed(2)) : 0;
-                const sisaVal = Math.max(0, paguVal - realVal);
-
-                parsedROs.push({
-                  id: `ro-imp-${Date.now()}-${parsedROs.length + 1}`,
-                  satkerId: 'satker-imp',
-                  satkerNama: overrideSatkerNama || detectedSatker,
-                  unitKerjaId: 'unit-imp',
-                  unitKerjaNama: currentUnit,
-                  kodeRo: roCode,
-                  namaRo: String(roName).trim(),
-                  pagu: paguVal,
-                  realisasi: realVal,
-                  sisa: sisaVal,
-                  persentase: pctVal,
-                  status: this.calculateStatus(pctVal),
-                  jadwal: {},
-                  totalKebutuhan: sisaVal,
-                  danaTidakTerserap: 0,
-                  keterangan: '',
-                  updatedAt: new Date().toISOString(),
-                  updatedBy: file.name
-                });
-              }
-            }
+            const result = this.parseSaktiRows(rows, file.name, overrideSatkerNama);
+            resolve(result);
           }
-
-          if (parsedROs.length === 0) {
-            resolve({
-              success: false,
-              data: [],
-              detectedSatker: '',
-              message: 'Tidak ditemukan data baris RO yang valid dalam file Excel tersebut.'
-            });
-            return;
-          }
-
-          // Merge or replace
-          const existing = this.getROs();
-          const merged = [...parsedROs];
-          // Keep existing ROs not present in the new batch
-          existing.forEach(ex => {
-            if (!merged.some(m => m.kodeRo === ex.kodeRo && m.unitKerjaNama === ex.unitKerjaNama)) {
-              merged.push(ex);
-            }
-          });
-
-          this.saveAllROs(merged);
-
-          // Sync directly to Supabase
-          try {
-            const rowsToUpsert = parsedROs.map(ro => this.mapROToRow(ro));
-            supabase
-              .from('monitoring_capaian_ro')
-              .upsert(rowsToUpsert, { onConflict: 'kode_ro,unit_kerja_nama' })
-              .then(({ error }: any) => {
-                if (error) console.warn('Supabase bulk import sync warning:', error);
-              });
-          } catch (syncErr) {
-            console.warn('Supabase import sync skipped:', syncErr);
-          }
-
-          const finalSatkerName = parsedROs[0]?.satkerNama || 'Satker';
-          resolve({
-            success: true,
-            data: parsedROs,
-            detectedSatker: finalSatkerName,
-            message: `Berhasil memproses dan mengimpor ${parsedROs.length} Rincian Output (RO) untuk Satker "${finalSatkerName}".`
-          });
         } catch (err: any) {
           console.error('Error parsing excel:', err);
           resolve({
@@ -904,6 +731,476 @@ export class MonitoringCapaianService {
 
       reader.readAsArrayBuffer(file);
     });
+  }
+
+  // Parse multiple Excel files (e.g. all Satkers uploaded at once)
+  public async parseMultipleExcelFiles(
+    files: File[],
+    overrideSatker?: string
+  ): Promise<{
+    success: boolean;
+    data: CapaianRO[];
+    fileSummaries: Array<{
+      fileName: string;
+      satker: string;
+      count: number;
+      pagu: number;
+      realisasi: number;
+      success: boolean;
+      error?: string;
+    }>;
+    message: string;
+  }> {
+    const allROs: CapaianRO[] = [];
+    const fileSummaries = [];
+    let successCount = 0;
+
+    for (const file of files) {
+      const res = await this.parseExcelFile(file, overrideSatker);
+      if (res.success && res.data.length > 0) {
+        const pagu = res.data.reduce((a, b) => a + b.pagu, 0);
+        const realisasi = res.data.reduce((a, b) => a + b.realisasi, 0);
+        allROs.push(...res.data);
+        fileSummaries.push({
+          fileName: file.name,
+          satker: res.detectedSatker,
+          count: res.data.length,
+          pagu,
+          realisasi,
+          success: true
+        });
+        successCount++;
+      } else {
+        fileSummaries.push({
+          fileName: file.name,
+          satker: res.detectedSatker || 'Tidak diketahui',
+          count: 0,
+          pagu: 0,
+          realisasi: 0,
+          success: false,
+          error: res.message
+        });
+      }
+    }
+
+    return {
+      success: allROs.length > 0,
+      data: allROs,
+      fileSummaries,
+      message: `Berhasil menganalisis ${successCount} dari ${files.length} file (${allROs.length} total Rincian Output).`
+    };
+  }
+
+  // Parse SAKTI FA Detail (GLP039) rows
+  private parseSaktiRows(
+    rows: any[][],
+    fileName: string,
+    overrideSatkerNama?: string
+  ): { success: boolean; data: CapaianRO[]; detectedSatker: string; message: string } {
+    let detectedSatkerInfo: { id: string; kode: string; nama: string } | null = null;
+
+    if (overrideSatkerNama && overrideSatkerNama !== 'auto') {
+      for (const info of Object.values(SAKTI_SATKER_MAP)) {
+        if (info.nama.toLowerCase() === overrideSatkerNama.toLowerCase()) {
+          detectedSatkerInfo = info;
+          break;
+        }
+      }
+      if (!detectedSatkerInfo) {
+        detectedSatkerInfo = {
+          id: `satker-custom-${Date.now()}`,
+          kode: '99',
+          nama: overrideSatkerNama
+        };
+      }
+    } else {
+      // Auto-detect Satker from first 30 rows
+      for (let r = 0; r < Math.min(30, rows.length); r++) {
+        const row = rows[r] || [];
+        const rStr = row.join(' ');
+        if (rStr.includes('Satuan Kerja')) {
+          const satkerCode = String(row[14] || '').trim();
+          const satkerNameRaw = String(row[15] || '').trim();
+          if (SAKTI_SATKER_MAP[satkerCode]) {
+            detectedSatkerInfo = SAKTI_SATKER_MAP[satkerCode];
+            break;
+          }
+          for (const [code, info] of Object.entries(SAKTI_SATKER_MAP)) {
+            if (
+              satkerNameRaw.toUpperCase().includes(code) ||
+              satkerNameRaw.toUpperCase().includes(info.nama.toUpperCase()) ||
+              info.nama.toUpperCase().includes(satkerNameRaw.toUpperCase())
+            ) {
+              detectedSatkerInfo = info;
+              break;
+            }
+          }
+          if (detectedSatkerInfo) break;
+        }
+      }
+    }
+
+    if (!detectedSatkerInfo) {
+      // Fallback check full text
+      const fullText = rows.slice(0, 20).map(r => (r || []).join(' ')).join(' ').toUpperCase();
+      for (const info of Object.values(SAKTI_SATKER_MAP)) {
+        if (fullText.includes(info.nama.toUpperCase())) {
+          detectedSatkerInfo = info;
+          break;
+        }
+      }
+    }
+
+    if (!detectedSatkerInfo) {
+      detectedSatkerInfo = {
+        id: 'satker-427944',
+        kode: '01',
+        nama: 'Sekretariat Kementerian'
+      };
+    }
+
+    let currentKegiatan = { code: '', name: '' };
+    let currentKro = { code: '', name: '' };
+    let currentRo: CapaianRO | null = null;
+    const roMap = new Map<string, CapaianRO>();
+
+    for (let r = 0; r < rows.length; r++) {
+      const row = rows[r] || [];
+      const c1 = row[1] !== undefined && row[1] !== null ? String(row[1]).trim() : '';
+      const c2 = row[2] !== undefined && row[2] !== null ? String(row[2]).trim() : '';
+      const c4 = row[4] !== undefined && row[4] !== null ? String(row[4]).trim() : '';
+
+      const c0 = String(row[0] || '');
+      if (
+        c0.includes('JUMLAH SELURUHNYA') ||
+        c0.includes('LAPORAN') ||
+        c0.includes('Per Program') ||
+        c0.includes('*Lock Pagu')
+      ) {
+        continue;
+      }
+
+      // Match Kegiatan e.g. WA.2783 or DE.2790
+      if (/^[A-Z]{2}\.\d{4}$/.test(c1)) {
+        currentKegiatan = {
+          code: c1,
+          name: String(row[8] || row[3] || '').trim()
+        };
+        continue;
+      }
+
+      // Match KRO e.g. AEC or PEA
+      if (/^[A-Z0-9]{3}$/.test(c2)) {
+        currentKro = {
+          code: c2,
+          name: String(row[6] || '').trim()
+        };
+        continue;
+      }
+
+      // Match RO e.g. AEC.001 or PEA.001
+      if (/^[A-Z0-9]{3}\.[A-Z0-9]{3}$/.test(c2)) {
+        const roCode = c2;
+        const roKey = this.getROKey(detectedSatkerInfo.nama, currentKegiatan.code, roCode);
+
+        const roName = String(row[10] || row[6] || row[8] || roCode).trim();
+        const pagu = Number(row[16] || 0);
+        const realisasi = Number(row[25] !== undefined && row[25] !== null ? row[25] : (row[24] || 0));
+        const sisa = Math.max(0, pagu - realisasi);
+        const persentase = pagu > 0 ? Number(((realisasi / pagu) * 100).toFixed(2)) : 0;
+
+        let unitKerja = SAKTI_KEGIATAN_UNIT_MAP[currentKegiatan.code];
+        if (!unitKerja) {
+          unitKerja = currentKegiatan.name || detectedSatkerInfo.nama;
+        }
+
+        if (!roMap.has(roKey)) {
+          currentRo = {
+            id: `ro-${detectedSatkerInfo.kode}-${roMap.size + 1}`,
+            satkerId: detectedSatkerInfo.id,
+            satkerNama: detectedSatkerInfo.nama,
+            unitKerjaId: `unit-${currentKegiatan.code || 'gen'}`,
+            unitKerjaNama: unitKerja,
+            kodeKegiatan: currentKegiatan.code,
+            namaKegiatan: currentKegiatan.name,
+            kodeKro: currentKro.code,
+            namaKro: currentKro.name,
+            kodeRo: roCode,
+            namaRo: roName,
+            pagu,
+            realisasi,
+            sisa,
+            persentase,
+            status: this.calculateStatus(persentase),
+            jadwal: {},
+            komponen: [],
+            totalKebutuhan: sisa,
+            danaTidakTerserap: 0,
+            keterangan: '',
+            updatedAt: new Date().toISOString(),
+            updatedBy: fileName
+          };
+          roMap.set(roKey, currentRo);
+        } else {
+          currentRo = roMap.get(roKey)!;
+        }
+        continue;
+      }
+
+      // Match Komponen e.g. 051
+      if (/^\d{3}$/.test(c4) && currentRo) {
+        const kompKode = c4;
+        const kompNama = String(row[9] || '').trim();
+        const pagu = Number(row[16] || 0);
+        const realisasi = Number(row[25] !== undefined && row[25] !== null ? row[25] : (row[24] || 0));
+        const sisa = Math.max(0, pagu - realisasi);
+        const persentase = pagu > 0 ? Number(((realisasi / pagu) * 100).toFixed(2)) : 0;
+
+        const existingKomp = currentRo.komponen.find(k => k.kode === kompKode);
+        if (!existingKomp) {
+          currentRo.komponen.push({
+            id: `komp-${currentRo.kodeRo}-${kompKode}`,
+            kode: kompKode,
+            nama: kompNama,
+            pagu,
+            realisasi,
+            sisa,
+            persentase,
+            status: this.calculateStatus(persentase)
+          });
+        }
+      }
+    }
+
+    const data = Array.from(roMap.values());
+    if (data.length === 0) {
+      return {
+        success: false,
+        data: [],
+        detectedSatker: detectedSatkerInfo.nama,
+        message: 'Tidak ditemukan data baris RO yang valid dalam file SAKTI tersebut.'
+      };
+    }
+
+    return {
+      success: true,
+      data,
+      detectedSatker: detectedSatkerInfo.nama,
+      message: `Berhasil menganalisis ${data.length} Rincian Output (RO) untuk Satker "${detectedSatkerInfo.nama}".`
+    };
+  }
+
+  // Parse Matrix AJK Rows
+  private parseAjkRows(
+    rows: any[][],
+    wb: XLSX.WorkBook,
+    fileName: string,
+    overrideSatkerNama?: string
+  ): { success: boolean; data: CapaianRO[]; detectedSatker: string; message: string } {
+    const ajkSheetName = wb.SheetNames.find(s => s.toLowerCase().includes('ajk')) || wb.SheetNames[0];
+    const ajkWs = wb.Sheets[ajkSheetName];
+    const ajkRows: any[][] = XLSX.utils.sheet_to_json(ajkWs, { header: 1, defval: null });
+
+    let detectedSatker = overrideSatkerNama && overrideSatkerNama !== 'auto' ? overrideSatkerNama : 'Sekretariat Kementerian';
+    let detectedUnit = 'Unit Kerja Terkait';
+
+    const headerSlice = ajkRows.slice(0, 10).map(r => (r || []).join(' ').toLowerCase()).join(' ');
+    const fullTextCheck = (fileName + ' ' + headerSlice).toLowerCase();
+
+    if (!overrideSatkerNama || overrideSatkerNama === 'auto') {
+      if (fullTextCheck.includes('kesetaraan gender')) {
+        detectedSatker = 'Deputi Bidang Kesetaraan Gender';
+      } else if (fullTextCheck.includes('pemenuhan hak anak')) {
+        detectedSatker = 'Deputi Bidang Pemenuhan Hak Anak';
+      } else if (fullTextCheck.includes('perlindungan hak perempuan')) {
+        detectedSatker = 'Deputi Bidang Perlindungan Hak Perempuan';
+      } else if (fullTextCheck.includes('perlindungan khusus anak')) {
+        detectedSatker = 'Deputi Bidang Perlindungan Khusus Anak';
+      } else if (fullTextCheck.includes('komisi perlindungan anak') || fullTextCheck.includes('kpai')) {
+        detectedSatker = 'Komisi Perlindungan Anak Indonesia (KPAI)';
+      } else if (fullTextCheck.includes('sekretariat')) {
+        detectedSatker = 'Sekretariat Kementerian';
+      }
+    }
+
+    for (let i = 0; i < Math.min(6, ajkRows.length); i++) {
+      const rowText = (ajkRows[i] || []).join(' ').toLowerCase();
+      if (rowText.includes('biro data')) detectedUnit = 'Biro Data dan Informasi';
+      else if (rowText.includes('biro perencanaan')) detectedUnit = 'Biro Perencanaan dan Keuangan';
+      else if (rowText.includes('biro hukum')) detectedUnit = 'Biro Hukum dan Kerja Sama';
+      else if (rowText.includes('biro sdm')) detectedUnit = 'Biro Sumber Daya Manusia dan Organisasi';
+      else if (rowText.includes('biro umum')) detectedUnit = 'Biro Hubungan Masyarakat dan Umum';
+      else if (rowText.includes('inspektorat')) detectedUnit = 'Inspektorat';
+      else if (rowText.includes('asdep') || rowText.includes('asisten deputi') || rowText.includes('sekretariat deputi')) {
+        const found = (ajkRows[i] || []).find((c: any) => c && (String(c).toLowerCase().includes('asdep') || String(c).toLowerCase().includes('asisten deputi') || String(c).toLowerCase().includes('sekretariat deputi')));
+        if (found) detectedUnit = String(found).trim();
+      }
+    }
+
+    let headerRowIndex = -1;
+    for (let r = 0; r < Math.min(10, ajkRows.length); r++) {
+      const row = ajkRows[r] || [];
+      const strRow = row.join(' ').toLowerCase();
+      if (strRow.includes('pagu') && (strRow.includes('kegiatan') || strRow.includes('uraian'))) {
+        headerRowIndex = r;
+        break;
+      }
+    }
+
+    const startIdx = headerRowIndex !== -1 ? headerRowIndex + 1 : 5;
+    const parsedROs: CapaianRO[] = [];
+    let currentRoObj: CapaianRO | null = null;
+
+    for (let r = startIdx; r < ajkRows.length; r++) {
+      const row = ajkRows[r] || [];
+      const colCode = row[1];
+      const colUraian = row[2];
+      const colPagu = row[3];
+      const colReal = row[4];
+      const colSisa = row[6];
+
+      const okt2 = Number(row[7]) || 0;
+      const okt3 = Number(row[8]) || 0;
+      const okt4 = Number(row[9]) || 0;
+      const nov1 = Number(row[10]) || 0;
+      const nov2 = Number(row[11]) || 0;
+      const nov3 = Number(row[12]) || 0;
+      const nov4 = Number(row[13]) || 0;
+      const des1 = Number(row[14]) || 0;
+      const des2 = Number(row[15]) || 0;
+      const des3 = Number(row[16]) || 0;
+      const des4 = Number(row[17]) || 0;
+      const totKeb = Number(row[18]) || 0;
+      const sisaDana = Number(row[19]) || 0;
+      const ket = row[20] ? String(row[20]).trim() : '';
+
+      if (colCode && String(colCode).includes('.')) {
+        const paguVal = Number(colPagu) || 0;
+        const realVal = Number(colReal) || 0;
+        const pctVal = paguVal > 0 ? Number(((realVal / paguVal) * 100).toFixed(2)) : 0;
+        const sisaVal = Number(colSisa) || Math.max(0, paguVal - realVal);
+
+        currentRoObj = {
+          id: `ro-ajk-${Date.now()}-${parsedROs.length + 1}`,
+          satkerId: 'satker-ajk',
+          satkerNama: detectedSatker,
+          unitKerjaId: 'unit-ajk',
+          unitKerjaNama: detectedUnit,
+          kodeRo: String(colCode).trim(),
+          namaRo: colUraian ? String(colUraian).trim() : String(colCode).trim(),
+          pagu: paguVal,
+          realisasi: realVal,
+          sisa: sisaVal,
+          persentase: pctVal,
+          status: this.calculateStatus(pctVal),
+          jadwal: { okt2, okt3, okt4, nov1, nov2, nov3, nov4, des1, des2, des3, des4 },
+          komponen: [],
+          totalKebutuhan: totKeb || sisaVal,
+          danaTidakTerserap: sisaDana,
+          keterangan: ket,
+          updatedAt: new Date().toISOString(),
+          updatedBy: fileName
+        };
+        parsedROs.push(currentRoObj);
+      } else if (currentRoObj && colUraian) {
+        currentRoObj.jadwal.okt2 = (currentRoObj.jadwal.okt2 || 0) + okt2;
+        currentRoObj.jadwal.okt3 = (currentRoObj.jadwal.okt3 || 0) + okt3;
+        currentRoObj.jadwal.okt4 = (currentRoObj.jadwal.okt4 || 0) + okt4;
+        currentRoObj.jadwal.nov1 = (currentRoObj.jadwal.nov1 || 0) + nov1;
+        currentRoObj.jadwal.nov2 = (currentRoObj.jadwal.nov2 || 0) + nov2;
+        currentRoObj.jadwal.nov3 = (currentRoObj.jadwal.nov3 || 0) + nov3;
+        currentRoObj.jadwal.nov4 = (currentRoObj.jadwal.nov4 || 0) + nov4;
+        currentRoObj.jadwal.des1 = (currentRoObj.jadwal.des1 || 0) + des1;
+        currentRoObj.jadwal.des2 = (currentRoObj.jadwal.des2 || 0) + des2;
+        currentRoObj.jadwal.des3 = (currentRoObj.jadwal.des3 || 0) + des3;
+        currentRoObj.jadwal.des4 = (currentRoObj.jadwal.des4 || 0) + des4;
+        if (totKeb) currentRoObj.totalKebutuhan = (currentRoObj.totalKebutuhan || 0) + totKeb;
+        if (sisaDana) currentRoObj.danaTidakTerserap = (currentRoObj.danaTidakTerserap || 0) + sisaDana;
+        if (ket) {
+          currentRoObj.keterangan = currentRoObj.keterangan
+            ? `${currentRoObj.keterangan}; ${ket}`
+            : ket;
+        }
+      }
+    }
+
+    if (parsedROs.length === 0) {
+      return {
+        success: false,
+        data: [],
+        detectedSatker,
+        message: 'Tidak ditemukan data baris RO yang valid dalam berkas AJK tersebut.'
+      };
+    }
+
+    return {
+      success: true,
+      data: parsedROs,
+      detectedSatker,
+      message: `Berhasil membaca ${parsedROs.length} RO dari matriks AJK.`
+    };
+  }
+
+  // Apply imported ROs (Smart Upsert into storage and Supabase)
+  public async applyImportedROs(newROs: CapaianRO[]): Promise<number> {
+    if (!newROs || newROs.length === 0) return 0;
+
+    const existing = this.getROs();
+    const existingMap = new Map<string, CapaianRO>();
+    existing.forEach(ex => {
+      const key = this.getROKey(ex.satkerNama, ex.kodeKegiatan, ex.kodeRo);
+      existingMap.set(key, ex);
+    });
+
+    const now = new Date().toISOString();
+    const updatedOrNewROs: CapaianRO[] = [];
+
+    newROs.forEach(n => {
+      const key = this.getROKey(n.satkerNama, n.kodeKegiatan, n.kodeRo);
+      const prev = existingMap.get(key);
+      if (prev) {
+        // Merge: keep custom schedule/keterangan if not present in newRO
+        const merged: CapaianRO = {
+          ...prev,
+          ...n,
+          id: prev.id, // preserve existing database ID
+          jadwal: n.jadwal && Object.keys(n.jadwal).length > 0 ? n.jadwal : (prev.jadwal || {}),
+          totalKebutuhan: n.totalKebutuhan || prev.totalKebutuhan || n.sisa,
+          danaTidakTerserap: n.danaTidakTerserap !== undefined ? n.danaTidakTerserap : (prev.danaTidakTerserap || 0),
+          keterangan: n.keterangan || prev.keterangan || '',
+          komponen: n.komponen && n.komponen.length > 0 ? n.komponen : (prev.komponen || []),
+          updatedAt: now
+        };
+        existingMap.set(key, merged);
+        updatedOrNewROs.push(merged);
+      } else {
+        const item: CapaianRO = {
+          ...n,
+          id: n.id || `ro-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+          updatedAt: now
+        };
+        existingMap.set(key, item);
+        updatedOrNewROs.push(item);
+      }
+    });
+
+    const finalROs = Array.from(existingMap.values());
+    this.saveAllROs(finalROs);
+
+    // Upsert to Supabase in batches
+    try {
+      const rows = updatedOrNewROs.map(ro => this.mapROToRow(ro));
+      for (let i = 0; i < rows.length; i += 50) {
+        const batch = rows.slice(i, i + 50);
+        await supabase
+          .from('monitoring_capaian_ro')
+          .upsert(batch, { onConflict: 'kode_ro,unit_kerja_nama' });
+      }
+    } catch (err) {
+      console.warn('Gagal sinkronisasi data import ke Supabase:', err);
+    }
+
+    return updatedOrNewROs.length;
   }
 
   // Export RO and AJK Matrix to Excel
