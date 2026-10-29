@@ -12,6 +12,8 @@ import { useUsers } from './UsersContext';
 import { visibilityMiddleware } from '../services/VisibilityMiddleware';
 import { useVisibilityFilter } from '../hooks/useVisibilityFilter';
 
+import { isMenteriOrWakilMenteri } from '../utils/authorization';
+
 interface DivisionContextType {
     // Master data
     divisiList: string[];
@@ -79,7 +81,10 @@ export const DivisionProvider: React.FC<DivisionProviderProps> = ({ children, se
     // Initialize selectedDivisi when currentUser changes
     useEffect(() => {
         if (currentUser) {
-            if (currentUser.divisi) {
+            if (isMenteriOrWakilMenteri(currentUser)) {
+                // Menteri & Wakil Menteri can monitor all satkers by default
+                setSelectedDivisiState('All');
+            } else if (currentUser.divisi) {
                 // All users (including Super Admin) default to their own divisi
                 setSelectedDivisiState(currentUser.divisi);
             } else {
@@ -105,8 +110,8 @@ export const DivisionProvider: React.FC<DivisionProviderProps> = ({ children, se
                 return [];
             }
 
-            // Super Admin sees all divisi
-            if (currentUser?.role === 'Super Admin') {
+            // Super Admin and Menteri / Wakil Menteri see all divisi
+            if (currentUser?.role === 'Super Admin' || isMenteriOrWakilMenteri(currentUser)) {
                 return data.map((d: any) => d.name);
             }
 
@@ -214,19 +219,22 @@ export const DivisionProvider: React.FC<DivisionProviderProps> = ({ children, se
 
     // Whether the filter is active (viewing a different divisi)
     const isDivisiFilterActive = useMemo(() => {
-        if (!selectedDivisi || !currentDivisi) return false;
-        return selectedDivisi !== currentDivisi;
-    }, [selectedDivisi, currentDivisi]);
+        if (!selectedDivisi) return false;
+        if (isMenteriOrWakilMenteri(currentUser)) {
+            return selectedDivisi !== 'All';
+        }
+        return currentDivisi ? selectedDivisi !== currentDivisi : false;
+    }, [selectedDivisi, currentDivisi, currentUser]);
 
     // Helper: check by user name
     const isInSelectedDivisi = useCallback((userName: string) => {
-        if (!selectedDivisi) return false;
+        if (!selectedDivisi || selectedDivisi === 'All' || selectedDivisi === 'Semua Divisi') return true;
         return divisiUserNamesSet.has(userName);
     }, [selectedDivisi, divisiUserNamesSet]);
 
     // Helper: check by user ID
     const isUserIdInSelectedDivisi = useCallback((userId: string) => {
-        if (!selectedDivisi) return false;
+        if (!selectedDivisi || selectedDivisi === 'All' || selectedDivisi === 'Semua Divisi') return true;
         
         // First check: UUID-based lookup (new data)
         if (divisiUserIds.has(userId)) {
@@ -243,7 +251,7 @@ export const DivisionProvider: React.FC<DivisionProviderProps> = ({ children, se
 
     // Helper: combined check for createdBy + PIC
     const shouldShowByDivisi = useCallback((createdByName?: string, picNames?: string[]) => {
-        if (!selectedDivisi) return false;
+        if (!selectedDivisi || selectedDivisi === 'All' || selectedDivisi === 'Semua Divisi') return true;
 
         // Check if creator is in selected divisi
         if (createdByName && divisiUserNamesSet.has(createdByName)) {
@@ -265,10 +273,12 @@ export const DivisionProvider: React.FC<DivisionProviderProps> = ({ children, se
 
     // Reset to own divisi
     const resetToMyDivisi = useCallback(() => {
-        if (currentDivisi) {
+        if (isMenteriOrWakilMenteri(currentUser)) {
+            setSelectedDivisiState('All');
+        } else if (currentDivisi) {
             setSelectedDivisiState(currentDivisi);
         }
-    }, [currentDivisi]);
+    }, [currentDivisi, currentUser]);
 
     const value: DivisionContextType = {
         divisiList,

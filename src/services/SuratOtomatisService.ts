@@ -355,8 +355,16 @@ export class SuratOtomatisService {
     }
 
     switch (templateType) {
-      case 'surat-undangan':
+      case 'surat-undangan': {
+        const jenisSurat = String(formData?.jenis_surat_undangan || 'Undangan Kegiatan');
+        if (jenisSurat === 'Permohonan / Non-Kegiatan') {
+          const pakaiLampiran = String(formData?.pakai_lampiran || 'Ya');
+          return pakaiLampiran === 'Tidak'
+            ? 'surat-permohonan-tanpa-lampiran.docx'
+            : 'surat-permohonan.docx';
+        }
         return 'surat-undangan.docx';
+      }
       case 'surat-keterangan-umum':
       default:
         return 'surat-keterangan.docx';
@@ -1183,17 +1191,24 @@ export class SuratOtomatisService {
     const riil_total = riil_transport_taksi + riil_transport_lokasi + riil_transport_kota;
     formatted['riil_total_format'] = this.formatRupiah(riil_total);
 
-    // SURAT UNDANGAN Custom formatting
+    // SURAT UNDANGAN & PERMOHONAN NON-KEGIATAN Custom formatting
     if (formData.nama_kegiatan) {
       formatted['nama_kegiatan_kapital'] = String(formData.nama_kegiatan).toUpperCase();
+    } else if (formData.hal) {
+      formatted['nama_kegiatan_kapital'] = String(formData.hal).toUpperCase();
     }
+
     if (formData.tempat_tujuan && formatted['tanggal_surat']) {
       formatted['tempat_tanggal_kegiatan'] = `${formData.tempat_tujuan}, ${formatted['tanggal_surat']}`;
     } else if (formData.tempat_tujuan) {
       formatted['tempat_tanggal_kegiatan'] = String(formData.tempat_tujuan);
     }
 
-    if (formData.lampiran) {
+    const isPermohonanNonKegiatan = String(formData.jenis_surat_undangan || '') === 'Permohonan / Non-Kegiatan';
+
+    if (isPermohonanNonKegiatan && String(formData.pakai_lampiran || 'Ya') === 'Tidak') {
+      formatted['lampiran'] = '-';
+    } else if (formData.lampiran) {
       const num = parseInt(String(formData.lampiran), 10);
       if (!isNaN(num)) {
         const terbilangStr = this.terbilangTanpaRupiah(num);
@@ -1201,7 +1216,41 @@ export class SuratOtomatisService {
       } else {
         formatted['lampiran'] = String(formData.lampiran);
       }
+    } else {
+      formatted['lampiran'] = '1 (satu) berkas';
     }
+
+    // Format kalimat pengantar & rincian untuk Permohonan / Non-Kegiatan
+    const rawPerihalPermohonan = String(formData.nama_kegiatan || formData.hal || 'pengisian tautan masukan/feedback').trim();
+    const startsWithVerb = /^(meng|mem|men|meny|me|ber|memberi|menyampaikan|mengisi|melengkapi|menindaklanjuti)/i.test(rawPerihalPermohonan);
+    formatted['kalimat_pengantar_permohonan'] = startsWithVerb
+      ? `Sehubungan dengan hal tersebut, kami mohon kesediaan Bapak/Ibu/Saudara untuk dapat ${rawPerihalPermohonan}, dengan rincian sebagai berikut:`
+      : `Sehubungan dengan hal tersebut, kami mohon kesediaan Bapak/Ibu/Saudara untuk dapat melakukan ${rawPerihalPermohonan}, dengan rincian sebagai berikut:`;
+
+    if (formData.tanggal_batas_waktu) {
+      const tglVal = String(formData.tanggal_batas_waktu);
+      let formattedTglBatas = tglVal;
+      if (tglVal.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        const date = new Date(tglVal);
+        const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+        const dayName = days[date.getDay()];
+        const formattedDate = this.formatTanggalIndonesia(tglVal);
+        formattedTglBatas = `${dayName}, ${formattedDate}`;
+      }
+      const waktuBatas = formData.waktu_batas_akhir ? String(formData.waktu_batas_akhir).trim() : '';
+      if (waktuBatas) {
+        const waktuFmt = waktuBatas.replace(':', '.');
+        formatted['batas_waktu_permohonan'] = `${formattedTglBatas} pukul ${waktuFmt} WIB`;
+      } else {
+        formatted['batas_waktu_permohonan'] = formattedTglBatas;
+      }
+    } else if (formData.batas_waktu_permohonan) {
+      formatted['batas_waktu_permohonan'] = String(formData.batas_waktu_permohonan);
+    }
+
+    const catatanTrimmed = String(formData.catatan_permohonan || '').trim();
+    formatted['ada_catatan'] = catatanTrimmed.length > 0;
+    formatted['catatan_permohonan'] = catatanTrimmed;
 
     if (formData.hari_tanggal_kegiatan) {
       const value = String(formData.hari_tanggal_kegiatan);
@@ -1355,6 +1404,10 @@ export class SuratOtomatisService {
       if (jenis.includes('Riil')) return `simperjadin_pengeluaran_riil_${nama}_${timestamp}.docx`;
       if (jenis.includes('Kwitansi')) return `simperjadin_kwitansi_${nama}_${timestamp}.docx`;
       return `simperjadin_lengkap_${nama}_${timestamp}.docx`;
+    }
+
+    if (templateType === 'surat-undangan' && String(formData.jenis_surat_undangan || '') === 'Permohonan / Non-Kegiatan') {
+      return `surat-permohonan_${nama}_${timestamp}.docx`;
     }
 
     return `${templateType}_${nama}_${timestamp}.docx`;

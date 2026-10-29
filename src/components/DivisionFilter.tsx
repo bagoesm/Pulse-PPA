@@ -3,6 +3,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Building2, ChevronDown, X, Check, RotateCcw } from 'lucide-react';
 import { useDivision } from '../contexts/DivisionContext';
+import { useAuth } from '../contexts/AuthContext';
+import { isMenteriOrWakilMenteri } from '../utils/authorization';
 
 interface DivisionFilterProps {
     className?: string;
@@ -18,6 +20,9 @@ const DivisionFilter: React.FC<DivisionFilterProps> = ({ className = '', compact
         resetToMyDivisi,
         isDivisiFilterActive,
     } = useDivision();
+    const { currentUser } = useAuth();
+    const isMinister = isMenteriOrWakilMenteri(currentUser);
+    const canSeeAll = currentUser?.role === 'Super Admin' || isMinister;
 
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
@@ -36,7 +41,7 @@ const DivisionFilter: React.FC<DivisionFilterProps> = ({ className = '', compact
     // Don't render if no divisi list available
     if (divisiList.length === 0) return null;
 
-    const displayLabel = selectedDivisi || 'Pilih Satuan Kerja';
+    const displayLabel = selectedDivisi === 'All' ? 'Seluruh Satuan Kerja' : (selectedDivisi || 'Pilih Satuan Kerja');
 
     const handleSelect = (divisi: string) => {
         setSelectedDivisi(divisi);
@@ -56,7 +61,7 @@ const DivisionFilter: React.FC<DivisionFilterProps> = ({ className = '', compact
             >
                 <Building2 size={14} className={isDivisiFilterActive ? 'text-amber-600' : 'text-slate-400'} />
                 <span className={compact ? 'hidden sm:inline' : ''}>
-                    {compact ? (selectedDivisi || 'Satker') : displayLabel}
+                    {compact ? (selectedDivisi === 'All' ? 'Semua' : (selectedDivisi || 'Satker')) : displayLabel}
                 </span>
                 <ChevronDown size={14} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
                 {isDivisiFilterActive && (
@@ -93,6 +98,24 @@ const DivisionFilter: React.FC<DivisionFilterProps> = ({ className = '', compact
 
                     {/* Options */}
                     <div className="max-h-52 overflow-y-auto py-1">
+                        {/* Option: Seluruh Satuan Kerja for Super Admin / Minister */}
+                        {canSeeAll && (
+                            <button
+                                onClick={() => handleSelect('All')}
+                                className={`w-full flex items-center justify-between px-3 py-2 text-sm transition-colors border-b border-slate-100 ${
+                                    selectedDivisi === 'All' 
+                                        ? 'bg-gov-50 text-gov-700 font-semibold' 
+                                        : 'text-slate-700 hover:bg-slate-50'
+                                }`}
+                            >
+                                <span className="flex items-center gap-2">
+                                    <Building2 size={14} className={selectedDivisi === 'All' ? 'text-gov-600' : 'text-slate-400'} />
+                                    <span className="truncate">Seluruh Satuan Kerja</span>
+                                </span>
+                                {selectedDivisi === 'All' && <Check size={14} className="text-gov-600" />}
+                            </button>
+                        )}
+
                         {/* Satuan Kerja options */}
                         {divisiList.map(divisi => (
                             <button

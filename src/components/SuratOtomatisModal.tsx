@@ -106,17 +106,6 @@ export const SuratOtomatisModal: React.FC<SuratOtomatisModalProps> = ({ isOpen, 
   // Initialize form data with default values or saved draft when template is selected
   useEffect(() => {
     if (selectedTemplate) {
-      const savedDraft = localStorage.getItem(`pulse_surat_draft_${selectedTemplate.id}`);
-      if (savedDraft) {
-        try {
-          const parsed = JSON.parse(savedDraft);
-          setFormData(parsed);
-          return;
-        } catch (e) {
-          console.error('Failed to parse saved draft:', e);
-        }
-      }
-
       const initialData: Record<string, string | number> = {};
       const todayStr = new Date().toISOString().split('T')[0];
       selectedTemplate.fields.forEach(field => {
@@ -126,6 +115,18 @@ export const SuratOtomatisModal: React.FC<SuratOtomatisModalProps> = ({ isOpen, 
           initialData[field.id] = todayStr;
         }
       });
+
+      const savedDraft = localStorage.getItem(`pulse_surat_draft_${selectedTemplate.id}`);
+      if (savedDraft) {
+        try {
+          const parsed = JSON.parse(savedDraft);
+          setFormData({ ...initialData, ...parsed });
+          return;
+        } catch (e) {
+          console.error('Failed to parse saved draft:', e);
+        }
+      }
+
       setFormData(initialData);
     }
   }, [selectedTemplate]);
@@ -228,6 +229,30 @@ export const SuratOtomatisModal: React.FC<SuratOtomatisModalProps> = ({ isOpen, 
     }
   }, [formData.waktu_mulai, formData.waktu_selesai, selectedTemplate]);
 
+  // Auto fill batas_waktu_permohonan from tanggal_batas_waktu and waktu_batas_akhir
+  useEffect(() => {
+    if (selectedTemplate?.id === 'surat-undangan') {
+      const tglVal = formData.tanggal_batas_waktu?.toString();
+      const jamVal = formData.waktu_batas_akhir?.toString();
+      if (tglVal) {
+        let formattedDateStr = tglVal;
+        if (tglVal.match(/^\d{4}-\d{2}-\d{2}$/)) {
+          const date = new Date(tglVal);
+          const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+          const dayName = days[date.getDay()];
+          const indoDate = SuratOtomatisService.formatTanggalIndonesia(tglVal);
+          formattedDateStr = `${dayName}, ${indoDate}`;
+        }
+        const text = jamVal
+          ? `${formattedDateStr} pukul ${jamVal.replace(':', '.')} WIB`
+          : formattedDateStr;
+        if (formData.batas_waktu_permohonan !== text) {
+          setFormData(prev => ({ ...prev, batas_waktu_permohonan: text }));
+        }
+      }
+    }
+  }, [formData.tanggal_batas_waktu, formData.waktu_batas_akhir, selectedTemplate]);
+
   // Auto-fill fields when dependencies change
   useEffect(() => {
     if (!selectedTemplate) return;
@@ -324,7 +349,14 @@ export const SuratOtomatisModal: React.FC<SuratOtomatisModalProps> = ({ isOpen, 
     if (!aiMaksudPrompt.trim()) return;
     setIsGeneratingMaksud(true);
     try {
-      const fullPrompt = `Anda adalah staf ahli humas dan sekretariat di Kementerian Pemberdayaan Perempuan dan Perlindungan Anak (KPPPA) Indonesia.
+      const isPermohonan = String(formData.jenis_surat_undangan || 'Undangan Kegiatan') === 'Permohonan / Non-Kegiatan';
+      const fullPrompt = isPermohonan
+        ? `Anda adalah staf ahli humas dan sekretariat di Kementerian Pemberdayaan Perempuan dan Perlindungan Anak (KPPPA) Indonesia.
+Tuliskan 1 paragraf detail dan formal (sekitar 3-4 kalimat panjang) berisi latar belakang/maksud surat permohonan resmi dinas (misalnya permohonan pengisian tautan masukan/feedback, kuesioner, evaluasi, atau penyampaian data) berdasarkan ringkasan singkat berikut:
+"${aiMaksudPrompt}"
+
+Gunakan bahasa Indonesia baku yang sangat formal, profesional, dan berbobot kedinasan. Awali paragraf dengan frasa pembuka formal seperti "Dalam rangka...", "Sebagai upaya untuk...", atau "Sehubungan dengan pelaksanaan...". Jangan sertakan salam pembuka, salam penutup, atau pengantar lainnya. Langsung berikan teks paragraf latar belakangnya saja.`
+        : `Anda adalah staf ahli humas dan sekretariat di Kementerian Pemberdayaan Perempuan dan Perlindungan Anak (KPPPA) Indonesia.
 Tuliskan 1 paragraf detail dan formal (sekitar 3-4 kalimat panjang) berisi latar belakang/maksud kegiatan resmi dinas berdasarkan ringkasan singkat berikut:
 "${aiMaksudPrompt}"
 
@@ -337,7 +369,7 @@ Gunakan bahasa Indonesia baku yang sangat formal, profesional, dan berbobot kedi
       }
     } catch (e: any) {
       console.error(e);
-      alert('Gagal membuat maksud kegiatan: ' + e.message);
+      alert('Gagal membuat latar belakang surat: ' + e.message);
     } finally {
       setIsGeneratingMaksud(false);
     }
@@ -373,26 +405,32 @@ Gunakan bahasa Indonesia baku yang sangat formal, profesional, dan berbobot kedi
     setIsProcessingAutofill(true);
     setErrors([]);
     try {
-      const fullPrompt = `Anda adalah AI Ekstraktor Data yang bertugas mengekstrak informasi dari draft/teks undangan menjadi objek JSON terstruktur.
-Berikut adalah teks draft undangan yang disediakan oleh user:
+      const fullPrompt = `Anda adalah AI Ekstraktor Data yang bertugas mengekstrak informasi dari draft/teks undangan atau surat permohonan (misal permohonan pengisian link feedback/masukan) menjadi objek JSON terstruktur.
+Berikut adalah teks draft yang disediakan oleh user:
 "${aiDraftText}"
 
 Ekstrak informasi tersebut ke dalam format JSON berikut. Pastikan tipe data dan formatnya persis seperti yang diinstruksikan:
 {
+  "jenis_surat_undangan": "Isi dengan \"Permohonan / Non-Kegiatan\" jika surat berisi permohonan mengisi link/feedback/masukan/kuesioner tanpa acara rapat, atau \"Undangan Kegiatan\" jika merupakan undangan rapat/kegiatan",
+  "pakai_lampiran": "Isi \"Ya\" jika ada daftar penerima terlampir, atau \"Tidak\" jika tanpa lampiran",
   "yth": "Nama penerima surat (Yth.). Contoh: Daftar Terlampir atau Kepala Biro...",
   "tempat_tujuan": "Kota tujuan penerima. Contoh: Jakarta",
-  "hal": "Hal surat undangan",
+  "hal": "Hal surat undangan atau permohonan",
   "lampiran": "Jumlah lampiran berupa angka saja (misal: 1 atau 2). Jika tidak ada, isi 1",
-  "nama_kegiatan": "Nama kegiatan utama",
-  "maksud_kegiatan": "Satu paragraf formal latar belakang/maksud diadakannya rapat",
-  "hari_tanggal_kegiatan": "Tanggal pelaksanaan rapat format YYYY-MM-DD",
+  "nama_kegiatan": "Nama kegiatan utama atau perihal permohonan (contoh: Pengisian Tautan Feedback dan Masukan...)",
+  "maksud_kegiatan": "Satu paragraf formal latar belakang/maksud diadakannya rapat atau permohonan",
+  "hari_tanggal_kegiatan": "Tanggal pelaksanaan rapat format YYYY-MM-DD (jika Undangan Kegiatan)",
   "waktu_mulai": "Jam mulai rapat format HH:MM (contoh: 13:00)",
   "waktu_selesai": "Jam selesai rapat format HH:MM. Jika selesai/tidak ada jam selesai, isi kosong \"\"",
   "tempat_kegiatan": "Nama ruangan dan alamat lengkap tempat rapat",
+  "tautan_permohonan": "URL/link tautan feedback/masukan/kuesioner (jika Permohonan / Non-Kegiatan)",
+  "tanggal_batas_waktu": "Tanggal batas waktu/tenggat pengisian format YYYY-MM-DD (jika Permohonan / Non-Kegiatan)",
+  "waktu_batas_akhir": "Jam batas waktu format HH:MM (jika disebutkan, jika tidak isi \"\")",
+  "catatan_permohonan": "Keterangan atau catatan tambahan terkait permohonan (jika ada, jika tidak isi \"\")",
   "contact_person": "Nama dan nomor telepon narahubung. Contoh: Sdr. Tri Ako Nugroho (0821 1461 5056)",
   "tanggal_surat": "Tanggal penandatanganan surat format YYYY-MM-DD. Gunakan tanggal hari ini jika tidak disebutkan",
   "tembusan": "Tembusan surat. Contoh: Sekretaris Kementerian...",
-  "daftar_peserta": "Daftar peserta rapat, dipisahkan oleh karakter baris baru (\\n) untuk setiap peserta",
+  "daftar_peserta": "Daftar peserta rapat atau penerima surat, dipisahkan oleh karakter baris baru (\\n) untuk setiap peserta",
   "jadwal_kegiatan": "Jadwal/rundown rapat. Format setiap baris adalah: WAKTU | NAMA KEGIATAN | KETERANGAN. Waktu dalam format HH.MM - HH.MM (contoh: 13.00 - 13.30 | Sambutan | Wamen). Gabungkan setiap agenda dengan baris baru (\\n)"
 }
 
@@ -517,6 +555,28 @@ PENTING: JAWAB HANYA DENGAN BLOK JSON YANG VALID. JANGAN BERIKAN TEKS PENGANTAR,
     setLogos(prev => prev.filter(logo => logo.id !== id));
   };
 
+  const getActiveRequiredFields = () => {
+    if (!selectedTemplate) return [];
+    const jenisUndangan = String(formData.jenis_surat_undangan || 'Undangan Kegiatan');
+    const pakaiLampiran = String(formData.pakai_lampiran || 'Ya');
+
+    return selectedTemplate.fields
+      .filter(f => {
+        if (!f.required || f.readOnly) return false;
+        if (f.dependsOn && f.showWhen) {
+          const depVal = String(formData[f.dependsOn] || (f.dependsOn === 'jenis_surat_undangan' ? 'Undangan Kegiatan' : ''));
+          if (depVal !== f.showWhen) return false;
+        }
+        if (selectedTemplate.id === 'surat-undangan' && jenisUndangan === 'Permohonan / Non-Kegiatan') {
+          if (pakaiLampiran === 'Tidak' && (f.id === 'lampiran' || f.id === 'daftar_peserta')) {
+            return false;
+          }
+        }
+        return true;
+      })
+      .map(f => f.id);
+  };
+
   const handlePreview = async () => {
     if (!selectedTemplate) return;
 
@@ -525,9 +585,7 @@ PENTING: JAWAB HANYA DENGAN BLOK JSON YANG VALID. JANGAN BERIKAN TEKS PENGANTAR,
 
     try {
       // Validate required fields first
-      const requiredFields = selectedTemplate.fields
-        .filter(f => f.required && !f.readOnly)
-        .map(f => f.id);
+      const requiredFields = getActiveRequiredFields();
 
       const validation = SuratOtomatisService.validateFormData(formData, requiredFields);
 
@@ -564,9 +622,7 @@ PENTING: JAWAB HANYA DENGAN BLOK JSON YANG VALID. JANGAN BERIKAN TEKS PENGANTAR,
     setSuccessMessage('');
 
     // Validate required fields (exclude auto-filled fields from validation)
-    const requiredFields = selectedTemplate.fields
-      .filter(f => f.required && !f.readOnly)
-      .map(f => f.id);
+    const requiredFields = getActiveRequiredFields();
 
     const validation = SuratOtomatisService.validateFormData(formData, requiredFields);
 
@@ -997,6 +1053,198 @@ PENTING: JAWAB HANYA DENGAN BLOK JSON YANG VALID. JANGAN BERIKAN TEKS PENGANTAR,
                   </div>
                 );
               })()
+              ) : selectedTemplate?.id === 'surat-undangan' ? (
+                /* PREVIEW FOR SURAT UNDANGAN & SURAT PERMOHONAN NON-KEGIATAN */
+                (() => {
+                  const isPermohonan = String(formData.jenis_surat_undangan || 'Undangan Kegiatan') === 'Permohonan / Non-Kegiatan';
+                  const pakaiLampiran = !isPermohonan || String(formData.pakai_lampiran || 'Ya') !== 'Tidak';
+                  const rawPerihal = String(formData.nama_kegiatan || formData.hal || 'pengisian tautan masukan/feedback').trim();
+                  const startsWithVerb = /^(meng|mem|men|meny|me|ber|memberi|menyampaikan|mengisi|melengkapi|menindaklanjuti)/i.test(rawPerihal);
+                  const kalimatPengantar = startsWithVerb
+                    ? `Sehubungan dengan hal tersebut, kami mohon kesediaan Bapak/Ibu/Saudara untuk dapat ${rawPerihal}, dengan rincian sebagai berikut:`
+                    : `Sehubungan dengan hal tersebut, kami mohon kesediaan Bapak/Ibu/Saudara untuk dapat melakukan ${rawPerihal}, dengan rincian sebagai berikut:`;
+
+                  const lampiranNum = parseInt(String(formData.lampiran || '1'), 10);
+                  const lampiranText = !pakaiLampiran
+                    ? '-'
+                    : !isNaN(lampiranNum)
+                      ? `${lampiranNum} (${SuratOtomatisService.terbilangTanpaRupiah(lampiranNum)}) berkas`
+                      : String(formData.lampiran || '1 (satu) berkas');
+
+                  const hariTanggalKegiatanStr = (() => {
+                    const val = String(formData.hari_tanggal_kegiatan || '');
+                    if (val.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                      const d = new Date(val);
+                      const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+                      return `${days[d.getDay()]}, ${SuratOtomatisService.formatTanggalIndonesia(val)}`;
+                    }
+                    return val || '-';
+                  })();
+
+                  return (
+                    <div className="p-12 text-black text-sm space-y-8" style={{ fontFamily: 'Arial Narrow, Arial, sans-serif' }}>
+                      {/* Halaman 1: Surat Utama */}
+                      <div>
+                        {/* Header Kementerian */}
+                        <div className="flex items-center border-b-2 border-black pb-3 mb-6">
+                          <img src="/Logo.svg" alt="Logo KPPPA" className="w-20 h-20 object-contain mr-4" />
+                          <div className="flex-1 text-center">
+                            <div className="text-base leading-tight">KEMENTERIAN PEMBERDAYAAN PEREMPUAN DAN PERLINDUNGAN ANAK</div>
+                            <div className="text-base leading-tight">REPUBLIK INDONESIA</div>
+                            <div className="font-bold text-lg leading-tight mt-0.5">SEKRETARIAT KEMENTERIAN</div>
+                            <div className="text-[11px] leading-tight mt-1">JALAN MEDAN MERDEKA BARAT NOMOR 15 JAKARTA 10110</div>
+                            <div className="text-[11px] leading-tight">TELEPON (021) 3842638, 3805563</div>
+                            <div className="text-[11px] leading-tight">Laman: https://www.kemenpppa.go.id - Email: persuratan@kemenpppa.go.id</div>
+                          </div>
+                        </div>
+
+                        {/* Meta Surat */}
+                        <div className="flex justify-between items-start mb-4">
+                          <table className="text-sm">
+                            <tbody>
+                              <tr>
+                                <td className="pr-4 py-0.5 align-top">Nomor</td>
+                                <td className="pr-2 py-0.5 align-top">:</td>
+                                <td className="py-0.5 align-top">${'{nomor_naskah}'}</td>
+                              </tr>
+                              <tr>
+                                <td className="pr-4 py-0.5 align-top">Lampiran</td>
+                                <td className="pr-2 py-0.5 align-top">:</td>
+                                <td className="py-0.5 align-top">{lampiranText}</td>
+                              </tr>
+                              <tr>
+                                <td className="pr-4 py-0.5 align-top">Hal</td>
+                                <td className="pr-2 py-0.5 align-top">:</td>
+                                <td className="py-0.5 align-top font-semibold">{formData.hal || '-'}</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                          <div className="text-sm">${'{tanggal_naskah}'}</div>
+                        </div>
+
+                        {/* Tujuan */}
+                        <div className="mb-6">
+                          <p className="font-semibold">Yth. {formData.yth || '-'}</p>
+                          <p>di</p>
+                          <p className="pl-6">{formData.tempat_tujuan || 'Jakarta'}</p>
+                        </div>
+
+                        {/* Isi Surat */}
+                        <div className="space-y-3 text-justify leading-relaxed">
+                          <p className="indent-8 whitespace-pre-wrap">{formData.maksud_kegiatan || '-'}</p>
+
+                          {isPermohonan ? (
+                            <>
+                              <p className="indent-8">{kalimatPengantar}</p>
+                              <table className="ml-8 my-2 text-sm">
+                                <tbody>
+                                  <tr>
+                                    <td className="pr-6 py-0.5 align-top">tautan / link</td>
+                                    <td className="pr-2 py-0.5 align-top">:</td>
+                                    <td className="py-0.5 align-top text-blue-700 underline break-all">{formData.tautan_permohonan || '-'}</td>
+                                  </tr>
+                                  <tr>
+                                    <td className="pr-6 py-0.5 align-top">batas waktu</td>
+                                    <td className="pr-2 py-0.5 align-top">:</td>
+                                    <td className="py-0.5 align-top">{formData.batas_waktu_permohonan || '-'}</td>
+                                  </tr>
+                                  {formData.catatan_permohonan && String(formData.catatan_permohonan).trim() !== '' && (
+                                    <tr>
+                                      <td className="pr-6 py-0.5 align-top">keterangan</td>
+                                      <td className="pr-2 py-0.5 align-top">:</td>
+                                      <td className="py-0.5 align-top">{formData.catatan_permohonan}</td>
+                                    </tr>
+                                  )}
+                                </tbody>
+                              </table>
+                              <p className="indent-8">
+                                Untuk informasi lebih lanjut dan koordinasi dapat menghubungi {formData.contact_person || '-'}.
+                              </p>
+                            </>
+                          ) : (
+                            <>
+                              <p className="indent-8">
+                                Sehubungan dengan hal tersebut, kami bermaksud menyelenggarakan kegiatan &ldquo;{formData.nama_kegiatan || '-'}&rdquo;, yang akan dilaksanakan pada:
+                              </p>
+                              <table className="ml-8 my-2 text-sm">
+                                <tbody>
+                                  <tr>
+                                    <td className="pr-6 py-0.5 align-top">hari / tanggal</td>
+                                    <td className="pr-2 py-0.5 align-top">:</td>
+                                    <td className="py-0.5 align-top">{hariTanggalKegiatanStr}</td>
+                                  </tr>
+                                  <tr>
+                                    <td className="pr-6 py-0.5 align-top">waktu</td>
+                                    <td className="pr-2 py-0.5 align-top">:</td>
+                                    <td className="py-0.5 align-top">{formData.waktu_kegiatan || '-'}</td>
+                                  </tr>
+                                  <tr>
+                                    <td className="pr-6 py-0.5 align-top">tempat</td>
+                                    <td className="pr-2 py-0.5 align-top">:</td>
+                                    <td className="py-0.5 align-top whitespace-pre-wrap">{formData.tempat_kegiatan || '-'}</td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                              <p className="indent-8">
+                                Untuk informasi lebih lanjut dan konfirmasi kehadiran dapat menghubungi {formData.contact_person || '-'}.
+                              </p>
+                            </>
+                          )}
+
+                          <p className="indent-8">
+                            Demikian kami sampaikan, atas perhatian dan kerjasamanya kami ucapkan terima kasih.
+                          </p>
+                        </div>
+
+                        {/* Tanda Tangan */}
+                        <div className="mt-8 flex justify-end">
+                          <div className="text-center w-64">
+                            <p>${'{jabatan_pengirim}'},</p>
+                            <div className="my-10 text-gray-500">${'{ttd_pengirim}'}</div>
+                            <p>${'{nama_pengirim}'}</p>
+                          </div>
+                        </div>
+
+                        {/* Tembusan */}
+                        <div className="mt-6">
+                          <p>Tembusan:</p>
+                          <p className="whitespace-pre-wrap">{formData.tembusan || '-'}</p>
+                        </div>
+                      </div>
+
+                      {/* Lampiran 1: Daftar Peserta / Penerima */}
+                      {pakaiLampiran && (
+                        <div className="pt-8 border-t-2 border-dashed border-gray-300">
+                          <div className="flex justify-end mb-6">
+                            <div className="w-72 text-sm">
+                              <p>{isPermohonan ? 'Lampiran' : 'Lampiran 1'}</p>
+                              <p>Surat Sekretaris Kementerian</p>
+                              <p>Nomor : ${'{nomor_naskah}'}</p>
+                              <p>Tanggal : ${'{tanggal_naskah}'}</p>
+                            </div>
+                          </div>
+                          <div className="text-center font-bold mb-6">
+                            <p>{isPermohonan ? 'DAFTAR PENERIMA SURAT' : 'DAFTAR PESERTA KEGIATAN'}</p>
+                            <p>&ldquo;{String(formData.nama_kegiatan || formData.hal || '-').toUpperCase()}&rdquo;</p>
+                            <p className="font-normal italic">
+                              {formData.tempat_tujuan || 'Jakarta'},{' '}
+                              {formData.tanggal_surat
+                                ? SuratOtomatisService.formatTanggalIndonesia(String(formData.tanggal_surat))
+                                : '-'}
+                            </p>
+                          </div>
+                          <div className="space-y-1 mb-8">
+                            {pesertaList.filter(p => p.trim()).map((p, i) => (
+                              <p key={i}>
+                                {p.trim().match(/^\d+[\.\s]/) ? p.trim() : `${i + 1}. ${p.trim()}`}
+                              </p>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()
               ) : (
                 /* EXISTING PREVIEW FOR SURAT KETERANGAN */
                 <div className="p-12" style={{ fontFamily: 'Times New Roman, serif' }}>
@@ -1518,267 +1766,378 @@ PENTING: JAWAB HANYA DENGAN BLOK JSON YANG VALID. JANGAN BERIKAN TEKS PENGANTAR,
                   </div>
                 </div>
               ) : selectedTemplate.id === 'surat-undangan' ? (
-                /* CUSTOM FORM FOR SURAT UNDANGAN */
-                <div className="space-y-8">
-                  {/* Section 1: Informasi Naskah (Penerima & Perihal) */}
-                  <div>
-                    <h4 className="text-md font-semibold text-gray-800 mb-4 pb-2 border-b-2 border-blue-200 flex items-center gap-2">
-                      📄 1. Informasi Naskah & Penerima Surat
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {selectedTemplate.fields
-                        .filter(f => ['yth', 'tempat_tujuan', 'hal', 'lampiran'].includes(f.id))
-                        .map(field => (
-                          <div key={field.id} className={field.id === 'hal' ? 'md:col-span-2' : ''}>
-                            <label className="block text-sm font-medium text-gray-700 mb-2 font-semibold">
-                              {field.label}
-                              {field.required && !field.readOnly && <span className="text-red-500 ml-1">*</span>}
-                            </label>
-                            {renderField(field)}
-                            {field.helpText && <p className="mt-1 text-xs text-gray-500">{field.helpText}</p>}
-                          </div>
-                        ))}
-                    </div>
-                  </div>
+                /* CUSTOM FORM FOR SURAT UNDANGAN & SURAT PERMOHONAN NON-KEGIATAN */
+                (() => {
+                  const isPermohonan = String(formData.jenis_surat_undangan || 'Undangan Kegiatan') === 'Permohonan / Non-Kegiatan';
+                  const pakaiLampiran = !isPermohonan || String(formData.pakai_lampiran || 'Ya') !== 'Tidak';
 
-                  {/* Section 2: Detail Acara & Jadwal Kegiatan */}
-                  <div>
-                    <h4 className="text-md font-semibold text-gray-800 mb-4 pb-2 border-b-2 border-amber-200 flex items-center gap-2">
-                      📅 2. Detail Rapat & Rundown Acara (Lampiran 2)
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {selectedTemplate.fields
-                        .filter(f => ['nama_kegiatan', 'maksud_kegiatan', 'hari_tanggal_kegiatan', 'waktu_mulai', 'waktu_selesai', 'waktu_kegiatan', 'tempat_kegiatan', 'contact_user_id', 'contact_person'].includes(f.id))
-                        .map(field => (
-                          <div key={field.id} className={['nama_kegiatan', 'maksud_kegiatan', 'tempat_kegiatan', 'contact_person'].includes(field.id) ? 'md:col-span-2' : ''}>
-                            <label className="block text-sm font-medium text-gray-700 mb-2 font-semibold">
-                              {field.label}
-                              {field.required && !field.readOnly && <span className="text-red-500 ml-1">*</span>}
-                              {field.readOnly && <span className="text-gray-400 ml-1 text-xs">(otomatis)</span>}
-                            </label>
-                            {renderField(field)}
-                            {field.helpText && <p className="mt-1 text-xs text-gray-500">{field.helpText}</p>}
-                            
-                            {/* AI Background/Maksud Generator Helper */}
-                            {field.id === 'maksud_kegiatan' && (
-                              <div className="mt-3 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl">
-                                <label className="block text-xs font-bold text-blue-800 mb-1.5 flex items-center gap-1.5">
-                                  ✨ Tulis Latar Belakang/Maksud Kegiatan dengan AI
-                                </label>
-                                <div className="flex gap-2">
-                                  <input
-                                    type="text"
-                                    value={aiMaksudPrompt}
-                                    onChange={(e) => setAiMaksudPrompt(e.target.value)}
-                                    placeholder="Jelaskan sedikit agenda rapat (e.g. integrasi data simfoni v3 dengan kemsos)..."
-                                    className="flex-1 px-3 py-1.5 border border-blue-300 rounded-lg text-xs bg-white text-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                                  />
-                                  <button
-                                    type="button"
-                                    onClick={handleGenerateMaksudWithAI}
-                                    disabled={isGeneratingMaksud || !aiMaksudPrompt.trim()}
-                                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white text-xs font-semibold rounded-lg transition-colors flex items-center gap-1 shadow-sm whitespace-nowrap"
-                                  >
-                                    {isGeneratingMaksud ? 'Sedang Memproses...' : 'Tuliskan AI'}
-                                  </button>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-
-                      {/* Custom Jadwal Rundown Editor */}
-                      <div className="md:col-span-2 mt-4 bg-gray-50 p-4 rounded-xl border border-gray-200">
-                        <label className="block text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
-                          📋 Susunan Acara / Rundown Rapat (Lampiran 2)
+                  return (
+                    <div className="space-y-8">
+                      {/* Selector Jenis Surat: Undangan Kegiatan vs Permohonan / Non-Kegiatan */}
+                      <div className="p-4 bg-gradient-to-r from-slate-50 to-blue-50/60 border border-blue-200 rounded-xl">
+                        <label className="block text-sm font-bold text-gray-800 mb-2">
+                          📌 Pilih Kategori / Jenis Isi Surat
                         </label>
-                        <div className="space-y-3">
-                          <div className="hidden md:grid md:grid-cols-12 gap-3 px-2 text-xs font-semibold text-gray-500 mb-1">
-                            <div className="col-span-4">Waktu Rapat (Mulai s/d Selesai)</div>
-                            <div className="col-span-4">Kegiatan / Agenda</div>
-                            <div className="col-span-3">Keterangan / Moderator</div>
-                            <div className="col-span-1"></div>
-                          </div>
-                          {jadwalList.map((item, idx) => (
-                            <div key={idx} className="grid grid-cols-1 md:grid-cols-12 gap-2 p-3 md:p-0 border border-gray-200 md:border-none rounded-lg bg-white md:bg-transparent">
-                              <div className="col-span-4 flex items-center gap-2">
-                                <div className="flex-1">
-                                  <label className="block md:hidden text-[10px] font-bold text-gray-400 mb-1">Waktu Mulai</label>
-                                  <input
-                                    type="time"
-                                    value={item.waktu_mulai}
-                                    onChange={(e) => {
-                                      const newList = [...jadwalList];
-                                      newList[idx].waktu_mulai = e.target.value;
-                                      setJadwalList(newList);
-                                    }}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-                                  />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <button
+                            type="button"
+                            onClick={() => handleFieldChange('jenis_surat_undangan', 'Undangan Kegiatan')}
+                            className={`p-3.5 rounded-xl border-2 text-left transition-all flex items-start gap-3 ${
+                              !isPermohonan
+                                ? 'border-blue-600 bg-blue-50/80 shadow-sm'
+                                : 'border-gray-200 bg-white hover:border-blue-300'
+                            }`}
+                          >
+                            <span className="text-xl mt-0.5">📅</span>
+                            <div>
+                              <div className={`font-bold text-sm ${!isPermohonan ? 'text-blue-900' : 'text-gray-800'}`}>
+                                Undangan Kegiatan / Rapat
+                              </div>
+                              <div className="text-xs text-gray-500 mt-0.5">
+                                Surat undangan rapat/acara lengkap dengan hari/tanggal, waktu, tempat, daftar peserta, & jadwal acara.
+                              </div>
+                            </div>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleFieldChange('jenis_surat_undangan', 'Permohonan / Non-Kegiatan');
+                              if (!formData.pakai_lampiran) {
+                                handleFieldChange('pakai_lampiran', 'Ya');
+                              }
+                            }}
+                            className={`p-3.5 rounded-xl border-2 text-left transition-all flex items-start gap-3 ${
+                              isPermohonan
+                                ? 'border-indigo-600 bg-indigo-50/80 shadow-sm'
+                                : 'border-gray-200 bg-white hover:border-indigo-300'
+                            }`}
+                          >
+                            <span className="text-xl mt-0.5">🔗</span>
+                            <div>
+                              <div className={`font-bold text-sm ${isPermohonan ? 'text-indigo-900' : 'text-gray-800'}`}>
+                                Permohonan / Non-Kegiatan (Link Feedback / Masukan)
+                              </div>
+                              <div className="text-xs text-gray-500 mt-0.5">
+                                Surat permohonan pengisian tautan feedback/masukan, kuesioner, evaluasi, atau tindak lanjut dokumen dengan batas waktu.
+                              </div>
+                            </div>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Section 1: Informasi Naskah (Penerima & Perihal) */}
+                      <div>
+                        <h4 className="text-md font-semibold text-gray-800 mb-4 pb-2 border-b-2 border-blue-200 flex items-center gap-2">
+                          📄 1. Informasi Naskah & Penerima Surat
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          {selectedTemplate.fields
+                            .filter(f => {
+                              if (['yth', 'tempat_tujuan', 'hal'].includes(f.id)) return true;
+                              if (f.id === 'pakai_lampiran') return isPermohonan;
+                              if (f.id === 'lampiran') return pakaiLampiran;
+                              return false;
+                            })
+                            .map(field => (
+                              <div key={field.id} className={field.id === 'hal' ? 'md:col-span-2' : ''}>
+                                <label className="block text-sm font-medium text-gray-700 mb-2 font-semibold">
+                                  {field.id === 'hal'
+                                    ? (isPermohonan ? 'Hal Permohonan / Surat' : 'Hal Undangan')
+                                    : field.label}
+                                  {field.required && !field.readOnly && <span className="text-red-500 ml-1">*</span>}
+                                </label>
+                                {renderField(field)}
+                                {field.helpText && <p className="mt-1 text-xs text-gray-500">{field.helpText}</p>}
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+
+                      {/* Section 2: Detail Kegiatan ATAU Detail Permohonan Non-Kegiatan */}
+                      <div>
+                        <h4 className="text-md font-semibold text-gray-800 mb-4 pb-2 border-b-2 border-amber-200 flex items-center gap-2">
+                          {isPermohonan
+                            ? '🔗 2. Detail Permohonan (Tautan Feedback/Masukan & Batas Waktu)'
+                            : '📅 2. Detail Rapat & Rundown Acara (Lampiran 2)'}
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          {selectedTemplate.fields
+                            .filter(f => {
+                              if (['nama_kegiatan', 'maksud_kegiatan', 'contact_user_id', 'contact_person'].includes(f.id)) {
+                                return true;
+                              }
+                              if (isPermohonan) {
+                                return ['tautan_permohonan', 'tanggal_batas_waktu', 'waktu_batas_akhir', 'batas_waktu_permohonan', 'catatan_permohonan'].includes(f.id);
+                              }
+                              return ['hari_tanggal_kegiatan', 'waktu_mulai', 'waktu_selesai', 'waktu_kegiatan', 'tempat_kegiatan'].includes(f.id);
+                            })
+                            .map(field => {
+                              const customLabel =
+                                field.id === 'nama_kegiatan'
+                                  ? (isPermohonan ? 'Perihal / Topik Permohonan (Isi Surat)' : 'Nama Kegiatan (Isi Surat)')
+                                  : field.id === 'maksud_kegiatan'
+                                    ? (isPermohonan ? 'Maksud / Latar Belakang Permohonan' : 'Maksud / Latar Belakang Kegiatan')
+                                    : field.label;
+
+                              const customField: SuratTemplateField =
+                                field.id === 'nama_kegiatan' && isPermohonan
+                                  ? {
+                                      ...field,
+                                      placeholder: 'Contoh: Pengisian Tautan Feedback/Masukan Evaluasi Sistem...',
+                                      helpText: 'Topik permohonan yang akan ditampilkan pada kalimat isi surat dan judul lampiran'
+                                    }
+                                  : field.id === 'maksud_kegiatan' && isPermohonan
+                                    ? {
+                                        ...field,
+                                        placeholder: 'Contoh: Dalam rangka meningkatkan kualitas layanan dan menghimpun masukan dari seluruh unit kerja...'
+                                      }
+                                    : field;
+
+                              return (
+                                <div
+                                  key={field.id}
+                                  className={['nama_kegiatan', 'maksud_kegiatan', 'tempat_kegiatan', 'tautan_permohonan', 'catatan_permohonan', 'contact_person'].includes(field.id) ? 'md:col-span-2' : ''}
+                                >
+                                  <label className="block text-sm font-medium text-gray-700 mb-2 font-semibold">
+                                    {customLabel}
+                                    {field.required && !field.readOnly && <span className="text-red-500 ml-1">*</span>}
+                                    {field.readOnly && <span className="text-gray-400 ml-1 text-xs">(otomatis)</span>}
+                                  </label>
+                                  {renderField(customField)}
+                                  {customField.helpText && <p className="mt-1 text-xs text-gray-500">{customField.helpText}</p>}
+                                  
+                                  {/* AI Background/Maksud Generator Helper */}
+                                  {field.id === 'maksud_kegiatan' && (
+                                    <div className="mt-3 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl">
+                                      <label className="block text-xs font-bold text-blue-800 mb-1.5 flex items-center gap-1.5">
+                                        ✨ {isPermohonan ? 'Tulis Latar Belakang Permohonan dengan AI' : 'Tulis Latar Belakang/Maksud Kegiatan dengan AI'}
+                                      </label>
+                                      <div className="flex gap-2">
+                                        <input
+                                          type="text"
+                                          value={aiMaksudPrompt}
+                                          onChange={(e) => setAiMaksudPrompt(e.target.value)}
+                                          placeholder={
+                                            isPermohonan
+                                              ? 'Jelaskan singkat tujuan permohonan (e.g. mohon masukan/feedback terkait uji coba aplikasi simfoni v3)...'
+                                              : 'Jelaskan sedikit agenda rapat (e.g. integrasi data simfoni v3 dengan kemsos)...'
+                                          }
+                                          className="flex-1 px-3 py-1.5 border border-blue-300 rounded-lg text-xs bg-white text-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                                        />
+                                        <button
+                                          type="button"
+                                          onClick={handleGenerateMaksudWithAI}
+                                          disabled={isGeneratingMaksud || !aiMaksudPrompt.trim()}
+                                          className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white text-xs font-semibold rounded-lg transition-colors flex items-center gap-1 shadow-sm whitespace-nowrap"
+                                        >
+                                          {isGeneratingMaksud ? 'Sedang Memproses...' : 'Tuliskan AI'}
+                                        </button>
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
-                                <span className="text-gray-400 text-xs mt-4 md:mt-0">s/d</span>
-                                <div className="flex-1">
-                                  <label className="block md:hidden text-[10px] font-bold text-gray-400 mb-1">Waktu Selesai (Kosongkan = selesai)</label>
-                                  <input
-                                    type="time"
-                                    value={item.waktu_selesai}
-                                    onChange={(e) => {
-                                      const newList = [...jadwalList];
-                                      newList[idx].waktu_selesai = e.target.value;
-                                      setJadwalList(newList);
-                                    }}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-                                  />
+                              );
+                            })}
+
+                          {/* Custom Jadwal Rundown Editor (Hanya untuk Undangan Kegiatan) */}
+                          {!isPermohonan && (
+                            <div className="md:col-span-2 mt-4 bg-gray-50 p-4 rounded-xl border border-gray-200">
+                              <label className="block text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+                                📋 Susunan Acara / Rundown Rapat (Lampiran 2)
+                              </label>
+                              <div className="space-y-3">
+                                <div className="hidden md:grid md:grid-cols-12 gap-3 px-2 text-xs font-semibold text-gray-500 mb-1">
+                                  <div className="col-span-4">Waktu Rapat (Mulai s/d Selesai)</div>
+                                  <div className="col-span-4">Kegiatan / Agenda</div>
+                                  <div className="col-span-3">Keterangan / Moderator</div>
+                                  <div className="col-span-1"></div>
                                 </div>
-                              </div>
-                              <div className="col-span-4">
-                                <label className="block md:hidden text-[10px] font-bold text-gray-400 mb-1">Kegiatan</label>
-                                <input
-                                  type="text"
-                                  value={item.kegiatan}
-                                  onChange={(e) => {
-                                    const newList = [...jadwalList];
-                                    newList[idx].kegiatan = e.target.value;
-                                    setJadwalList(newList);
-                                  }}
-                                  placeholder="Nama Kegiatan"
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-                                />
-                              </div>
-                              <div className="col-span-3">
-                                <label className="block md:hidden text-[10px] font-bold text-gray-400 mb-1">Keterangan</label>
-                                <input
-                                  type="text"
-                                  value={item.keterangan}
-                                  onChange={(e) => {
-                                    const newList = [...jadwalList];
-                                    newList[idx].keterangan = e.target.value;
-                                    setJadwalList(newList);
-                                  }}
-                                  placeholder="Keterangan"
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-                                />
-                              </div>
-                              <div className="col-span-1 flex items-center justify-end">
+                                {jadwalList.map((item, idx) => (
+                                  <div key={idx} className="grid grid-cols-1 md:grid-cols-12 gap-2 p-3 md:p-0 border border-gray-200 md:border-none rounded-lg bg-white md:bg-transparent">
+                                    <div className="col-span-4 flex items-center gap-2">
+                                      <div className="flex-1">
+                                        <label className="block md:hidden text-[10px] font-bold text-gray-400 mb-1">Waktu Mulai</label>
+                                        <input
+                                          type="time"
+                                          value={item.waktu_mulai}
+                                          onChange={(e) => {
+                                            const newList = [...jadwalList];
+                                            newList[idx].waktu_mulai = e.target.value;
+                                            setJadwalList(newList);
+                                          }}
+                                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                                        />
+                                      </div>
+                                      <span className="text-gray-400 text-xs mt-4 md:mt-0">s/d</span>
+                                      <div className="flex-1">
+                                        <label className="block md:hidden text-[10px] font-bold text-gray-400 mb-1">Waktu Selesai (Kosongkan = selesai)</label>
+                                        <input
+                                          type="time"
+                                          value={item.waktu_selesai}
+                                          onChange={(e) => {
+                                            const newList = [...jadwalList];
+                                            newList[idx].waktu_selesai = e.target.value;
+                                            setJadwalList(newList);
+                                          }}
+                                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                                        />
+                                      </div>
+                                    </div>
+                                    <div className="col-span-4">
+                                      <label className="block md:hidden text-[10px] font-bold text-gray-400 mb-1">Kegiatan</label>
+                                      <input
+                                        type="text"
+                                        value={item.kegiatan}
+                                        onChange={(e) => {
+                                          const newList = [...jadwalList];
+                                          newList[idx].kegiatan = e.target.value;
+                                          setJadwalList(newList);
+                                        }}
+                                        placeholder="Nama Kegiatan"
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                                      />
+                                    </div>
+                                    <div className="col-span-3">
+                                      <label className="block md:hidden text-[10px] font-bold text-gray-400 mb-1">Keterangan</label>
+                                      <input
+                                        type="text"
+                                        value={item.keterangan}
+                                        onChange={(e) => {
+                                          const newList = [...jadwalList];
+                                          newList[idx].keterangan = e.target.value;
+                                          setJadwalList(newList);
+                                        }}
+                                        placeholder="Keterangan"
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                                      />
+                                    </div>
+                                    <div className="col-span-1 flex items-center justify-end">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const newList = jadwalList.filter((_, i) => i !== idx);
+                                          setJadwalList(newList.length > 0 ? newList : [{ waktu_mulai: '', waktu_selesai: '', kegiatan: '', keterangan: '' }]);
+                                        }}
+                                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </button>
+                                    </div>
+                                  </div>
+                                ))}
                                 <button
                                   type="button"
-                                  onClick={() => {
-                                    const newList = jadwalList.filter((_, i) => i !== idx);
-                                    setJadwalList(newList.length > 0 ? newList : [{ waktu_mulai: '', waktu_selesai: '', kegiatan: '', keterangan: '' }]);
-                                  }}
-                                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                                  onClick={() => setJadwalList([...jadwalList, { waktu_mulai: '', waktu_selesai: '', kegiatan: '', keterangan: '' }])}
+                                  className="mt-2 px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors border border-blue-200"
                                 >
-                                  <Trash2 className="w-4 h-4" />
+                                  + Tambah Baris Jadwal
                                 </button>
                               </div>
                             </div>
-                          ))}
-                          <button
-                            type="button"
-                            onClick={() => setJadwalList([...jadwalList, { waktu_mulai: '', waktu_selesai: '', kegiatan: '', keterangan: '' }])}
-                            className="mt-2 px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors border border-blue-200"
-                          >
-                            + Tambah Baris Jadwal
-                          </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Section 3: Peserta/Penerima & Tembusan */}
+                      <div>
+                        <h4 className="text-md font-semibold text-gray-800 mb-4 pb-2 border-b-2 border-emerald-200 flex items-center gap-2">
+                          👥 3. {pakaiLampiran ? (isPermohonan ? 'Daftar Penerima (Lampiran) & Tembusan' : 'Peserta & Tembusan') : 'Tanggal Surat & Tembusan'}
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          {selectedTemplate.fields
+                            .filter(f => ['tanggal_surat', 'tembusan'].includes(f.id))
+                            .map(field => (
+                              <div key={field.id} className={field.id === 'tembusan' ? 'md:col-span-2' : ''}>
+                                <label className="block text-sm font-medium text-gray-700 mb-2 font-semibold">
+                                  {field.label}
+                                  {field.required && !field.readOnly && <span className="text-red-500 ml-1">*</span>}
+                                </label>
+                                {renderField(field)}
+                                {field.helpText && <p className="mt-1 text-xs text-gray-500">{field.helpText}</p>}
+                              </div>
+                            ))}
+
+                          {/* Custom Peserta / Penerima List Editor */}
+                          {pakaiLampiran && (
+                            <div className="md:col-span-2 mt-4 bg-gray-50 p-4 rounded-xl border border-gray-200">
+                              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 pb-3 border-b border-gray-200">
+                                <div>
+                                  <label className="block text-sm font-bold text-gray-800">
+                                    👥 {isPermohonan ? 'Daftar Penerima / Tujuan Surat (Lampiran)' : 'Daftar Peserta Rapat (Lampiran 1)'}
+                                  </label>
+                                  <span className="text-[11px] text-gray-505 block text-gray-500">
+                                    Tambahkan {isPermohonan ? 'penerima surat' : 'peserta'} dari daftar unit kerja/Satker KPPPA atau ketik manual.
+                                  </span>
+                                </div>
+                                
+                                {/* Beautiful Custom Dropdown Selector */}
+                                <div className="w-full md:w-80 flex items-center gap-2">
+                                  <span className="text-xs font-semibold text-gray-600 whitespace-nowrap">Tambah dari Satker:</span>
+                                  <div className="flex-1">
+                                    <SearchableSelect
+                                      options={divisiList.map((divisi) => ({ value: divisi, label: divisi }))}
+                                      value=""
+                                      onChange={(selectedSatker) => {
+                                        if (selectedSatker) {
+                                          const updatedList = [...pesertaList];
+                                          if (updatedList.length === 1 && updatedList[0] === '') {
+                                            updatedList[0] = selectedSatker;
+                                          } else {
+                                            updatedList.push(selectedSatker);
+                                          }
+                                          setPesertaList(updatedList);
+                                        }
+                                      }}
+                                      placeholder="Pilih Satuan Kerja..."
+                                      emptyOption="-- Pilih Satuan Kerja --"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="space-y-2.5">
+                                {pesertaList.map((peserta, idx) => (
+                                  <div key={idx} className="flex items-center gap-2">
+                                    <span className="text-gray-400 text-xs font-bold w-6 text-right">{idx + 1}.</span>
+                                    <input
+                                      type="text"
+                                      value={peserta}
+                                      onChange={(e) => {
+                                        const newList = [...pesertaList];
+                                        newList[idx] = e.target.value;
+                                        setPesertaList(newList);
+                                      }}
+                                      placeholder="Nama Jabatan / Penerima Surat (misal: Kepala Biro...)"
+                                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const newList = pesertaList.filter((_, i) => i !== idx);
+                                        setPesertaList(newList.length > 0 ? newList : ['']);
+                                      }}
+                                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                ))}
+                                <button
+                                  type="button"
+                                  onClick={() => setPesertaList([...pesertaList, ''])}
+                                  className="mt-2 px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors border border-blue-200"
+                                >
+                                  + {isPermohonan ? 'Tambah Penerima Manual' : 'Tambah Peserta Manual'}
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
-                  </div>
-
-                  {/* Section 3: Peserta & Tembusan */}
-                  <div>
-                    <h4 className="text-md font-semibold text-gray-800 mb-4 pb-2 border-b-2 border-emerald-200 flex items-center gap-2">
-                      👥 3. Peserta & Tembusan
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {selectedTemplate.fields
-                        .filter(f => ['tanggal_surat', 'tembusan'].includes(f.id))
-                        .map(field => (
-                          <div key={field.id} className={field.id === 'tembusan' ? 'md:col-span-2' : ''}>
-                            <label className="block text-sm font-medium text-gray-700 mb-2 font-semibold">
-                              {field.label}
-                              {field.required && !field.readOnly && <span className="text-red-500 ml-1">*</span>}
-                            </label>
-                            {renderField(field)}
-                            {field.helpText && <p className="mt-1 text-xs text-gray-500">{field.helpText}</p>}
-                          </div>
-                        ))}
-
-                      {/* Custom Peserta List Editor */}
-                      <div className="md:col-span-2 mt-4 bg-gray-50 p-4 rounded-xl border border-gray-200">
-                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 pb-3 border-b border-gray-200">
-                          <div>
-                            <label className="block text-sm font-bold text-gray-800">
-                              👥 Daftar Peserta Rapat (Lampiran 1)
-                            </label>
-                            <span className="text-[11px] text-gray-505 block text-gray-500">
-                              Tambahkan peserta dari daftar unit kerja/Satker KPPPA atau ketik manual.
-                            </span>
-                          </div>
-                          
-                          {/* Beautiful Custom Dropdown Selector */}
-                          <div className="w-full md:w-80 flex items-center gap-2">
-                            <span className="text-xs font-semibold text-gray-600 whitespace-nowrap">Tambah dari Satker:</span>
-                            <div className="flex-1">
-                              <SearchableSelect
-                                options={divisiList.map((divisi) => ({ value: divisi, label: divisi }))}
-                                value=""
-                                onChange={(selectedSatker) => {
-                                  if (selectedSatker) {
-                                    const updatedList = [...pesertaList];
-                                    if (updatedList.length === 1 && updatedList[0] === '') {
-                                      updatedList[0] = selectedSatker;
-                                    } else {
-                                      updatedList.push(selectedSatker);
-                                    }
-                                    setPesertaList(updatedList);
-                                  }
-                                }}
-                                placeholder="Pilih Satuan Kerja..."
-                                emptyOption="-- Pilih Satuan Kerja --"
-                              />
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="space-y-2.5">
-                          {pesertaList.map((peserta, idx) => (
-                            <div key={idx} className="flex items-center gap-2">
-                              <span className="text-gray-400 text-xs font-bold w-6 text-right">{idx + 1}.</span>
-                              <input
-                                type="text"
-                                value={peserta}
-                                onChange={(e) => {
-                                  const newList = [...pesertaList];
-                                  newList[idx] = e.target.value;
-                                  setPesertaList(newList);
-                                }}
-                                placeholder="Nama Jabatan / Peserta Rapat (misal: Kepala Biro...)"
-                                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const newList = pesertaList.filter((_, i) => i !== idx);
-                                  setPesertaList(newList.length > 0 ? newList : ['']);
-                                }}
-                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          ))}
-                          <button
-                            type="button"
-                            onClick={() => setPesertaList([...pesertaList, ''])}
-                            className="mt-2 px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors border border-blue-200"
-                          >
-                            + Tambah Peserta Manual
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                  );
+                })()
               ) : (
                 /* EXISTING THREE-SECTION FORM */
                 <div className="space-y-8">

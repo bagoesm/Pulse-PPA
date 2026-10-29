@@ -1,27 +1,32 @@
 // src/components/ModuleVisibilityManagement.tsx
 import React, { useState, useEffect } from 'react';
-import { Settings, Shield, RefreshCw, Check, AlertCircle, HelpCircle, Save } from 'lucide-react';
+import { Settings, Shield, RefreshCw, Check, AlertCircle, HelpCircle, Search } from 'lucide-react';
 import { moduleVisibilityService, SatkerModuleVisibility } from '../services/ModuleVisibilityService';
 import { useAuth } from '../contexts/AuthContext';
 
 const ModuleVisibilityManagement: React.FC = () => {
   const { currentUser } = useAuth();
 
-  // Managed modules list (exactly matching Sidebar names)
+  // All managed modules list (matching all Sidebar and navigation menus)
   const modules = [
+    'Monitoring Capaian',
+    'Dashboard',
     'Semua Task',
     'Project',
     'Scrum Board',
+    'Diskusi & Chat',
     'Surat & Kegiatan',
     'Realisasi Anggaran',
-    'Monitoring Capaian',
     'Inventori Data',
     'Inventori BMN',
     'Pelayanan Zoom',
     'Penilaian Arsip',
     'Laporan WFA',
     'Laporan Absensi',
-    'Absensi Saya'
+    'Absensi Saya',
+    'Pengumuman',
+    'Saran Masukan',
+    'Analitik'
   ];
 
   // States
@@ -30,6 +35,7 @@ const ModuleVisibilityManagement: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [savingCell, setSavingCell] = useState<{ divId: string; modName: string } | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     fetchSettings();
@@ -94,6 +100,10 @@ const ModuleVisibilityManagement: React.FC = () => {
     }
   };
 
+  const filteredMatrix = matrix.filter((row) =>
+    row.divisiName.toLowerCase().includes(searchQuery.toLowerCase().trim())
+  );
+
   if (currentUser?.role !== 'Super Admin') {
     return (
       <div className="p-6 text-center">
@@ -117,17 +127,29 @@ const ModuleVisibilityManagement: React.FC = () => {
             Manajemen Visibilitas Modul
           </h2>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Atur menu/modul mana saja yang ditampilkan di sidebar untuk masing-masing Satuan Kerja (Satker).
+            Atur seluruh menu/modul yang ditampilkan di navigasi untuk masing-masing Satuan Kerja (Satker).
           </p>
         </div>
-        <button
-          onClick={fetchSettings}
-          disabled={loading}
-          className="flex items-center justify-center gap-1.5 px-4 py-2 border border-slate-200 hover:bg-slate-100 bg-white text-slate-600 rounded-xl font-semibold text-xs shadow-sm transition-all"
-        >
-          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-          Segarkan
-        </button>
+        <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
+          <div className="relative min-w-[220px]">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Cari nama Satker..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-gov-500 focus:border-transparent transition-all shadow-sm"
+            />
+          </div>
+          <button
+            onClick={fetchSettings}
+            disabled={loading}
+            className="flex items-center justify-center gap-1.5 px-4 py-2 border border-slate-200 hover:bg-slate-100 bg-white text-slate-600 rounded-xl font-semibold text-xs shadow-sm transition-all"
+          >
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+            Segarkan
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -153,9 +175,10 @@ const ModuleVisibilityManagement: React.FC = () => {
           <div>
             <span className="font-bold">Panduan:</span> Hubungkan visibilitas modul Pulse dengan mencentang kotak di bawah ini.
             <ul className="list-disc list-inside mt-1 space-y-0.5 text-[11px] text-slate-500">
-              <li>Modul yang tercentang (<span className="text-green-600 font-semibold">Aktif</span>) akan muncul pada menu navigasi Satker terkait.</li>
+              <li>Modul yang tercentang (<span className="text-emerald-600 font-semibold">Aktif</span>) akan muncul pada menu navigasi Satker terkait.</li>
               <li>Modul yang tidak tercentang (<span className="text-red-500 font-semibold">Non-aktif</span>) akan disembunyikan secara dinamis.</li>
-              <li><span className="font-semibold">Pengecualian:</span> Super Admin akan selalu melihat seluruh modul untuk mempermudah pemantauan sistem.</li>
+              <li><span className="font-semibold">Satker Menteri dan Wakil Menteri:</span> Secara default difokuskan hanya pada modul <strong>Monitoring Capaian</strong>.</li>
+              <li><span className="font-semibold">Super Admin:</span> Selalu melihat seluruh modul sistem untuk keperluan pemantauan dan pengelolaan.</li>
             </ul>
           </div>
         </div>
@@ -166,48 +189,63 @@ const ModuleVisibilityManagement: React.FC = () => {
             Memuat konfigurasi...
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto max-h-[70vh]">
             <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-150 text-slate-500 font-bold text-[11px] uppercase tracking-wider">
-                  <th className="px-6 py-4 min-w-[200px] sticky left-0 bg-slate-50 z-10 border-r border-slate-150">Satuan Kerja (Satker)</th>
+              <thead className="sticky top-0 z-20 shadow-xs">
+                <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold text-[11px] uppercase tracking-wider">
+                  <th className="px-6 py-4 min-w-[240px] sticky left-0 bg-slate-50 z-30 border-r border-slate-200">Satuan Kerja (Satker)</th>
                   {modules.map((modName) => (
-                    <th key={modName} className="px-4 py-4 text-center min-w-[140px]">{modName}</th>
+                    <th key={modName} className="px-4 py-4 text-center min-w-[140px] bg-slate-50 whitespace-nowrap">{modName}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-150">
-                {matrix.map((row) => (
-                  <tr key={row.divisiId} className="hover:bg-slate-50/50 text-xs">
-                    <td className="px-6 py-3.5 font-bold text-slate-800 sticky left-0 bg-white shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] border-r border-slate-150">
-                      {row.divisiName}
+                {filteredMatrix.length === 0 ? (
+                  <tr>
+                    <td colSpan={modules.length + 1} className="p-8 text-center text-slate-400 text-xs">
+                      Tidak ada Satuan Kerja yang cocok dengan pencarian "{searchQuery}".
                     </td>
-                    {modules.map((modName) => {
-                      const isVisible = row.visibility[modName] ?? true;
-                      const isSaving = savingCell?.divId === row.divisiId && savingCell?.modName === modName;
-
-                      return (
-                        <td key={modName} className="px-4 py-3.5 text-center">
-                          <div className="flex items-center justify-center">
-                            {isSaving ? (
-                              <div className="w-4 h-4 border-2 border-gov-500/30 border-t-gov-600 rounded-full animate-spin"></div>
-                            ) : (
-                              <label className="relative inline-flex items-center cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  checked={isVisible}
-                                  onChange={() => handleToggle(row.divisiId, row.divisiName, modName, isVisible)}
-                                  className="sr-only peer"
-                                />
-                                <div className="w-9 h-5 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
-                              </label>
-                            )}
-                          </div>
-                        </td>
-                      );
-                    })}
                   </tr>
-                ))}
+                ) : (
+                  filteredMatrix.map((row) => (
+                    <tr key={row.divisiId} className="hover:bg-slate-50/70 text-xs transition-colors">
+                      <td className="px-6 py-3.5 font-bold text-slate-800 sticky left-0 bg-white shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] border-r border-slate-150">
+                        <div className="flex items-center gap-2">
+                          <span>{row.divisiName}</span>
+                          {row.divisiName === 'Menteri dan Wakil Menteri' && (
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">
+                              Pimpinan
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      {modules.map((modName) => {
+                        const isVisible = row.visibility[modName] ?? true;
+                        const isSaving = savingCell?.divId === row.divisiId && savingCell?.modName === modName;
+
+                        return (
+                          <td key={modName} className="px-4 py-3.5 text-center">
+                            <div className="flex items-center justify-center">
+                              {isSaving ? (
+                                <div className="w-4 h-4 border-2 border-gov-500/30 border-t-gov-600 rounded-full animate-spin"></div>
+                              ) : (
+                                <label className="relative inline-flex items-center cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={isVisible}
+                                    onChange={() => handleToggle(row.divisiId, row.divisiName, modName, isVisible)}
+                                    className="sr-only peer"
+                                  />
+                                  <div className="w-9 h-5 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
+                                </label>
+                              )}
+                            </div>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

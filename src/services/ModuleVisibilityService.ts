@@ -51,13 +51,18 @@ export class ModuleVisibilityService {
         const visibility: Record<string, boolean> = {};
         
         modules.forEach((modName) => {
-          // Default behavior: Pelayanan Zoom is false by default for everyone (except Biro Data dan Informasi),
-          // while other modules are true by default if not set.
+          // Check explicit setting in DB
           if (divVis[modName] !== undefined) {
             visibility[modName] = divVis[modName];
           } else {
-            if (modName === 'Pelayanan Zoom' || modName === 'Scrum Board') {
+            // Default behavior if not set
+            if (div.name === 'Menteri dan Wakil Menteri') {
+              // For Menteri & Wakil Menteri, only Monitoring Capaian is enabled by default
+              visibility[modName] = modName === 'Monitoring Capaian';
+            } else if (modName === 'Pelayanan Zoom' || modName === 'Scrum Board') {
               visibility[modName] = div.name === 'Biro Data dan Informasi';
+            } else if (modName === 'Laporan Absensi') {
+              visibility[modName] = false;
             } else {
               visibility[modName] = true; // Other modules visible by default
             }
@@ -110,6 +115,8 @@ export class ModuleVisibilityService {
    */
   async getVisibleModulesForDivisi(divisiName: string | undefined): Promise<string[]> {
     const defaultModules = [
+      'Monitoring Capaian',
+      'Dashboard',
       'Semua Task',
       'Project',
       'Surat & Kegiatan',
@@ -118,10 +125,17 @@ export class ModuleVisibilityService {
       'Inventori BMN',
       'Penilaian Arsip',
       'Laporan WFA',
-      'Absensi Saya'
+      'Absensi Saya',
+      'Diskusi & Chat',
+      'Pengumuman',
+      'Saran Masukan',
+      'Analitik'
     ];
 
     if (!divisiName) return defaultModules;
+    if (divisiName === 'Menteri dan Wakil Menteri') {
+      // Check database settings first via the regular flow
+    }
 
     try {
       // 1. Find division by name
@@ -132,7 +146,10 @@ export class ModuleVisibilityService {
         .maybeSingle();
 
       if (divError || !division) {
-        // Fallback: If division not found in database, return all default modules
+        // Fallback: If division not found in database
+        if (divisiName === 'Menteri dan Wakil Menteri') {
+          return ['Monitoring Capaian'];
+        }
         return defaultModules;
       }
 
@@ -150,11 +167,14 @@ export class ModuleVisibilityService {
         settingsMap.set(row.module_name, row.is_visible);
       });
 
-      // Modules we want to manage
+      // All manageable modules
       const allModules = [
+        'Monitoring Capaian',
+        'Dashboard',
         'Semua Task',
         'Project',
         'Scrum Board',
+        'Diskusi & Chat',
         'Surat & Kegiatan',
         'Realisasi Anggaran',
         'Inventori Data',
@@ -163,7 +183,10 @@ export class ModuleVisibilityService {
         'Penilaian Arsip',
         'Laporan WFA',
         'Laporan Absensi',
-        'Absensi Saya'
+        'Absensi Saya',
+        'Pengumuman',
+        'Saran Masukan',
+        'Analitik'
       ];
 
       // Filter visible modules
@@ -173,7 +196,10 @@ export class ModuleVisibilityService {
           return explicitSetting;
         }
         
-        // Default behavior
+        // Default behavior when not explicitly configured in DB
+        if (divisiName === 'Menteri dan Wakil Menteri') {
+          return modName === 'Monitoring Capaian';
+        }
         if (modName === 'Pelayanan Zoom' || modName === 'Scrum Board') {
           return divisiName === 'Biro Data dan Informasi';
         }
@@ -184,7 +210,9 @@ export class ModuleVisibilityService {
       });
     } catch (error) {
       console.error('Error fetching visible modules for division:', error);
-      // Fallback: return default modules in case of DB errors
+      if (divisiName === 'Menteri dan Wakil Menteri') {
+        return ['Monitoring Capaian'];
+      }
       return defaultModules;
     }
   }

@@ -41,6 +41,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
+import { isMenteriOrWakilMenteri } from '../../utils/authorization';
 
 interface MonitoringCapaianPageProps {
   currentUser: User;
@@ -51,6 +52,7 @@ export const MonitoringCapaianPage: React.FC<MonitoringCapaianPageProps> = ({
   currentUser,
   showNotification
 }) => {
+  const isMinister = isMenteriOrWakilMenteri(currentUser);
   const [mainViewMode, setMainViewMode] = useState<'dashboard' | 'detail'>('dashboard');
   const [activeSubTab, setActiveSubTab] = useState<'satker' | 'ranking' | 'ro' | 'jadwal'>('satker');
   const [ros, setRos] = useState<CapaianRO[]>([]);
@@ -240,57 +242,63 @@ export const MonitoringCapaianPage: React.FC<MonitoringCapaianPageProps> = ({
 
           {/* Executive & Operational Mode Switcher + Toolbar */}
           <div className="flex items-center gap-2.5 flex-wrap">
-            {/* Top-Level Mode Segmented Switcher */}
-            <div className="bg-slate-100 p-1 rounded-xl border border-slate-200/90 flex items-center shadow-2xs">
-              <button
-                onClick={() => setMainViewMode('dashboard')}
-                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                  mainViewMode === 'dashboard'
-                    ? 'bg-white text-blue-700 shadow-2xs border border-slate-200/80 font-bold'
-                    : 'text-slate-600 hover:text-slate-900 font-medium'
-                }`}
-              >
-                <LayoutDashboard size={14} className={mainViewMode === 'dashboard' ? 'text-blue-600' : 'text-slate-500'} />
-                <span>Dashboard Pimpinan</span>
-              </button>
-              <button
-                onClick={() => setMainViewMode('detail')}
-                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                  mainViewMode === 'detail'
-                    ? 'bg-white text-blue-700 shadow-2xs border border-slate-200/80 font-bold'
-                    : 'text-slate-600 hover:text-slate-900 font-medium'
-                }`}
-              >
-                <TableProperties size={14} className={mainViewMode === 'detail' ? 'text-blue-600' : 'text-slate-500'} />
-                <span>Data & Rincian Operasional</span>
-                <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full ${
-                  mainViewMode === 'detail' ? 'bg-blue-100 text-blue-800' : 'bg-slate-200 text-slate-600'
-                }`}>
-                  {ros.length} RO
-                </span>
-              </button>
-            </div>
+            {/* Top-Level Mode Segmented Switcher - Hidden for Menteri & Wakil Menteri */}
+            {!isMinister && (
+              <>
+                <div className="bg-slate-100 p-1 rounded-xl border border-slate-200/90 flex items-center shadow-2xs">
+                  <button
+                    onClick={() => setMainViewMode('dashboard')}
+                    className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                      mainViewMode === 'dashboard'
+                        ? 'bg-white text-blue-700 shadow-2xs border border-slate-200/80 font-bold'
+                        : 'text-slate-600 hover:text-slate-900 font-medium'
+                    }`}
+                  >
+                    <LayoutDashboard size={14} className={mainViewMode === 'dashboard' ? 'text-blue-600' : 'text-slate-500'} />
+                    <span>Dashboard Pimpinan</span>
+                  </button>
+                  <button
+                    onClick={() => setMainViewMode('detail')}
+                    className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                      mainViewMode === 'detail'
+                        ? 'bg-white text-blue-700 shadow-2xs border border-slate-200/80 font-bold'
+                        : 'text-slate-600 hover:text-slate-900 font-medium'
+                    }`}
+                  >
+                    <TableProperties size={14} className={mainViewMode === 'detail' ? 'text-blue-600' : 'text-slate-500'} />
+                    <span>Data & Rincian Operasional</span>
+                    <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full ${
+                      mainViewMode === 'detail' ? 'bg-blue-100 text-blue-800' : 'bg-slate-200 text-slate-600'
+                    }`}>
+                      {ros.length} RO
+                    </span>
+                  </button>
+                </div>
 
-            <div className="h-6 w-px bg-slate-200 hidden sm:block" />
+                <div className="h-6 w-px bg-slate-200 hidden sm:block" />
 
-            {/* Action Buttons */}
-            <button
-              onClick={() => {
-                setSelectedRoForEdit(null);
-                setIsInputModalOpen(true);
-              }}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gov-700 hover:bg-gov-800 text-white rounded-lg text-xs font-semibold shadow-2xs transition-colors"
-            >
-              <Plus size={14} />
-              <span>Input Data RO</span>
-            </button>
-            <button
-              onClick={() => setIsUploadModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded-lg text-xs font-semibold shadow-2xs transition-colors"
-            >
-              <UploadCloud size={14} className="text-slate-500" />
-              <span>Upload Excel</span>
-            </button>
+                {/* Operational Data Actions - Hidden for Menteri & Wakil Menteri */}
+                <button
+                  onClick={() => {
+                    setSelectedRoForEdit(null);
+                    setIsInputModalOpen(true);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gov-700 hover:bg-gov-800 text-white rounded-lg text-xs font-semibold shadow-2xs transition-colors"
+                >
+                  <Plus size={14} />
+                  <span>Input Data RO</span>
+                </button>
+                <button
+                  onClick={() => setIsUploadModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded-lg text-xs font-semibold shadow-2xs transition-colors"
+                >
+                  <UploadCloud size={14} className="text-slate-500" />
+                  <span>Upload Excel</span>
+                </button>
+              </>
+            )}
+
+            {/* Read & Sync Actions */}
             <button
               onClick={() => monitoringCapaianService.exportToExcel(ros)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded-lg text-xs font-semibold shadow-2xs transition-colors"
@@ -308,20 +316,22 @@ export const MonitoringCapaianPage: React.FC<MonitoringCapaianPageProps> = ({
               <RefreshCw size={13} className={`text-slate-500 ${isRefreshing ? 'animate-spin text-gov-600' : ''}`} />
               <span>{isRefreshing ? 'Menyinkronkan...' : 'Sinkronkan'}</span>
             </button>
-            <button
-              onClick={handleResetToDefault}
-              className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg border border-transparent hover:border-slate-200 transition-colors"
-              title="Kembalikan data ke baseline folder RKKL"
-            >
-              <RotateCcw size={14} />
-            </button>
+            {!isMinister && (
+              <button
+                onClick={handleResetToDefault}
+                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg border border-transparent hover:border-slate-200 transition-colors"
+                title="Kembalikan data ke baseline folder RKKL"
+              >
+                <RotateCcw size={14} />
+              </button>
+            )}
           </div>
         </div>
       </header>
 
       {/* Main Scrollable View Area - Fluid Full Width */}
       <div className="flex-1 overflow-y-auto w-full min-h-0 px-4 sm:px-6 lg:px-8 py-5">
-        {mainViewMode === 'dashboard' ? (
+        {(mainViewMode === 'dashboard' || isMinister) ? (
           /* ========================================================= */
           /* MODE 1: DASHBOARD PIMPINAN (EXECUTIVE OVERVIEW)           */
           /* ========================================================= */
@@ -331,15 +341,19 @@ export const MonitoringCapaianPage: React.FC<MonitoringCapaianPageProps> = ({
             unitKerjas={unitKerjas}
             summary={summary}
             onNavigateToDetail={(tab, filterUnit) => {
-              setMainViewMode('detail');
-              setActiveSubTab(tab);
-              if (filterUnit) {
-                setFocusedUnitFilter(filterUnit);
+              if (!isMinister) {
+                setMainViewMode('detail');
+                setActiveSubTab(tab);
+                if (filterUnit) {
+                  setFocusedUnitFilter(filterUnit);
+                }
               }
             }}
             onSelectRO={(ro) => {
-              setSelectedRoForSchedule(ro);
-              setIsScheduleModalOpen(true);
+              if (!isMinister) {
+                setSelectedRoForSchedule(ro);
+                setIsScheduleModalOpen(true);
+              }
             }}
           />
         ) : (

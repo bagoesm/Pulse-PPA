@@ -41,6 +41,7 @@ import { useSidebar } from '../contexts/SidebarContext';
 import { useModuleVisibility } from '../hooks/useModuleVisibility';
 import { useUnreadChatCount } from '../hooks/useUnreadChatCount';
 import { translateTabName } from '../utils/translations';
+import { isMenteriOrWakilMenteri } from '../utils/authorization';
 
 interface SidebarProps {
   activeTab: string;
@@ -91,10 +92,36 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser,
   const [tooltipPosition, setTooltipPosition] = useState<{ top: number } | null>(null);
   const { isModuleVisible } = useModuleVisibility(currentUser);
   const unreadChatCount = useUnreadChatCount(currentUser);
+  const isMinister = isMenteriOrWakilMenteri(currentUser);
+
+  // For Menteri & Wakil Menteri, 'Monitoring Capaian' is pulled out of 'Informasi Lainnya' and shown directly as a top-level primary menu.
+  const processedSidebarItems = React.useMemo(() => {
+    if (!isMinister) return SIDEBAR_ITEMS;
+
+    const items: any[] = [];
+    // Monitoring Capaian goes to top level
+    items.push({ name: 'Monitoring Capaian', icon: 'Target' });
+
+    SIDEBAR_ITEMS.forEach((item: any) => {
+      if (item.name === 'Informasi Lainnya') {
+        const filteredSub = item.submenu?.filter((sub: any) => sub.name !== 'Monitoring Capaian');
+        if (filteredSub && filteredSub.length > 0) {
+          items.push({
+            ...item,
+            submenu: filteredSub
+          });
+        }
+      } else {
+        items.push(item);
+      }
+    });
+
+    return items;
+  }, [isMinister]);
   
   // Auto-expand submenus based on activeTab
   React.useEffect(() => {
-    SIDEBAR_ITEMS.forEach((item: any) => {
+    processedSidebarItems.forEach((item: any) => {
       if (item.submenu) {
         const isSubActive = item.submenu.some((sub: any) => {
           if (sub.submenu) {
@@ -111,7 +138,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser,
         }
       }
     });
-  }, [activeTab]);
+  }, [activeTab, processedSidebarItems]);
 
   const toggleSubmenu = (menuName: string) => {
     if (isCollapsed) {
@@ -160,7 +187,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser,
 
         {/* Scrollable Navigation */}
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto overflow-x-visible scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent">
-        {SIDEBAR_ITEMS.filter((item: any) => {
+        {processedSidebarItems.filter((item: any) => {
           // Filter out admin-only items for non-admin users
           if (item.adminOnly && currentUser.role !== 'Super Admin') {
             return false;
@@ -168,6 +195,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser,
           // Filter based on Satker module visibility settings
           if (item.name === 'Informasi Lainnya') {
             return item.submenu.some((sub: any) => {
+              if (isMinister && sub.name === 'Monitoring Capaian') return false;
               const dbName = sub.name === 'Monitoring Anggaran' ? 'Realisasi Anggaran' : sub.name;
               return isModuleVisible(dbName);
             });
@@ -238,6 +266,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser,
                   <div className="ml-4 mt-1 space-y-1 border-l-2 border-slate-100 pl-2 animate-slideDown">
                     {item.submenu
                       .filter((subItem: any) => {
+                        if (isMinister && subItem.name === 'Monitoring Capaian') return false;
                         if (item.name === 'Surat & Kegiatan') return true;
                         const dbName = subItem.name === 'Monitoring Anggaran' ? 'Realisasi Anggaran' : subItem.name;
                         return isModuleVisible(dbName);
@@ -392,121 +421,127 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser,
 
 
         {/* Pengumuman Menu */}
-        <div className="relative group">
-          <button
-            onMouseEnter={handleMouseEnter}
-            onClick={() => setActiveTab('Pengumuman')}
-            className={`w-full flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'} px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 relative overflow-hidden ${activeTab === 'Pengumuman'
-                ? 'bg-gradient-to-r from-blue-50 to-blue-100/50 text-blue-700 shadow-sm'
-                : 'text-slate-600 hover:bg-blue-50 hover:text-blue-700'
-              }`}
-          >
-            {activeTab === 'Pengumuman' && (
-              <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-500 to-blue-600 rounded-r-full" />
-            )}
-            <Megaphone 
-              size={18} 
-              className={`transition-all duration-200 flex-shrink-0 ${
-                activeTab === 'Pengumuman' ? 'text-blue-600' : 'text-slate-400 group-hover:text-blue-600'
-              }`}
-            />
-            {!isCollapsed && <span className="truncate">Pengumuman</span>}
-          </button>
-
-          {isCollapsed && tooltipPosition && (
-            <div 
-              className="fixed px-3 py-2 bg-slate-900 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap pointer-events-none shadow-xl"
-              style={{ 
-                zIndex: 9999,
-                left: '92px',
-                top: `${tooltipPosition.top}px`,
-                transform: 'translateY(-50%)'
-              }}
+        {isModuleVisible('Pengumuman') && (
+          <div className="relative group">
+            <button
+              onMouseEnter={handleMouseEnter}
+              onClick={() => setActiveTab('Pengumuman')}
+              className={`w-full flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'} px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 relative overflow-hidden ${activeTab === 'Pengumuman'
+                  ? 'bg-gradient-to-r from-blue-50 to-blue-100/50 text-blue-700 shadow-sm'
+                  : 'text-slate-600 hover:bg-blue-50 hover:text-blue-700'
+                }`}
             >
-              Pengumuman
-              <div className="absolute right-full top-1/2 -translate-y-1/2 mr-1 border-[6px] border-transparent border-r-slate-900" />
-            </div>
-          )}
-        </div>
+              {activeTab === 'Pengumuman' && (
+                <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-500 to-blue-600 rounded-r-full" />
+              )}
+              <Megaphone 
+                size={18} 
+                className={`transition-all duration-200 flex-shrink-0 ${
+                  activeTab === 'Pengumuman' ? 'text-blue-600' : 'text-slate-400 group-hover:text-blue-600'
+                }`}
+              />
+              {!isCollapsed && <span className="truncate">Pengumuman</span>}
+            </button>
+
+            {isCollapsed && tooltipPosition && (
+              <div 
+                className="fixed px-3 py-2 bg-slate-900 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap pointer-events-none shadow-xl"
+                style={{ 
+                  zIndex: 9999,
+                  left: '92px',
+                  top: `${tooltipPosition.top}px`,
+                  transform: 'translateY(-50%)'
+                }}
+              >
+                Pengumuman
+                <div className="absolute right-full top-1/2 -translate-y-1/2 mr-1 border-[6px] border-transparent border-r-slate-900" />
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Saran Masukan Menu */}
-        <div className="relative group">
-          <button
-            onMouseEnter={handleMouseEnter}
-            onClick={() => setActiveTab('Saran Masukan')}
-            className={`w-full flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'} px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 relative overflow-hidden ${activeTab === 'Saran Masukan'
-                ? 'bg-gradient-to-r from-emerald-50 to-emerald-100/50 text-emerald-700 shadow-sm'
-                : 'text-slate-600 hover:bg-emerald-50 hover:text-emerald-700'
-              }`}
-          >
-            {activeTab === 'Saran Masukan' && (
-              <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-emerald-500 to-emerald-600 rounded-r-full" />
-            )}
-            <MessageSquarePlus 
-              size={18} 
-              className={`transition-all duration-200 flex-shrink-0 ${
-                activeTab === 'Saran Masukan' ? 'text-emerald-600' : 'text-slate-400 group-hover:text-emerald-600'
-              }`}
-            />
-            {!isCollapsed && <span className="truncate">Saran Masukan</span>}
-          </button>
-
-          {isCollapsed && tooltipPosition && (
-            <div 
-              className="fixed px-3 py-2 bg-slate-900 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap pointer-events-none shadow-xl"
-              style={{ 
-                zIndex: 9999,
-                left: '92px',
-                top: `${tooltipPosition.top}px`,
-                transform: 'translateY(-50%)'
-              }}
+        {isModuleVisible('Saran Masukan') && (
+          <div className="relative group">
+            <button
+              onMouseEnter={handleMouseEnter}
+              onClick={() => setActiveTab('Saran Masukan')}
+              className={`w-full flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'} px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 relative overflow-hidden ${activeTab === 'Saran Masukan'
+                  ? 'bg-gradient-to-r from-emerald-50 to-emerald-100/50 text-emerald-700 shadow-sm'
+                  : 'text-slate-600 hover:bg-emerald-50 hover:text-emerald-700'
+                }`}
             >
-              Saran Masukan
-              <div className="absolute right-full top-1/2 -translate-y-1/2 mr-1 border-[6px] border-transparent border-r-slate-900" />
-            </div>
-          )}
-        </div>
+              {activeTab === 'Saran Masukan' && (
+                <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-emerald-500 to-emerald-600 rounded-r-full" />
+              )}
+              <MessageSquarePlus 
+                size={18} 
+                className={`transition-all duration-200 flex-shrink-0 ${
+                  activeTab === 'Saran Masukan' ? 'text-emerald-600' : 'text-slate-400 group-hover:text-emerald-600'
+                }`}
+              />
+              {!isCollapsed && <span className="truncate">Saran Masukan</span>}
+            </button>
+
+            {isCollapsed && tooltipPosition && (
+              <div 
+                className="fixed px-3 py-2 bg-slate-900 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap pointer-events-none shadow-xl"
+                style={{ 
+                  zIndex: 9999,
+                  left: '92px',
+                  top: `${tooltipPosition.top}px`,
+                  transform: 'translateY(-50%)'
+                }}
+              >
+                Saran Masukan
+                <div className="absolute right-full top-1/2 -translate-y-1/2 mr-1 border-[6px] border-transparent border-r-slate-900" />
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Analitik Menu */}
-        <div className="relative group">
-          <button
-            onMouseEnter={handleMouseEnter}
-            onClick={() => setActiveTab('Analitik')}
-            className={`w-full flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'} px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 relative overflow-hidden ${activeTab === 'Analitik'
-                ? 'bg-gradient-to-r from-rose-50 to-rose-100/50 text-rose-700 shadow-sm'
-                : 'text-slate-600 hover:bg-rose-50 hover:text-rose-700'
-              }`}
-          >
-            {activeTab === 'Analitik' && (
-              <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-rose-500 to-rose-600 rounded-r-full" />
-            )}
-            <PieChart 
-              size={18} 
-              className={`transition-all duration-200 flex-shrink-0 ${
-                activeTab === 'Analitik' ? 'text-rose-600' : 'text-slate-400 group-hover:text-rose-600'
-              }`}
-            />
-            {!isCollapsed && <span className="truncate">Analitik</span>}
-          </button>
-
-          {isCollapsed && tooltipPosition && (
-            <div 
-              className="fixed px-3 py-2 bg-slate-900 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap pointer-events-none shadow-xl"
-              style={{ 
-                zIndex: 9999,
-                left: '92px',
-                top: `${tooltipPosition.top}px`,
-                transform: 'translateY(-50%)'
-              }}
+        {isModuleVisible('Analitik') && (
+          <div className="relative group">
+            <button
+              onMouseEnter={handleMouseEnter}
+              onClick={() => setActiveTab('Analitik')}
+              className={`w-full flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'} px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 relative overflow-hidden ${activeTab === 'Analitik'
+                  ? 'bg-gradient-to-r from-rose-50 to-rose-100/50 text-rose-700 shadow-sm'
+                  : 'text-slate-600 hover:bg-rose-50 hover:text-rose-700'
+                }`}
             >
-              Analitik
-              <div className="absolute right-full top-1/2 -translate-y-1/2 mr-1 border-[6px] border-transparent border-r-slate-900" />
-            </div>
-          )}
-        </div>
+              {activeTab === 'Analitik' && (
+                <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-rose-500 to-rose-600 rounded-r-full" />
+              )}
+              <PieChart 
+                size={18} 
+                className={`transition-all duration-200 flex-shrink-0 ${
+                  activeTab === 'Analitik' ? 'text-rose-600' : 'text-slate-400 group-hover:text-rose-600'
+                }`}
+              />
+              {!isCollapsed && <span className="truncate">Analitik</span>}
+            </button>
 
-        {/* Super Admin Menu */}
-        {(currentUser.role === 'Super Admin' || currentUser.role === 'Atasan') && (
+            {isCollapsed && tooltipPosition && (
+              <div 
+                className="fixed px-3 py-2 bg-slate-900 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap pointer-events-none shadow-xl"
+                style={{ 
+                  zIndex: 9999,
+                  left: '92px',
+                  top: `${tooltipPosition.top}px`,
+                  transform: 'translateY(-50%)'
+                }}
+              >
+                Analitik
+                <div className="absolute right-full top-1/2 -translate-y-1/2 mr-1 border-[6px] border-transparent border-r-slate-900" />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Administrator Section - Super Admin or non-Minister Atasan */}
+        {(currentUser.role === 'Super Admin' || (currentUser.role === 'Atasan' && !isMinister)) && (
           <>
             {!isCollapsed && (
               <div className="pt-4 pb-2 px-4">

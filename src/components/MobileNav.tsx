@@ -23,6 +23,8 @@ import { useModuleVisibility } from '../hooks/useModuleVisibility';
 import { useUnreadChatCount } from '../hooks/useUnreadChatCount';
 import { translateTabName } from '../utils/translations';
 
+import { isMenteriOrWakilMenteri } from '../utils/authorization';
+
 interface MobileNavProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
@@ -41,15 +43,19 @@ const MobileNav: React.FC<MobileNavProps> = ({
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const { isModuleVisible } = useModuleVisibility(currentUser);
   const unreadChatCount = useUnreadChatCount(currentUser);
+  const isMinister = isMenteriOrWakilMenteri(currentUser);
 
   // Main tabs for bottom nav
   const bottomTabs = [
+    ...(isMinister ? [{ name: 'Monitoring Capaian', icon: Target }] : []),
     { name: 'Dashboard', icon: LayoutDashboard },
     { name: 'Semua Task', icon: ListTodo },
     { name: 'Project', icon: Briefcase },
     { name: 'Lainnya', icon: MoreHorizontal, isMore: true },
     { name: 'Profile', icon: UserIcon, isProfile: true },
   ].filter(tab => {
+    if (tab.name === 'Monitoring Capaian') return isModuleVisible('Monitoring Capaian');
+    if (tab.name === 'Dashboard') return isModuleVisible('Dashboard');
     if (tab.name === 'Semua Task') return isModuleVisible('Semua Task');
     if (tab.name === 'Project') return isModuleVisible('Project');
     return true;
@@ -59,11 +65,12 @@ const MobileNav: React.FC<MobileNavProps> = ({
   const moreMenuItems = [
     { name: 'Jadwal Kegiatan', icon: CalendarDays, color: 'text-indigo-600', bg: 'bg-indigo-50' },
     { name: 'Daftar Surat', icon: FileSpreadsheet, color: 'text-teal-600', bg: 'bg-teal-50' },
-    { name: 'Monitoring Capaian', icon: Target, color: 'text-amber-600', bg: 'bg-amber-50' },
+    ...(!isMinister ? [{ name: 'Monitoring Capaian', icon: Target, color: 'text-amber-600', bg: 'bg-amber-50' }] : []),
     { name: 'Dashboard Realisasi', icon: FileSpreadsheet, color: 'text-rose-600', bg: 'bg-rose-50' },
     { name: 'Diskusi & Chat', icon: MessageSquarePlus, color: 'text-gov-600', bg: 'bg-gov-50' },
     { name: 'Saran Masukan', icon: MessageSquarePlus, color: 'text-emerald-600', bg: 'bg-emerald-50' },
     { name: 'Pengumuman', icon: Megaphone, color: 'text-blue-600', bg: 'bg-blue-50' },
+    { name: 'Analitik', icon: LayoutDashboard, color: 'text-rose-600', bg: 'bg-rose-50' },
     { name: 'Inventori Data', icon: Database, color: 'text-purple-600', bg: 'bg-purple-50' },
     { name: 'Inventori BMN', icon: Database, color: 'text-sky-600', bg: 'bg-sky-50' },
     { name: 'Scrum Board', icon: Layers, color: 'text-indigo-600', bg: 'bg-indigo-50' },
@@ -83,9 +90,6 @@ const MobileNav: React.FC<MobileNavProps> = ({
     }
     if (['Dashboard Realisasi'].includes(item.name)) {
       return isModuleVisible('Realisasi Anggaran');
-    }
-    if (item.name === 'Saran Masukan' || item.name === 'Pengumuman') {
-      return true; // Always visible
     }
     return isModuleVisible(item.name);
   });

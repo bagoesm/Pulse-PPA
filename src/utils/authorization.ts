@@ -150,3 +150,21 @@ export async function getTeamUserIds(
   // Staff only sees themselves
   return [currentUser.id];
 }
+
+/**
+ * Check if a user belongs to Satker 'Menteri dan Wakil Menteri' or holds the position of Menteri / Wakil Menteri
+ */
+export function isMenteriOrWakilMenteri(user?: User | null): boolean {
+  if (!user) return false;
+  const div = (user.divisi || '').trim();
+  const jab = (user.jabatan || '').trim().toLowerCase();
+  const name = (user.name || '').trim().toLowerCase();
+
+  return (
+    div === 'Menteri dan Wakil Menteri' ||
+    jab === 'menteri' ||
+    jab === 'wakil menteri' ||
+    name === 'menteri kemen pppa' ||
+    name === 'wakil menteri kemen pppa'
+  );
+}

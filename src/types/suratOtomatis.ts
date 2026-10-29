@@ -572,10 +572,21 @@ export const SURAT_TEMPLATES: SuratTemplate[] = [
   {
     id: 'surat-undangan',
     name: 'Surat Undangan',
-    description: 'Pembuatan Surat Undangan Resmi dengan Lampiran Daftar Peserta dan Jadwal Kegiatan format Word (.docx)',
+    description: 'Pembuatan Surat Undangan Kegiatan & Surat Permohonan/Penyampaian Non-Kegiatan (Link Feedback/Masukan, Kuesioner, dll) format Word (.docx)',
     fileName: 'surat-undangan.docx',
-    previewInstructions: 'Preview menampilkan isi surat undangan dengan data yang Anda isi. Nomor naskah dan tanggal naskah resmi akan dikosongkan untuk diproses oleh sistem persuratan resmi.',
+    previewInstructions: 'Preview menampilkan isi surat dengan data yang Anda isi. Nomor naskah dan tanggal naskah resmi akan dikosongkan untuk diproses oleh sistem persuratan resmi.',
     fields: [
+      // === PILIHAN JENIS SURAT ===
+      {
+        id: 'jenis_surat_undangan',
+        label: 'Jenis Surat',
+        type: 'select',
+        options: ['Undangan Kegiatan', 'Permohonan / Non-Kegiatan'],
+        required: true,
+        defaultValue: 'Undangan Kegiatan',
+        helpText: 'Pilih "Undangan Kegiatan" untuk rapat/acara, atau "Permohonan / Non-Kegiatan" untuk permohonan pengisian link feedback/masukan, kuesioner, dll.'
+      },
+
       // === BAGIAN 1: INFORMASI SURAT (PENERIMA & PERIHAL) ===
       {
         id: 'yth',
@@ -583,7 +594,7 @@ export const SURAT_TEMPLATES: SuratTemplate[] = [
         type: 'text',
         placeholder: 'Contoh: Daftar Terlampir',
         required: true,
-        helpText: 'Pihak yang dituju dalam surat undangan'
+        helpText: 'Pihak yang dituju dalam surat'
       },
       {
         id: 'tempat_tujuan',
@@ -595,11 +606,22 @@ export const SURAT_TEMPLATES: SuratTemplate[] = [
       },
       {
         id: 'hal',
-        label: 'Hal Undangan',
+        label: 'Hal Surat',
         type: 'text',
-        placeholder: 'Contoh: Rapat Koordinasi dan Integrasi...',
+        placeholder: 'Contoh: Rapat Koordinasi... / Permohonan Pengisian Tautan Masukan...',
         required: true,
-        helpText: 'Perihal undangan'
+        helpText: 'Perihal surat undangan atau permohonan'
+      },
+      {
+        id: 'pakai_lampiran',
+        label: 'Gunakan Lampiran Daftar Penerima?',
+        type: 'select',
+        options: ['Ya', 'Tidak'],
+        required: false,
+        defaultValue: 'Ya',
+        dependsOn: 'jenis_surat_undangan',
+        showWhen: 'Permohonan / Non-Kegiatan',
+        helpText: 'Pilih Ya jika daftar penerima dilampirkan pada halaman Lampiran, atau Tidak jika tanpa lampiran'
       },
       {
         id: 'lampiran',
@@ -607,31 +629,35 @@ export const SURAT_TEMPLATES: SuratTemplate[] = [
         type: 'number',
         placeholder: 'Contoh: 1',
         required: true,
+        defaultValue: '1',
         helpText: 'Masukkan angka saja (e.g. 1 untuk otomatis diformat menjadi 1 (satu) berkas)'
       },
 
-      // === BAGIAN 2: DETAIL KEGIATAN ===
+      // === BAGIAN 2: DETAIL KEGIATAN / PERMOHONAN ===
       {
         id: 'nama_kegiatan',
-        label: 'Nama Kegiatan (Isi Surat)',
+        label: 'Nama Kegiatan / Perihal Permohonan (Isi Surat)',
         type: 'text',
-        placeholder: 'Contoh: Rapat Koordinasi dan Integrasi...',
+        placeholder: 'Contoh: Rapat Koordinasi... / Pengisian Tautan Feedback dan Masukan...',
         required: true,
-        helpText: 'Nama kegiatan yang dimasukkan di paragraf isi surat'
+        helpText: 'Nama kegiatan atau topik permohonan yang dimasukkan di paragraf isi surat dan judul lampiran'
       },
       {
         id: 'maksud_kegiatan',
-        label: 'Maksud / Latar Belakang Kegiatan',
+        label: 'Maksud / Latar Belakang Surat',
         type: 'textarea',
-        placeholder: 'Maksud diadakannya rapat koordinasi...',
+        placeholder: 'Dalam rangka meningkatkan kualitas layanan...',
         required: true,
-        helpText: 'Paragraf latar belakang/maksud kegiatan'
+        helpText: 'Paragraf latar belakang/maksud diadakannya kegiatan atau permohonan'
       },
+      // --- Field khusus Undangan Kegiatan ---
       {
         id: 'hari_tanggal_kegiatan',
         label: 'Tanggal Pelaksanaan Rapat/Kegiatan',
         type: 'date',
         required: true,
+        dependsOn: 'jenis_surat_undangan',
+        showWhen: 'Undangan Kegiatan',
         helpText: 'Pilih tanggal rapat. Hari dan tanggal terformat (e.g., Rabu, 5 Agustus 2026) akan otomatis dihasilkan.'
       },
       {
@@ -639,6 +665,8 @@ export const SURAT_TEMPLATES: SuratTemplate[] = [
         label: 'Waktu Mulai Rapat/Kegiatan',
         type: 'time',
         required: true,
+        dependsOn: 'jenis_surat_undangan',
+        showWhen: 'Undangan Kegiatan',
         helpText: 'Pilih jam mulai rapat'
       },
       {
@@ -646,6 +674,8 @@ export const SURAT_TEMPLATES: SuratTemplate[] = [
         label: 'Waktu Selesai Rapat/Kegiatan (Kosongkan jika selesai)',
         type: 'time',
         required: false,
+        dependsOn: 'jenis_surat_undangan',
+        showWhen: 'Undangan Kegiatan',
         helpText: 'Pilih jam selesai, atau kosongkan untuk otomatis menghasilkan "selesai"'
       },
       {
@@ -654,6 +684,8 @@ export const SURAT_TEMPLATES: SuratTemplate[] = [
         type: 'text',
         required: true,
         readOnly: true,
+        dependsOn: 'jenis_surat_undangan',
+        showWhen: 'Undangan Kegiatan',
         helpText: 'Format waktu akhir yang dihasilkan otomatis dari waktu mulai & selesai'
       },
       {
@@ -662,8 +694,60 @@ export const SURAT_TEMPLATES: SuratTemplate[] = [
         type: 'textarea',
         placeholder: 'Masukkan nama ruang rapat dan alamat...',
         required: true,
+        dependsOn: 'jenis_surat_undangan',
+        showWhen: 'Undangan Kegiatan',
         helpText: 'Tempat/lokasi pelaksanaan rapat'
       },
+      // --- Field khusus Permohonan / Non-Kegiatan ---
+      {
+        id: 'tautan_permohonan',
+        label: 'Tautan / Link (Feedback, Masukan, Kuesioner, dll)',
+        type: 'text',
+        placeholder: 'Contoh: https://bit.ly/feedback-ppa atau https://forms.gle/...',
+        required: true,
+        dependsOn: 'jenis_surat_undangan',
+        showWhen: 'Permohonan / Non-Kegiatan',
+        helpText: 'Masukkan tautan/link yang perlu diisi atau diakses oleh penerima surat'
+      },
+      {
+        id: 'tanggal_batas_waktu',
+        label: 'Tanggal Batas Waktu (Tenggat Pengisian)',
+        type: 'date',
+        required: true,
+        dependsOn: 'jenis_surat_undangan',
+        showWhen: 'Permohonan / Non-Kegiatan',
+        helpText: 'Pilih tanggal batas waktu pengisian/penyampaian masukan'
+      },
+      {
+        id: 'waktu_batas_akhir',
+        label: 'Jam Batas Waktu (Opsional)',
+        type: 'time',
+        required: false,
+        dependsOn: 'jenis_surat_undangan',
+        showWhen: 'Permohonan / Non-Kegiatan',
+        helpText: 'Pilih jam batas waktu (misal 16:00), atau kosongkan jika hanya menampilkan hari & tanggal'
+      },
+      {
+        id: 'batas_waktu_permohonan',
+        label: 'Format Batas Waktu (Otomatis)',
+        type: 'text',
+        required: true,
+        readOnly: true,
+        dependsOn: 'jenis_surat_undangan',
+        showWhen: 'Permohonan / Non-Kegiatan',
+        helpText: 'Dihasilkan otomatis dari tanggal dan jam batas waktu'
+      },
+      {
+        id: 'catatan_permohonan',
+        label: 'Keterangan / Catatan Tambahan (Opsional)',
+        type: 'text',
+        placeholder: 'Contoh: Diisi oleh perwakilan masing-masing unit kerja',
+        required: false,
+        dependsOn: 'jenis_surat_undangan',
+        showWhen: 'Permohonan / Non-Kegiatan',
+        helpText: 'Keterangan tambahan pada rincian surat (kosongkan jika tidak diperlukan)'
+      },
+      // --- Narahubung ---
       {
         id: 'contact_user_id',
         label: 'Pilih Narahubung dari Daftar User (Opsional)',
@@ -679,7 +763,7 @@ export const SURAT_TEMPLATES: SuratTemplate[] = [
         placeholder: 'Contoh: Sdr. Tri Ako Nugroho (0821 1461 5056)',
         required: true,
         autoFillFrom: 'contact_user_id.name',
-        helpText: 'Narahubung konfirmasi kehadiran'
+        helpText: 'Narahubung informasi lebih lanjut / konfirmasi'
       },
 
       // === BAGIAN 3: PESERTA & TEMBUSAN ===
@@ -696,15 +780,15 @@ export const SURAT_TEMPLATES: SuratTemplate[] = [
         type: 'textarea',
         placeholder: 'Masukkan tembusan surat...',
         required: true,
-        helpText: 'Tembusan surat undangan'
+        helpText: 'Tembusan surat'
       },
       {
         id: 'daftar_peserta',
-        label: 'Daftar Peserta (Seksi Lampiran 1)',
+        label: 'Daftar Peserta / Penerima (Seksi Lampiran 1)',
         type: 'textarea',
-        placeholder: 'Masukkan daftar peserta (satu baris per peserta)...',
+        placeholder: 'Masukkan daftar peserta/penerima (satu baris per peserta)...',
         required: true,
-        helpText: 'Daftar peserta yang diundang di Lampiran 1 (tulis satu peserta per baris)'
+        helpText: 'Daftar peserta/penerima di Lampiran 1 (tulis satu penerima per baris)'
       },
       {
         id: 'jadwal_kegiatan',
@@ -712,6 +796,8 @@ export const SURAT_TEMPLATES: SuratTemplate[] = [
         type: 'textarea',
         placeholder: 'Format: Waktu | Kegiatan | Keterangan',
         required: true,
+        dependsOn: 'jenis_surat_undangan',
+        showWhen: 'Undangan Kegiatan',
         helpText: 'Tuliskan rundown rapat di Lampiran 2 dengan format: WAKTU | NAMA KEGIATAN | KETERANGAN (pisahkan dengan karakter pipa |)'
       }
     ]

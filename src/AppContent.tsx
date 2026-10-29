@@ -43,6 +43,8 @@ import { useProjectHelpers } from './hooks/useProjectHelpers';
 import { useUserActivity } from './hooks/useUserActivity';
 import KanbanColumn from './components/KanbanColumn';
 import PublicProjectView from './components/PublicProjectView';
+import { isMenteriOrWakilMenteri } from './utils/authorization';
+import { useModuleVisibility } from './hooks/useModuleVisibility';
 
 // Lazy loaded heavy components
 const Dashboard = lazy(() => import('./components/Dashboard'));
@@ -265,6 +267,59 @@ const AppContent: React.FC = () => {
 
   // ===== LOCAL UI STATE =====
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+
+  // ===== MODULE VISIBILITY & ACTIVE TAB MANAGEMENT =====
+  const isMinister = useMemo(() => isMenteriOrWakilMenteri(currentUser), [currentUser]);
+  const { isModuleVisible, visibleModules, loading: loadingVisibility } = useModuleVisibility(currentUser);
+
+  useEffect(() => {
+    if (loadingVisibility || !currentUser) return;
+
+    if (isMinister) {
+      if (activeTab !== 'Monitoring Capaian') {
+        setActiveTab('Monitoring Capaian');
+      }
+      return;
+    }
+
+    // For non-minister, enforce visible module fallback if currently active tab is not visible
+    const tabToModuleMap: Record<string, string> = {
+      'Dashboard': 'Dashboard',
+      'Tasks': 'Semua Task',
+      'Semua Task': 'Semua Task',
+      'Project': 'Project',
+      'Scrum Board': 'Scrum Board',
+      'Diskusi & Chat': 'Diskusi & Chat',
+      'Daftar Surat': 'Surat & Kegiatan',
+      'Daftar Disposisi': 'Surat & Kegiatan',
+      'Jadwal Kegiatan': 'Surat & Kegiatan',
+      'Dashboard Statistik': 'Surat & Kegiatan',
+      'Dashboard Realisasi': 'Realisasi Anggaran',
+      'Monitoring Anggaran': 'Realisasi Anggaran',
+      'Daftar Transaksi': 'Realisasi Anggaran',
+      'Laporan Anggaran': 'Realisasi Anggaran',
+      'Master Anggaran': 'Realisasi Anggaran',
+      'Inventori Data': 'Inventori Data',
+      'Inventori BMN': 'Inventori BMN',
+      'Pelayanan Zoom': 'Pelayanan Zoom',
+      'Penilaian Arsip': 'Penilaian Arsip',
+      'Laporan WFA': 'Laporan WFA',
+      'Laporan Absensi': 'Laporan Absensi',
+      'Absensi Saya': 'Absensi Saya',
+      'Pengumuman': 'Pengumuman',
+      'Saran Masukan': 'Saran Masukan',
+      'Analitik': 'Analitik',
+      'Monitoring Capaian': 'Monitoring Capaian'
+    };
+
+    const moduleName = tabToModuleMap[activeTab];
+    if (moduleName && !isModuleVisible(moduleName) && currentUser.role !== 'Super Admin') {
+      if (visibleModules.length > 0) {
+        const fallback = visibleModules.includes('Dashboard') ? 'Dashboard' : visibleModules[0];
+        setActiveTab(fallback);
+      }
+    }
+  }, [currentUser, isMinister, activeTab, isModuleVisible, visibleModules, loadingVisibility, setActiveTab]);
 
   // ===== COMPUTED DATA =====
   // Compute meetingsAsTasks

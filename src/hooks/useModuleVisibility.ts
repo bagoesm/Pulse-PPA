@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { User } from '../../types';
 import { moduleVisibilityService } from '../services/ModuleVisibilityService';
 import { attendanceService } from '../services/AttendanceService';
+import { isMenteriOrWakilMenteri } from '../utils/authorization';
 
 export function useModuleVisibility(currentUser: User | null) {
   const [visibleModules, setVisibleModules] = useState<string[]>([]);
@@ -19,13 +20,14 @@ export function useModuleVisibility(currentUser: User | null) {
     // Super Admin sees all modules by default for administration and visibility control
     if (currentUser.role === 'Super Admin') {
       setVisibleModules([
+        'Monitoring Capaian',
         'Dashboard',
         'Semua Task',
         'Project',
         'Scrum Board',
+        'Diskusi & Chat',
         'Surat & Kegiatan',
         'Realisasi Anggaran',
-        'Monitoring Capaian',
         'Inventori Data',
         'Inventori BMN',
         'Pelayanan Zoom',
@@ -33,6 +35,9 @@ export function useModuleVisibility(currentUser: User | null) {
         'Laporan WFA',
         'Laporan Absensi',
         'Absensi Saya',
+        'Pengumuman',
+        'Saran Masukan',
+        'Analitik',
         'Manajemen Modul'
       ]);
       setLoading(false);
@@ -54,32 +59,39 @@ export function useModuleVisibility(currentUser: User | null) {
         finalModules.push('Laporan Absensi');
       }
 
-      // 'Dashboard' is always visible to everyone
-      setVisibleModules(['Dashboard', 'Monitoring Capaian', ...finalModules]);
+      setVisibleModules(finalModules);
     } catch (error) {
       console.error('Failed to load module visibility:', error);
-      // Fallback in case of error: show standard modules, hide Laporan Absensi & Pelayanan Zoom
-      const fallbackModules = [
-        'Dashboard',
-        'Semua Task',
-        'Project',
-        'Surat & Kegiatan',
-        'Realisasi Anggaran',
-        'Monitoring Capaian',
-        'Inventori Data',
-        'Inventori BMN',
-        'Penilaian Arsip',
-        'Laporan WFA',
-        'Absensi Saya'
-      ];
-      if (currentUser?.divisi === 'Biro Data dan Informasi') {
-        fallbackModules.push('Scrum Board');
+      // Fallback in case of error
+      if (isMenteriOrWakilMenteri(currentUser)) {
+        setVisibleModules(['Monitoring Capaian']);
+      } else {
+        const fallbackModules = [
+          'Monitoring Capaian',
+          'Dashboard',
+          'Semua Task',
+          'Project',
+          'Surat & Kegiatan',
+          'Realisasi Anggaran',
+          'Inventori Data',
+          'Inventori BMN',
+          'Penilaian Arsip',
+          'Laporan WFA',
+          'Absensi Saya',
+          'Diskusi & Chat',
+          'Pengumuman',
+          'Saran Masukan',
+          'Analitik'
+        ];
+        if (currentUser?.divisi === 'Biro Data dan Informasi') {
+          fallbackModules.push('Scrum Board');
+        }
+        setVisibleModules(fallbackModules);
       }
-      setVisibleModules(fallbackModules);
     } finally {
       setLoading(false);
     }
-  }, [currentUser?.id, currentUser?.divisi, currentUser?.role]);
+  }, [currentUser?.id, currentUser?.divisi, currentUser?.role, currentUser?.jabatan, currentUser?.name]);
 
   useEffect(() => {
     fetchVisibility();
@@ -87,17 +99,20 @@ export function useModuleVisibility(currentUser: User | null) {
 
   const isModuleVisible = useCallback(
     (moduleName: string): boolean => {
-      if (moduleName === 'Diskusi & Chat' || moduleName === 'Monitoring Capaian') return true;
+      if (currentUser?.role === 'Super Admin') return true;
       if (loading) {
+        if (isMenteriOrWakilMenteri(currentUser)) {
+          return moduleName === 'Monitoring Capaian';
+        }
         // During loading, show standard items to prevent flashing, but hide restricted ones
-        if (moduleName === 'Pelayanan Zoom' || moduleName === 'Manajemen Modul' || moduleName === 'Laporan Absensi') {
+        if (moduleName === 'Pelayanan Zoom' || moduleName === 'Manajemen Modul' || moduleName === 'Laporan Absensi' || moduleName === 'Scrum Board') {
           return false;
         }
         return true;
       }
       return visibleModules.includes(moduleName);
     },
-    [visibleModules, loading]
+    [visibleModules, loading, currentUser]
   );
 
   return {
