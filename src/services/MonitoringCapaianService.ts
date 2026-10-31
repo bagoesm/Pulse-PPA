@@ -15,7 +15,7 @@ import {
 } from '../types/monitoringCapaian';
 import { INITIAL_RO_DATA, INITIAL_SATKERS } from '../data/rkklInitialData';
 
-const STORAGE_KEY = 'pulse_rkkl_monitoring_capaian_v4';
+const STORAGE_KEY = 'pulse_rkkl_monitoring_capaian_v5';
 const DUMMY_IDS = new Set(['ro-39', 'ro-40', 'ro-41', 'ro-42', 'ro-43', 'ro-44']);
 
 export const SATKER_ORDER: string[] = [
@@ -42,37 +42,48 @@ export const SAKTI_SATKER_MAP: Record<string, { id: string; kode: string; nama: 
 };
 
 export const SAKTI_KEGIATAN_UNIT_MAP: Record<string, string> = {
-  'WA.2780': 'Biro Perencanaan dan Keuangan',
-  'WA.2781': 'Biro Hubungan Masyarakat dan Umum',
-  'WA.2782': 'Biro Sumber Daya Manusia dan Organisasi',
+  // 01 - Sekretariat Kementerian (427944)
   'WA.2783': 'Biro Hukum dan Kerja Sama',
-  'WA.2784': 'Inspektorat',
-  'WA.2785': 'Biro Data dan Informasi',
-  'WA.2789': 'Sekretariat Kementerian',
+  'WA.2784': 'Biro Perencanaan dan Keuangan',
+  'WA.2785': 'Biro Hubungan Masyarakat dan Umum',
+  'WA.2786': 'Inspektorat',
+  'WA.2788': 'Staf Ahli',
+  'WA.6380': 'Biro Data dan Informasi',
+  'WA.8089': 'Biro Sumber Daya Manusia dan Organisasi',
 
-  'DE.2790': 'Asdep PUG Bidang Politik, Hukum, dan Hankam',
-  'DE.2791': 'Asdep PUG Bidang Sosial dan Budaya',
-  'DE.2792': 'Asdep PUG Bidang Ekonomi',
-  'DE.2793': 'Asdep Partisipasi Lembaga Profesi dan Dunia Usaha',
-  'DE.2794': 'Asdep Partisipasi Masyarakat',
-  'DE.2795': 'Sekretariat Deputi Kesetaraan Gender',
+  // 02 - Deputi Bidang Kesetaraan Gender (664941)
+  'DE.2790': 'Asdep PUG Bidang Polhukam & Pemda Wilayah II',
+  'DE.2794': 'Asdep PUG Bidang PMK & Pemda Wilayah III',
+  'DE.2795': 'Asdep PUG Bidang Ekonomi, Infrastruktur & Pemda Wilayah I',
+  'DE.6372': 'Perumusan Kebijakan Kesetaraan Gender',
+  'DE.8087': 'Partisipasi Masyarakat Bidang PUG',
+  'WA.6367': 'Sekretariat Deputi Kesetaraan Gender',
 
-  'DE.2796': 'Asdep Perlindungan Hak Perempuan Pekerja dan TPPO',
-  'DE.2801': 'Asdep Perlindungan Hak Perempuan Rumah Tangga dan Rentan',
-  'DE.2802': 'Asdep Perlindungan Hak Perempuan dalam Situasi Darurat dan Kondisi Khusus',
-  'DE.2803': 'Sekretariat Deputi Perlindungan Hak Perempuan',
+  // 03 - Deputi Bidang Pemenuhan Hak Anak (664979)
+  'DE.2809': 'Pemenuhan Hak Anak Atas Pengasuhan dan Lingkungan',
+  'DE.2811': 'Pemenuhan Hak Sipil, Informasi dan Partisipasi Anak',
+  'DE.2812': 'Pemenuhan Hak Anak Atas Kesehatan dan Pendidikan',
+  'DE.6373': 'Perumusan Kebijakan Pemenuhan Hak Anak',
+  'WA.6368': 'Sekretariat Deputi Pemenuhan Hak Anak',
 
-  'DE.2797': 'Asdep Perlindungan Khusus Anak dari Kekerasan',
-  'DE.2798': 'Asdep Perlindungan Anak Kondisi Khusus',
-  'DE.2799': 'Asdep Perlindungan Khusus Anak Memerlukan Perlindungan Khusus',
-  'DE.2800': 'Sekretariat Deputi Perlindungan Khusus Anak',
+  // 04 - Deputi Bidang Perlindungan Hak Perempuan (664958)
+  'DE.2797': 'Perlindungan Hak Perempuan Dalam RT & Kondisi Khusus',
+  'DE.2800': 'Perlindungan Hak Perempuan Pekerja & TPPO',
+  'DE.6375': 'Layanan Perempuan Korban Kekerasan (SAPA 129)',
+  'DE.6376': 'Perumusan Kebijakan Perlindungan Hak Perempuan',
+  'DE.8088': 'Tata Kelola Layanan Terpadu Perlindungan Perempuan',
+  'WA.6370': 'Sekretariat Deputi Perlindungan Hak Perempuan',
 
-  'DE.2807': 'Asdep Pemenuhan Hak Sipil, Informasi, dan Partisipasi Anak',
-  'DE.2808': 'Asdep Pemenuhan Hak Anak atas Pengasuhan dan Lingkungan',
-  'DE.2809': 'Asdep Pemenuhan Hak Anak atas Kesehatan dan Pendidikan',
-  'DE.2810': 'Sekretariat Deputi Pemenuhan Hak Anak',
+  // 05 - Deputi Bidang Perlindungan Khusus Anak (664962)
+  'DE.2805': 'Perlindungan Anak Kondisi Khusus',
+  'DE.2810': 'Perlindungan Khusus Anak dari Kekerasan',
+  'DE.6377': 'Perumusan Kebijakan Perlindungan Khusus Anak',
+  'DE.6378': 'Layanan Anak Memerlukan Perlindungan Khusus',
+  'WA.6371': 'Sekretariat Deputi Perlindungan Khusus Anak',
 
-  'DE.2818': 'Sekretariat Komisi Perlindungan Anak Indonesia'
+  // 06 - Komisi Perlindungan Anak Indonesia / KPAI (664983)
+  'DE.2787': 'Pengawasan Perlindungan Anak (KPAI)',
+  'WA.6379': 'Sekretariat KPAI'
 };
 
 export class MonitoringCapaianService {
@@ -88,7 +99,11 @@ export class MonitoringCapaianService {
 
   // Helper key to uniquely identify an RO across Satkers and Kegiatans
   private getROKey(satkerNama: string, kodeKegiatan: string | undefined, kodeRo: string): string {
-    return `${satkerNama}_${kodeKegiatan || ''}_${kodeRo}`;
+    const kegNum = kodeKegiatan && kodeKegiatan.includes('.') ? kodeKegiatan.split('.')[1] : (kodeKegiatan || '');
+    const normalizedRo = kegNum && kodeRo && !kodeRo.startsWith(`${kegNum}.`)
+      ? `${kegNum}.${kodeRo}`
+      : (kodeRo || '');
+    return `${satkerNama}_${kodeKegiatan || ''}_${normalizedRo}`;
   }
 
   // Determine status based on realization percentage
@@ -187,9 +202,10 @@ export class MonitoringCapaianService {
           const localMap = new Map(localROs.map(l => [this.getROKey(l.satkerNama, l.kodeKegiatan, l.kodeRo), l]));
           const initialMap = new Map(INITIAL_RO_DATA.map(init => [this.getROKey(init.satkerNama, init.kodeKegiatan, init.kodeRo), init]));
 
-          const mapped = data
+          const dedupedMap = new Map<string, CapaianRO>();
+          data
             .filter((r: any) => !DUMMY_IDS.has(r.id))
-            .map(r => {
+            .forEach(r => {
               const ro = this.mapRowToRO(r);
               const key = this.getROKey(ro.satkerNama, ro.kodeKegiatan, ro.kodeRo);
               const local = localMap.get(key);
@@ -200,9 +216,12 @@ export class MonitoringCapaianService {
               } else if (init && init.komponen && init.komponen.length > 0) {
                 ro.komponen = init.komponen;
               }
-              return ro;
+              if (!dedupedMap.has(key)) {
+                dedupedMap.set(key, ro);
+              }
             });
 
+          const mapped = Array.from(dedupedMap.values());
           this.saveAllROs(mapped); // cache in localStorage
           return mapped;
         } else {
@@ -919,7 +938,7 @@ export class MonitoringCapaianService {
       if (/^[A-Z]{2}\.\d{4}$/.test(c1)) {
         currentKegiatan = {
           code: c1,
-          name: String(row[8] || row[3] || '').trim()
+          name: String(row[8] || row[3] || '').trim().replace(/\s+/g, ' ')
         };
         continue;
       }
@@ -928,17 +947,20 @@ export class MonitoringCapaianService {
       if (/^[A-Z0-9]{3}$/.test(c2)) {
         currentKro = {
           code: c2,
-          name: String(row[6] || '').trim()
+          name: String(row[6] || '').trim().replace(/\s+/g, ' ')
         };
         continue;
       }
 
       // Match RO e.g. AEC.001 or PEA.001
       if (/^[A-Z0-9]{3}\.[A-Z0-9]{3}$/.test(c2)) {
-        const roCode = c2;
+        const kegNum = currentKegiatan.code.includes('.')
+          ? currentKegiatan.code.split('.')[1]
+          : currentKegiatan.code;
+        const roCode = kegNum ? `${kegNum}.${c2}` : c2;
         const roKey = this.getROKey(detectedSatkerInfo.nama, currentKegiatan.code, roCode);
 
-        const roName = String(row[10] || row[6] || row[8] || roCode).trim();
+        const roName = String(row[10] || row[6] || row[8] || c2).trim().replace(/\s+/g, ' ');
         const pagu = Number(row[16] || 0);
         const realisasi = Number(row[25] !== undefined && row[25] !== null ? row[25] : (row[24] || 0));
         const sisa = Math.max(0, pagu - realisasi);
@@ -949,12 +971,14 @@ export class MonitoringCapaianService {
           unitKerja = currentKegiatan.name || detectedSatkerInfo.nama;
         }
 
+        const satkerNum = detectedSatkerInfo.id.replace('satker-', '');
+
         if (!roMap.has(roKey)) {
           currentRo = {
-            id: `ro-${detectedSatkerInfo.kode}-${roMap.size + 1}`,
+            id: `ro-${satkerNum}-${kegNum}-${c2.replace('.', '-')}`,
             satkerId: detectedSatkerInfo.id,
             satkerNama: detectedSatkerInfo.nama,
-            unitKerjaId: `unit-${currentKegiatan.code || 'gen'}`,
+            unitKerjaId: `unit-${satkerNum}-${kegNum || 'gen'}`,
             unitKerjaNama: unitKerja,
             kodeKegiatan: currentKegiatan.code,
             namaKegiatan: currentKegiatan.name,
@@ -978,6 +1002,9 @@ export class MonitoringCapaianService {
           roMap.set(roKey, currentRo);
         } else {
           currentRo = roMap.get(roKey)!;
+          if (roName && roName !== c2 && !currentRo.namaRo.includes(roName)) {
+            currentRo.namaRo = `${currentRo.namaRo} ${roName}`.replace(/\s+/g, ' ').trim();
+          }
         }
         continue;
       }
@@ -985,23 +1012,25 @@ export class MonitoringCapaianService {
       // Match Komponen e.g. 051
       if (/^\d{3}$/.test(c4) && currentRo) {
         const kompKode = c4;
-        const kompNama = String(row[9] || '').trim();
+        const kompNamaRaw = String(row[9] || '').trim().replace(/\s+/g, ' ');
+        const kompNama = kompNamaRaw.startsWith(`${kompKode} -`) ? kompNamaRaw : `${kompKode} - ${kompNamaRaw}`;
         const pagu = Number(row[16] || 0);
         const realisasi = Number(row[25] !== undefined && row[25] !== null ? row[25] : (row[24] || 0));
         const sisa = Math.max(0, pagu - realisasi);
         const persentase = pagu > 0 ? Number(((realisasi / pagu) * 100).toFixed(2)) : 0;
 
-        const existingKomp = currentRo.komponen.find(k => k.kode === kompKode);
+        const existingKomp = currentRo.komponen.find(k => k.kode === kompKode || k.nama.startsWith(`${kompKode} -`));
         if (!existingKomp) {
           currentRo.komponen.push({
-            id: `komp-${currentRo.kodeRo}-${kompKode}`,
+            id: `komp-${currentRo.kodeRo.replace(/\./g, '-')}-${kompKode}`,
             kode: kompKode,
             nama: kompNama,
             pagu,
             realisasi,
             sisa,
             persentase,
-            status: this.calculateStatus(persentase)
+            status: this.calculateStatus(persentase),
+            keterangan: `Komponen SAKTI ${kompKode}`
           });
         }
       }
@@ -1217,7 +1246,9 @@ export class MonitoringCapaianService {
         const schedSum = Object.values(activeJadwal).reduce((acc, curr) => acc + (Number(curr) || 0), 0);
 
         // SiLPA / Dana tidak terserap
-        const danaTidakTerserap = n.danaTidakTerserap !== undefined ? n.danaTidakTerserap : (prev.danaTidakTerserap || 0);
+        const danaTidakTerserap = (n.danaTidakTerserap && n.danaTidakTerserap > 0)
+          ? n.danaTidakTerserap
+          : (prev.danaTidakTerserap || 0);
 
         // Total Kebutuhan:
         // If there is an active weekly schedule in AJK: use schedSum capped to effectiveSisa.
@@ -1229,10 +1260,24 @@ export class MonitoringCapaianService {
           totalKebutuhan = Math.max(0, effectiveSisa - danaTidakTerserap);
         }
 
+        const prevHasScheduledKomponen = (prev.komponen || []).some(
+          k => k.jadwal && Object.values(k.jadwal).some(v => Number(v) > 0)
+        );
+        const newHasScheduledKomponen = (n.komponen || []).some(
+          k => k.jadwal && Object.values(k.jadwal).some(v => Number(v) > 0)
+        );
+        const mergedKomponen =
+          prevHasScheduledKomponen && !newHasScheduledKomponen
+            ? prev.komponen
+            : (n.komponen && n.komponen.length > 0)
+            ? n.komponen
+            : (prev.komponen || []);
+
         const merged: CapaianRO = {
           ...prev,
           ...n,
           id: prev.id, // preserve existing database ID
+          kodeRo: prev.kodeRo || n.kodeRo,
           pagu: effectivePagu,
           realisasi: effectiveReal,
           sisa: effectiveSisa,
@@ -1242,7 +1287,7 @@ export class MonitoringCapaianService {
           totalKebutuhan,
           danaTidakTerserap,
           keterangan: n.keterangan || prev.keterangan || '',
-          komponen: (n.komponen && n.komponen.length > 0) ? n.komponen : (prev.komponen || []),
+          komponen: mergedKomponen,
           updatedAt: now,
           updatedBy: n.updatedBy || prev.updatedBy || 'Upload Data'
         };
