@@ -306,11 +306,10 @@ export const MonitoringRoView: React.FC<MonitoringRoViewProps> = ({
         <button
           type="button"
           onClick={() => { setStatusFilter('ALL'); setCurrentPage(1); }}
-          className={`p-3.5 rounded-xl border text-left transition-all ${
-            statusFilter === 'ALL'
-              ? 'bg-slate-900 text-white border-slate-900 shadow-sm ring-2 ring-slate-900/20'
-              : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 shadow-2xs'
-          }`}
+          className={`p-3.5 rounded-xl border text-left transition-all ${statusFilter === 'ALL'
+            ? 'bg-slate-900 text-white border-slate-900 shadow-sm ring-2 ring-slate-900/20'
+            : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 shadow-2xs'
+            }`}
         >
           <div className="flex items-center justify-between mb-1">
             <span className="text-[11px] uppercase tracking-wider font-bold opacity-80">Semua RO</span>
@@ -326,11 +325,10 @@ export const MonitoringRoView: React.FC<MonitoringRoViewProps> = ({
             setStatusFilter(prev => prev === 'Sesuai Target' ? 'ALL' : 'Sesuai Target');
             setCurrentPage(1);
           }}
-          className={`p-3.5 rounded-xl border text-left transition-all ${
-            statusFilter === 'Sesuai Target'
-              ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm ring-2 ring-emerald-600/30'
-              : 'bg-emerald-50 text-emerald-900 border-emerald-200 hover:bg-emerald-100/70 shadow-2xs'
-          }`}
+          className={`p-3.5 rounded-xl border text-left transition-all ${statusFilter === 'Sesuai Target'
+            ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm ring-2 ring-emerald-600/30'
+            : 'bg-emerald-50 text-emerald-900 border-emerald-200 hover:bg-emerald-100/70 shadow-2xs'
+            }`}
         >
           <div className="flex items-center justify-between mb-1">
             <span className="text-[11px] uppercase tracking-wider font-bold">
@@ -348,11 +346,10 @@ export const MonitoringRoView: React.FC<MonitoringRoViewProps> = ({
             setStatusFilter(prev => prev === 'Perlu Perhatian' ? 'ALL' : 'Perlu Perhatian');
             setCurrentPage(1);
           }}
-          className={`p-3.5 rounded-xl border text-left transition-all ${
-            statusFilter === 'Perlu Perhatian'
-              ? 'bg-amber-500 text-white border-amber-500 shadow-sm ring-2 ring-amber-500/30'
-              : 'bg-amber-50 text-amber-900 border-amber-200 hover:bg-amber-100/70 shadow-2xs'
-          }`}
+          className={`p-3.5 rounded-xl border text-left transition-all ${statusFilter === 'Perlu Perhatian'
+            ? 'bg-amber-500 text-white border-amber-500 shadow-sm ring-2 ring-amber-500/30'
+            : 'bg-amber-50 text-amber-900 border-amber-200 hover:bg-amber-100/70 shadow-2xs'
+            }`}
         >
           <div className="flex items-center justify-between mb-1">
             <span className="text-[11px] uppercase tracking-wider font-bold">
@@ -370,11 +367,10 @@ export const MonitoringRoView: React.FC<MonitoringRoViewProps> = ({
             setStatusFilter(prev => prev === 'Perlu Intervensi' ? 'ALL' : 'Perlu Intervensi');
             setCurrentPage(1);
           }}
-          className={`p-3.5 rounded-xl border text-left transition-all ${
-            statusFilter === 'Perlu Intervensi'
-              ? 'bg-rose-600 text-white border-rose-600 shadow-sm ring-2 ring-rose-600/30'
-              : 'bg-rose-50 text-rose-900 border-rose-200 hover:bg-rose-100/70 shadow-2xs'
-          }`}
+          className={`p-3.5 rounded-xl border text-left transition-all ${statusFilter === 'Perlu Intervensi'
+            ? 'bg-rose-600 text-white border-rose-600 shadow-sm ring-2 ring-rose-600/30'
+            : 'bg-rose-50 text-rose-900 border-rose-200 hover:bg-rose-100/70 shadow-2xs'
+            }`}
         >
           <div className="flex items-center justify-between mb-1">
             <span className="text-[11px] uppercase tracking-wider font-bold">
@@ -450,15 +446,15 @@ export const MonitoringRoView: React.FC<MonitoringRoViewProps> = ({
                     ro.status === 'Sesuai Target'
                       ? 'hover:bg-emerald-50/30'
                       : ro.status === 'Perlu Perhatian'
-                      ? 'hover:bg-amber-50/30'
-                      : 'hover:bg-rose-50/30';
+                        ? 'hover:bg-amber-50/30'
+                        : 'hover:bg-rose-50/30';
 
                   const progressGradient =
                     ro.status === 'Sesuai Target'
                       ? 'bg-gradient-to-r from-emerald-500 to-teal-500'
                       : ro.status === 'Perlu Perhatian'
-                      ? 'bg-gradient-to-r from-amber-400 to-orange-500'
-                      : 'bg-gradient-to-r from-rose-500 to-red-600';
+                        ? 'bg-gradient-to-r from-amber-400 to-orange-500'
+                        : 'bg-gradient-to-r from-rose-500 to-red-600';
 
                   return (
                     <React.Fragment key={ro.id}>

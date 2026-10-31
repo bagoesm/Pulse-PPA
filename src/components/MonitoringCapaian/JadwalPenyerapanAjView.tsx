@@ -236,7 +236,7 @@ export const JadwalPenyerapanAjView: React.FC<JadwalPenyerapanAjViewProps> = ({
                 <th rowSpan={2} className="py-2.5 px-3 border-r border-slate-200 text-right w-24">Pagu (Rp)</th>
                 <th rowSpan={2} className="py-2.5 px-3 border-r border-slate-200 text-right w-24 bg-emerald-50/70 text-emerald-900">Realisasi (Rp)</th>
                 <th rowSpan={2} className="py-2.5 px-3 border-r border-slate-200 text-right w-24">Sisa (Rp)</th>
-                
+
                 {/* Months with bold rich colored headers */}
                 <th colSpan={3} className="py-2 px-2 text-center bg-sky-600 text-white font-bold tracking-wide border-r border-sky-700 shadow-2xs">
                   Oktober 2026
