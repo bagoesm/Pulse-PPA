@@ -431,8 +431,8 @@ export const JadwalPenyerapanAjView: React.FC<JadwalPenyerapanAjViewProps> = ({
                           <td className="py-2 px-3 border-r border-slate-100 text-right font-mono tabular-nums text-slate-600 whitespace-nowrap text-[10px]">
                             {k.pagu ? formatNumber(k.pagu) : '-'}
                           </td>
-                          <td className="py-2 px-3 border-r border-slate-100 text-right font-mono tabular-nums text-slate-400 whitespace-nowrap bg-emerald-50/20 text-[10px]">
-                            -
+                          <td className="py-2 px-3 border-r border-slate-100 text-right font-mono tabular-nums text-emerald-700 whitespace-nowrap bg-emerald-50/20 text-[10px]">
+                            {k.realisasi !== undefined ? formatNumber(k.realisasi) : '-'}
                           </td>
                           <td className="py-2 px-3 border-r border-slate-100 text-right font-mono tabular-nums text-slate-600 whitespace-nowrap text-[10px]">
                             {k.sisa ? formatNumber(k.sisa) : '-'}

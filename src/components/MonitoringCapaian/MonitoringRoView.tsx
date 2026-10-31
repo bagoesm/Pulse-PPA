@@ -589,6 +589,7 @@ export const MonitoringRoView: React.FC<MonitoringRoViewProps> = ({
                                     <th className="py-2.5 px-3 w-8 text-center">No</th>
                                     <th className="py-2.5 px-3">Uraian Komponen / Sub-Kegiatan</th>
                                     <th className="py-2.5 px-3 text-right w-32">Pagu (Rp)</th>
+                                    <th className="py-2.5 px-3 text-right w-32">Realisasi (Rp)</th>
                                     <th className="py-2.5 px-3 text-right w-32">Sisa Anggaran (Rp)</th>
                                     <th className="py-2.5 px-3 min-w-[220px]">Rencana Penarikan Jadwal Mingguan</th>
                                     <th className="py-2.5 px-3">Keterangan</th>
@@ -598,7 +599,7 @@ export const MonitoringRoView: React.FC<MonitoringRoViewProps> = ({
                                 <tbody className="divide-y divide-slate-100">
                                   {(!ro.komponen || ro.komponen.length === 0) ? (
                                     <tr>
-                                      <td colSpan={readOnly ? 6 : 7} className="py-6 text-center text-slate-400 text-xs">
+                                      <td colSpan={readOnly ? 7 : 8} className="py-6 text-center text-slate-400 text-xs">
                                         {readOnly
                                           ? 'Belum ada rincian belanja operasional untuk RO ini.'
                                           : <>Belum ada rincian belanja operasional untuk RO ini. Silakan klik tombol <strong>Tambah Komponen</strong> di atas.</>}
@@ -606,7 +607,15 @@ export const MonitoringRoView: React.FC<MonitoringRoViewProps> = ({
                                     </tr>
                                   ) : (
                                     ro.komponen.map((k, kIdx) => {
-                                      const hasJadwal = k.jadwal && Object.keys(k.jadwal).length > 0;
+                                      const activeJadwalEntries = Object.entries(k.jadwal || {}).filter(([, val]) => Number(val) > 0);
+                                      const formatWeekKey = (key: string) => {
+                                        const map: Record<string, string> = {
+                                          okt2: 'Okt Mg 2', okt3: 'Okt Mg 3', okt4: 'Okt Mg 4',
+                                          nov1: 'Nov Mg 1', nov2: 'Nov Mg 2', nov3: 'Nov Mg 3', nov4: 'Nov Mg 4',
+                                          des1: 'Des Mg 1', des2: 'Des Mg 2', des3: 'Des Mg 3', des4: 'Des Mg 4'
+                                        };
+                                        return map[key] || key.toUpperCase();
+                                      };
                                       return (
                                         <tr key={kIdx} className="hover:bg-blue-50/20 transition-colors">
                                           <td className="py-2.5 px-3 text-center text-slate-400 font-mono text-[11px]">{kIdx + 1}</td>
@@ -614,15 +623,18 @@ export const MonitoringRoView: React.FC<MonitoringRoViewProps> = ({
                                           <td className="py-2.5 px-3 text-right font-mono text-slate-700 tabular-nums">
                                             {k.pagu ? formatRupiah(k.pagu) : '-'}
                                           </td>
+                                          <td className="py-2.5 px-3 text-right font-mono text-emerald-700 tabular-nums">
+                                            {k.realisasi !== undefined ? formatRupiah(k.realisasi) : '-'}
+                                          </td>
                                           <td className="py-2.5 px-3 text-right font-mono text-slate-700 tabular-nums">
-                                            {k.sisa ? formatRupiah(k.sisa) : '-'}
+                                            {k.sisa !== undefined ? formatRupiah(k.sisa) : '-'}
                                           </td>
                                           <td className="py-2.5 px-3">
-                                            {hasJadwal ? (
+                                            {activeJadwalEntries.length > 0 ? (
                                               <div className="flex flex-wrap gap-1">
-                                                {Object.entries(k.jadwal!).map(([minggu, val]) => (
+                                                {activeJadwalEntries.map(([minggu, val]) => (
                                                   <span key={minggu} className="text-[10px] bg-blue-50 text-blue-700 font-semibold px-2 py-0.5 rounded border border-blue-200/60 font-mono">
-                                                    {minggu.toUpperCase()}: {formatRupiah(val)}
+                                                    {formatWeekKey(minggu)}: {formatRupiah(val)}
                                                   </span>
                                                 ))}
                                               </div>

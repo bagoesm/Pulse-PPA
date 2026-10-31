@@ -121,7 +121,7 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "keterangan": "Komponen SAKTI 051"
       }
     ],
-    "totalKebutuhan": 2929500,
+    "totalKebutuhan": 3957500,
     "danaTidakTerserap": 0,
     "keterangan": "",
     "updatedAt": "2026-10-31T00:00:00Z",
@@ -233,7 +233,7 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "keterangan": "Komponen SAKTI 053"
       }
     ],
-    "totalKebutuhan": 9600000,
+    "totalKebutuhan": 9780000,
     "danaTidakTerserap": 0,
     "keterangan": "",
     "updatedAt": "2026-10-31T00:00:00Z",
@@ -345,7 +345,7 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "keterangan": "Komponen SAKTI 053"
       }
     ],
-    "totalKebutuhan": 29208500,
+    "totalKebutuhan": 15690977500,
     "danaTidakTerserap": 0,
     "keterangan": "",
     "updatedAt": "2026-10-31T00:00:00Z",
@@ -549,7 +549,7 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "keterangan": "Komponen SAKTI 055"
       }
     ],
-    "totalKebutuhan": 13246662,
+    "totalKebutuhan": 14046662,
     "danaTidakTerserap": 0,
     "keterangan": "",
     "updatedAt": "2026-10-31T00:00:00Z",
@@ -793,7 +793,7 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "keterangan": "Komponen SAKTI 051"
       }
     ],
-    "totalKebutuhan": 15100,
+    "totalKebutuhan": 248000100,
     "danaTidakTerserap": 0,
     "keterangan": "",
     "updatedAt": "2026-10-31T00:00:00Z",
@@ -1093,7 +1093,7 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "keterangan": "Komponen SAKTI 051"
       }
     ],
-    "totalKebutuhan": 9336030,
+    "totalKebutuhan": 9500030,
     "danaTidakTerserap": 0,
     "keterangan": "",
     "updatedAt": "2026-10-31T00:00:00Z",
@@ -1187,7 +1187,7 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "keterangan": "Komponen SAKTI 051"
       }
     ],
-    "totalKebutuhan": 7252936,
+    "totalKebutuhan": 10509936,
     "danaTidakTerserap": 0,
     "keterangan": "",
     "updatedAt": "2026-10-31T00:00:00Z",
@@ -1261,7 +1261,7 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "keterangan": "Komponen SAKTI 058"
       }
     ],
-    "totalKebutuhan": 3222747,
+    "totalKebutuhan": 13062747,
     "danaTidakTerserap": 0,
     "keterangan": "",
     "updatedAt": "2026-10-31T00:00:00Z",
@@ -1308,7 +1308,7 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "keterangan": "Komponen SAKTI 051"
       }
     ],
-    "totalKebutuhan": 6704000,
+    "totalKebutuhan": 10000000,
     "danaTidakTerserap": 0,
     "keterangan": "",
     "updatedAt": "2026-10-31T00:00:00Z",
@@ -1438,7 +1438,7 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "keterangan": "Komponen SAKTI 053"
       }
     ],
-    "totalKebutuhan": 12847500,
+    "totalKebutuhan": 15247500,
     "danaTidakTerserap": 0,
     "keterangan": "",
     "updatedAt": "2026-10-31T00:00:00Z",
@@ -1511,8 +1511,8 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
     "jadwal": {
       "okt2": 0,
       "okt3": 0,
-      "okt4": 3600000,
-      "nov1": 3600000,
+      "okt4": 0,
+      "nov1": 0,
       "nov2": 576000,
       "nov3": 0,
       "nov4": 0,
@@ -1523,30 +1523,21 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
     },
     "komponen": [
       {
-        "nama": "Konsumsi",
-        "pagu": 0,
-        "realisasi": 0,
+        "id": "komp-427944-6380-AAG-001-051",
+        "kode": "051",
+        "nama": "051 - Penyusunan Rancangan Permen tentang SIMFONI PPA (Konsumsi)",
+        "pagu": 2800000,
+        "realisasi": 2217500,
         "sisa": 582500,
         "jadwal": {
           "nov2": 576000
         },
-        "keterangan": ""
-      },
-      {
-        "nama": "Honorarium Narasumber",
-        "pagu": 0,
-        "realisasi": 0,
-        "sisa": 7200000,
-        "jadwal": {
-          "okt4": 3600000,
-          "nov1": 3600000
-        },
-        "keterangan": ""
+        "keterangan": "Konsumsi rapat penyusunan rancangan Permen"
       }
     ],
-    "totalKebutuhan": 582500,
+    "totalKebutuhan": 576000,
     "danaTidakTerserap": 6500,
-    "keterangan": "",
+    "keterangan": "Penyusunan Rancangan Permen tentang SIMFONI PPA (051)",
     "updatedAt": "2026-10-31T00:00:00Z",
     "updatedBy": "SAKTI GLP039"
   },
@@ -1582,43 +1573,31 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
     },
     "komponen": [
       {
-        "nama": "Peningkatan Pengembangan Aplikasi SIMFONI PPA V.3",
-        "pagu": 3075000,
-        "realisasi": 120000,
-        "sisa": 2955000,
-        "jadwal": {},
-        "keterangan": ""
-      },
-      {
-        "nama": "Implementasi Jaringan Intra Pemerintah",
+        "id": "komp-427944-6380-EBA-963-051a",
+        "kode": "051",
+        "nama": "051 - Implementasi Jaringan Intra Pemerintah",
         "pagu": 867000,
         "realisasi": 0,
         "sisa": 867000,
         "jadwal": {
           "okt4": 867000
         },
-        "keterangan": ""
+        "keterangan": "Implementasi Jaringan Intra Pemerintah"
       },
       {
-        "nama": "Sisa belanja konsumsi dan transport",
-        "pagu": 0,
-        "realisasi": 0,
-        "sisa": 23730,
-        "jadwal": {},
-        "keterangan": ""
-      },
-      {
-        "id": "komp-427944-6380--051",
-        "nama": "051 - Pengelolaan Teknologi Informasi dan Pengembangan Sistem Informasi",
-        "pagu": 15000000,
+        "id": "komp-427944-6380-EBA-963-051b",
+        "kode": "051",
+        "nama": "051 - Peningkatan Pengembangan Aplikasi SIMFONI PPA V.3 & Belanja Pendukung",
+        "pagu": 12330000,
         "realisasi": 9354270,
-        "sisa": 5645730,
-        "keterangan": "Komponen SAKTI 051"
+        "sisa": 2975730,
+        "jadwal": {},
+        "keterangan": "Efisiensi anggaran pengembangan aplikasi & sisa belanja konsumsi/transport"
       }
     ],
     "totalKebutuhan": 867000,
-    "danaTidakTerserap": 2978730,
-    "keterangan": "",
+    "danaTidakTerserap": 2975730,
+    "keterangan": "Implementasi Jaringan Intra Pemerintah & Pengembangan SIMFONI PPA V.3",
     "updatedAt": "2026-10-31T00:00:00Z",
     "updatedBy": "SAKTI GLP039"
   },
@@ -1640,10 +1619,10 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
     "persentase": 78.23,
     "status": "Perlu Perhatian",
     "jadwal": {
-      "okt2": 86380755,
-      "okt3": 29350000,
-      "okt4": 48447000,
-      "nov1": 86461000,
+      "okt2": 0,
+      "okt3": 0,
+      "okt4": 13447000,
+      "nov1": 85452316,
       "nov2": 52032000,
       "nov3": 10480000,
       "nov4": 0,
@@ -1654,158 +1633,72 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
     },
     "komponen": [
       {
-        "nama": "Belanja Keperluan Perkantoran (ATK)",
-        "pagu": 12706000,
-        "realisasi": 0,
-        "sisa": 12706000,
+        "id": "komp-427944-6380-EBA-994-002-1",
+        "kode": "002",
+        "nama": "002 - Belanja Keperluan Perkantoran & Bahan (ATK)",
+        "pagu": 15705000,
+        "realisasi": 2790000,
+        "sisa": 12915000,
         "jadwal": {
           "okt4": 8650000,
-          "nov1": 4056000
+          "nov1": 4265000
         },
-        "keterangan": ""
+        "keterangan": "Belanja keperluan perkantoran & bahan operasional"
       },
       {
-        "nama": "Belanja Bahan (ATK)",
-        "pagu": 2999000,
-        "realisasi": 0,
-        "sisa": 209000,
+        "id": "komp-427944-6380-EBA-994-002-2",
+        "kode": "002",
+        "nama": "002 - Langganan Daya dan Jasa Lainnya",
+        "pagu": 599628000,
+        "realisasi": 543908684,
+        "sisa": 55719316,
         "jadwal": {
-          "nov1": 209000
-        },
-        "keterangan": "direvisi untuk penambahan lisensi burp suite pro"
-      },
-      {
-        "nama": "Langganan Daya dan Jasa Lainnya",
-        "pagu": 252339000,
-        "realisasi": 152547086,
-        "sisa": 99791914,
-        "jadwal": {
-          "okt4": 35000000,
-          "nov1": 33196000,
+          "nov1": 32187316,
           "nov2": 23532000
         },
-        "keterangan": "akan direvisi menyesuaikan kebutuhan"
+        "keterangan": "Langganan internet, cloud, dan daya jasa TI"
       },
       {
-        "nama": "Audit Surveilance ISO 27001:2022 (Konsultan)",
-        "pagu": 21500000,
-        "realisasi": 0,
-        "sisa": 21500000,
+        "id": "komp-427944-6380-EBA-994-002-3",
+        "kode": "002",
+        "nama": "002 - Audit Surveillance ISO 27001:2022 (Konsultan & Sertifikasi)",
+        "pagu": 50000000,
+        "realisasi": 10990000,
+        "sisa": 39010000,
         "jadwal": {
-          "okt3": 10480000,
+          "nov2": 28500000,
           "nov3": 10480000
         },
-        "keterangan": "akan direvisi menyesuaikan kebutuhan"
+        "keterangan": "Audit Surveillance ISO 27001:2022"
       },
       {
-        "nama": "Audit Surveilance ISO 27001:2022 (Sertifikasi)",
-        "pagu": 28500000,
-        "realisasi": 0,
-        "sisa": 28500000,
+        "id": "komp-427944-6380-EBA-994-002-4",
+        "kode": "002",
+        "nama": "002 - Pemeliharaan Perangkat TI, AC, dan Laptop",
+        "pagu": 27167000,
+        "realisasi": 22400000,
+        "sisa": 4767000,
         "jadwal": {
-          "nov2": 28500000
-        },
-        "keterangan": ""
-      },
-      {
-        "nama": "Jasa Pemeliharaan AC dan UPS Lt.1  2",
-        "pagu": 0,
-        "realisasi": 0,
-        "sisa": 21367500,
-        "jadwal": {
-          "okt2": 21367500
-        },
-        "keterangan": ""
-      },
-      {
-        "nama": "Jasa Perbaikan Pemeliharan Perangkat/Peralatan\nCommand Center Ruang Server",
-        "pagu": 0,
-        "realisasi": 0,
-        "sisa": 65013745,
-        "jadwal": {
-          "okt2": 65013255
-        },
-        "keterangan": ""
-      },
-      {
-        "nama": "Perbaikan AC dan Laptop",
-        "pagu": 23667000,
-        "realisasi": 0,
-        "sisa": 23667000,
-        "jadwal": {
-          "okt3": 18870000,
           "okt4": 4797000
         },
-        "keterangan": ""
+        "keterangan": "Perbaikan dan pemeliharaan perangkat operasional"
       },
       {
-        "nama": "Software Backup",
-        "pagu": 25000000,
+        "id": "komp-427944-6380-EBA-994-002-5",
+        "kode": "002",
+        "nama": "002 - Lisensi Software Backup, AI, dan Desain (Gemini, Figma, OpenRouter)",
+        "pagu": 49000000,
         "realisasi": 0,
-        "sisa": 25000000,
+        "sisa": 49000000,
         "jadwal": {
-          "nov1": 25000000
+          "nov1": 49000000
         },
-        "keterangan": ""
-      },
-      {
-        "nama": "Lisensi Gemini AI",
-        "pagu": 17500000,
-        "realisasi": 0,
-        "sisa": 17500000,
-        "jadwal": {
-          "nov1": 17500000
-        },
-        "keterangan": ""
-      },
-      {
-        "nama": "Lisensi Figma",
-        "pagu": 4000000,
-        "realisasi": 0,
-        "sisa": 4000000,
-        "jadwal": {
-          "nov1": 4000000
-        },
-        "keterangan": ""
-      },
-      {
-        "nama": "Open Router AI",
-        "pagu": 2500000,
-        "realisasi": 0,
-        "sisa": 2500000,
-        "jadwal": {
-          "nov1": 2500000
-        },
-        "keterangan": ""
-      },
-      {
-        "nama": "Cloudflare Bisnis",
-        "pagu": 50000000,
-        "realisasi": 43039214,
-        "sisa": 6960786,
-        "jadwal": {},
-        "keterangan": "akan direvisi menyesuaikan kebutuhan"
-      },
-      {
-        "nama": "Lisensi Cloude",
-        "pagu": 0,
-        "realisasi": 0,
-        "sisa": 691773,
-        "jadwal": {},
-        "keterangan": ""
-      },
-      {
-        "id": "komp-427944-6380--002",
-        "nama": "002 - Operasional dan Pemeliharaan Kantor",
-        "pagu": 741500000,
-        "realisasi": 498473037,
-        "sisa": 243026963,
-        "keterangan": "Komponen SAKTI 002"
+        "keterangan": "Software Backup (25 Jt), Gemini AI (17,5 Jt), Figma (4 Jt), OpenRouter (2,5 Jt)"
       }
     ],
     "totalKebutuhan": 161411316,
-    "danaTidakTerserap": 16256963,
-    "keterangan": "direvisi untuk penambahan lisensi burp suite pro; akan direvisi menyesuaikan kebutuhan; akan direvisi menyesuaikan kebutuhan; akan direvisi menyesuaikan kebutuhan",
+    "danaTidakTerserap": 0,
+    "keterangan": "Operasional dan Pemeliharaan Kantor, Lisensi Software, Langganan Daya & Jasa, dan Audit ISO 27001",
     "updatedAt": "2026-10-31T00:00:00Z",
     "updatedBy": "SAKTI GLP039"
   },
@@ -1827,13 +1720,13 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
     "persentase": 87.75,
     "status": "Perlu Perhatian",
     "jadwal": {
-      "okt2": 400000,
+      "okt2": 0,
       "okt3": 0,
       "okt4": 0,
       "nov1": 0,
       "nov2": 4410000,
       "nov3": 0,
-      "nov4": 21600000,
+      "nov4": 0,
       "des1": 0,
       "des2": 0,
       "des3": 0,
@@ -1841,39 +1734,31 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
     },
     "komponen": [
       {
-        "nama": "Konsumsi (051)",
-        "pagu": 0,
-        "realisasi": 0,
-        "sisa": 4556350,
+        "id": "komp-427944-6380-QMA-003-051",
+        "kode": "051",
+        "nama": "051 - Bimtek Penghitungan IPA, IPHA, IPKA tingkat kabupaten/kota",
+        "pagu": 36340000,
+        "realisasi": 31643650,
+        "sisa": 4696350,
         "jadwal": {
           "nov2": 4410000
         },
-        "keterangan": ""
+        "keterangan": "Belanja konsumsi & transport bimtek"
       },
       {
-        "nama": "Transport (051)",
-        "pagu": 0,
-        "realisasi": 0,
-        "sisa": 600000,
-        "jadwal": {
-          "okt2": 400000
-        },
-        "keterangan": ""
-      },
-      {
-        "nama": "Honor Narasumber (052, di akun rumga)",
-        "pagu": 0,
-        "realisasi": 0,
-        "sisa": 21600000,
-        "jadwal": {
-          "nov4": 21600000
-        },
-        "keterangan": ""
+        "id": "komp-427944-6380-QMA-003-052",
+        "kode": "052",
+        "nama": "052 - Penghitungan IPA, IPHA, IPKA",
+        "pagu": 2000000,
+        "realisasi": 2000000,
+        "sisa": 0,
+        "jadwal": {},
+        "keterangan": "Realisasi 100%"
       }
     ],
-    "totalKebutuhan": 4696350,
-    "danaTidakTerserap": 346350,
-    "keterangan": "",
+    "totalKebutuhan": 4410000,
+    "danaTidakTerserap": 286350,
+    "keterangan": "Bimtek Penghitungan IPA, IPHA, IPKA tingkat kabupaten/kota",
     "updatedAt": "2026-10-31T00:00:00Z",
     "updatedBy": "SAKTI GLP039"
   },
@@ -1895,11 +1780,11 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
     "persentase": 80.37,
     "status": "Perlu Perhatian",
     "jadwal": {
-      "okt2": 3452500,
-      "okt3": 3675000,
-      "okt4": 3705000,
+      "okt2": 0,
+      "okt3": 1995000,
+      "okt4": 0,
       "nov1": 0,
-      "nov2": 1368000,
+      "nov2": 0,
       "nov3": 0,
       "nov4": 0,
       "des1": 0,
@@ -1909,43 +1794,21 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
     },
     "komponen": [
       {
-        "nama": "Konsumsi",
-        "pagu": 0,
-        "realisasi": 0,
-        "sisa": 3600000,
+        "id": "komp-427944-6380-QMA-004-051",
+        "kode": "051",
+        "nama": "051 - Penyusunan Publikasi Statistik IPA, IPHA, dan IPKA",
+        "pagu": 10800000,
+        "realisasi": 8680000,
+        "sisa": 2120000,
         "jadwal": {
-          "okt2": 1480000,
           "okt3": 1995000
         },
-        "keterangan": ""
-      },
-      {
-        "nama": "Honor Narasumber (di akun rumga)",
-        "pagu": 0,
-        "realisasi": 0,
-        "sisa": 4000000,
-        "jadwal": {
-          "okt4": 2157500,
-          "nov2": 1368000
-        },
-        "keterangan": "akan dirubah untuk konsumsi"
-      },
-      {
-        "nama": "Konsumsi (di akun rumga)",
-        "pagu": 0,
-        "realisasi": 0,
-        "sisa": 5200000,
-        "jadwal": {
-          "okt2": 1972500,
-          "okt3": 1680000,
-          "okt4": 1547500
-        },
-        "keterangan": ""
+        "keterangan": "Belanja konsumsi pembahasan publikasi"
       }
     ],
-    "totalKebutuhan": 2120000,
-    "danaTidakTerserap": 599500,
-    "keterangan": "akan dirubah untuk konsumsi",
+    "totalKebutuhan": 1995000,
+    "danaTidakTerserap": 125000,
+    "keterangan": "Penyusunan Publikasi Statistik IPA, IPHA, dan IPKA",
     "updatedAt": "2026-10-31T00:00:00Z",
     "updatedBy": "SAKTI GLP039"
   },
@@ -1971,9 +1834,9 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
       "okt3": 0,
       "okt4": 0,
       "nov1": 0,
-      "nov2": 1464000,
+      "nov2": 744000,
       "nov3": 0,
-      "nov4": 200000,
+      "nov4": 0,
       "des1": 0,
       "des2": 0,
       "des3": 0,
@@ -1981,29 +1844,21 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
     },
     "komponen": [
       {
-        "nama": "Konsumsi",
-        "pagu": 0,
-        "realisasi": 0,
-        "sisa": 1474800,
+        "id": "komp-427944-6380-QMA-005-051",
+        "kode": "051",
+        "nama": "051 - Penyusunan Publikasi Statistik Pembangunan Manusia Berbasis Gender",
+        "pagu": 12600000,
+        "realisasi": 11845200,
+        "sisa": 754800,
         "jadwal": {
-          "nov2": 1464000
+          "nov2": 744000
         },
-        "keterangan": ""
-      },
-      {
-        "nama": "Honor Narasumber (di akun rumga)",
-        "pagu": 0,
-        "realisasi": 0,
-        "sisa": 200000,
-        "jadwal": {
-          "nov4": 200000
-        },
-        "keterangan": ""
+        "keterangan": "Belanja konsumsi penyusunan publikasi"
       }
     ],
-    "totalKebutuhan": 754800,
+    "totalKebutuhan": 744000,
     "danaTidakTerserap": 10800,
-    "keterangan": "",
+    "keterangan": "Penyusunan Publikasi Statistik Pembangunan Manusia Berbasis Gender",
     "updatedAt": "2026-10-31T00:00:00Z",
     "updatedBy": "SAKTI GLP039"
   },
@@ -2025,13 +1880,13 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
     "persentase": 80.09,
     "status": "Perlu Perhatian",
     "jadwal": {
-      "okt2": 3974500,
+      "okt2": 0,
       "okt3": 0,
       "okt4": 0,
       "nov1": 0,
       "nov2": 0,
       "nov3": 3160000,
-      "nov4": 3800000,
+      "nov4": 0,
       "des1": 0,
       "des2": 0,
       "des3": 0,
@@ -2039,30 +1894,21 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
     },
     "komponen": [
       {
-        "nama": "Konsumsi",
-        "pagu": 0,
-        "realisasi": 0,
-        "sisa": 7200000,
+        "id": "komp-427944-6380-QMA-006-051",
+        "kode": "051",
+        "nama": "051 - Penyusunan Publikasi Statistik Profil Anak Indonesia",
+        "pagu": 16200000,
+        "realisasi": 12974500,
+        "sisa": 3225500,
         "jadwal": {
-          "okt2": 3974500,
           "nov3": 3160000
         },
-        "keterangan": ""
-      },
-      {
-        "nama": "Honor Narasumber (di akun rumga)",
-        "pagu": 0,
-        "realisasi": 0,
-        "sisa": 3800000,
-        "jadwal": {
-          "nov4": 3800000
-        },
-        "keterangan": ""
+        "keterangan": "Belanja konsumsi penyusunan publikasi"
       }
     ],
-    "totalKebutuhan": 3225500,
+    "totalKebutuhan": 3160000,
     "danaTidakTerserap": 65500,
-    "keterangan": "",
+    "keterangan": "Penyusunan Publikasi Statistik Profil Anak Indonesia",
     "updatedAt": "2026-10-31T00:00:00Z",
     "updatedBy": "SAKTI GLP039"
   },
@@ -2084,7 +1930,7 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
     "persentase": 81.55,
     "status": "Perlu Perhatian",
     "jadwal": {
-      "okt2": 200000,
+      "okt2": 0,
       "okt3": 846500,
       "okt4": 0,
       "nov1": 0,
@@ -2098,57 +1944,33 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
     },
     "komponen": [
       {
-        "nama": "Konsumsi",
-        "pagu": 0,
-        "realisasi": 0,
-        "sisa": 720401,
+        "id": "komp-427944-6380-QMA-007-051a",
+        "kode": "051",
+        "nama": "051 - Konsumsi & Transport Penyusunan Profil Perempuan Indonesia",
+        "pagu": 15020000,
+        "realisasi": 13879599,
+        "sisa": 1140401,
         "jadwal": {
-          "okt3": 480000
+          "okt3": 846500
         },
-        "keterangan": ""
+        "keterangan": "Konsumsi (Rp 480.000) & Transport (Rp 366.500)"
       },
       {
-        "nama": "Honorarium Narasumber",
-        "pagu": 0,
+        "id": "komp-427944-6380-QMA-007-051b",
+        "kode": "051",
+        "nama": "051 - Honorarium Narasumber Profil Perempuan Indonesia",
+        "pagu": 2000000,
         "realisasi": 0,
         "sisa": 2000000,
         "jadwal": {
           "nov4": 1800000
         },
-        "keterangan": ""
-      },
-      {
-        "nama": "Honorarium Narasumber (di akun rumga)",
-        "pagu": 0,
-        "realisasi": 0,
-        "sisa": 500000,
-        "jadwal": {},
-        "keterangan": ""
-      },
-      {
-        "nama": "Transport dalam kota",
-        "pagu": 0,
-        "realisasi": 0,
-        "sisa": 400000,
-        "jadwal": {
-          "okt2": 200000
-        },
-        "keterangan": ""
-      },
-      {
-        "nama": "Transport luar kota",
-        "pagu": 0,
-        "realisasi": 0,
-        "sisa": 400000,
-        "jadwal": {
-          "okt3": 366500
-        },
-        "keterangan": ""
+        "keterangan": "Honorarium narasumber pembahasan publikasi"
       }
     ],
-    "totalKebutuhan": 2846500,
-    "danaTidakTerserap": 1173901,
-    "keterangan": "",
+    "totalKebutuhan": 2646500,
+    "danaTidakTerserap": 493901,
+    "keterangan": "Penyusunan Publikasi Statistik Profil Perempuan Indonesia",
     "updatedAt": "2026-10-31T00:00:00Z",
     "updatedBy": "SAKTI GLP039"
   },
@@ -2176,7 +1998,7 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
       "nov1": 0,
       "nov2": 0,
       "nov3": 0,
-      "nov4": 8220000,
+      "nov4": 4120000,
       "des1": 3030000,
       "des2": 0,
       "des3": 0,
@@ -2184,30 +2006,22 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
     },
     "komponen": [
       {
-        "nama": "Konsumsi",
-        "pagu": 0,
+        "id": "komp-427944-6380-QMA-008-051",
+        "kode": "051",
+        "nama": "051 - Penyusunan Publikasi Statistik Laporan Simfoni PPA",
+        "pagu": 7200000,
         "realisasi": 0,
         "sisa": 7200000,
         "jadwal": {
           "nov4": 4120000,
           "des1": 3030000
         },
-        "keterangan": ""
-      },
-      {
-        "nama": "Honorarium Narasumber (di akun rumga)",
-        "pagu": 0,
-        "realisasi": 0,
-        "sisa": 4100000,
-        "jadwal": {
-          "nov4": 4100000
-        },
-        "keterangan": ""
+        "keterangan": "Belanja konsumsi penyusunan laporan SIMFONI PPA"
       }
     ],
-    "totalKebutuhan": 7200000,
+    "totalKebutuhan": 7150000,
     "danaTidakTerserap": 50000,
-    "keterangan": "",
+    "keterangan": "Penyusunan Publikasi Statistik Laporan SIMFONI PPA",
     "updatedAt": "2026-10-31T00:00:00Z",
     "updatedBy": "SAKTI GLP039"
   },
@@ -2229,56 +2043,47 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
     "persentase": 66.71,
     "status": "Perlu Intervensi",
     "jadwal": {
-      "okt2": 3906500,
+      "okt2": 0,
       "okt3": 0,
-      "okt4": 7400000,
+      "okt4": 0,
       "nov1": 0,
       "nov2": 0,
       "nov3": 0,
       "nov4": 3914000,
-      "des1": 2700000,
+      "des1": 900000,
       "des2": 0,
       "des3": 0,
       "des4": 0
     },
     "komponen": [
       {
-        "nama": "Konsumsi",
-        "pagu": 0,
-        "realisasi": 0,
-        "sisa": 7200000,
+        "id": "komp-427944-6380-QMA-009-051a",
+        "kode": "051",
+        "nama": "051 - Konsumsi Penyusunan Statistik KtPA Sinergi antar K/L",
+        "pagu": 7200000,
+        "realisasi": 3206500,
+        "sisa": 3993500,
         "jadwal": {
-          "okt2": 3206500,
           "nov4": 3914000
         },
-        "keterangan": ""
+        "keterangan": "Belanja konsumsi rapat koordinasi K/L"
       },
       {
-        "nama": "Honorarium Narasumber",
-        "pagu": 0,
-        "realisasi": 0,
-        "sisa": 8700000,
+        "id": "komp-427944-6380-QMA-009-051b",
+        "kode": "051",
+        "nama": "051 - Honorarium Narasumber Statistik KtPA Sinergi antar K/L",
+        "pagu": 8700000,
+        "realisasi": 7400000,
+        "sisa": 1300000,
         "jadwal": {
-          "okt4": 7400000,
           "des1": 900000
         },
-        "keterangan": ""
-      },
-      {
-        "nama": "Honorarium Narasumber (di akun rumga)",
-        "pagu": 0,
-        "realisasi": 0,
-        "sisa": 2800000,
-        "jadwal": {
-          "okt2": 700000,
-          "des1": 1800000
-        },
-        "keterangan": ""
+        "keterangan": "Honorarium narasumber"
       }
     ],
-    "totalKebutuhan": 5293500,
-    "danaTidakTerserap": 779500,
-    "keterangan": "",
+    "totalKebutuhan": 4814000,
+    "danaTidakTerserap": 479500,
+    "keterangan": "Penyusunan Publikasi Statistik KtPA Sinergi antar K/L",
     "updatedAt": "2026-10-31T00:00:00Z",
     "updatedBy": "SAKTI GLP039"
   },
@@ -2423,12 +2228,12 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "pagu": 158768000,
         "realisasi": 0,
         "sisa": 158768000,
-        "keterangan": "Komponen SAKTI 052"
+        "keterangan": "Komponen SAKTI 052 (Lock Pagu: Rp 17.300.000)"
       }
     ],
-    "totalKebutuhan": 171529000,
-    "danaTidakTerserap": 0,
-    "keterangan": "",
+    "totalKebutuhan": 154229000,
+    "danaTidakTerserap": 17300000,
+    "keterangan": "Lock Pagu (Blokir Anggaran SAKTI): Rp 17.300.000",
     "updatedAt": "2026-10-31T00:00:00Z",
     "updatedBy": "SAKTI GLP039"
   },
@@ -2855,7 +2660,7 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "pagu": 320000000,
         "realisasi": 184850000,
         "sisa": 135150000,
-        "keterangan": "Komponen SAKTI 051"
+        "keterangan": "Komponen SAKTI 051 (Lock Pagu: Rp 1.000.000)"
       },
       {
         "id": "komp-664941-2790-UBA-002-052",
@@ -2876,9 +2681,9 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "keterangan": "Komponen SAKTI 053"
       }
     ],
-    "totalKebutuhan": 310599542,
-    "danaTidakTerserap": 0,
-    "keterangan": "",
+    "totalKebutuhan": 309599542,
+    "danaTidakTerserap": 1000000,
+    "keterangan": "Lock Pagu (Blokir Anggaran SAKTI): Rp 1.000.000",
     "updatedAt": "2026-10-31T00:00:00Z",
     "updatedBy": "SAKTI GLP039"
   },
@@ -3014,7 +2819,7 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "pagu": 210868000,
         "realisasi": 164163100,
         "sisa": 46704900,
-        "keterangan": "Komponen SAKTI 051"
+        "keterangan": "Komponen SAKTI 051 (Lock Pagu: Rp 44.600.000)"
       },
       {
         "id": "komp-664941-2794-QDB-001-052",
@@ -3023,12 +2828,12 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "pagu": 3632000,
         "realisasi": 0,
         "sisa": 3632000,
-        "keterangan": "Komponen SAKTI 052"
+        "keterangan": "Komponen SAKTI 052 (Lock Pagu: Rp 3.632.000)"
       }
     ],
-    "totalKebutuhan": 50336900,
-    "danaTidakTerserap": 0,
-    "keterangan": "",
+    "totalKebutuhan": 2104900,
+    "danaTidakTerserap": 48232000,
+    "keterangan": "Lock Pagu (Blokir Anggaran SAKTI): Rp 48.232.000",
     "updatedAt": "2026-10-31T00:00:00Z",
     "updatedBy": "SAKTI GLP039"
   },
@@ -3070,7 +2875,7 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "pagu": 47200000,
         "realisasi": 43000000,
         "sisa": 4200000,
-        "keterangan": "Komponen SAKTI 051"
+        "keterangan": "Komponen SAKTI 051 (Lock Pagu: Rp 4.200.000)"
       },
       {
         "id": "komp-664941-2794-QDB-002-052",
@@ -3079,12 +2884,12 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "pagu": 6480000,
         "realisasi": 1487190,
         "sisa": 4992810,
-        "keterangan": "Komponen SAKTI 052"
+        "keterangan": "Komponen SAKTI 052 (Lock Pagu: Rp 3.885.000)"
       }
     ],
-    "totalKebutuhan": 9192810,
-    "danaTidakTerserap": 0,
-    "keterangan": "",
+    "totalKebutuhan": 1107810,
+    "danaTidakTerserap": 8085000,
+    "keterangan": "Lock Pagu (Blokir Anggaran SAKTI): Rp 8.085.000",
     "updatedAt": "2026-10-31T00:00:00Z",
     "updatedBy": "SAKTI GLP039"
   },
@@ -3182,7 +2987,7 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "pagu": 4536000,
         "realisasi": 0,
         "sisa": 4536000,
-        "keterangan": "Komponen SAKTI 051"
+        "keterangan": "Komponen SAKTI 051 (Lock Pagu: Rp 4.536.000)"
       },
       {
         "id": "komp-664941-2794-QMB-001-052",
@@ -3194,9 +2999,9 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "keterangan": "Komponen SAKTI 052"
       }
     ],
-    "totalKebutuhan": 24600000,
-    "danaTidakTerserap": 0,
-    "keterangan": "",
+    "totalKebutuhan": 20064000,
+    "danaTidakTerserap": 4536000,
+    "keterangan": "Lock Pagu (Blokir Anggaran SAKTI): Rp 4.536.000",
     "updatedAt": "2026-10-31T00:00:00Z",
     "updatedBy": "SAKTI GLP039"
   },
@@ -3359,7 +3164,7 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "pagu": 651862000,
         "realisasi": 65998000,
         "sisa": 585864000,
-        "keterangan": "Komponen SAKTI 051"
+        "keterangan": "Komponen SAKTI 051 (Lock Pagu: Rp 177.367.000)"
       },
       {
         "id": "komp-664941-2794-UBA-001-052",
@@ -3371,9 +3176,9 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "keterangan": "Komponen SAKTI 052"
       }
     ],
-    "totalKebutuhan": 782356000,
-    "danaTidakTerserap": 0,
-    "keterangan": "",
+    "totalKebutuhan": 604989000,
+    "danaTidakTerserap": 177367000,
+    "keterangan": "Lock Pagu (Blokir Anggaran SAKTI): Rp 177.367.000",
     "updatedAt": "2026-10-31T00:00:00Z",
     "updatedBy": "SAKTI GLP039"
   },
@@ -3424,12 +3229,12 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "pagu": 203885000,
         "realisasi": 135584900,
         "sisa": 68300100,
-        "keterangan": "Komponen SAKTI 052"
+        "keterangan": "Komponen SAKTI 052 (Lock Pagu: Rp 41.000.000)"
       }
     ],
-    "totalKebutuhan": 68556100,
-    "danaTidakTerserap": 0,
-    "keterangan": "",
+    "totalKebutuhan": 27556100,
+    "danaTidakTerserap": 41000000,
+    "keterangan": "Lock Pagu (Blokir Anggaran SAKTI): Rp 41.000.000",
     "updatedAt": "2026-10-31T00:00:00Z",
     "updatedBy": "SAKTI GLP039"
   },
@@ -3621,12 +3426,12 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "pagu": 1137489000,
         "realisasi": 628045000,
         "sisa": 509444000,
-        "keterangan": "Komponen SAKTI 052"
+        "keterangan": "Komponen SAKTI 052 (Lock Pagu: Rp 164.060.000)"
       }
     ],
-    "totalKebutuhan": 617637649,
-    "danaTidakTerserap": 0,
-    "keterangan": "",
+    "totalKebutuhan": 453577649,
+    "danaTidakTerserap": 164060000,
+    "keterangan": "Lock Pagu (Blokir Anggaran SAKTI): Rp 164.060.000",
     "updatedAt": "2026-10-31T00:00:00Z",
     "updatedBy": "SAKTI GLP039"
   },
@@ -3818,7 +3623,7 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "pagu": 969037000,
         "realisasi": 50989000,
         "sisa": 918048000,
-        "keterangan": "Komponen SAKTI 051"
+        "keterangan": "Komponen SAKTI 051 (Lock Pagu: Rp 115.915.000)"
       },
       {
         "id": "komp-664941-2795-UBA-001-052",
@@ -3827,12 +3632,12 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "pagu": 57440000,
         "realisasi": 17736000,
         "sisa": 39704000,
-        "keterangan": "Komponen SAKTI 052"
+        "keterangan": "Komponen SAKTI 052 (Lock Pagu: Rp 31.236.000)"
       }
     ],
-    "totalKebutuhan": 957752000,
-    "danaTidakTerserap": 0,
-    "keterangan": "",
+    "totalKebutuhan": 810601000,
+    "danaTidakTerserap": 147151000,
+    "keterangan": "Lock Pagu (Blokir Anggaran SAKTI): Rp 147.151.000",
     "updatedAt": "2026-10-31T00:00:00Z",
     "updatedBy": "SAKTI GLP039"
   },
@@ -3921,12 +3726,12 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "pagu": 80000000,
         "realisasi": 47906761,
         "sisa": 32093239,
-        "keterangan": "Komponen SAKTI 051"
+        "keterangan": "Komponen SAKTI 051 (Lock Pagu: Rp 2.400.000)"
       }
     ],
-    "totalKebutuhan": 32093239,
-    "danaTidakTerserap": 0,
-    "keterangan": "",
+    "totalKebutuhan": 29693239,
+    "danaTidakTerserap": 2400000,
+    "keterangan": "Lock Pagu (Blokir Anggaran SAKTI): Rp 2.400.000",
     "updatedAt": "2026-10-31T00:00:00Z",
     "updatedBy": "SAKTI GLP039"
   },
@@ -3968,12 +3773,12 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "pagu": 50000000,
         "realisasi": 43679900,
         "sisa": 6320100,
-        "keterangan": "Komponen SAKTI 051"
+        "keterangan": "Komponen SAKTI 051 (Lock Pagu: Rp 612.000)"
       }
     ],
-    "totalKebutuhan": 6320100,
-    "danaTidakTerserap": 0,
-    "keterangan": "",
+    "totalKebutuhan": 5708100,
+    "danaTidakTerserap": 612000,
+    "keterangan": "Lock Pagu (Blokir Anggaran SAKTI): Rp 612.000",
     "updatedAt": "2026-10-31T00:00:00Z",
     "updatedBy": "SAKTI GLP039"
   },
@@ -4062,12 +3867,12 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "pagu": 25000000,
         "realisasi": 18079100,
         "sisa": 6920900,
-        "keterangan": "Komponen SAKTI 051"
+        "keterangan": "Komponen SAKTI 051 (Lock Pagu: Rp 800.000)"
       }
     ],
-    "totalKebutuhan": 6920900,
-    "danaTidakTerserap": 0,
-    "keterangan": "",
+    "totalKebutuhan": 6120900,
+    "danaTidakTerserap": 800000,
+    "keterangan": "Lock Pagu (Blokir Anggaran SAKTI): Rp 800.000",
     "updatedAt": "2026-10-31T00:00:00Z",
     "updatedBy": "SAKTI GLP039"
   },
@@ -4109,12 +3914,12 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "pagu": 25000000,
         "realisasi": 6177000,
         "sisa": 18823000,
-        "keterangan": "Komponen SAKTI 051"
+        "keterangan": "Komponen SAKTI 051 (Lock Pagu: Rp 2.930.000)"
       }
     ],
-    "totalKebutuhan": 18823000,
-    "danaTidakTerserap": 0,
-    "keterangan": "",
+    "totalKebutuhan": 15893000,
+    "danaTidakTerserap": 2930000,
+    "keterangan": "Lock Pagu (Blokir Anggaran SAKTI): Rp 2.930.000",
     "updatedAt": "2026-10-31T00:00:00Z",
     "updatedBy": "SAKTI GLP039"
   },
@@ -4250,12 +4055,12 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "pagu": 25000000,
         "realisasi": 12174035,
         "sisa": 12825965,
-        "keterangan": "Komponen SAKTI 051"
+        "keterangan": "Komponen SAKTI 051 (Lock Pagu: Rp 380.000)"
       }
     ],
-    "totalKebutuhan": 12825965,
-    "danaTidakTerserap": 0,
-    "keterangan": "",
+    "totalKebutuhan": 12445965,
+    "danaTidakTerserap": 380000,
+    "keterangan": "Lock Pagu (Blokir Anggaran SAKTI): Rp 380.000",
     "updatedAt": "2026-10-31T00:00:00Z",
     "updatedBy": "SAKTI GLP039"
   },
@@ -4297,12 +4102,12 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "pagu": 25000000,
         "realisasi": 5609600,
         "sisa": 19390400,
-        "keterangan": "Komponen SAKTI 051"
+        "keterangan": "Komponen SAKTI 051 (Lock Pagu: Rp 3.007.000)"
       }
     ],
-    "totalKebutuhan": 19390400,
-    "danaTidakTerserap": 0,
-    "keterangan": "",
+    "totalKebutuhan": 16383400,
+    "danaTidakTerserap": 3007000,
+    "keterangan": "Lock Pagu (Blokir Anggaran SAKTI): Rp 3.007.000",
     "updatedAt": "2026-10-31T00:00:00Z",
     "updatedBy": "SAKTI GLP039"
   },
@@ -4344,12 +4149,12 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "pagu": 100000000,
         "realisasi": 95290000,
         "sisa": 4710000,
-        "keterangan": "Komponen SAKTI 051"
+        "keterangan": "Komponen SAKTI 051 (Lock Pagu: Rp 4.710.000)"
       }
     ],
-    "totalKebutuhan": 4710000,
-    "danaTidakTerserap": 0,
-    "keterangan": "",
+    "totalKebutuhan": 0,
+    "danaTidakTerserap": 4710000,
+    "keterangan": "Lock Pagu (Blokir Anggaran SAKTI): Rp 4.710.000",
     "updatedAt": "2026-10-31T00:00:00Z",
     "updatedBy": "SAKTI GLP039"
   },
@@ -4438,12 +4243,12 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "pagu": 20000000,
         "realisasi": 2953500,
         "sisa": 17046500,
-        "keterangan": "Komponen SAKTI 051"
+        "keterangan": "Komponen SAKTI 051 (Lock Pagu: Rp 12.021.000)"
       }
     ],
-    "totalKebutuhan": 17046500,
-    "danaTidakTerserap": 0,
-    "keterangan": "",
+    "totalKebutuhan": 5025500,
+    "danaTidakTerserap": 12021000,
+    "keterangan": "Lock Pagu (Blokir Anggaran SAKTI): Rp 12.021.000",
     "updatedAt": "2026-10-31T00:00:00Z",
     "updatedBy": "SAKTI GLP039"
   },
@@ -4485,7 +4290,7 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "pagu": 10000000,
         "realisasi": 1866000,
         "sisa": 8134000,
-        "keterangan": "Komponen SAKTI 051"
+        "keterangan": "Komponen SAKTI 051 (Lock Pagu: Rp 612.000)"
       },
       {
         "id": "komp-664941-6372-QMA-002-052",
@@ -4494,12 +4299,12 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "pagu": 150000000,
         "realisasi": 147790000,
         "sisa": 2210000,
-        "keterangan": "Komponen SAKTI 052"
+        "keterangan": "Komponen SAKTI 052 (Lock Pagu: Rp 1.800.000)"
       }
     ],
-    "totalKebutuhan": 10344000,
-    "danaTidakTerserap": 0,
-    "keterangan": "",
+    "totalKebutuhan": 7932000,
+    "danaTidakTerserap": 2412000,
+    "keterangan": "Lock Pagu (Blokir Anggaran SAKTI): Rp 2.412.000",
     "updatedAt": "2026-10-31T00:00:00Z",
     "updatedBy": "SAKTI GLP039"
   },
@@ -4541,7 +4346,7 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "pagu": 100000000,
         "realisasi": 87549700,
         "sisa": 12450300,
-        "keterangan": "Komponen SAKTI 051"
+        "keterangan": "Komponen SAKTI 051 (Lock Pagu: Rp 7.600.000)"
       },
       {
         "id": "komp-664941-6372-QMA-003-052",
@@ -4550,12 +4355,12 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "pagu": 100000000,
         "realisasi": 79795000,
         "sisa": 20205000,
-        "keterangan": "Komponen SAKTI 052"
+        "keterangan": "Komponen SAKTI 052 (Lock Pagu: Rp 12.800.000)"
       }
     ],
-    "totalKebutuhan": 32655300,
-    "danaTidakTerserap": 0,
-    "keterangan": "",
+    "totalKebutuhan": 12255300,
+    "danaTidakTerserap": 20400000,
+    "keterangan": "Lock Pagu (Blokir Anggaran SAKTI): Rp 20.400.000",
     "updatedAt": "2026-10-31T00:00:00Z",
     "updatedBy": "SAKTI GLP039"
   },
@@ -4597,12 +4402,12 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "pagu": 45000000,
         "realisasi": 24683900,
         "sisa": 20316100,
-        "keterangan": "Komponen SAKTI 051"
+        "keterangan": "Komponen SAKTI 051 (Lock Pagu: Rp 1.488.000)"
       }
     ],
-    "totalKebutuhan": 20316100,
-    "danaTidakTerserap": 0,
-    "keterangan": "",
+    "totalKebutuhan": 18828100,
+    "danaTidakTerserap": 1488000,
+    "keterangan": "Lock Pagu (Blokir Anggaran SAKTI): Rp 1.488.000",
     "updatedAt": "2026-10-31T00:00:00Z",
     "updatedBy": "SAKTI GLP039"
   },
@@ -4644,12 +4449,12 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "pagu": 45000000,
         "realisasi": 21210300,
         "sisa": 23789700,
-        "keterangan": "Komponen SAKTI 051"
+        "keterangan": "Komponen SAKTI 051 (Lock Pagu: Rp 7.928.000)"
       }
     ],
-    "totalKebutuhan": 23789700,
-    "danaTidakTerserap": 0,
-    "keterangan": "",
+    "totalKebutuhan": 15861700,
+    "danaTidakTerserap": 7928000,
+    "keterangan": "Lock Pagu (Blokir Anggaran SAKTI): Rp 7.928.000",
     "updatedAt": "2026-10-31T00:00:00Z",
     "updatedBy": "SAKTI GLP039"
   },
@@ -4691,12 +4496,12 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "pagu": 300000000,
         "realisasi": 143665800,
         "sisa": 156334200,
-        "keterangan": "Komponen SAKTI 051"
+        "keterangan": "Komponen SAKTI 051 (Lock Pagu: Rp 38.337.000)"
       }
     ],
-    "totalKebutuhan": 156334200,
-    "danaTidakTerserap": 0,
-    "keterangan": "",
+    "totalKebutuhan": 117997200,
+    "danaTidakTerserap": 38337000,
+    "keterangan": "Lock Pagu (Blokir Anggaran SAKTI): Rp 38.337.000",
     "updatedAt": "2026-10-31T00:00:00Z",
     "updatedBy": "SAKTI GLP039"
   },
@@ -4738,12 +4543,12 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "pagu": 24700000,
         "realisasi": 24300300,
         "sisa": 399700,
-        "keterangan": "Komponen SAKTI 051"
+        "keterangan": "Komponen SAKTI 051 (Lock Pagu: Rp 336.000)"
       }
     ],
-    "totalKebutuhan": 399700,
-    "danaTidakTerserap": 0,
-    "keterangan": "",
+    "totalKebutuhan": 63700,
+    "danaTidakTerserap": 336000,
+    "keterangan": "Lock Pagu (Blokir Anggaran SAKTI): Rp 336.000",
     "updatedAt": "2026-10-31T00:00:00Z",
     "updatedBy": "SAKTI GLP039"
   },
@@ -4785,12 +4590,12 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "pagu": 53231000,
         "realisasi": 41308813,
         "sisa": 11922187,
-        "keterangan": "Komponen SAKTI 051"
+        "keterangan": "Komponen SAKTI 051 (Lock Pagu: Rp 424.000)"
       }
     ],
-    "totalKebutuhan": 11922187,
-    "danaTidakTerserap": 0,
-    "keterangan": "",
+    "totalKebutuhan": 11498187,
+    "danaTidakTerserap": 424000,
+    "keterangan": "Lock Pagu (Blokir Anggaran SAKTI): Rp 424.000",
     "updatedAt": "2026-10-31T00:00:00Z",
     "updatedBy": "SAKTI GLP039"
   },
@@ -4888,12 +4693,12 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "pagu": 146152000,
         "realisasi": 123928452,
         "sisa": 22223548,
-        "keterangan": "Komponen SAKTI 051"
+        "keterangan": "Komponen SAKTI 051 (Lock Pagu: Rp 4.611.000)"
       }
     ],
-    "totalKebutuhan": 22223548,
-    "danaTidakTerserap": 0,
-    "keterangan": "",
+    "totalKebutuhan": 17612548,
+    "danaTidakTerserap": 4611000,
+    "keterangan": "Lock Pagu (Blokir Anggaran SAKTI): Rp 4.611.000",
     "updatedAt": "2026-10-31T00:00:00Z",
     "updatedBy": "SAKTI GLP039"
   },
@@ -4935,12 +4740,12 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "pagu": 58160000,
         "realisasi": 37924800,
         "sisa": 20235200,
-        "keterangan": "Komponen SAKTI 051"
+        "keterangan": "Komponen SAKTI 051 (Lock Pagu: Rp 8.000.000)"
       }
     ],
-    "totalKebutuhan": 20235200,
-    "danaTidakTerserap": 0,
-    "keterangan": "",
+    "totalKebutuhan": 12235200,
+    "danaTidakTerserap": 8000000,
+    "keterangan": "Lock Pagu (Blokir Anggaran SAKTI): Rp 8.000.000",
     "updatedAt": "2026-10-31T00:00:00Z",
     "updatedBy": "SAKTI GLP039"
   },
@@ -4982,7 +4787,7 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "pagu": 55162000,
         "realisasi": 33731562,
         "sisa": 21430438,
-        "keterangan": "Komponen SAKTI 051"
+        "keterangan": "Komponen SAKTI 051 (Lock Pagu: Rp 5.409.000)"
       },
       {
         "id": "komp-664941-8087-UAE-001-052",
@@ -4991,12 +4796,12 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "pagu": 860000,
         "realisasi": 0,
         "sisa": 860000,
-        "keterangan": "Komponen SAKTI 052"
+        "keterangan": "Komponen SAKTI 052 (Lock Pagu: Rp 40.000)"
       }
     ],
-    "totalKebutuhan": 22290438,
-    "danaTidakTerserap": 0,
-    "keterangan": "",
+    "totalKebutuhan": 16841438,
+    "danaTidakTerserap": 5449000,
+    "keterangan": "Lock Pagu (Blokir Anggaran SAKTI): Rp 5.449.000",
     "updatedAt": "2026-10-31T00:00:00Z",
     "updatedBy": "SAKTI GLP039"
   },
@@ -5085,7 +4890,7 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "pagu": 149844000,
         "realisasi": 93327855,
         "sisa": 56516145,
-        "keterangan": "Komponen SAKTI 051"
+        "keterangan": "Komponen SAKTI 051 (Lock Pagu: Rp 4.656.000)"
       },
       {
         "id": "komp-664941-6367-EBA-962-057",
@@ -5097,9 +4902,9 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "keterangan": "Komponen SAKTI 057"
       }
     ],
-    "totalKebutuhan": 112835096,
-    "danaTidakTerserap": 0,
-    "keterangan": "",
+    "totalKebutuhan": 108179096,
+    "danaTidakTerserap": 4656000,
+    "keterangan": "Lock Pagu (Blokir Anggaran SAKTI): Rp 4.656.000",
     "updatedAt": "2026-10-31T00:00:00Z",
     "updatedBy": "SAKTI GLP039"
   },
@@ -5141,12 +4946,12 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "pagu": 39659000,
         "realisasi": 850000,
         "sisa": 38809000,
-        "keterangan": "Komponen SAKTI 002"
+        "keterangan": "Komponen SAKTI 002 (Lock Pagu: Rp 1.849.000)"
       }
     ],
-    "totalKebutuhan": 38809000,
-    "danaTidakTerserap": 0,
-    "keterangan": "",
+    "totalKebutuhan": 36960000,
+    "danaTidakTerserap": 1849000,
+    "keterangan": "Lock Pagu (Blokir Anggaran SAKTI): Rp 1.849.000",
     "updatedAt": "2026-10-31T00:00:00Z",
     "updatedBy": "SAKTI GLP039"
   },
@@ -5368,7 +5173,7 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "keterangan": "Komponen SAKTI 053"
       }
     ],
-    "totalKebutuhan": 13360800,
+    "totalKebutuhan": 17348500,
     "danaTidakTerserap": 0,
     "keterangan": "",
     "updatedAt": "2026-10-31T00:00:00Z",
@@ -10543,7 +10348,7 @@ export const INITIAL_RO_DATA: CapaianRO[] = [
         "keterangan": "Komponen SAKTI 052"
       }
     ],
-    "totalKebutuhan": 17950000,
+    "totalKebutuhan": 23400000,
     "danaTidakTerserap": 0,
     "keterangan": "",
     "updatedAt": "2026-10-31T00:00:00Z",

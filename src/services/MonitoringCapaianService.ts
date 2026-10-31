@@ -15,7 +15,7 @@ import {
 } from '../types/monitoringCapaian';
 import { INITIAL_RO_DATA, INITIAL_SATKERS } from '../data/rkklInitialData';
 
-const STORAGE_KEY = 'pulse_rkkl_monitoring_capaian_v5';
+const STORAGE_KEY = 'pulse_rkkl_monitoring_capaian_v6';
 const DUMMY_IDS = new Set(['ro-39', 'ro-40', 'ro-41', 'ro-42', 'ro-43', 'ro-44']);
 
 export const SATKER_ORDER: string[] = [
@@ -122,8 +122,8 @@ export class MonitoringCapaianService {
 
     let komponen = Array.isArray(row.komponen) && row.komponen.length > 0 ? row.komponen : [];
     if (komponen.length === 0) {
-      const init = INITIAL_RO_DATA.find(i => 
-        i.kodeRo === (row.kode_ro || '') && 
+      const init = INITIAL_RO_DATA.find(i =>
+        i.kodeRo === (row.kode_ro || '') &&
         (!row.satker_nama || i.satkerNama === row.satker_nama)
       );
       if (init && init.komponen && init.komponen.length > 0) {
@@ -211,10 +211,12 @@ export class MonitoringCapaianService {
               const local = localMap.get(key);
               const init = initialMap.get(key);
 
-              if (local && local.komponen && local.komponen.length > 0) {
-                ro.komponen = local.komponen;
-              } else if (init && init.komponen && init.komponen.length > 0) {
-                ro.komponen = init.komponen;
+              if (!ro.komponen || ro.komponen.length === 0) {
+                if (local && local.komponen && local.komponen.length > 0) {
+                  ro.komponen = local.komponen;
+                } else if (init && init.komponen && init.komponen.length > 0) {
+                  ro.komponen = init.komponen;
+                }
               }
               if (!dedupedMap.has(key)) {
                 dedupedMap.set(key, ro);
@@ -245,7 +247,7 @@ export class MonitoringCapaianService {
       const rows = INITIAL_RO_DATA.map(ro => this.mapROToRow(ro));
       for (let i = 0; i < rows.length; i += 50) {
         const batch = rows.slice(i, i + 50);
-        await supabase.from('monitoring_capaian_ro').upsert(batch, { onConflict: 'kode_ro,unit_kerja_nama' });
+        await supabase.from('monitoring_capaian_ro').upsert(batch, { onConflict: 'id' });
       }
     } catch (err) {
       console.warn('Supabase table seeding skipped or unavailable:', err);
@@ -373,7 +375,7 @@ export class MonitoringCapaianService {
     try {
       supabase
         .from('monitoring_capaian_ro')
-        .upsert(this.mapROToRow(updatedRO), { onConflict: 'kode_ro,unit_kerja_nama' })
+        .upsert(this.mapROToRow(updatedRO), { onConflict: 'id' })
         .then(({ error }: any) => {
           if (error) console.warn('Supabase upsert error:', error);
         });
@@ -398,14 +400,15 @@ export class MonitoringCapaianService {
 
     const current = ros[index];
     const totalSched = Object.values(jadwal).reduce((acc, curr) => acc + (Number(curr) || 0), 0);
-    const rawKeb = totalSched > 0 ? totalSched : (current.totalKebutuhan || current.sisa);
+    const silpa = danaTidakTerserap !== undefined ? danaTidakTerserap : (current.danaTidakTerserap || 0);
+    const rawKeb = totalSched > 0 ? totalSched : Math.max(0, current.sisa - silpa);
     const totalKebutuhan = Math.min(current.sisa, Math.max(0, rawKeb));
 
     const updated: CapaianRO = {
       ...current,
       jadwal: { ...jadwal },
       totalKebutuhan,
-      danaTidakTerserap: danaTidakTerserap !== undefined ? danaTidakTerserap : (current.danaTidakTerserap || 0),
+      danaTidakTerserap: silpa,
       keterangan: keterangan !== undefined ? keterangan : (current.keterangan || ''),
       updatedAt: new Date().toISOString(),
       updatedBy: updatedBy || current.updatedBy || 'Pengguna'
@@ -748,10 +751,10 @@ export class MonitoringCapaianService {
 
           // Inspect first 15 rows to determine file type by actual content, not file name
           const sampleText = rows.slice(0, 15).map(r => (r || []).join(' ')).join(' ').toUpperCase();
-          const isSaktiReport = sampleText.includes('KETERSEDIAAN DANA') || 
-                                sampleText.includes('PER PROGRAM;') || 
-                                sampleText.includes('PAGU REVISI') || 
-                                sampleText.includes('LOCK PAGU');
+          const isSaktiReport = sampleText.includes('KETERSEDIAAN DANA') ||
+            sampleText.includes('PER PROGRAM;') ||
+            sampleText.includes('PAGU REVISI') ||
+            sampleText.includes('LOCK PAGU');
 
           if (isSaktiReport) {
             const result = this.parseSaktiRows(rows, file.name, overrideSatkerNama);
@@ -962,6 +965,7 @@ export class MonitoringCapaianService {
 
         const roName = String(row[10] || row[6] || row[8] || c2).trim().replace(/\s+/g, ' ');
         const pagu = Number(row[16] || 0);
+        const lockPagu = Number(row[18] || 0);
         const realisasi = Number(row[25] !== undefined && row[25] !== null ? row[25] : (row[24] || 0));
         const sisa = Math.max(0, pagu - realisasi);
         const persentase = pagu > 0 ? Number(((realisasi / pagu) * 100).toFixed(2)) : 0;
@@ -993,9 +997,9 @@ export class MonitoringCapaianService {
             status: this.calculateStatus(persentase),
             jadwal: {},
             komponen: [],
-            totalKebutuhan: sisa,
-            danaTidakTerserap: 0,
-            keterangan: '',
+            totalKebutuhan: Math.max(0, sisa - lockPagu),
+            danaTidakTerserap: lockPagu,
+            keterangan: lockPagu > 0 ? `Lock Pagu (Blokir Anggaran SAKTI): Rp ${lockPagu.toLocaleString('id-ID')}` : '',
             updatedAt: new Date().toISOString(),
             updatedBy: fileName
           };
@@ -1015,6 +1019,7 @@ export class MonitoringCapaianService {
         const kompNamaRaw = String(row[9] || '').trim().replace(/\s+/g, ' ');
         const kompNama = kompNamaRaw.startsWith(`${kompKode} -`) ? kompNamaRaw : `${kompKode} - ${kompNamaRaw}`;
         const pagu = Number(row[16] || 0);
+        const lockKomp = Number(row[18] || 0);
         const realisasi = Number(row[25] !== undefined && row[25] !== null ? row[25] : (row[24] || 0));
         const sisa = Math.max(0, pagu - realisasi);
         const persentase = pagu > 0 ? Number(((realisasi / pagu) * 100).toFixed(2)) : 0;
@@ -1030,7 +1035,9 @@ export class MonitoringCapaianService {
             sisa,
             persentase,
             status: this.calculateStatus(persentase),
-            keterangan: `Komponen SAKTI ${kompKode}`
+            keterangan: lockKomp > 0
+              ? `Komponen SAKTI ${kompKode} (Lock Pagu: Rp ${lockKomp.toLocaleString('id-ID')})`
+              : `Komponen SAKTI ${kompKode}`
           });
         }
       }
@@ -1105,53 +1112,88 @@ export class MonitoringCapaianService {
     for (let r = 0; r < Math.min(10, ajkRows.length); r++) {
       const row = ajkRows[r] || [];
       const strRow = row.join(' ').toLowerCase();
-      if (strRow.includes('pagu') && (strRow.includes('kegiatan') || strRow.includes('uraian'))) {
+      if (strRow.includes('pagu') && (strRow.includes('kegiatan') || strRow.includes('uraian') || strRow.includes('rincian output'))) {
         headerRowIndex = r;
         break;
       }
     }
 
+    const headerRow = headerRowIndex !== -1 ? (ajkRows[headerRowIndex] || []) : [];
+    const isTemplateOrExportLayout = String(headerRow[3] || '').toLowerCase().includes('kode');
+    const isExportLayout = isTemplateOrExportLayout && String(headerRow[10] || '').toLowerCase().includes('oktober');
+
     const startIdx = headerRowIndex !== -1 ? headerRowIndex + 1 : 5;
     const parsedROs: CapaianRO[] = [];
     let currentRoObj: CapaianRO | null = null;
 
+    // Build lookup map of 4-digit kegiatan number -> { kodeKegiatan, unitKerjaNama }
+    const kegNumLookup: Record<string, { kodeKegiatan: string; unitKerjaNama: string }> = {};
+    Object.entries(SAKTI_KEGIATAN_UNIT_MAP).forEach(([kCode, uName]) => {
+      const num = kCode.split('.')[1];
+      if (num) kegNumLookup[num] = { kodeKegiatan: kCode, unitKerjaNama: uName };
+    });
+
     for (let r = startIdx; r < ajkRows.length; r++) {
       const row = ajkRows[r] || [];
-      const colCode = row[1];
-      const colUraian = row[2];
-      const colPagu = row[3];
-      const colReal = row[4];
-      const colSisa = row[6];
+      const rowSatker = isTemplateOrExportLayout && row[1] ? String(row[1]).trim() : '';
+      const rowUnit = isTemplateOrExportLayout && row[2] ? String(row[2]).trim() : '';
+      const colCode = isTemplateOrExportLayout ? row[3] : row[1];
+      const colUraian = isTemplateOrExportLayout ? row[4] : row[2];
+      const colPagu = isTemplateOrExportLayout ? row[5] : row[3];
+      const colReal = isTemplateOrExportLayout ? row[6] : row[4];
+      const colSisa = isExportLayout ? row[8] : isTemplateOrExportLayout ? undefined : row[6];
 
-      const okt2 = Number(row[7]) || 0;
-      const okt3 = Number(row[8]) || 0;
-      const okt4 = Number(row[9]) || 0;
-      const nov1 = Number(row[10]) || 0;
-      const nov2 = Number(row[11]) || 0;
-      const nov3 = Number(row[12]) || 0;
-      const nov4 = Number(row[13]) || 0;
-      const des1 = Number(row[14]) || 0;
-      const des2 = Number(row[15]) || 0;
-      const des3 = Number(row[16]) || 0;
-      const des4 = Number(row[17]) || 0;
-      const totKeb = Number(row[18]) || 0;
-      const sisaDana = Number(row[19]) || 0;
-      const ket = row[20] ? String(row[20]).trim() : '';
+      const oktBase = isExportLayout ? 10 : 7;
+      const okt2 = Number(row[oktBase]) || 0;
+      const okt3 = Number(row[oktBase + 1]) || 0;
+      const okt4 = Number(row[oktBase + 2]) || 0;
+      const nov1 = Number(row[oktBase + 3]) || 0;
+      const nov2 = Number(row[oktBase + 4]) || 0;
+      const nov3 = Number(row[oktBase + 5]) || 0;
+      const nov4 = Number(row[oktBase + 6]) || 0;
+      const des1 = Number(row[oktBase + 7]) || 0;
+      const des2 = Number(row[oktBase + 8]) || 0;
+      const des3 = Number(row[oktBase + 9]) || 0;
+      const des4 = Number(row[oktBase + 10]) || 0;
+
+      const totKeb = isExportLayout
+        ? Number(row[21]) || 0
+        : isTemplateOrExportLayout
+          ? 0
+          : Number(row[18]) || 0;
+      const sisaDana = isExportLayout
+        ? Number(row[22]) || 0
+        : isTemplateOrExportLayout
+          ? Number(row[18]) || 0
+          : Number(row[19]) || 0;
+      const ketRaw = isExportLayout
+        ? row[23]
+        : isTemplateOrExportLayout
+          ? row[19]
+          : row[20];
+      const ket = ketRaw ? String(ketRaw).trim() : '';
 
       if (colCode && String(colCode).includes('.')) {
+        const cleanCode = String(colCode).trim();
+        const codeParts = cleanCode.split('.');
+        const firstPart = codeParts[0] || '';
+        const kegInfo = /^\d{4}$/.test(firstPart) ? kegNumLookup[firstPart] : undefined;
+
         const paguVal = Number(colPagu) || 0;
         const realVal = Number(colReal) || 0;
         const pctVal = paguVal > 0 ? Number(((realVal / paguVal) * 100).toFixed(2)) : 0;
-        const sisaVal = Number(colSisa) || Math.max(0, paguVal - realVal);
+        const sisaVal = colSisa !== undefined && colSisa !== null ? Number(colSisa) : Math.max(0, paguVal - realVal);
+        const schedSum = okt2 + okt3 + okt4 + nov1 + nov2 + nov3 + nov4 + des1 + des2 + des3 + des4;
 
         currentRoObj = {
           id: `ro-ajk-${Date.now()}-${parsedROs.length + 1}`,
           satkerId: 'satker-ajk',
-          satkerNama: detectedSatker,
+          satkerNama: rowSatker || detectedSatker,
           unitKerjaId: 'unit-ajk',
-          unitKerjaNama: detectedUnit,
-          kodeRo: String(colCode).trim(),
-          namaRo: colUraian ? String(colUraian).trim() : String(colCode).trim(),
+          unitKerjaNama: rowUnit || (kegInfo ? kegInfo.unitKerjaNama : detectedUnit),
+          kodeKegiatan: kegInfo ? kegInfo.kodeKegiatan : undefined,
+          kodeRo: cleanCode,
+          namaRo: colUraian ? String(colUraian).trim() : cleanCode,
           pagu: paguVal,
           realisasi: realVal,
           sisa: sisaVal,
@@ -1159,7 +1201,7 @@ export class MonitoringCapaianService {
           status: this.calculateStatus(pctVal),
           jadwal: { okt2, okt3, okt4, nov1, nov2, nov3, nov4, des1, des2, des3, des4 },
           komponen: [],
-          totalKebutuhan: totKeb || sisaVal,
+          totalKebutuhan: totKeb || (schedSum > 0 ? Math.min(sisaVal, schedSum) : Math.max(0, sisaVal - sisaDana)),
           danaTidakTerserap: sisaDana,
           keterangan: ket,
           updatedAt: new Date().toISOString(),
@@ -1270,8 +1312,8 @@ export class MonitoringCapaianService {
           prevHasScheduledKomponen && !newHasScheduledKomponen
             ? prev.komponen
             : (n.komponen && n.komponen.length > 0)
-            ? n.komponen
-            : (prev.komponen || []);
+              ? n.komponen
+              : (prev.komponen || []);
 
         const merged: CapaianRO = {
           ...prev,
@@ -1326,7 +1368,7 @@ export class MonitoringCapaianService {
 
         await supabase
           .from('monitoring_capaian_ro')
-          .upsert(batch, { onConflict: 'kode_ro,unit_kerja_nama' });
+          .upsert(batch, { onConflict: 'id' });
       }
     } catch (err) {
       console.warn('Gagal sinkronisasi data import ke Supabase:', err);
@@ -1387,12 +1429,12 @@ export class MonitoringCapaianService {
         'Unit Kerja (Eselon II)': 'Biro Data dan Informasi',
         'Kode RO': '6380.AAG.001',
         'Uraian Rincian Output': 'Peraturan Menteri tentang SIMFONI PPA',
-        'Pagu (Rp)': 10000000,
+        'Pagu (Rp)': 2800000,
         'Realisasi (Rp)': 2217500,
         'Oktober II': 0,
         'Oktober III': 0,
-        'Oktober IV': 3600000,
-        'November I': 3600000,
+        'Oktober IV': 0,
+        'November I': 0,
         'November II': 576000,
         'November III': 0,
         'November IV': 0,
@@ -1400,7 +1442,7 @@ export class MonitoringCapaianService {
         'Desember II': 0,
         'Desember III': 0,
         'Desember IV': 0,
-        'Perkiraan Dana Tidak Terserap': 0,
+        'Perkiraan Dana Tidak Terserap': 6500,
         Keterangan: 'Rencana konsinyering penyusunan draf Permen'
       },
       {
