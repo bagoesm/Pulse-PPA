@@ -1068,15 +1068,57 @@ export class MonitoringCapaianService {
     fileName: string,
     overrideSatkerNama?: string
   ): { success: boolean; data: CapaianRO[]; detectedSatker: string; message: string } {
-    const ajkSheetName = wb.SheetNames.find(s => s.toLowerCase().includes('ajk')) || wb.SheetNames[0];
+    // Pick the best AJK sheet (with the most valid numeric RO rows, skipping sample/XXX sheets)
+    const candidateSheets = wb.SheetNames.filter(s => s.toLowerCase().includes('ajk'));
+    const sheetsToCheck = candidateSheets.length > 0 ? candidateSheets : wb.SheetNames;
+    let ajkSheetName = sheetsToCheck[0];
+    let maxValidRoCount = -1;
+
+    for (const sName of sheetsToCheck) {
+      const sRows: any[][] = XLSX.utils.sheet_to_json(wb.Sheets[sName], { header: 1, defval: null });
+      let validCount = 0;
+      for (const r of sRows) {
+        if (!r) continue;
+        const c1 = String(r[1] || '').trim();
+        const c3 = String(r[3] || '').trim();
+        if (
+          (/^(\d{4}\.)?[A-Z0-9]{3}\.[A-Z0-9]{3}$/i.test(c1) && typeof r[3] === 'number') ||
+          (/^(\d{4}\.)?[A-Z0-9]{3}\.[A-Z0-9]{3}$/i.test(c3) && typeof r[5] === 'number')
+        ) {
+          validCount++;
+        }
+      }
+      if (validCount > maxValidRoCount) {
+        maxValidRoCount = validCount;
+        ajkSheetName = sName;
+      }
+    }
+
     const ajkWs = wb.Sheets[ajkSheetName];
     const ajkRows: any[][] = XLSX.utils.sheet_to_json(ajkWs, { header: 1, defval: null });
+
+    // Check if workbook has a 'Log Realisasi' sheet with a cutoff date serial (cell C2)
+    let logCutoffSerial = 0;
+    const logSheetName = wb.SheetNames.find(s => s.toLowerCase().includes('log realisasi'));
+    if (logSheetName) {
+      const logRows: any[][] = XLSX.utils.sheet_to_json(wb.Sheets[logSheetName], { header: 1, defval: null });
+      for (let i = 0; i < Math.min(5, logRows.length); i++) {
+        const lr = logRows[i] || [];
+        for (const cell of lr) {
+          if (typeof cell === 'number' && cell > 45000 && cell < 50000) {
+            logCutoffSerial = cell;
+            break;
+          }
+        }
+        if (logCutoffSerial > 0) break;
+      }
+    }
 
     let detectedSatker = overrideSatkerNama && overrideSatkerNama !== 'auto' ? overrideSatkerNama : 'Sekretariat Kementerian';
     let detectedUnit = 'Unit Kerja Terkait';
 
     const headerSlice = ajkRows.slice(0, 10).map(r => (r || []).join(' ').toLowerCase()).join(' ');
-    const fullTextCheck = (fileName + ' ' + headerSlice).toLowerCase();
+    const fullTextCheck = (fileName + ' ' + ajkSheetName + ' ' + headerSlice).toLowerCase();
 
     if (!overrideSatkerNama || overrideSatkerNama === 'auto') {
       if (fullTextCheck.includes('kesetaraan gender')) {
@@ -1089,7 +1131,7 @@ export class MonitoringCapaianService {
         detectedSatker = 'Deputi Bidang Perlindungan Khusus Anak';
       } else if (fullTextCheck.includes('komisi perlindungan anak') || fullTextCheck.includes('kpai')) {
         detectedSatker = 'Komisi Perlindungan Anak Indonesia (KPAI)';
-      } else if (fullTextCheck.includes('sekretariat')) {
+      } else if (fullTextCheck.includes('sekretariat') || fullTextCheck.includes('biro')) {
         detectedSatker = 'Sekretariat Kementerian';
       }
     }
@@ -1100,7 +1142,7 @@ export class MonitoringCapaianService {
       else if (rowText.includes('biro perencanaan')) detectedUnit = 'Biro Perencanaan dan Keuangan';
       else if (rowText.includes('biro hukum')) detectedUnit = 'Biro Hukum dan Kerja Sama';
       else if (rowText.includes('biro sdm')) detectedUnit = 'Biro Sumber Daya Manusia dan Organisasi';
-      else if (rowText.includes('biro umum')) detectedUnit = 'Biro Hubungan Masyarakat dan Umum';
+      else if (rowText.includes('biro umum') || rowText.includes('hubungan masyarakat')) detectedUnit = 'Biro Hubungan Masyarakat dan Umum';
       else if (rowText.includes('inspektorat')) detectedUnit = 'Inspektorat';
       else if (rowText.includes('asdep') || rowText.includes('asisten deputi') || rowText.includes('sekretariat deputi')) {
         const found = (ajkRows[i] || []).find((c: any) => c && (String(c).toLowerCase().includes('asdep') || String(c).toLowerCase().includes('asisten deputi') || String(c).toLowerCase().includes('sekretariat deputi')));
@@ -1121,10 +1163,30 @@ export class MonitoringCapaianService {
     const headerRow = headerRowIndex !== -1 ? (ajkRows[headerRowIndex] || []) : [];
     const isTemplateOrExportLayout = String(headerRow[3] || '').toLowerCase().includes('kode');
     const isExportLayout = isTemplateOrExportLayout && String(headerRow[10] || '').toLowerCase().includes('oktober');
+    const oktBase = isExportLayout ? 10 : 7;
 
-    const startIdx = headerRowIndex !== -1 ? headerRowIndex + 1 : 5;
+    // Check if the row above headerRow has Excel serial dates for weeks (e.g. 46310..46387)
+    const weekSerialRow = headerRowIndex > 0 ? (ajkRows[headerRowIndex - 1] || []) : [];
+    const weekSerials: number[] = [];
+    for (let w = 0; w < 11; w++) {
+      const val = Number(weekSerialRow[oktBase + w]);
+      weekSerials.push(val > 45000 && val < 50000 ? val : 0);
+    }
+
+    let startIdx = headerRowIndex !== -1 ? headerRowIndex + 1 : 5;
+    // Skip Roman numeral sub-header row (II, III, IV, I, II...)
+    if (startIdx < ajkRows.length) {
+      const firstDataRow = ajkRows[startIdx] || [];
+      if (!firstDataRow[1] && !firstDataRow[2] && String(firstDataRow[oktBase] || '').trim() === 'II') {
+        startIdx++;
+      }
+    }
+
     const parsedROs: CapaianRO[] = [];
     let currentRoObj: CapaianRO | null = null;
+    let currentKegPrefix = '';
+    let isTitipanSection = false;
+    let parentHasExplicitTotals = false;
 
     // Build lookup map of 4-digit kegiatan number -> { kodeKegiatan, unitKerjaNama }
     const kegNumLookup: Record<string, { kodeKegiatan: string; unitKerjaNama: string }> = {};
@@ -1137,24 +1199,59 @@ export class MonitoringCapaianService {
       const row = ajkRows[r] || [];
       const rowSatker = isTemplateOrExportLayout && row[1] ? String(row[1]).trim() : '';
       const rowUnit = isTemplateOrExportLayout && row[2] ? String(row[2]).trim() : '';
-      const colCode = isTemplateOrExportLayout ? row[3] : row[1];
-      const colUraian = isTemplateOrExportLayout ? row[4] : row[2];
+      const colCodeRaw = isTemplateOrExportLayout ? row[3] : row[1];
+      const colUraianRaw = isTemplateOrExportLayout ? row[4] : row[2];
       const colPagu = isTemplateOrExportLayout ? row[5] : row[3];
       const colReal = isTemplateOrExportLayout ? row[6] : row[4];
       const colSisa = isExportLayout ? row[8] : isTemplateOrExportLayout ? undefined : row[6];
 
-      const oktBase = isExportLayout ? 10 : 7;
-      const okt2 = Number(row[oktBase]) || 0;
-      const okt3 = Number(row[oktBase + 1]) || 0;
-      const okt4 = Number(row[oktBase + 2]) || 0;
-      const nov1 = Number(row[oktBase + 3]) || 0;
-      const nov2 = Number(row[oktBase + 4]) || 0;
-      const nov3 = Number(row[oktBase + 5]) || 0;
-      const nov4 = Number(row[oktBase + 6]) || 0;
-      const des1 = Number(row[oktBase + 7]) || 0;
-      const des2 = Number(row[oktBase + 8]) || 0;
-      const des3 = Number(row[oktBase + 9]) || 0;
-      const des4 = Number(row[oktBase + 10]) || 0;
+      const colCode = colCodeRaw !== undefined && colCodeRaw !== null ? String(colCodeRaw).trim() : '';
+      const colUraian = colUraianRaw !== undefined && colUraianRaw !== null ? String(colUraianRaw).trim().replace(/\s+/g, ' ') : '';
+
+      // Skip footer / summary rows (e.g. "Total Sisa Anggaran", "Prosentase Sisa Anggaran", "dst..")
+      const rowJoinedLower = row.map(c => String(c || '')).join(' ').toLowerCase();
+      if (
+        rowJoinedLower.includes('total sisa anggaran') ||
+        rowJoinedLower.includes('prosentase sisa anggaran') ||
+        colUraian.toLowerCase() === 'dst..' ||
+        String(colPagu || '').toUpperCase() === 'XXX'
+      ) {
+        continue;
+      }
+
+      // Detect 4-digit Kegiatan header row (e.g. 6380 or 2785 "Anggaran Datin yang dititip di RUMGA")
+      if (/^\d{4}$/.test(colCode)) {
+        currentKegPrefix = colCode;
+        isTitipanSection = colUraian.toLowerCase().includes('dititip') || colUraian.toLowerCase().includes('titipan');
+        currentRoObj = null;
+        continue;
+      }
+
+      // Skip KRO header row (e.g. "2783.AEC" - 4 digits + 3 chars, only 1 dot)
+      if (/^\d{4}\.[A-Z0-9]{3}$/i.test(colCode)) {
+        currentRoObj = null;
+        continue;
+      }
+
+      // Extract weekly values (filtering out weeks already realized before logCutoffSerial if present)
+      const getWeekVal = (wIdx: number): number => {
+        if (logCutoffSerial > 0 && weekSerials[wIdx] > 0 && weekSerials[wIdx] <= logCutoffSerial) {
+          return 0;
+        }
+        return Number(row[oktBase + wIdx]) || 0;
+      };
+
+      const okt2 = getWeekVal(0);
+      const okt3 = getWeekVal(1);
+      const okt4 = getWeekVal(2);
+      const nov1 = getWeekVal(3);
+      const nov2 = getWeekVal(4);
+      const nov3 = getWeekVal(5);
+      const nov4 = getWeekVal(6);
+      const des1 = getWeekVal(7);
+      const des2 = getWeekVal(8);
+      const des3 = getWeekVal(9);
+      const des4 = getWeekVal(10);
 
       const totKeb = isExportLayout
         ? Number(row[21]) || 0
@@ -1171,19 +1268,43 @@ export class MonitoringCapaianService {
         : isTemplateOrExportLayout
         ? row[19]
         : row[20];
-      const ket = ketRaw ? String(ketRaw).trim() : '';
+      const alasanRaw = !isTemplateOrExportLayout ? row[21] : null;
+      const ketParts = [
+        ketRaw ? String(ketRaw).trim() : '',
+        alasanRaw ? String(alasanRaw).trim() : ''
+      ].filter(Boolean);
+      const ket = ketParts.join(' — ');
 
-      if (colCode && String(colCode).includes('.')) {
-        const cleanCode = String(colCode).trim();
-        const codeParts = cleanCode.split('.');
-        const firstPart = codeParts[0] || '';
+      // Match valid RO row: e.g. "6380.AAG.001" or "AAG.001"
+      if (colCode && /^(\d{4}\.)?[A-Z0-9]{3}\.[A-Z0-9]{3}$/i.test(colCode)) {
+        const normalizedCode = /^\d{4}\./.test(colCode)
+          ? colCode
+          : currentKegPrefix
+          ? `${currentKegPrefix}.${colCode}`
+          : colCode;
+        const firstPart = normalizedCode.split('.')[0] || '';
         const kegInfo = /^\d{4}$/.test(firstPart) ? kegNumLookup[firstPart] : undefined;
 
         const paguVal = Number(colPagu) || 0;
         const realVal = Number(colReal) || 0;
         const pctVal = paguVal > 0 ? Number(((realVal / paguVal) * 100).toFixed(2)) : 0;
-        const sisaVal = colSisa !== undefined && colSisa !== null ? Number(colSisa) : Math.max(0, paguVal - realVal);
+        const sisaVal =
+          colSisa !== undefined && colSisa !== null && !Number.isNaN(Number(colSisa))
+            ? Number(colSisa)
+            : Math.max(0, paguVal - realVal);
         const schedSum = okt2 + okt3 + okt4 + nov1 + nov2 + nov3 + nov4 + des1 + des2 + des3 + des4;
+
+        parentHasExplicitTotals =
+          (row[18] !== undefined && row[18] !== null && row[18] !== '') ||
+          (row[19] !== undefined && row[19] !== null && row[19] !== '');
+
+        const effectiveDanaTidakTerserap = Math.max(0, sisaDana);
+        const effectiveTotalKebutuhan =
+          totKeb > 0
+            ? Math.min(sisaVal, totKeb)
+            : schedSum > 0
+            ? Math.min(sisaVal, schedSum)
+            : Math.max(0, sisaVal - effectiveDanaTidakTerserap);
 
         currentRoObj = {
           id: `ro-ajk-${Date.now()}-${parsedROs.length + 1}`,
@@ -1192,8 +1313,8 @@ export class MonitoringCapaianService {
           unitKerjaId: 'unit-ajk',
           unitKerjaNama: rowUnit || (kegInfo ? kegInfo.unitKerjaNama : detectedUnit),
           kodeKegiatan: kegInfo ? kegInfo.kodeKegiatan : undefined,
-          kodeRo: cleanCode,
-          namaRo: colUraian ? String(colUraian).trim() : cleanCode,
+          kodeRo: normalizedCode,
+          namaRo: colUraian || normalizedCode,
           pagu: paguVal,
           realisasi: realVal,
           sisa: sisaVal,
@@ -1201,14 +1322,32 @@ export class MonitoringCapaianService {
           status: this.calculateStatus(pctVal),
           jadwal: { okt2, okt3, okt4, nov1, nov2, nov3, nov4, des1, des2, des3, des4 },
           komponen: [],
-          totalKebutuhan: totKeb || (schedSum > 0 ? Math.min(sisaVal, schedSum) : Math.max(0, sisaVal - sisaDana)),
-          danaTidakTerserap: sisaDana,
-          keterangan: ket,
+          totalKebutuhan: effectiveTotalKebutuhan,
+          danaTidakTerserap: effectiveDanaTidakTerserap,
+          keterangan: isTitipanSection
+            ? [ket, `Titipan AJK ${detectedUnit}`].filter(Boolean).join(' • ')
+            : ket,
           updatedAt: new Date().toISOString(),
-          updatedBy: fileName
+          updatedBy: isTitipanSection ? `${fileName} (Titipan)` : fileName
         };
         parsedROs.push(currentRoObj);
       } else if (currentRoObj && colUraian) {
+        const subSchedSum = okt2 + okt3 + okt4 + nov1 + nov2 + nov3 + nov4 + des1 + des2 + des3 + des4;
+        const hasSubSisa = colSisa !== undefined && colSisa !== null && colSisa !== '' && !Number.isNaN(Number(colSisa));
+        const nextRow = ajkRows[r + 1] || [];
+        const nextRowCode = isTemplateOrExportLayout ? nextRow[3] : nextRow[1];
+        const nextRowUraian = isTemplateOrExportLayout ? nextRow[4] : nextRow[2];
+        const isAccountGroupHeader =
+          /^belanja (bahan|jasa profesi|perjalanan dinas|modal peralatan dan mesin|modal lainnya)$/i.test(colUraian) &&
+          !nextRowCode &&
+          Boolean(nextRowUraian);
+
+        // Skip intermediate account group header rows (e.g. "Belanja Bahan", "Belanja Jasa Profesi", "Belanja Modal Lainnya")
+        if ((!hasSubSisa && subSchedSum === 0) || isAccountGroupHeader) {
+          continue;
+        }
+
+        // Accumulate weekly schedule onto parent RO
         currentRoObj.jadwal.okt2 = (currentRoObj.jadwal.okt2 || 0) + okt2;
         currentRoObj.jadwal.okt3 = (currentRoObj.jadwal.okt3 || 0) + okt3;
         currentRoObj.jadwal.okt4 = (currentRoObj.jadwal.okt4 || 0) + okt4;
@@ -1220,15 +1359,60 @@ export class MonitoringCapaianService {
         currentRoObj.jadwal.des2 = (currentRoObj.jadwal.des2 || 0) + des2;
         currentRoObj.jadwal.des3 = (currentRoObj.jadwal.des3 || 0) + des3;
         currentRoObj.jadwal.des4 = (currentRoObj.jadwal.des4 || 0) + des4;
-        if (totKeb) currentRoObj.totalKebutuhan = (currentRoObj.totalKebutuhan || 0) + totKeb;
-        if (sisaDana) currentRoObj.danaTidakTerserap = (currentRoObj.danaTidakTerserap || 0) + sisaDana;
-        if (ket) {
+
+        // Only add child totKeb/sisaDana if the parent RO row didn't already contain the sum
+        if (!parentHasExplicitTotals) {
+          if (totKeb > 0) currentRoObj.totalKebutuhan = (currentRoObj.totalKebutuhan || 0) + totKeb;
+          if (sisaDana > 0) currentRoObj.danaTidakTerserap = (currentRoObj.danaTidakTerserap || 0) + sisaDana;
+        }
+
+        // Add sub-row as a KomponenRO item
+        const kPagu = Number(colPagu) || 0;
+        const kReal = Number(colReal) || 0;
+        const kSisa = hasSubSisa ? Number(colSisa) : Math.max(0, kPagu - kReal);
+        const kJadwal: JadwalMingguan = {};
+        if (okt2 > 0) kJadwal.okt2 = okt2;
+        if (okt3 > 0) kJadwal.okt3 = okt3;
+        if (okt4 > 0) kJadwal.okt4 = okt4;
+        if (nov1 > 0) kJadwal.nov1 = nov1;
+        if (nov2 > 0) kJadwal.nov2 = nov2;
+        if (nov3 > 0) kJadwal.nov3 = nov3;
+        if (nov4 > 0) kJadwal.nov4 = nov4;
+        if (des1 > 0) kJadwal.des1 = des1;
+        if (des2 > 0) kJadwal.des2 = des2;
+        if (des3 > 0) kJadwal.des3 = des3;
+        if (des4 > 0) kJadwal.des4 = des4;
+
+        if (!currentRoObj.komponen) currentRoObj.komponen = [];
+        currentRoObj.komponen.push({
+          id: `komp-${currentRoObj.kodeRo.replace(/\./g, '-')}-${currentRoObj.komponen.length + 1}`,
+          nama: isTitipanSection ? `[Titipan ${detectedUnit}] ${colUraian}` : colUraian,
+          pagu: kPagu,
+          realisasi: kReal,
+          sisa: kSisa,
+          jadwal: kJadwal,
+          keterangan: ket || undefined
+        });
+
+        if (ket && !currentRoObj.keterangan?.includes(ket)) {
           currentRoObj.keterangan = currentRoObj.keterangan
             ? `${currentRoObj.keterangan}; ${ket}`
             : ket;
         }
       }
     }
+
+    // Reconcile parent RO totalKebutuhan & danaTidakTerserap with final accumulated schedule
+    parsedROs.forEach(ro => {
+      const schedSum = Object.values(ro.jadwal || {}).reduce((acc, v) => acc + (Number(v) || 0), 0);
+      if (schedSum > 0) {
+        ro.totalKebutuhan = schedSum;
+        ro.danaTidakTerserap = Math.max(0, ro.sisa - ro.totalKebutuhan);
+      } else {
+        ro.danaTidakTerserap = Math.min(ro.sisa, Math.max(0, ro.danaTidakTerserap || 0));
+        ro.totalKebutuhan = Math.max(0, ro.sisa - ro.danaTidakTerserap);
+      }
+    });
 
     if (parsedROs.length === 0) {
       return {
@@ -1243,7 +1427,7 @@ export class MonitoringCapaianService {
       success: true,
       data: parsedROs,
       detectedSatker,
-      message: `Berhasil membaca ${parsedROs.length} RO dari matriks AJK.`
+      message: `Berhasil membaca ${parsedROs.length} RO beserta rincian komponen & jadwal mingguan dari matriks AJK (${ajkSheetName}).`
     };
   }
 
@@ -1277,26 +1461,36 @@ export class MonitoringCapaianService {
       const key = this.getROKey(n.satkerNama, n.kodeKegiatan, n.kodeRo);
       const prev = existingMap.get(key);
       if (prev) {
-        const effectivePagu = n.pagu !== undefined ? n.pagu : prev.pagu;
-        const effectiveReal = n.realisasi !== undefined ? n.realisasi : prev.realisasi;
+        // Detect if imported row is a partial/titipan slice of a larger shared RO (e.g. 2785.EBA.994 or 2785.CAN.001)
+        const isPartialTitipan =
+          String(n.updatedBy || '').includes('(Titipan)') ||
+          (prev.pagu > 0 && (n.pagu || 0) > 0 && (n.pagu || 0) < prev.pagu * 0.7 && (n.jadwal && Object.values(n.jadwal).some(v => Number(v) > 0 || (n.komponen && n.komponen.length > 0))));
+
+        const effectivePagu = isPartialTitipan ? prev.pagu : (n.pagu !== undefined ? n.pagu : prev.pagu);
+        const effectiveReal = isPartialTitipan ? prev.realisasi : (n.realisasi !== undefined ? n.realisasi : prev.realisasi);
         const effectiveSisa = Math.max(0, effectivePagu - effectiveReal);
         const effectivePct = effectivePagu > 0 ? Number(((effectiveReal / effectivePagu) * 100).toFixed(2)) : 0;
         const effectiveStatus = this.calculateStatus(effectivePct);
 
         // Schedule: if new upload has schedule (e.g. AJK file), use it; otherwise preserve existing schedule
-        const activeJadwal = (n.jadwal && Object.keys(n.jadwal).length > 0) ? n.jadwal : (prev.jadwal || {});
+        const nSchedSum = Object.values(n.jadwal || {}).reduce((acc, curr) => acc + (Number(curr) || 0), 0);
+        const activeJadwal = (n.jadwal && (nSchedSum > 0 || (n.komponen && n.komponen.length > 0)))
+          ? n.jadwal
+          : (prev.jadwal || {});
         const schedSum = Object.values(activeJadwal).reduce((acc, curr) => acc + (Number(curr) || 0), 0);
 
         // SiLPA / Dana tidak terserap
-        const danaTidakTerserap = (n.danaTidakTerserap && n.danaTidakTerserap > 0)
+        const danaTidakTerserap = isPartialTitipan
+          ? (prev.danaTidakTerserap || 0)
+          : schedSum > 0
+          ? Math.max(0, effectiveSisa - Math.min(effectiveSisa, schedSum))
+          : (n.danaTidakTerserap !== undefined && n.danaTidakTerserap >= 0)
           ? n.danaTidakTerserap
           : (prev.danaTidakTerserap || 0);
 
-        // Total Kebutuhan:
-        // If there is an active weekly schedule in AJK: use schedSum capped to effectiveSisa.
-        // If no weekly schedule: use effectiveSisa minus danaTidakTerserap.
+        // Total Kebutuhan
         let totalKebutuhan = effectiveSisa;
-        if (schedSum > 0) {
+        if (schedSum > 0 && !isPartialTitipan) {
           totalKebutuhan = Math.min(effectiveSisa, schedSum);
         } else if (danaTidakTerserap > 0) {
           totalKebutuhan = Math.max(0, effectiveSisa - danaTidakTerserap);
@@ -1305,21 +1499,34 @@ export class MonitoringCapaianService {
         const prevHasScheduledKomponen = (prev.komponen || []).some(
           k => k.jadwal && Object.values(k.jadwal).some(v => Number(v) > 0)
         );
+        const newHasKomponen = n.komponen && n.komponen.length > 0;
         const newHasScheduledKomponen = (n.komponen || []).some(
           k => k.jadwal && Object.values(k.jadwal).some(v => Number(v) > 0)
         );
-        const mergedKomponen =
-          prevHasScheduledKomponen && !newHasScheduledKomponen
-            ? prev.komponen
-            : (n.komponen && n.komponen.length > 0)
-            ? n.komponen
-            : (prev.komponen || []);
+
+        let mergedKomponen = prev.komponen || [];
+        if (isPartialTitipan && newHasKomponen) {
+          // Keep existing non-titipan SAKTI components and append/update titipan components
+          const nonTitipan = (prev.komponen || []).filter(k => !k.nama.startsWith('[Titipan '));
+          mergedKomponen = [...nonTitipan, ...(n.komponen || [])];
+        } else if (newHasScheduledKomponen || (newHasKomponen && !prevHasScheduledKomponen)) {
+          mergedKomponen = n.komponen!;
+        }
 
         const merged: CapaianRO = {
           ...prev,
           ...n,
           id: prev.id, // preserve existing database ID
+          satkerId: prev.satkerId,
+          satkerNama: prev.satkerNama,
+          unitKerjaId: prev.unitKerjaId,
+          unitKerjaNama: prev.unitKerjaNama,
+          kodeKegiatan: prev.kodeKegiatan || n.kodeKegiatan,
+          namaKegiatan: prev.namaKegiatan || n.namaKegiatan,
+          kodeKro: prev.kodeKro || n.kodeKro,
+          namaKro: prev.namaKro || n.namaKro,
           kodeRo: prev.kodeRo || n.kodeRo,
+          namaRo: isPartialTitipan ? prev.namaRo : (n.namaRo || prev.namaRo),
           pagu: effectivePagu,
           realisasi: effectiveReal,
           sisa: effectiveSisa,
