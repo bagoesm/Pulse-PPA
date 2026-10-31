@@ -152,7 +152,7 @@ const TaskShareModal: React.FC<TaskShareModalProps> = ({
 
       // Load and draw logo
       try {
-        const logoImage = await loadSVGAsImage('/Logo.svg');
+        const logoImage = await loadSVGAsImage('/logo-sintesa.svg');
         const logoSize = 100; // Logo size (slightly smaller for task modal)
         const logoX = 80; // Left margin
         const logoY = 60; // Top margin
@@ -165,7 +165,7 @@ const TaskShareModal: React.FC<TaskShareModalProps> = ({
       ctx.textAlign = 'right';
       ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
       ctx.font = 'bold 28px system-ui, -apple-system, sans-serif';
-      ctx.fillText('#AyoJoinPulse', width - 80, 100);
+      ctx.fillText('#SINTESAKemenPPPA', width - 80, 100);
 
       // Text styling - Left aligned
       ctx.textAlign = 'left';
@@ -255,7 +255,7 @@ const TaskShareModal: React.FC<TaskShareModalProps> = ({
       ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
       ctx.font = '24px system-ui, -apple-system, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('Dibuat Oleh Pulse, Manajemen Kerja Kemen PPPA', width / 2, height - 100);
+      ctx.fillText('Dibuat Oleh SINTESA — Sistem Integrasi Kinerja, Tata Kelola, dan Administrasi', width / 2, height - 100);
 
       const currentDate = new Date().toLocaleDateString('id-ID', {
         weekday: 'long',

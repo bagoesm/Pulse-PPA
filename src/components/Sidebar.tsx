@@ -172,14 +172,14 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser,
         <div className={`p-6 border-b border-slate-200/80 transition-all duration-300 ${isCollapsed ? 'px-4' : 'px-6'}`}>
           <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'}`}>
             <img 
-              src="/Logo.svg" 
+              src="/logo-sintesa.svg" 
               alt="Logo" 
               className="w-8 h-8 transition-transform hover:scale-110"
             />
             {!isCollapsed && (
               <div className="animate-fadeIn">
-                <h1 className="font-bold text-slate-800 leading-tight">Pulse</h1>
-                <p className="text-[10px] text-slate-500 font-medium leading-tight">Manajemen Kerja Kemen PPPA</p>
+                <h1 className="font-extrabold text-slate-800 tracking-wide leading-tight">SINTESA</h1>
+                <p className="text-[10px] text-slate-500 font-medium leading-snug mt-0.5">Sistem Integrasi Kinerja, Tata Kelola, dan Administrasi</p>
               </div>
             )}
           </div>

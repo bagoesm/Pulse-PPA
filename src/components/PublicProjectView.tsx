@@ -319,13 +319,13 @@ export const PublicProjectView: React.FC<PublicProjectViewProps> = ({ shareToken
       <nav className="bg-white border-b border-slate-200 px-6 py-3.5 flex justify-between items-center sticky top-0 z-20 shadow-sm">
         <div className="flex items-center gap-2.5">
           <img 
-            src="/Logo.svg" 
+            src="/logo-sintesa.svg" 
             alt="Logo KemenPPPA" 
             className="w-9 h-9 transition-transform hover:scale-105"
           />
           <div>
-            <span className="font-extrabold text-slate-800 text-base leading-none block">Pulse</span>
-            <span className="text-[10px] font-semibold text-slate-400 tracking-wider uppercase mt-0.5 block">Monitoring Publik</span>
+            <span className="font-extrabold text-slate-800 text-base tracking-wide leading-none block">SINTESA</span>
+            <span className="text-[10px] font-semibold text-slate-500 mt-0.5 block">Sistem Integrasi Kinerja, Tata Kelola, dan Administrasi</span>
           </div>
         </div>
         <div className="flex items-center gap-1.5 bg-slate-100 px-3 py-1.5 rounded-full text-xs font-semibold text-slate-600">
@@ -560,7 +560,7 @@ export const PublicProjectView: React.FC<PublicProjectViewProps> = ({ shareToken
 
       {/* Footer */}
       <footer className="bg-white border-t border-slate-200 py-6 text-center text-xs text-slate-400 mt-12">
-        <p>© {new Date().getFullYear()} Pulse-PPA. Sistem Monitoring Kinerja Kementerian PPPA.</p>
+        <p>© {new Date().getFullYear()} SINTESA — Sistem Integrasi Kinerja, Tata Kelola, dan Administrasi Kementerian PPPA.</p>
         <p className="mt-1 text-slate-300">Dikembangkan untuk kolaborasi dan transparansi kinerja tim.</p>
       </footer>
 

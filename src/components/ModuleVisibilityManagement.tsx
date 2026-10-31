@@ -173,7 +173,7 @@ const ModuleVisibilityManagement: React.FC = () => {
         <div className="p-4 bg-slate-50 text-slate-600 text-xs border-b border-slate-150 flex items-start gap-2">
           <HelpCircle size={16} className="text-gov-600 flex-shrink-0 mt-0.5" />
           <div>
-            <span className="font-bold">Panduan:</span> Hubungkan visibilitas modul Pulse dengan mencentang kotak di bawah ini.
+            <span className="font-bold">Panduan:</span> Hubungkan visibilitas modul SINTESA dengan mencentang kotak di bawah ini.
             <ul className="list-disc list-inside mt-1 space-y-0.5 text-[11px] text-slate-500">
               <li>Modul yang tercentang (<span className="text-emerald-600 font-semibold">Aktif</span>) akan muncul pada menu navigasi Satker terkait.</li>
               <li>Modul yang tidak tercentang (<span className="text-red-500 font-semibold">Non-aktif</span>) akan disembunyikan secara dinamis.</li>

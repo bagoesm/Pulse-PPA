@@ -84,7 +84,7 @@ export const UpdateNotification: React.FC = () => {
 
         {/* Version */}
         <div className="text-[9px] text-slate-400 mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
-          <span>Pulse App</span>
+          <span>SINTESA</span>
           <span>Versi {getCurrentVersion()}</span>
         </div>
       </div>

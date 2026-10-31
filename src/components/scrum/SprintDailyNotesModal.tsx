@@ -403,7 +403,7 @@ export const SprintDailyNotesModal: React.FC<SprintDailyNotesModalProps> = ({
       text += `📝 *Catatan:* ${note.generalNotes}\n\n`;
     }
 
-    text += `_Pulse-PPA Daily Standup_`;
+    text += `_SINTESA Daily Standup_`;
 
     navigator.clipboard.writeText(text);
     setCopiedId(note.id);
@@ -447,7 +447,7 @@ export const SprintDailyNotesModal: React.FC<SprintDailyNotesModalProps> = ({
     });
 
     text += `━━━━━━━━━━━━━━━━━━━━━\n`;
-    text += `_Pulse-PPA Agile Sprint Management_`;
+    text += `_SINTESA Agile Sprint Management_`;
 
     navigator.clipboard.writeText(text);
     setCopiedDate(dateStr);

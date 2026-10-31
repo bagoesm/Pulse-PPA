@@ -99,13 +99,13 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, error }) => {
                     <div className="w-12 h-12 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl flex items-center justify-center shadow-2xl relative overflow-hidden group">
                         <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/20 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-2xl"></div>
                         <img 
-                            src="/Logo.svg" 
+                            src="/logo-sintesa.svg" 
                             alt="Logo" 
                             className="w-8 h-8 relative z-10"
                         />
                     </div>
                     <div>
-                        <h2 className="text-white font-semibold text-xl tracking-tight leading-none mb-1">Pulse</h2>
+                        <h2 className="text-white font-bold text-xl tracking-wide leading-none mb-1.5">SINTESA</h2>
                         <p className="text-gov-300 text-[10px] font-bold uppercase tracking-[0.2em] leading-none flex items-center gap-1.5">
                             Dashboard Sistem
                             <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
@@ -120,15 +120,11 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, error }) => {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.8, delay: 0.3, ease: "easeOut" }}
                     >
-                        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/20 text-cyan-300 text-[10px] font-bold uppercase tracking-wider mb-6 backdrop-blur-sm">
-                            <Sparkles size={12} />
-                            <span>Sistem Informasi Terpadu</span>
-                        </div>
-                        <h1 className="text-4xl xl:text-5xl font-bold text-white leading-[1.15] mb-6 tracking-tight">
-                            Manajemen Kerja <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-blue-200">Lebih Efektif & Terukur.</span>
+                        <h1 className="text-3xl xl:text-4xl font-bold text-white leading-[1.2] mb-6 tracking-tight uppercase">
+                            Sistem Integrasi <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-blue-200">Kinerja, Tata Kelola, dan Administrasi</span>
                         </h1>
                         <p className="text-lg xl:text-xl text-gov-100/80 font-light leading-relaxed mb-10">
-                            Platform terpadu untuk monitoring, kolaborasi, dan pencapaian target kerja KemenPPPA Republik Indonesia.
+                            Platform terpadu untuk sinergi dan kolaborasi dalam pencapaian target kinerja Kementerian Pemberdayaan Perempuan dan Perlindungan Anak.
                         </p>
                     </motion.div>
 
@@ -337,14 +333,14 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, error }) => {
                         <div className="w-16 h-16 bg-gradient-to-br from-gov-600 to-gov-800 rounded-2xl mx-auto flex items-center justify-center mb-5 shadow-xl shadow-gov-200/50 relative overflow-hidden group">
                             <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/20 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                             <img 
-                                src="/Logo.svg" 
+                                src="/logo-sintesa.svg" 
                                 alt="Logo" 
                                 className="w-10 h-10 relative z-10"
                             />
                         </div>
-                        <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Pulse</h2>
+                        <h2 className="text-2xl font-extrabold text-slate-800 tracking-wide">SINTESA</h2>
                         <p className="text-xs text-slate-500 mt-2 font-medium">
-                            Manajemen Kerja Kemen PPPA
+                            Dashboard Sistem
                         </p>
                     </motion.div>
 

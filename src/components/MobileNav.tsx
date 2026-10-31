@@ -105,13 +105,13 @@ const MobileNav: React.FC<MobileNavProps> = ({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-gov-600 flex items-center justify-center shadow-md">
-              <span className="text-white font-bold text-lg">P</span>
+              <img src="/logo-sintesa.svg" alt="Logo SINTESA" className="w-8 h-8" />
             </div>
             <div>
               <h1 className="font-bold text-slate-800 text-sm leading-tight">
-                Manajemen Kerja
+                SINTESA
               </h1>
-              <p className="text-[10px] text-slate-500">KemenPPPA</p>
+              <p className="text-[10px] text-slate-500">Sistem Integrasi Kinerja, Tata Kelola, dan Administrasi</p>
             </div>
           </div>
 

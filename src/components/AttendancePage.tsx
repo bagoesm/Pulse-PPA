@@ -1307,7 +1307,7 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
           showNotification?.('Sukses', 'Data Uang Makan berhasil diexport ke Excel.', 'success');
         } else {
           const doc = new jsPDF();
-          doc.text('Laporan Kehadiran Uang Makan - Pulse', 14, 15);
+          doc.text('Laporan Kehadiran Uang Makan - SINTESA', 14, 15);
           doc.setFontSize(10);
           doc.text(`Periode: ${exportStartDate} s.d. ${exportEndDate} | Divisi: ${exportDivisi}`, 14, 22);
 
@@ -1413,7 +1413,7 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
         showNotification?.('Sukses', 'Laporan Kehadiran berhasil diexport ke Excel.', 'success');
       } else {
         const doc = new jsPDF();
-        doc.text('Laporan Kehadiran Pegawai - Pulse', 14, 15);
+        doc.text('Laporan Kehadiran Pegawai - SINTESA', 14, 15);
         doc.setFontSize(10);
         doc.text(`Periode: ${exportStartDate} s.d. ${exportEndDate} | Divisi: ${exportDivisi}`, 14, 22);
 
@@ -1552,10 +1552,10 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
         {/* Top Header */}
         <header className="flex items-center justify-between gap-4 max-w-6xl mx-auto w-full border-b border-slate-200/60 pb-4">
           <div className="flex items-center gap-3">
-            <img src="/Logo.svg" alt="Logo Pulse" className="h-10 w-10" />
+            <img src="/logo-sintesa.svg" alt="Logo SINTESA" className="h-10 w-10" />
             <div>
-              <h1 className="text-base sm:text-lg font-bold text-slate-900 leading-none">Sistem Absensi Pulse</h1>
-              <span className="text-[10px] sm:text-xs text-slate-500 font-bold tracking-wider uppercase">Kementerian PPPA</span>
+              <h1 className="text-base sm:text-lg font-extrabold text-slate-900 leading-none tracking-wide">SINTESA — Sistem Absensi</h1>
+              <span className="text-[10px] sm:text-xs text-slate-500 font-medium">Sistem Integrasi Kinerja, Tata Kelola, dan Administrasi</span>
             </div>
           </div>
           <div className="text-right hidden sm:block">

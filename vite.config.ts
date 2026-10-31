@@ -61,9 +61,9 @@ export default defineConfig(({ mode }) => {
         },
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'favicon.svg'],
         manifest: {
-          name: 'Pulse PPA',
-          short_name: 'Pulse',
-          description: 'Aplikasi Manajemen Kerja KemenPPPA',
+          name: 'SINTESA — Sistem Integrasi Kinerja, Tata Kelola, dan Administrasi',
+          short_name: 'SINTESA',
+          description: 'Sistem Integrasi Kinerja, Tata Kelola, dan Administrasi KemenPPPA',
           theme_color: '#ffffff',
           background_color: '#ffffff',
           display: 'standalone',

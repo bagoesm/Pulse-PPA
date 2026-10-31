@@ -138,7 +138,7 @@ export const exportSprintToPDF = async ({
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(16);
   doc.setTextColor(...primaryColor);
-  doc.text('LAPORAN SPRINT - PULSE PPA', 14, 16);
+  doc.text('LAPORAN SPRINT - SINTESA', 14, 16);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);

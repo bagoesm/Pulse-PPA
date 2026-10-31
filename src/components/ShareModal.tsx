@@ -152,7 +152,7 @@ const ShareModal: React.FC<ShareModalProps> = ({
 
       // Load and draw logo
       try {
-        const logoImage = await loadSVGAsImage('/Logo.svg');
+        const logoImage = await loadSVGAsImage('/logo-sintesa.svg');
         const logoSize = 120; // Logo size
         const logoX = 80; // Left margin
         const logoY = 80; // Top margin
@@ -165,7 +165,7 @@ const ShareModal: React.FC<ShareModalProps> = ({
       ctx.textAlign = 'right';
       ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
       ctx.font = 'bold 32px system-ui, -apple-system, sans-serif';
-      ctx.fillText('#AyoJoinPulse', width - 80, 120);
+      ctx.fillText('#SINTESAKemenPPPA', width - 80, 120);
 
       // Text styling - Left aligned
       ctx.textAlign = 'left';
@@ -261,7 +261,7 @@ const ShareModal: React.FC<ShareModalProps> = ({
       ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
       ctx.font = '24px system-ui, -apple-system, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('Dibuat Oleh Pulse, Manajemen Kerja Kemen PPPA', width / 2, height - 100);
+      ctx.fillText('Dibuat Oleh SINTESA — Sistem Integrasi Kinerja, Tata Kelola, dan Administrasi', width / 2, height - 100);
 
       const currentDate = new Date().toLocaleDateString('id-ID', {
         weekday: 'long',

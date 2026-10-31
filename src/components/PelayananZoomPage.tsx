@@ -851,7 +851,7 @@ const PelayananZoomPage: React.FC<PelayananZoomPageProps> = ({ showNotification 
         context.fillStyle = '#94a3b8'; // slate-400
         context.font = '500 20px Arial, sans-serif';
         context.textAlign = 'right';
-        context.fillText('Dibuat di Pulse PPA, Manajemen Kerja Kemen PPPA', width - 30, height + 36);
+        context.fillText('Dibuat di SINTESA — Sistem Integrasi Kinerja, Tata Kelola, dan Administrasi', width - 30, height + 36);
 
         const png = finalCanvas.toDataURL('image/png');
         const downloadLink = document.createElement('a');
