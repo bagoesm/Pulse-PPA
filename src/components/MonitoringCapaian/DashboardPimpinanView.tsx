@@ -491,8 +491,8 @@ export const DashboardPimpinanView: React.FC<DashboardPimpinanViewProps> = ({
                   {satkerBreakdown.length <= 1
                     ? `Kinerja Realisasi per Biro / Unit Kerja (${selectedSatker !== 'ALL' ? selectedSatker : (satkerBreakdown[0]?.nama || 'Satuan Kerja')})`
                     : breakdownMode === 'satker'
-                      ? 'Kinerja Realisasi per Satuan Kerja / Eselon I'
-                      : 'Kinerja Realisasi per Biro / Unit Kerja'}
+                    ? 'Kinerja Realisasi per Satuan Kerja / Eselon I'
+                    : 'Kinerja Realisasi per Biro / Unit Kerja'}
                 </span>
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
@@ -507,19 +507,21 @@ export const DashboardPimpinanView: React.FC<DashboardPimpinanViewProps> = ({
                 <div className="inline-flex p-0.5 bg-slate-100 rounded-lg border border-slate-200 text-xs">
                   <button
                     onClick={() => setBreakdownMode('satker')}
-                    className={`px-2.5 py-1 rounded-md font-semibold transition-all ${breakdownMode === 'satker'
+                    className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
+                      breakdownMode === 'satker'
                         ? 'bg-white text-slate-900 shadow-2xs'
                         : 'text-slate-600 hover:text-slate-900'
-                      }`}
+                    }`}
                   >
                     Per Satker
                   </button>
                   <button
                     onClick={() => setBreakdownMode('unit')}
-                    className={`px-2.5 py-1 rounded-md font-semibold transition-all ${breakdownMode === 'unit'
+                    className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
+                      breakdownMode === 'unit'
                         ? 'bg-white text-slate-900 shadow-2xs'
                         : 'text-slate-600 hover:text-slate-900'
-                      }`}
+                    }`}
                   >
                     Per Biro/Unit
                   </button>
@@ -541,15 +543,15 @@ export const DashboardPimpinanView: React.FC<DashboardPimpinanViewProps> = ({
                 item.persentase >= 90
                   ? 'bg-emerald-500'
                   : item.persentase > 75
-                    ? 'bg-amber-500'
-                    : 'bg-rose-500';
+                  ? 'bg-amber-500'
+                  : 'bg-rose-500';
 
               const badgeColor =
                 item.persentase >= 90
                   ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                   : item.persentase > 75
-                    ? 'bg-amber-50 text-amber-700 border-amber-200'
-                    : 'bg-rose-50 text-rose-700 border-rose-200';
+                  ? 'bg-amber-50 text-amber-700 border-amber-200'
+                  : 'bg-rose-50 text-rose-700 border-rose-200';
 
               const isUnit = 'satker' in item && item.satker;
 
@@ -563,10 +565,11 @@ export const DashboardPimpinanView: React.FC<DashboardPimpinanViewProps> = ({
                       setSelectedSatker(item.nama);
                     }
                   }}
-                  className={`p-3.5 rounded-xl border transition-all cursor-pointer ${(!isUnit && selectedSatker === item.nama)
+                  className={`p-3.5 rounded-xl border transition-all cursor-pointer ${
+                    (!isUnit && selectedSatker === item.nama)
                       ? 'border-blue-500 bg-blue-50/30 shadow-xs'
                       : 'border-slate-200/80 hover:border-slate-300 hover:bg-slate-50/50'
-                    }`}
+                  }`}
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
                     <div className="flex items-center gap-2">
@@ -695,10 +698,10 @@ export const DashboardPimpinanView: React.FC<DashboardPimpinanViewProps> = ({
                       const color = entry.isPeak
                         ? '#f59e0b'
                         : entry.month === 'Oktober'
-                          ? '#0284c7'
-                          : entry.month === 'November'
-                            ? '#6366f1'
-                            : '#10b981';
+                        ? '#0284c7'
+                        : entry.month === 'November'
+                        ? '#6366f1'
+                        : '#10b981';
                       return <Cell key={`bar-${index}`} fill={color} />;
                     })}
                   </Bar>

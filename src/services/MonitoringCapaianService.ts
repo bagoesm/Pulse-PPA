@@ -122,8 +122,8 @@ export class MonitoringCapaianService {
 
     let komponen = Array.isArray(row.komponen) && row.komponen.length > 0 ? row.komponen : [];
     if (komponen.length === 0) {
-      const init = INITIAL_RO_DATA.find(i =>
-        i.kodeRo === (row.kode_ro || '') &&
+      const init = INITIAL_RO_DATA.find(i => 
+        i.kodeRo === (row.kode_ro || '') && 
         (!row.satker_nama || i.satkerNama === row.satker_nama)
       );
       if (init && init.komponen && init.komponen.length > 0) {
@@ -751,10 +751,10 @@ export class MonitoringCapaianService {
 
           // Inspect first 15 rows to determine file type by actual content, not file name
           const sampleText = rows.slice(0, 15).map(r => (r || []).join(' ')).join(' ').toUpperCase();
-          const isSaktiReport = sampleText.includes('KETERSEDIAAN DANA') ||
-            sampleText.includes('PER PROGRAM;') ||
-            sampleText.includes('PAGU REVISI') ||
-            sampleText.includes('LOCK PAGU');
+          const isSaktiReport = sampleText.includes('KETERSEDIAAN DANA') || 
+                                sampleText.includes('PER PROGRAM;') || 
+                                sampleText.includes('PAGU REVISI') || 
+                                sampleText.includes('LOCK PAGU');
 
           if (isSaktiReport) {
             const result = this.parseSaktiRows(rows, file.name, overrideSatkerNama);
@@ -1159,18 +1159,18 @@ export class MonitoringCapaianService {
       const totKeb = isExportLayout
         ? Number(row[21]) || 0
         : isTemplateOrExportLayout
-          ? 0
-          : Number(row[18]) || 0;
+        ? 0
+        : Number(row[18]) || 0;
       const sisaDana = isExportLayout
         ? Number(row[22]) || 0
         : isTemplateOrExportLayout
-          ? Number(row[18]) || 0
-          : Number(row[19]) || 0;
+        ? Number(row[18]) || 0
+        : Number(row[19]) || 0;
       const ketRaw = isExportLayout
         ? row[23]
         : isTemplateOrExportLayout
-          ? row[19]
-          : row[20];
+        ? row[19]
+        : row[20];
       const ket = ketRaw ? String(ketRaw).trim() : '';
 
       if (colCode && String(colCode).includes('.')) {
@@ -1312,8 +1312,8 @@ export class MonitoringCapaianService {
           prevHasScheduledKomponen && !newHasScheduledKomponen
             ? prev.komponen
             : (n.komponen && n.komponen.length > 0)
-              ? n.komponen
-              : (prev.komponen || []);
+            ? n.komponen
+            : (prev.komponen || []);
 
         const merged: CapaianRO = {
           ...prev,
