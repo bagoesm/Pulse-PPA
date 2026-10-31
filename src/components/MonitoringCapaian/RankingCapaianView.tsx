@@ -207,7 +207,7 @@ export const RankingCapaianView: React.FC<RankingCapaianViewProps> = ({
               onChange={(e) => setSatkerFilter(e.target.value)}
               className="text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
-              <option value="All">Semua Satker Induk</option>
+              <option value="All">Kementerian PPPA (semua Satker)</option>
               {satkers.map(s => (
                 <option key={s.id} value={s.nama}>{s.nama}</option>
               ))}
@@ -226,8 +226,8 @@ export const RankingCapaianView: React.FC<RankingCapaianViewProps> = ({
               'border-2 border-orange-300/90 bg-gradient-to-br from-orange-100/50 via-orange-50/30 to-white text-orange-950 shadow-md'
             ];
             const rankBadges = [
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500 text-white font-bold text-xs shadow-xs"><Trophy size={13} /> #1 Juara Capaian</span>,
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-600 text-white font-bold text-xs shadow-xs"><Medal size={13} /> #2 Runner Up</span>,
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500 text-white font-bold text-xs shadow-xs"><Trophy size={13} /> #1 Peringkat Satu</span>,
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-600 text-white font-bold text-xs shadow-xs"><Medal size={13} /> #2 Peringkat Dua</span>,
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-orange-600 text-white font-bold text-xs shadow-xs"><Award size={13} /> #3 Peringkat Tiga</span>
             ];
 

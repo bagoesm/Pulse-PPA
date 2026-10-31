@@ -7,7 +7,8 @@ import {
   CapaianUnitKerja,
   CapaianKementerianSummary,
   JadwalMingguan,
-  KomponenRO
+  KomponenRO,
+  StatusCapaian
 } from '../../types/monitoringCapaian';
 import { monitoringCapaianService } from '../../services/MonitoringCapaianService';
 
@@ -70,6 +71,8 @@ export const MonitoringCapaianPage: React.FC<MonitoringCapaianPageProps> = ({
   const [selectedKomponenForEdit, setSelectedKomponenForEdit] = useState<KomponenRO | null>(null);
   const [editKomponenIndex, setEditKomponenIndex] = useState<number | null>(null);
   const [focusedUnitFilter, setFocusedUnitFilter] = useState<string>('All');
+  const [focusedStatusFilter, setFocusedStatusFilter] = useState<'ALL' | StatusCapaian>('ALL');
+  const [focusedSatkerFilter, setFocusedSatkerFilter] = useState<string>('All');
 
   const loadData = useCallback(async (showIndicator = false) => {
     if (showIndicator) setIsRefreshing(true);
@@ -223,6 +226,8 @@ export const MonitoringCapaianPage: React.FC<MonitoringCapaianPageProps> = ({
 
   const handleSelectUnitFromHierarchy = (unitName: string) => {
     setFocusedUnitFilter(unitName);
+    setFocusedStatusFilter('ALL');
+    setFocusedSatkerFilter('All');
     setActiveSubTab('ro');
   };
 
@@ -242,42 +247,42 @@ export const MonitoringCapaianPage: React.FC<MonitoringCapaianPageProps> = ({
 
           {/* Executive & Operational Mode Switcher + Toolbar */}
           <div className="flex items-center gap-2.5 flex-wrap">
-            {/* Top-Level Mode Segmented Switcher - Hidden for Menteri & Wakil Menteri */}
+            {/* Top-Level Mode Segmented Switcher */}
+            <div className="bg-slate-100 p-1 rounded-xl border border-slate-200/90 flex items-center shadow-2xs">
+              <button
+                onClick={() => setMainViewMode('dashboard')}
+                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  mainViewMode === 'dashboard'
+                    ? 'bg-white text-blue-700 shadow-2xs border border-slate-200/80 font-bold'
+                    : 'text-slate-600 hover:text-slate-900 font-medium'
+                }`}
+              >
+                <LayoutDashboard size={14} className={mainViewMode === 'dashboard' ? 'text-blue-600' : 'text-slate-500'} />
+                <span>Dashboard Pimpinan</span>
+              </button>
+              <button
+                onClick={() => setMainViewMode('detail')}
+                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  mainViewMode === 'detail'
+                    ? 'bg-white text-blue-700 shadow-2xs border border-slate-200/80 font-bold'
+                    : 'text-slate-600 hover:text-slate-900 font-medium'
+                }`}
+              >
+                <TableProperties size={14} className={mainViewMode === 'detail' ? 'text-blue-600' : 'text-slate-500'} />
+                <span>Data & Rincian Operasional</span>
+                <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full ${
+                  mainViewMode === 'detail' ? 'bg-blue-100 text-blue-800' : 'bg-slate-200 text-slate-600'
+                }`}>
+                  {ros.length} RO
+                </span>
+              </button>
+            </div>
+
+            <div className="h-6 w-px bg-slate-200 hidden sm:block" />
+
+            {/* Operational Data Actions - Hidden for Menteri & Wakil Menteri */}
             {!isMinister && (
               <>
-                <div className="bg-slate-100 p-1 rounded-xl border border-slate-200/90 flex items-center shadow-2xs">
-                  <button
-                    onClick={() => setMainViewMode('dashboard')}
-                    className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                      mainViewMode === 'dashboard'
-                        ? 'bg-white text-blue-700 shadow-2xs border border-slate-200/80 font-bold'
-                        : 'text-slate-600 hover:text-slate-900 font-medium'
-                    }`}
-                  >
-                    <LayoutDashboard size={14} className={mainViewMode === 'dashboard' ? 'text-blue-600' : 'text-slate-500'} />
-                    <span>Dashboard Pimpinan</span>
-                  </button>
-                  <button
-                    onClick={() => setMainViewMode('detail')}
-                    className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                      mainViewMode === 'detail'
-                        ? 'bg-white text-blue-700 shadow-2xs border border-slate-200/80 font-bold'
-                        : 'text-slate-600 hover:text-slate-900 font-medium'
-                    }`}
-                  >
-                    <TableProperties size={14} className={mainViewMode === 'detail' ? 'text-blue-600' : 'text-slate-500'} />
-                    <span>Data & Rincian Operasional</span>
-                    <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full ${
-                      mainViewMode === 'detail' ? 'bg-blue-100 text-blue-800' : 'bg-slate-200 text-slate-600'
-                    }`}>
-                      {ros.length} RO
-                    </span>
-                  </button>
-                </div>
-
-                <div className="h-6 w-px bg-slate-200 hidden sm:block" />
-
-                {/* Operational Data Actions - Hidden for Menteri & Wakil Menteri */}
                 <button
                   onClick={() => {
                     setSelectedRoForEdit(null);
@@ -331,7 +336,7 @@ export const MonitoringCapaianPage: React.FC<MonitoringCapaianPageProps> = ({
 
       {/* Main Scrollable View Area - Fluid Full Width */}
       <div className="flex-1 overflow-y-auto w-full min-h-0 px-4 sm:px-6 lg:px-8 py-5">
-        {(mainViewMode === 'dashboard' || isMinister) ? (
+        {mainViewMode === 'dashboard' ? (
           /* ========================================================= */
           /* MODE 1: DASHBOARD PIMPINAN (EXECUTIVE OVERVIEW)           */
           /* ========================================================= */
@@ -340,14 +345,12 @@ export const MonitoringCapaianPage: React.FC<MonitoringCapaianPageProps> = ({
             satkers={satkers}
             unitKerjas={unitKerjas}
             summary={summary}
-            onNavigateToDetail={(tab, filterUnit) => {
-              if (!isMinister) {
-                setMainViewMode('detail');
-                setActiveSubTab(tab);
-                if (filterUnit) {
-                  setFocusedUnitFilter(filterUnit);
-                }
-              }
+            onNavigateToDetail={(tab, filterUnit, filterStatus, filterSatker) => {
+              setMainViewMode('detail');
+              setActiveSubTab(tab);
+              setFocusedUnitFilter(filterUnit || 'All');
+              setFocusedStatusFilter(filterStatus || 'ALL');
+              setFocusedSatkerFilter(filterSatker || 'All');
             }}
             onSelectRO={(ro) => {
               if (!isMinister) {
@@ -425,24 +428,57 @@ export const MonitoringCapaianPage: React.FC<MonitoringCapaianPageProps> = ({
               {/* Card 4: Distribusi Status Capaian RO */}
               <div className="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-xs hover:border-slate-300 transition-all">
                 <div className="flex items-center justify-between text-xs font-semibold text-slate-600 mb-2">
-                  <span>Status ({summary.totalRO} RO)</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveSubTab('ro');
+                      setFocusedStatusFilter('ALL');
+                    }}
+                    className="hover:text-blue-700 transition-colors"
+                  >
+                    Status Capaian ({summary.totalRO} RO)
+                  </button>
                   <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center border border-amber-100">
                     <Target size={16} />
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-2">
-                  <div className="text-center p-1.5 sm:p-2 rounded-lg bg-emerald-50 border border-emerald-200/80">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveSubTab('ro');
+                      setFocusedStatusFilter('Sesuai Target');
+                    }}
+                    className="text-center p-1.5 sm:p-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/80 transition-colors cursor-pointer"
+                    title="Filter RO Sesuai Target (≥90%)"
+                  >
                     <span className="block text-sm font-bold font-mono tabular-nums text-emerald-800">{summary.countSesuaiTarget}</span>
                     <span className="text-[10px] text-emerald-700 font-semibold">≥90%</span>
-                  </div>
-                  <div className="text-center p-1.5 sm:p-2 rounded-lg bg-amber-50 border border-amber-200/80">
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveSubTab('ro');
+                      setFocusedStatusFilter('Perlu Perhatian');
+                    }}
+                    className="text-center p-1.5 sm:p-2 rounded-lg bg-amber-50 hover:bg-amber-100 border border-amber-200/80 transition-colors cursor-pointer"
+                    title="Filter RO Perlu Perhatian (75-90%)"
+                  >
                     <span className="block text-sm font-bold font-mono tabular-nums text-amber-800">{summary.countPerluPerhatian}</span>
                     <span className="text-[10px] text-amber-700 font-semibold">75-90%</span>
-                  </div>
-                  <div className="text-center p-1.5 sm:p-2 rounded-lg bg-rose-50 border border-rose-200/80">
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveSubTab('ro');
+                      setFocusedStatusFilter('Perlu Intervensi');
+                    }}
+                    className="text-center p-1.5 sm:p-2 rounded-lg bg-rose-50 hover:bg-rose-100 border border-rose-200/80 transition-colors cursor-pointer"
+                    title="Filter RO Perlu Intervensi (≤75%)"
+                  >
                     <span className="block text-sm font-bold font-mono tabular-nums text-rose-800">{summary.countPerluIntervensi}</span>
                     <span className="text-[10px] text-rose-700 font-semibold">≤75%</span>
-                  </div>
+                  </button>
                 </div>
               </div>
             </div>
@@ -455,6 +491,8 @@ export const MonitoringCapaianPage: React.FC<MonitoringCapaianPageProps> = ({
                   onClick={() => {
                     setActiveSubTab('ro');
                     setFocusedUnitFilter('All');
+                    setFocusedStatusFilter('ALL');
+                    setFocusedSatkerFilter('All');
                   }}
                   className={`flex items-center gap-2 py-3 px-3.5 sm:px-4 text-xs sm:text-sm font-semibold border-b-2 transition-all whitespace-nowrap rounded-t-lg ${
                     activeSubTab === 'ro'
@@ -533,6 +571,9 @@ export const MonitoringCapaianPage: React.FC<MonitoringCapaianPageProps> = ({
                 <MonitoringRoView
                   ros={ros}
                   initialUnitFilter={focusedUnitFilter}
+                  initialStatusFilter={focusedStatusFilter}
+                  initialSatkerFilter={focusedSatkerFilter}
+                  readOnly={isMinister}
                   onEditRO={(ro) => {
                     setSelectedRoForEdit(ro);
                     setIsInputModalOpen(true);
@@ -552,6 +593,7 @@ export const MonitoringCapaianPage: React.FC<MonitoringCapaianPageProps> = ({
                 <JadwalPenyerapanAjView
                   ros={ros}
                   initialUnitFilter={focusedUnitFilter}
+                  readOnly={isMinister}
                   onEditJadwal={(ro) => {
                     setSelectedRoForSchedule(ro);
                     setIsScheduleModalOpen(true);
@@ -571,8 +613,10 @@ export const MonitoringCapaianPage: React.FC<MonitoringCapaianPageProps> = ({
                   ros={ros}
                   onSelectUnitKerja={handleSelectUnitFromHierarchy}
                   onSelectRO={(ro) => {
-                    setSelectedRoForSchedule(ro);
-                    setIsScheduleModalOpen(true);
+                    if (!isMinister) {
+                      setSelectedRoForSchedule(ro);
+                      setIsScheduleModalOpen(true);
+                    }
                   }}
                 />
               )}

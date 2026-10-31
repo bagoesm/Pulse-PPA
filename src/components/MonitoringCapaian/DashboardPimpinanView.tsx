@@ -22,7 +22,6 @@ import {
   Sparkles,
   ArrowRight,
   Filter,
-  DollarSign,
   PieChart as PieChartIcon
 } from 'lucide-react';
 import {
@@ -41,7 +40,12 @@ interface DashboardPimpinanViewProps {
   satkers: CapaianSatker[];
   unitKerjas: CapaianUnitKerja[];
   summary: CapaianKementerianSummary;
-  onNavigateToDetail: (tab: 'ro' | 'jadwal' | 'satker' | 'ranking', filterUnit?: string) => void;
+  onNavigateToDetail: (
+    tab: 'ro' | 'jadwal' | 'satker' | 'ranking',
+    filterUnit?: string,
+    filterStatus?: 'ALL' | StatusCapaian,
+    filterSatker?: string
+  ) => void;
   onSelectRO?: (ro: CapaianRO) => void;
 }
 
@@ -100,17 +104,17 @@ export const DashboardPimpinanView: React.FC<DashboardPimpinanViewProps> = ({
   // Aggregate weekly disbursements from AJK for timeline chart
   const weeklyTimeline = useMemo(() => {
     const weeks = [
-      { key: 'okt2', label: 'Okt M-II', shortLabel: 'Okt II', month: 'Oktober' },
-      { key: 'okt3', label: 'Okt M-III', shortLabel: 'Okt III', month: 'Oktober' },
-      { key: 'okt4', label: 'Okt M-IV', shortLabel: 'Okt IV', month: 'Oktober' },
-      { key: 'nov1', label: 'Nov M-I', shortLabel: 'Nov I', month: 'November' },
-      { key: 'nov2', label: 'Nov M-II', shortLabel: 'Nov II', month: 'November' },
-      { key: 'nov3', label: 'Nov M-III', shortLabel: 'Nov III', month: 'November' },
-      { key: 'nov4', label: 'Nov M-IV', shortLabel: 'Nov IV', month: 'November' },
-      { key: 'des1', label: 'Des M-I', shortLabel: 'Des I', month: 'Desember' },
-      { key: 'des2', label: 'Des M-II', shortLabel: 'Des II', month: 'Desember' },
-      { key: 'des3', label: 'Des M-III', shortLabel: 'Des III', month: 'Desember' },
-      { key: 'des4', label: 'Des M-IV', shortLabel: 'Des IV', month: 'Desember' }
+      { key: 'okt2', label: 'Oktober Minggu ke-2', shortLabel: 'Okt II', month: 'Oktober' },
+      { key: 'okt3', label: 'Oktober Minggu ke-3', shortLabel: 'Okt III', month: 'Oktober' },
+      { key: 'okt4', label: 'Oktober Minggu ke-4', shortLabel: 'Okt IV', month: 'Oktober' },
+      { key: 'nov1', label: 'November Minggu ke-1', shortLabel: 'Nov I', month: 'November' },
+      { key: 'nov2', label: 'November Minggu ke-2', shortLabel: 'Nov II', month: 'November' },
+      { key: 'nov3', label: 'November Minggu ke-3', shortLabel: 'Nov III', month: 'November' },
+      { key: 'nov4', label: 'November Minggu ke-4', shortLabel: 'Nov IV', month: 'November' },
+      { key: 'des1', label: 'Desember Minggu ke-1', shortLabel: 'Des I', month: 'Desember' },
+      { key: 'des2', label: 'Desember Minggu ke-2', shortLabel: 'Des II', month: 'Desember' },
+      { key: 'des3', label: 'Desember Minggu ke-3', shortLabel: 'Des III', month: 'Desember' },
+      { key: 'des4', label: 'Desember Minggu ke-4', shortLabel: 'Des IV', month: 'Desember' }
     ];
 
     let maxVal = 0;
@@ -194,9 +198,9 @@ export const DashboardPimpinanView: React.FC<DashboardPimpinanViewProps> = ({
     return list.sort((a, b) => b.persentase - a.persentase).slice(0, 4);
   }, [filteredROs]);
 
-  // Satker breakdown list with percentage
+  // Satker breakdown list with percentage (preserving official Satker order)
   const satkerBreakdown = useMemo(() => {
-    const list = satkers.map(s => {
+    return satkers.map(s => {
       const satkerROs = ros.filter(r => r.satkerNama === s.nama);
       const totalPagu = satkerROs.reduce((a, b) => a + (b.pagu || 0), 0);
       const totalReal = satkerROs.reduce((a, b) => a + (b.realisasi || 0), 0);
@@ -209,7 +213,6 @@ export const DashboardPimpinanView: React.FC<DashboardPimpinanViewProps> = ({
         roCount: satkerROs.length
       };
     });
-    return list.sort((a, b) => b.persentase - a.persentase);
   }, [satkers, ros]);
 
   // Unit Kerja / Biro breakdown list with percentage
@@ -283,7 +286,7 @@ export const DashboardPimpinanView: React.FC<DashboardPimpinanViewProps> = ({
               Dashboard Capaian Anggaran & Target Rincian Output
             </h2>
             <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-              Ikhtisar strategis realisasi pagu nasional, proyeksi likuiditas penyerapan AJK (Okt-Des), dan sistem peringatan dini (early warning) untuk pimpinan Kementerian PPPA.
+              Ringkasan realisasi anggaran nasional, rencana penarikan dana (Okt–Des), serta pantauan Rincian Output yang memerlukan perhatian pimpinan Kementerian PPPA.
             </p>
           </div>
 
@@ -296,9 +299,9 @@ export const DashboardPimpinanView: React.FC<DashboardPimpinanViewProps> = ({
             <select
               value={selectedSatker}
               onChange={(e) => setSelectedSatker(e.target.value)}
-              className="px-3 py-1.5 rounded-lg bg-white text-slate-900 text-xs font-semibold border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 max-w-[240px] truncate shadow-2xs"
+              className="px-3 py-1.5 rounded-lg bg-white text-slate-900 text-xs font-semibold border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 max-w-[260px] truncate shadow-2xs"
             >
-              <option value="All">Seluruh Kementerian (Semua Satker)</option>
+              <option value="All">Kementerian PPPA (semua Satker)</option>
               {satkers.map(s => (
                 <option key={s.id || s.nama} value={s.nama}>
                   {s.nama}
@@ -388,32 +391,54 @@ export const DashboardPimpinanView: React.FC<DashboardPimpinanViewProps> = ({
           </div>
         </div>
 
-        {/* Card 3: Kesehatan Portofolio Output (RO) */}
+        {/* Card 3: Status Capaian RO (Clickable status filter cards) */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-sm hover:shadow-md transition-all flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between text-xs font-semibold text-slate-500 mb-2">
-              <span>Status Portofolio ({currentSummary.totalRO} RO)</span>
+              <button
+                type="button"
+                onClick={() => onNavigateToDetail('ro', undefined, 'ALL', selectedSatker)}
+                className="hover:text-blue-700 transition-colors text-left"
+                title="Klik untuk melihat seluruh Rincian Output"
+              >
+                Status Capaian ({currentSummary.totalRO} RO)
+              </button>
               <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center border border-indigo-100">
                 <Target size={16} />
               </div>
             </div>
             <div className="grid grid-cols-3 gap-2 mt-2">
-              <div className="p-2 rounded-xl bg-emerald-50/80 border border-emerald-200 text-center">
+              <button
+                type="button"
+                onClick={() => onNavigateToDetail('ro', undefined, 'Sesuai Target', selectedSatker)}
+                className="p-2 rounded-xl bg-emerald-50/80 hover:bg-emerald-100 border border-emerald-200 hover:border-emerald-300 text-center transition-all cursor-pointer active:scale-95"
+                title="Klik untuk memfilter RO dengan status Sesuai Target (≥90%)"
+              >
                 <span className="block text-xl font-bold font-mono text-emerald-800">{currentSummary.sesuai}</span>
                 <span className="text-[10px] text-emerald-700 font-semibold">Sesuai (≥90%)</span>
-              </div>
-              <div className="p-2 rounded-xl bg-amber-50/80 border border-amber-200 text-center">
+              </button>
+              <button
+                type="button"
+                onClick={() => onNavigateToDetail('ro', undefined, 'Perlu Perhatian', selectedSatker)}
+                className="p-2 rounded-xl bg-amber-50/80 hover:bg-amber-100 border border-amber-200 hover:border-amber-300 text-center transition-all cursor-pointer active:scale-95"
+                title="Klik untuk memfilter RO dengan status Perlu Perhatian (75-90%)"
+              >
                 <span className="block text-xl font-bold font-mono text-amber-800">{currentSummary.perhatian}</span>
                 <span className="text-[10px] text-amber-700 font-semibold">Perhatian</span>
-              </div>
-              <div className="p-2 rounded-xl bg-rose-50/80 border border-rose-200 text-center">
+              </button>
+              <button
+                type="button"
+                onClick={() => onNavigateToDetail('ro', undefined, 'Perlu Intervensi', selectedSatker)}
+                className="p-2 rounded-xl bg-rose-50/80 hover:bg-rose-100 border border-rose-200 hover:border-rose-300 text-center transition-all cursor-pointer active:scale-95"
+                title="Klik untuk memfilter RO dengan status Perlu Intervensi (≤75%)"
+              >
                 <span className="block text-xl font-bold font-mono text-rose-800">{currentSummary.intervensi}</span>
                 <span className="text-[10px] text-rose-700 font-semibold">Intervensi</span>
-              </div>
+              </button>
             </div>
           </div>
           <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px]">
-            <span className="text-slate-500">Rasio RO Sehat:</span>
+            <span className="text-slate-500">Rasio Sesuai Target:</span>
             <span className="font-bold text-emerald-700 font-mono">
               {currentSummary.totalRO > 0 ? `${((currentSummary.sesuai / currentSummary.totalRO) * 100).toFixed(0)}%` : '0%'}
             </span>
@@ -424,9 +449,9 @@ export const DashboardPimpinanView: React.FC<DashboardPimpinanViewProps> = ({
         <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-sm hover:shadow-md transition-all flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between text-xs font-semibold text-slate-500 mb-2">
-              <span>Puncak Penarikan Dana (Peak)</span>
+              <span>Puncak Penarikan Dana</span>
               <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center border border-amber-100">
-                <DollarSign size={16} />
+                <span className="text-xs font-extrabold font-mono tracking-tighter">Rp</span>
               </div>
             </div>
             <div className="mt-1">
@@ -726,10 +751,10 @@ export const DashboardPimpinanView: React.FC<DashboardPimpinanViewProps> = ({
               </div>
               <div>
                 <h3 className="text-base font-bold text-rose-950">
-                  Radar Intervensi Pimpinan (Early Warning RO Kritis)
+                  Rincian Output (RO) yang Perlu Percepatan
                 </h3>
                 <p className="text-xs text-rose-700/80 mt-0.5">
-                  5 Rincian Output dengan realisasi terendah atau sisa anggaran tertahan yang memerlukan percepatan
+                  5 Rincian Output dengan serapan anggaran paling rendah yang perlu segera ditindaklanjuti
                 </p>
               </div>
             </div>
@@ -795,7 +820,7 @@ export const DashboardPimpinanView: React.FC<DashboardPimpinanViewProps> = ({
           </div>
         </div>
 
-        {/* Right Column (4 Cols): Unit Kerja Terbaik (Top Performers) */}
+        {/* Right Column (4 Cols): Unit Kerja Terbaik */}
         <div className="lg:col-span-4 bg-white p-5 sm:p-6 rounded-2xl border border-emerald-200/80 shadow-xs flex flex-col justify-between">
           <div>
             <div className="flex items-center gap-2.5 border-b border-emerald-100 pb-3">
@@ -849,10 +874,10 @@ export const DashboardPimpinanView: React.FC<DashboardPimpinanViewProps> = ({
         <div className="space-y-1">
           <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
             <Layers size={16} className="text-blue-600" />
-            <span>Ingin Memeriksa Data Operasional & Sub-Komponen Belanja?</span>
+            <span>Ingin Memeriksa Data Operasional & Rincian Komponen Belanja?</span>
           </h4>
           <p className="text-xs text-slate-600">
-            Beralih ke tab <strong>Data & Rincian Operasional</strong> untuk melihat seluruh tabel {ros.length} RO, mengedit rincian komponen (lisensi, ATK, server, konsumsi), dan matriks AJK mingguan.
+            Beralih ke tab <strong>Data & Rincian Operasional</strong> untuk melihat seluruh daftar {ros.length} RO, rincian komponen belanja, serta matriks jadwal penarikan dana mingguan.
           </p>
         </div>
 

@@ -4,6 +4,7 @@ import {
   StatusCapaian,
   KomponenRO
 } from '../../types/monitoringCapaian';
+import { getSatkerOrderIndex } from '../../services/MonitoringCapaianService';
 import {
   Search,
   Filter,
@@ -32,6 +33,9 @@ interface MonitoringRoViewProps {
   onEditKomponen: (ro: CapaianRO, item: KomponenRO, index: number) => void;
   onDeleteKomponen: (ro: CapaianRO, index: number) => void;
   initialUnitFilter?: string;
+  initialStatusFilter?: 'ALL' | StatusCapaian;
+  initialSatkerFilter?: string;
+  readOnly?: boolean;
 }
 
 export const MonitoringRoView: React.FC<MonitoringRoViewProps> = ({
@@ -42,11 +46,14 @@ export const MonitoringRoView: React.FC<MonitoringRoViewProps> = ({
   onAddKomponen,
   onEditKomponen,
   onDeleteKomponen,
-  initialUnitFilter
+  initialUnitFilter,
+  initialStatusFilter,
+  initialSatkerFilter,
+  readOnly = false
 }) => {
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | StatusCapaian>('ALL');
-  const [satkerFilter, setSatkerFilter] = useState<string>('All');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | StatusCapaian>(initialStatusFilter || 'ALL');
+  const [satkerFilter, setSatkerFilter] = useState<string>(initialSatkerFilter || 'All');
   const [unitFilter, setUnitFilter] = useState<string>(initialUnitFilter || 'All');
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
 
@@ -54,18 +61,23 @@ export const MonitoringRoView: React.FC<MonitoringRoViewProps> = ({
     setExpandedRows(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-  // Sync with initialUnitFilter when navigating from hierarchy tab
+  // Sync with initial filters when navigating from dashboard or hierarchy tab
   useEffect(() => {
-    if (initialUnitFilter) {
+    if (initialUnitFilter !== undefined) {
       setUnitFilter(initialUnitFilter);
       if (initialUnitFilter !== 'All') {
         setSatkerFilter('All');
         setSearchTerm('');
-        setStatusFilter('ALL');
       }
-      setCurrentPage(1);
     }
-  }, [initialUnitFilter]);
+    if (initialStatusFilter !== undefined) {
+      setStatusFilter(initialStatusFilter);
+    }
+    if (initialSatkerFilter !== undefined) {
+      setSatkerFilter(initialSatkerFilter);
+    }
+    setCurrentPage(1);
+  }, [initialUnitFilter, initialStatusFilter, initialSatkerFilter]);
 
   // Sorting
   const [sortField, setSortField] = useState<'kodeRo' | 'pagu' | 'realisasi' | 'persentase'>('persentase');
@@ -83,9 +95,16 @@ export const MonitoringRoView: React.FC<MonitoringRoViewProps> = ({
     }).format(val);
   };
 
-  // Distinct Satker & Unit lists for dropdowns
+  // Distinct Satker & Unit lists for dropdowns, sorted in official ministry order
   const satkerOptions = useMemo(() => {
-    return Array.from(new Set(ros.map(r => r.satkerNama))).filter(Boolean);
+    return Array.from(new Set(ros.map(r => r.satkerNama)))
+      .filter(Boolean)
+      .sort((a, b) => {
+        const idxA = getSatkerOrderIndex(a);
+        const idxB = getSatkerOrderIndex(b);
+        if (idxA !== idxB) return idxA - idxB;
+        return a.localeCompare(b);
+      });
   }, [ros]);
 
   const unitOptions = useMemo(() => {
@@ -234,9 +253,9 @@ export const MonitoringRoView: React.FC<MonitoringRoViewProps> = ({
           <select
             value={satkerFilter}
             onChange={(e) => { setSatkerFilter(e.target.value); setUnitFilter('All'); setCurrentPage(1); }}
-            className="text-xs px-3 py-2 border border-slate-200 rounded-lg bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-gov-500 max-w-[180px] truncate"
+            className="text-xs px-3 py-2 border border-slate-200 rounded-lg bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-gov-500 max-w-[220px] truncate"
           >
-            <option value="All">Semua Satuan Kerja</option>
+            <option value="All">Kementerian PPPA (semua Satker)</option>
             {satkerOptions.map(s => (
               <option key={s} value={s}>{s}</option>
             ))}
@@ -412,19 +431,18 @@ export const MonitoringRoView: React.FC<MonitoringRoViewProps> = ({
                   </div>
                 </th>
                 <th className="py-3.5 px-4 text-center">Status</th>
-                <th className="py-3.5 px-4 text-center w-28">Aksi</th>
+                {!readOnly && <th className="py-3.5 px-4 text-center w-28">Aksi</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {paginatedData.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-slate-400 text-sm">
+                  <td colSpan={readOnly ? 7 : 8} className="py-12 text-center text-slate-400 text-sm">
                     Tidak ditemukan data Rincian Output yang sesuai filter.
                   </td>
                 </tr>
               ) : (
                 paginatedData.map((ro) => {
-                  const hasSchedule = ro.jadwal && Object.values(ro.jadwal).some(v => (v || 0) > 0);
                   const hasKomponen = ro.komponen && ro.komponen.length > 0;
                   const isExpanded = !!expandedRows[ro.id];
 
@@ -466,16 +484,18 @@ export const MonitoringRoView: React.FC<MonitoringRoViewProps> = ({
                           )}
 
                           {/* Expand button */}
-                          <div className="mt-2">
-                            <button
-                              type="button"
-                              onClick={() => toggleExpand(ro.id)}
-                              className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded-md border border-blue-200/80 transition-colors shadow-2xs group"
-                            >
-                              {isExpanded ? <ChevronDown size={13} className="text-blue-600" /> : <ChevronRight size={13} className="text-blue-600 group-hover:translate-x-0.5 transition-transform" />}
-                              <span>{isExpanded ? 'Tutup Rincian' : hasKomponen ? `Buka ${ro.komponen!.length} Rincian Belanja / Komponen` : '+ Tambah Rincian Komponen'}</span>
-                            </button>
-                          </div>
+                          {(!readOnly || hasKomponen) && (
+                            <div className="mt-2">
+                              <button
+                                type="button"
+                                onClick={() => toggleExpand(ro.id)}
+                                className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded-md border border-blue-200/80 transition-colors shadow-2xs group"
+                              >
+                                {isExpanded ? <ChevronDown size={13} className="text-blue-600" /> : <ChevronRight size={13} className="text-blue-600 group-hover:translate-x-0.5 transition-transform" />}
+                                <span>{isExpanded ? 'Tutup Rincian' : hasKomponen ? `Buka ${ro.komponen!.length} Rincian Belanja / Komponen` : '+ Tambah Rincian Komponen'}</span>
+                              </button>
+                            </div>
+                          )}
                         </td>
                         <td className="py-3 px-4 text-right font-mono tabular-nums font-semibold text-slate-700 whitespace-nowrap">
                           {formatRupiah(ro.pagu)}
@@ -504,41 +524,43 @@ export const MonitoringRoView: React.FC<MonitoringRoViewProps> = ({
                         <td className="py-3 px-4 text-center whitespace-nowrap">
                           {getStatusBadge(ro.status, ro.persentase)}
                         </td>
-                        <td className="py-3 px-4 text-center whitespace-nowrap">
-                          <div className="flex items-center justify-center gap-1.5">
-                            <button
-                              onClick={() => onEditJadwal(ro)}
-                              className="p-1.5 text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200/80 rounded-lg shadow-2xs transition-colors"
-                              title="Atur Rencana / Jadwal AJK"
-                            >
-                              <Calendar size={15} />
-                            </button>
-                            <button
-                              onClick={() => onEditRO(ro)}
-                              className="p-1.5 text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200/80 rounded-lg shadow-2xs transition-colors"
-                              title="Edit Data Pagu/Realisasi"
-                            >
-                              <Edit size={15} />
-                            </button>
-                            <button
-                              onClick={() => {
-                                if (confirm(`Hapus RO "${ro.kodeRo} - ${ro.namaRo}"?`)) {
-                                  onDeleteRO(ro.id);
-                                }
-                              }}
-                              className="p-1.5 text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200/80 rounded-lg shadow-2xs transition-colors"
-                              title="Hapus RO"
-                            >
-                              <Trash2 size={15} />
-                            </button>
-                          </div>
-                        </td>
+                        {!readOnly && (
+                          <td className="py-3 px-4 text-center whitespace-nowrap">
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button
+                                onClick={() => onEditJadwal(ro)}
+                                className="p-1.5 text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200/80 rounded-lg shadow-2xs transition-colors"
+                                title="Atur Rencana / Jadwal AJK"
+                              >
+                                <Calendar size={15} />
+                              </button>
+                              <button
+                                onClick={() => onEditRO(ro)}
+                                className="p-1.5 text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200/80 rounded-lg shadow-2xs transition-colors"
+                                title="Edit Data Pagu/Realisasi"
+                              >
+                                <Edit size={15} />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (confirm(`Hapus RO "${ro.kodeRo} - ${ro.namaRo}"?`)) {
+                                    onDeleteRO(ro.id);
+                                  }
+                                }}
+                                className="p-1.5 text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200/80 rounded-lg shadow-2xs transition-colors"
+                                title="Hapus RO"
+                              >
+                                <Trash2 size={15} />
+                              </button>
+                            </div>
+                          </td>
+                        )}
                       </tr>
 
                       {/* Expandable Sub-Components Row */}
                       {isExpanded && (
                         <tr className="bg-slate-50/90 border-b border-slate-200/90">
-                          <td colSpan={8} className="p-3 sm:p-4 pl-8 sm:pl-12">
+                          <td colSpan={readOnly ? 7 : 8} className="p-3 sm:p-4 pl-8 sm:pl-12">
                             <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
                               <div className="px-4 py-2.5 bg-slate-100/70 border-b border-slate-200 flex items-center justify-between text-xs font-bold text-slate-800">
                                 <span className="flex items-center gap-2">
@@ -546,14 +568,16 @@ export const MonitoringRoView: React.FC<MonitoringRoViewProps> = ({
                                   Rincian Komponen / Sub-Kegiatan Belanja ({ro.komponen?.length || 0} item)
                                 </span>
                                 <div className="flex items-center gap-3">
-                                  <button
-                                    type="button"
-                                    onClick={() => onAddKomponen(ro)}
-                                    className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors shadow-2xs"
-                                  >
-                                    <Plus size={12} />
-                                    <span>Tambah Komponen</span>
-                                  </button>
+                                  {!readOnly && (
+                                    <button
+                                      type="button"
+                                      onClick={() => onAddKomponen(ro)}
+                                      className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors shadow-2xs"
+                                    >
+                                      <Plus size={12} />
+                                      <span>Tambah Komponen</span>
+                                    </button>
+                                  )}
                                   <span className="font-mono text-[11px] text-slate-500 font-normal">
                                     RO: {ro.kodeRo} • {ro.unitKerjaNama}
                                   </span>
@@ -568,14 +592,16 @@ export const MonitoringRoView: React.FC<MonitoringRoViewProps> = ({
                                     <th className="py-2.5 px-3 text-right w-32">Sisa Anggaran (Rp)</th>
                                     <th className="py-2.5 px-3 min-w-[220px]">Rencana Penarikan Jadwal Mingguan</th>
                                     <th className="py-2.5 px-3">Keterangan</th>
-                                    <th className="py-2.5 px-3 text-center w-20">Aksi</th>
+                                    {!readOnly && <th className="py-2.5 px-3 text-center w-20">Aksi</th>}
                                   </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
                                   {(!ro.komponen || ro.komponen.length === 0) ? (
                                     <tr>
-                                      <td colSpan={7} className="py-6 text-center text-slate-400 text-xs">
-                                        Belum ada rincian belanja operasional untuk RO ini. Silakan klik tombol <strong>Tambah Komponen</strong> di atas.
+                                      <td colSpan={readOnly ? 6 : 7} className="py-6 text-center text-slate-400 text-xs">
+                                        {readOnly
+                                          ? 'Belum ada rincian belanja operasional untuk RO ini.'
+                                          : <>Belum ada rincian belanja operasional untuk RO ini. Silakan klik tombol <strong>Tambah Komponen</strong> di atas.</>}
                                       </td>
                                     </tr>
                                   ) : (
@@ -605,26 +631,28 @@ export const MonitoringRoView: React.FC<MonitoringRoViewProps> = ({
                                             )}
                                           </td>
                                           <td className="py-2.5 px-3 text-slate-500 text-[11px]">{k.keterangan || '-'}</td>
-                                          <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                                            <div className="flex items-center justify-center gap-1">
-                                              <button
-                                                type="button"
-                                                onClick={() => onEditKomponen(ro, k, kIdx)}
-                                                className="p-1 text-amber-700 hover:text-amber-900 hover:bg-amber-100/60 rounded transition-colors"
-                                                title="Edit Rincian Komponen"
-                                              >
-                                                <Edit size={13} />
-                                              </button>
-                                              <button
-                                                type="button"
-                                                onClick={() => onDeleteKomponen(ro, kIdx)}
-                                                className="p-1 text-rose-600 hover:text-rose-800 hover:bg-rose-100/60 rounded transition-colors"
-                                                title="Hapus Rincian Komponen"
-                                              >
-                                                <Trash2 size={13} />
-                                              </button>
-                                            </div>
-                                          </td>
+                                          {!readOnly && (
+                                            <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                                              <div className="flex items-center justify-center gap-1">
+                                                <button
+                                                  type="button"
+                                                  onClick={() => onEditKomponen(ro, k, kIdx)}
+                                                  className="p-1 text-amber-700 hover:text-amber-900 hover:bg-amber-100/60 rounded transition-colors"
+                                                  title="Edit Rincian Komponen"
+                                                >
+                                                  <Edit size={13} />
+                                                </button>
+                                                <button
+                                                  type="button"
+                                                  onClick={() => onDeleteKomponen(ro, kIdx)}
+                                                  className="p-1 text-rose-600 hover:text-rose-800 hover:bg-rose-100/60 rounded transition-colors"
+                                                  title="Hapus Rincian Komponen"
+                                                >
+                                                  <Trash2 size={13} />
+                                                </button>
+                                              </div>
+                                            </td>
+                                          )}
                                         </tr>
                                       );
                                     })

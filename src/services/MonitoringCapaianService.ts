@@ -18,12 +18,26 @@ import { INITIAL_RO_DATA, INITIAL_SATKERS } from '../data/rkklInitialData';
 const STORAGE_KEY = 'pulse_rkkl_monitoring_capaian_v4';
 const DUMMY_IDS = new Set(['ro-39', 'ro-40', 'ro-41', 'ro-42', 'ro-43', 'ro-44']);
 
+export const SATKER_ORDER: string[] = [
+  'Sekretariat Kementerian',
+  'Deputi Bidang Kesetaraan Gender',
+  'Deputi Bidang Pemenuhan Hak Anak',
+  'Deputi Bidang Perlindungan Hak Perempuan',
+  'Deputi Bidang Perlindungan Khusus Anak',
+  'Komisi Perlindungan Anak Indonesia (KPAI)'
+];
+
+export function getSatkerOrderIndex(nama: string): number {
+  const idx = SATKER_ORDER.findIndex(s => s.toLowerCase() === (nama || '').trim().toLowerCase());
+  return idx === -1 ? 999 : idx;
+}
+
 export const SAKTI_SATKER_MAP: Record<string, { id: string; kode: string; nama: string }> = {
   '427944': { id: 'satker-427944', kode: '01', nama: 'Sekretariat Kementerian' },
   '664941': { id: 'satker-664941', kode: '02', nama: 'Deputi Bidang Kesetaraan Gender' },
-  '664958': { id: 'satker-664958', kode: '03', nama: 'Deputi Bidang Perlindungan Hak Perempuan' },
-  '664962': { id: 'satker-664962', kode: '04', nama: 'Deputi Bidang Perlindungan Khusus Anak' },
-  '664979': { id: 'satker-664979', kode: '05', nama: 'Deputi Bidang Pemenuhan Hak Anak' },
+  '664979': { id: 'satker-664979', kode: '03', nama: 'Deputi Bidang Pemenuhan Hak Anak' },
+  '664958': { id: 'satker-664958', kode: '04', nama: 'Deputi Bidang Perlindungan Hak Perempuan' },
+  '664962': { id: 'satker-664962', kode: '05', nama: 'Deputi Bidang Perlindungan Khusus Anak' },
   '664983': { id: 'satker-664983', kode: '06', nama: 'Komisi Perlindungan Anak Indonesia (KPAI)' }
 };
 
@@ -572,7 +586,7 @@ export class MonitoringCapaianService {
     };
   }
 
-  // Get aggregated Satker list (Eselon I)
+  // Get aggregated Satker list (Eselon I), sorted in official ministry order
   public getSatkerAggregates(ros?: CapaianRO[]): CapaianSatker[] {
     const list = ros || this.getROs();
     const map = new Map<string, {
@@ -605,12 +619,19 @@ export class MonitoringCapaianService {
       item.roCount += 1;
     });
 
-    return Array.from(map.values()).map(s => {
+    const sorted = Array.from(map.values()).sort((a, b) => {
+      const idxA = getSatkerOrderIndex(a.nama);
+      const idxB = getSatkerOrderIndex(b.nama);
+      if (idxA !== idxB) return idxA - idxB;
+      return a.nama.localeCompare(b.nama);
+    });
+
+    return sorted.map((s, idx) => {
       const sisa = Math.max(0, s.pagu - s.realisasi);
       const persentase = s.pagu > 0 ? Number(((s.realisasi / s.pagu) * 100).toFixed(2)) : 0;
       return {
         id: s.id,
-        kode: s.kode,
+        kode: String(idx + 1).padStart(2, '0'),
         nama: s.nama,
         pagu: s.pagu,
         realisasi: s.realisasi,

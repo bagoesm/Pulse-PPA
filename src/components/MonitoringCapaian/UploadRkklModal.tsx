@@ -333,10 +333,10 @@ export const UploadRkklModal: React.FC<UploadRkklModalProps> = ({
                   >
                     <option value="auto">⚡ Deteksi Otomatis dari Berkas / SAKTI (Direkomendasikan)</option>
                     <option value="Sekretariat Kementerian">Sekretariat Kementerian</option>
-                    <option value="Deputi Bidang Kesetaraan Gender">Deputi Bidang Kesetaraan Gender (Deputi I)</option>
-                    <option value="Deputi Bidang Pemenuhan Hak Anak">Deputi Bidang Pemenuhan Hak Anak (Deputi II)</option>
-                    <option value="Deputi Bidang Perlindungan Hak Perempuan">Deputi Bidang Perlindungan Hak Perempuan (Deputi III)</option>
-                    <option value="Deputi Bidang Perlindungan Khusus Anak">Deputi Bidang Perlindungan Khusus Anak (Deputi IV)</option>
+                    <option value="Deputi Bidang Kesetaraan Gender">Deputi Bidang Kesetaraan Gender</option>
+                    <option value="Deputi Bidang Pemenuhan Hak Anak">Deputi Bidang Pemenuhan Hak Anak</option>
+                    <option value="Deputi Bidang Perlindungan Hak Perempuan">Deputi Bidang Perlindungan Hak Perempuan</option>
+                    <option value="Deputi Bidang Perlindungan Khusus Anak">Deputi Bidang Perlindungan Khusus Anak</option>
                     <option value="Komisi Perlindungan Anak Indonesia (KPAI)">Komisi Perlindungan Anak Indonesia (KPAI)</option>
                     <option value="custom">+ Ketik Nama Satker Lainnya...</option>
                   </select>

@@ -28,6 +28,7 @@ interface JadwalPenyerapanAjViewProps {
   onEditKomponen: (ro: CapaianRO, item: KomponenRO, index: number) => void;
   onDeleteKomponen: (ro: CapaianRO, index: number) => void;
   initialUnitFilter?: string;
+  readOnly?: boolean;
 }
 
 export const JadwalPenyerapanAjView: React.FC<JadwalPenyerapanAjViewProps> = ({
@@ -38,7 +39,8 @@ export const JadwalPenyerapanAjView: React.FC<JadwalPenyerapanAjViewProps> = ({
   onAddKomponen,
   onEditKomponen,
   onDeleteKomponen,
-  initialUnitFilter
+  initialUnitFilter,
+  readOnly = false
 }) => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [unitFilter, setUnitFilter] = useState<string>(initialUnitFilter || 'All');
@@ -160,22 +162,24 @@ export const JadwalPenyerapanAjView: React.FC<JadwalPenyerapanAjViewProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <button
-            onClick={onDownloadTemplate}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors shadow-2xs"
-          >
-            <Download size={14} className="text-slate-500" />
-            <span>Unduh Format AJK</span>
-          </button>
-          <button
-            onClick={onOpenUpload}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-teal-700 hover:bg-teal-800 rounded-lg transition-colors shadow-xs"
-          >
-            <FileSpreadsheet size={14} />
-            <span>Upload File AJK</span>
-          </button>
-        </div>
+        {!readOnly && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onDownloadTemplate}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors shadow-2xs"
+            >
+              <Download size={14} className="text-slate-500" />
+              <span>Unduh Format AJK</span>
+            </button>
+            <button
+              onClick={onOpenUpload}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-teal-700 hover:bg-teal-800 rounded-lg transition-colors shadow-xs"
+            >
+              <FileSpreadsheet size={14} />
+              <span>Upload File AJK</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Filters */}
@@ -250,8 +254,8 @@ export const JadwalPenyerapanAjView: React.FC<JadwalPenyerapanAjViewProps> = ({
                 <th rowSpan={2} className="py-2.5 px-3 border-r border-rose-700 text-right w-24 text-white bg-rose-600 font-bold">
                   Perkiraan Dana Sisa
                 </th>
-                <th rowSpan={2} className="py-2.5 px-3 border-r border-slate-200 min-w-[150px]">Keterangan</th>
-                <th rowSpan={2} className="py-2.5 px-3 text-center w-16">Aksi</th>
+                <th rowSpan={2} className={`py-2.5 px-3 ${readOnly ? '' : 'border-r border-slate-200'} min-w-[150px]`}>Keterangan</th>
+                {!readOnly && <th rowSpan={2} className="py-2.5 px-3 text-center w-16">Aksi</th>}
               </tr>
 
               {/* Row 2: Week Columns */}
@@ -303,27 +307,29 @@ export const JadwalPenyerapanAjView: React.FC<JadwalPenyerapanAjViewProps> = ({
                         <div className="text-[10px] text-slate-500 font-medium">
                           {ro.unitKerjaNama}
                         </div>
-                        <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                          <button
-                            type="button"
-                            onClick={() => toggleExpand(ro.id)}
-                            className="inline-flex items-center gap-1 text-[10px] font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded border border-blue-200/80 transition-colors shadow-2xs group"
-                          >
-                            {isExpanded ? <ChevronDown size={11} className="text-blue-600" /> : <ChevronRight size={11} className="text-blue-600 group-hover:translate-x-0.5 transition-transform" />}
-                            <span>{isExpanded ? 'Tutup Rincian' : hasKomponen ? `Lihat ${ro.komponen!.length} Rincian Belanja` : '+ Tambah Rincian'}</span>
-                          </button>
-                          {isExpanded && (
+                        {(!readOnly || hasKomponen) && (
+                          <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                             <button
                               type="button"
-                              onClick={() => onAddKomponen(ro)}
-                              className="inline-flex items-center gap-1 text-[10px] font-semibold text-white bg-blue-600 hover:bg-blue-700 px-2 py-0.5 rounded transition-colors shadow-2xs"
-                              title="Tambah Komponen Baru"
+                              onClick={() => toggleExpand(ro.id)}
+                              className="inline-flex items-center gap-1 text-[10px] font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded border border-blue-200/80 transition-colors shadow-2xs group"
                             >
-                              <Plus size={10} />
-                              <span>Tambah</span>
+                              {isExpanded ? <ChevronDown size={11} className="text-blue-600" /> : <ChevronRight size={11} className="text-blue-600 group-hover:translate-x-0.5 transition-transform" />}
+                              <span>{isExpanded ? 'Tutup Rincian' : hasKomponen ? `Lihat ${ro.komponen!.length} Rincian Belanja` : '+ Tambah Rincian'}</span>
                             </button>
-                          )}
-                        </div>
+                            {isExpanded && !readOnly && (
+                              <button
+                                type="button"
+                                onClick={() => onAddKomponen(ro)}
+                                className="inline-flex items-center gap-1 text-[10px] font-semibold text-white bg-blue-600 hover:bg-blue-700 px-2 py-0.5 rounded transition-colors shadow-2xs"
+                                title="Tambah Komponen Baru"
+                              >
+                                <Plus size={10} />
+                                <span>Tambah</span>
+                              </button>
+                            )}
+                          </div>
+                        )}
                       </td>
                       <td className="py-2.5 px-3 border-r border-slate-100 text-right font-mono tabular-nums font-semibold text-slate-700 whitespace-nowrap">
                         {formatNumber(ro.pagu)}
@@ -383,19 +389,21 @@ export const JadwalPenyerapanAjView: React.FC<JadwalPenyerapanAjViewProps> = ({
                       <td className="py-2.5 px-3 border-r border-rose-200/80 text-right font-mono tabular-nums font-bold text-rose-800 bg-rose-50/70 whitespace-nowrap">
                         {formatNumber(ro.danaTidakTerserap)}
                       </td>
-                      <td className="py-2.5 px-3 border-r border-slate-100 text-slate-600 max-w-[200px] truncate" title={ro.keterangan}>
+                      <td className={`py-2.5 px-3 ${readOnly ? '' : 'border-r border-slate-100'} text-slate-600 max-w-[200px] truncate`} title={ro.keterangan}>
                         {ro.keterangan || '-'}
                       </td>
-                      <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                        <button
-                          onClick={() => onEditJadwal(ro)}
-                          className="px-2 py-1 text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200/80 rounded-md transition-colors inline-flex items-center gap-1 font-semibold text-[11px] shadow-2xs"
-                          title="Edit Rencana Jadwal"
-                        >
-                          <Edit3 size={13} />
-                          <span>Edit</span>
-                        </button>
-                      </td>
+                      {!readOnly && (
+                        <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                          <button
+                            onClick={() => onEditJadwal(ro)}
+                            className="px-2 py-1 text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200/80 rounded-md transition-colors inline-flex items-center gap-1 font-semibold text-[11px] shadow-2xs"
+                            title="Edit Rencana Jadwal"
+                          >
+                            <Edit3 size={13} />
+                            <span>Edit</span>
+                          </button>
+                        </td>
+                      )}
                     </tr>
 
                     {/* Sub-Komponen Rows */}
@@ -476,29 +484,31 @@ export const JadwalPenyerapanAjView: React.FC<JadwalPenyerapanAjViewProps> = ({
                           <td className="py-2 px-3 border-r border-rose-200/50 text-right font-mono tabular-nums text-slate-400 bg-rose-50/30 whitespace-nowrap text-[10px]">
                             -
                           </td>
-                          <td className="py-2 px-3 border-r border-slate-100 text-slate-500 max-w-[200px] truncate text-[10px]" title={k.keterangan}>
+                          <td className={`py-2 px-3 ${readOnly ? '' : 'border-r border-slate-100'} text-slate-500 max-w-[200px] truncate text-[10px]`} title={k.keterangan}>
                             {k.keterangan || '-'}
                           </td>
-                          <td className="py-2 px-3 text-center whitespace-nowrap">
-                            <div className="flex items-center justify-center gap-1">
-                              <button
-                                type="button"
-                                onClick={() => onEditKomponen(ro, k, kIdx)}
-                                className="p-1 text-amber-700 hover:text-amber-900 hover:bg-amber-100/60 rounded transition-colors"
-                                title="Edit Rincian Komponen"
-                              >
-                                <Edit3 size={12} />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => onDeleteKomponen(ro, kIdx)}
-                                className="p-1 text-rose-600 hover:text-rose-800 hover:bg-rose-100/60 rounded transition-colors"
-                                title="Hapus Rincian Komponen"
-                              >
-                                <Trash2 size={12} />
-                              </button>
-                            </div>
-                          </td>
+                          {!readOnly && (
+                            <td className="py-2 px-3 text-center whitespace-nowrap">
+                              <div className="flex items-center justify-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => onEditKomponen(ro, k, kIdx)}
+                                  className="p-1 text-amber-700 hover:text-amber-900 hover:bg-amber-100/60 rounded transition-colors"
+                                  title="Edit Rincian Komponen"
+                                >
+                                  <Edit3 size={12} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => onDeleteKomponen(ro, kIdx)}
+                                  className="p-1 text-rose-600 hover:text-rose-800 hover:bg-rose-100/60 rounded transition-colors"
+                                  title="Hapus Rincian Komponen"
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                              </div>
+                            </td>
+                          )}
                         </tr>
                       );
                     })}
@@ -561,7 +571,7 @@ export const JadwalPenyerapanAjView: React.FC<JadwalPenyerapanAjViewProps> = ({
                 <td className="py-3 px-3 border-r border-rose-300 text-right font-mono tabular-nums whitespace-nowrap text-rose-900 bg-rose-100 font-bold">
                   {formatNumber(totals.danaSisa)}
                 </td>
-                <td colSpan={2} className="py-3 px-3"></td>
+                <td colSpan={readOnly ? 1 : 2} className="py-3 px-3"></td>
               </tr>
             </tfoot>
           </table>
